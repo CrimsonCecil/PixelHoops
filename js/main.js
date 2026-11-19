@@ -1051,8 +1051,9 @@
     const N = PH.RX.teams[ab], L = T5.lineup(ab);
     const ovr = Math.round(L.start.reduce((s, k) => s + GM.ARCH[k].ovr, 0) / 5);
     // V4.2 首发五人六大类均值（同选人面板的分组）
+    const CG = AGRP.map((g, i) => i).filter((i) => AGRP[i][0] !== '弹跳');   // 对阵卡两行放不下 7 组：弹跳不上卡（属性页 / 技术统计里有）
     const GA = L.start.map((k) => attrGroups(GM.ARCH[k], GM.ARCH[k])), gv = (gi) => { const v = Math.round(GA.reduce((t, g) => t + g[gi][2], 0) / GA.length); return '<b class="' + vcl(v) + '">' + v + '</b>'; };
-    const g5 = '<span class="pk-s pk-5" data-testid="' + id + '-r5">' + AGRP.slice(0, 3).map((g, gi) => g[1] + gv(gi)).join(' ') + '</span><span class="pk-s pk-5">' + AGRP.slice(3).map((g, gi) => g[1] + gv(gi + 3)).join(' ') + '</span>';
+    const g5 = '<span class="pk-s pk-5" data-testid="' + id + '-r5">' + CG.slice(0, 3).map((gi) => AGRP[gi][1] + gv(gi)).join(' ') + '</span><span class="pk-s pk-5">' + CG.slice(3).map((gi) => AGRP[gi][1] + gv(gi)).join(' ') + '</span>';
     $(id).innerHTML = '<span class="tb5-sw" style="background:' + N.jersey + ';border-color:' + N.trim + '"></span><span class="pk-n">' + N.name + ' <small>' + ovr + '</small></span><span class="pk-s">' + N.city + ' · ' + L.start.map((k) => GM.ARCH[k].name).join(' ') + '</span>' + g5 + '<span class="pk-c">更换</span>';
   }
   function refresh5() {
