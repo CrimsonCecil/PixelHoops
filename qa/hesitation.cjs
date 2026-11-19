@@ -93,6 +93,29 @@ for (const [hand, dir, kind, side, nextHand] of [
   assert(p.action.dx < 0);
 }
 
+// A neutral press buffers during another move; a quick release keeps its direction.
+{
+  const { p, key, step } = fixture();
+  key('KeyD'); key('KeyL'); step();
+  key('KeyD', false); key('KeyL', false); step();
+  key('KeyL'); step();
+  assert(p.buf.hesi);
+  key('KeyA'); key('KeyL', false); step();
+  key('KeyA', false); key('KeyD'); step(48);
+  assert.equal(p.action.kind, 'cross');
+  assert(p.action.dx < 0);
+}
+
+// An ordinary action cooldown also preserves the hesitation press and release.
+{
+  const { p, key, step } = fixture();
+  p.cd = 0.12;
+  key('KeyL'); step();
+  key('KeyS'); key('KeyL', false); step();
+  key('KeyS', false); step(36);
+  assert.equal(p.action.kind, 'stepback');
+}
+
 // The post-up key and the original direction-first dribble still work.
 {
   const { p, key, step } = fixture();
@@ -128,6 +151,9 @@ for (const [hand, dir, kind, side, nextHand] of [
   assert.equal(T.cnt.passes, 0);
   key('KeyW', false); key('KeyS'); key('KeyH', false); step();
   assert.equal(p.action.kind, 'stepback');
+  key('KeyS', false); key('KeyW'); key('KeyH'); step(75);
+  assert.equal(p.action.kind, 'hesi');
+  assert(p.action.hesiHold === 'hesi');
 }
 
 console.log('Hesitation: planted high fake, six release branches, input precedence, post-up, possession loss, and 5V5 passed.');

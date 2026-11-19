@@ -3248,10 +3248,16 @@
     if (e >= a.air + a.slide + a.rec) { pl.action = null; pl.recT = G.time + 0.18; pl.landT = G.time; }
   }
 
-  function startHesitation(pl, inp) {
+  function hesitationInput(pl, inp, q) {
+    const key = inp.hesi ? 'hesi' : q.l > 0.3 ? null : inp.dribble != null ? 'dribble' : 'a3';
+    return key && { key: key, exit: inp[key] ? null : inDir(pl, inp) };
+  }
+  function trackHesitation(pl, h, inp) {
+    if (h && !h.exit && !inp[h.key]) h.exit = inDir(pl, inp);
+  }
+  function startHesitation(pl, inp, h) {
     startMove(pl, inp, 'hesi');
-    const key = inp.hesi ? 'hesi' : inp.dribble != null ? 'dribble' : 'a3';
-    if (pl.ctrl !== 'cpu' && inp[key]) pl.action.hesiHold = key;
+    if (pl.ctrl !== 'cpu' && h) { pl.action.hesiHold = h.key; pl.action.hesiExit = h.exit; }
   }
   function updateHesitation(pl, a, inp) {
     if (!a.hesiHold) return false;
@@ -3545,31 +3551,34 @@
     const frozen = G.phase === 'check' || G.phase === 'over';
     { if (pl.knock) { pl.knockT += dt; if (pl.knockT >= pl.knockD) { pl.knock = null; pl.knockT = 0; pl.knockD = 0; pl.knockUp = 0; } } const s0 = pl.stun; pl.stun = Math.max(0, pl.stun - dt); if (s0 > 0 && pl.stun <= 0) pl.recT = G.time + lerp(K.akRecLo, K.akRecHi, agil(pl)) + K.akRecHv * heavy(pl); }
     pl.cd = Math.max(0, pl.cd - dt); pl.boost = Math.max(0, pl.boost - dt); pl.flash = Math.max(0, pl.flash - dt);
-    const IB = ibOn(pl), raw = inp;
+    const IB = ibOn(pl), raw = inp, moveAtStart = pl.action;
     if (pl.action && pl.action.hesiHold && (!pl.hasBall || G.phase !== 'live' || G.ball.dead || pl.stun > 0)) pl.action = null;
     if (frozen || pl.stun > 0) inp = { mx: 0, my: 0, sprint: false, a1: frozen ? false : inp.a1, a2: false, a3: false, post: false, dx: 0, dy: 0 };
     // 开了输入缓冲：边沿按原始按键算（硬直中按的键交给缓冲；一直按住穿过硬直不会在结束时凭空多出一次）
     const src = IB && !frozen ? raw : inp;
     const pr = { a1: src.a1 && !pl.prev.a1, a2: src.a2 && !pl.prev.a2, a3: src.a3 && !pl.prev.a3 };
     pl.prev.a1 = src.a1; pl.prev.a2 = src.a2; pl.prev.a3 = src.a3;
-    let ibTap = null, ibHd = null;
+    let ibTap = null, ibHd = null, ibHesi = null;
     if (IB) {
       const live = G.phase === 'live' && !G.ball.dead && !frozen;
       if (!live) { pl.ib = null; if (pr.a1 && !pl.hasBall) pl.jbuf = G.time; }
       else {
         if (pl.z > 0.05 || (pl.hasBall && pl.recT > G.time && pl.landT && G.time - pl.landT < 0.6)) ibuf.hold(pl, G.time);
+        if (pl.ib) trackHesitation(pl, pl.ib.hesi, raw);
         // 缓存中的投篮键：记下松手时刻（实际按住时长 hd），执行时回放；5V5 接球前 team5 不把 X 传进来，直接读手柄/键盘的 X
         if (pl.ib && pl.ib.k === 'a1' && pl.ib.hd == null && !ibDown(pl, raw)) pl.ib.hd = G.time - pl.ib.t;
         const k = pr.a3 ? 'a3' : pr.a2 ? 'a2' : pr.a1 ? 'a1' : null; // 同一帧多个键：招式 > 终结 > 投篮（少见）
         if (k && !ibReady(pl, k) && !ibSkip(pl)) {
           const bs = G.ball.state, h = (G.ball.state === 'held' || bs === 'ext') && G.ball.holder >= 0 ? G.players[G.ball.holder] : null;
-          ibuf.push(pl, k, G.time, { mx: raw.mx || 0, my: raw.my || 0, dx: raw.dx || 0, dy: raw.dy || 0, catch: !pl.hasBall && !h });
+          const hs = k === 'a3' && pl.hasBall && !pl.post && !raw.post ? hesitationInput(pl, raw, inDir(pl, raw, true)) : null;
+          ibuf.push(pl, k, G.time, { mx: raw.mx || 0, my: raw.my || 0, dx: raw.dx || 0, dy: raw.dy || 0, catch: !pl.hasBall && !h, hesi: hs });
           pl.jbuf = 0; pr.a1 = pr.a2 = pr.a3 = false;
         } else if (k) ibuf.clear(pl); // 能动了又新按了键：以最新这一下为准
         else if (pl.ib && (pl.ib.k === 'a1' || pl.ib.k === 'a2' || pl.ib.k === 'a3') && (!pl.ib.wc || pl.hasBall) && ibReady(pl, pl.ib.k)) { // 自定义键名的条目留给调用方自己 take；wc 条目球到手前不放
           const e = ibuf.take(pl, G.time);
           if (e) {
             pl.jbuf = 0; pr[e.k] = true; ibTap = e.k; ibHd = e.k === 'a1' ? (e.hd != null ? e.hd : !ibDown(pl, raw) ? G.time - e.t : null) : null;
+            ibHesi = e.hesi;
             if (e.k === 'a3' && Math.hypot(e.dx || e.mx, e.dy || e.my) > 0.3) inp = Object.assign({}, inp, { mx: e.mx, my: e.my, dx: e.dx, dy: e.dy });
           }
         }
@@ -3582,7 +3591,7 @@
       if (pr.a3 && pl.cd <= 0 && pl.stam <= ST.act && !pl.post) noGas(pl, '没体力');
       if (pr.a3) {
         if (pl.post || inp.post) { if (q.l > 0.3 && can && !inp.hesi) startMove(pl, inp, 'postspin'); }
-        else if (inp.hesi || q.l <= 0.3) { if (can && pl.z <= 0.05) startHesitation(pl, inp); }
+        else if (ibHesi || inp.hesi || q.l <= 0.3) { if (can && pl.z <= 0.05) startHesitation(pl, inp, ibHesi || hesitationInput(pl, inp, q)); }
         else { const P = finPlan(pl); if (inp.sprint && P.dunk && P.fv > 2) { const st = q.fwd > 0.55 ? 'two' : q.fwd < -0.2 ? 'flashy' : 'side'; startDunk(pl, P, 'a3', st, q.lat >= 0 ? 1 : -1); } else if ((P.inside || P.back) && P.fv > 2 && (P.lay || P.flo) && startFinish(pl, inp, 'stick', 'a3')) { } else if (can) startMove(pl, inp); }
       }
       if (!pl.action) {
@@ -3594,14 +3603,15 @@
     } else if (!pl.hasBall || frozen || pl.stun > 0) { pl.post = false; }
     // 输入缓存：运球动作进行中按的键记住 0.35 秒；动作过半就能直接接下一招（连招 / 运球接投篮）
     // 只缓存"动作进行中"新按的键（刚由这一下触发的动作不再重复缓存），并记住按下那一刻的方向，接招时按当时推的方向出，不会变成别的动作
-    if (pl.hasBall && pl.action && pl.action.type === 'move' && pl.action.t > 0 && (pr.a1 || pr.a2 || pr.a3)) { const q0 = inDir(pl, inp, true); pl.buf = { a1: pr.a1, a2: pr.a2, a3: pr.a3, t: G.time, x: q0.x, y: q0.y, l: q0.l }; }
+    if (pl.buf) trackHesitation(pl, pl.buf.hesi, raw);
+    if (pl.hasBall && pl.action && pl.action.type === 'move' && pl.action === moveAtStart && (pr.a1 || pr.a2 || pr.a3)) { const q0 = inDir(pl, inp, true); pl.buf = { a1: pr.a1, a2: pr.a2, a3: pr.a3, t: G.time, x: q0.x, y: q0.y, l: q0.l, hesi: pr.a3 && !inp.post ? hesitationInput(pl, inp, q0) : null }; }
     if (pl.post) pl.postAt = G.time;
     if (pl.buf && G.time - pl.buf.t > 0.45) pl.buf = null;
     if (pl.buf && pl.action && pl.action.type === 'move' && pl.action.t >= pl.action.T * (pl.action.cw || 0.55)) { pl.action = null; pl.cd = 0; pl.mvEndT = G.time; }
     if (pl.buf && !pl.action) {
       const B = pl.buf; pl.buf = null;
       if (pl.hasBall && !frozen && pl.stun <= 0 && G.phase === 'live') {
-        if (B.a3 && pl.stam <= ST.act) noGas(pl, '没体力'); else if (B.a3) { pl.cd = 0; const bi = Object.assign({}, inp, { dx: B.l > 0.3 ? B.x : 0, dy: B.l > 0.3 ? B.y : 0, mx: B.l > 0.3 ? B.x : inp.mx, my: B.l > 0.3 ? B.y : inp.my }); startMove(pl, bi, B.l > 0.3 ? null : 'hesi'); }
+        if (B.a3 && pl.stam <= ST.act) noGas(pl, '没体力'); else if (B.a3) { pl.cd = 0; const bi = Object.assign({}, inp, { dx: B.l > 0.3 ? B.x : 0, dy: B.l > 0.3 ? B.y : 0, mx: B.l > 0.3 ? B.x : inp.mx, my: B.l > 0.3 ? B.y : inp.my }); if (B.hesi) startHesitation(pl, bi, B.hesi); else startMove(pl, bi, B.l > 0.3 ? null : 'hesi'); }
         else { pr.a1 = pr.a1 || B.a1; pr.a2 = pr.a2 || B.a2; }
       }
     }
