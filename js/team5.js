@@ -78,7 +78,7 @@
     { k: 't5_csb_p4', g: 't5', cat: 'shot', sub: '徽章', gm: '5v5', label: '接球投篮徽章 名人堂 命中', v: 0.075, min: 0, max: 0.3, step: 0.005, note: '命中率加成比例' },
     { k: 't5_csb_t4', g: 't5', cat: 'shot', sub: '徽章', gm: '5v5', label: '接球投篮徽章 名人堂 出手提速', v: 0.065, min: 0, max: 0.2, step: 0.005, note: '秒。出手动作提前' },
     { k: 't5_csb_xg', g: 't5', cat: 'shot', sub: '徽章', gm: '5v5', label: '接球投篮 空位/掩护额外绿区', v: 0.04, min: 0, max: 0.3, step: 0.01, note: '空位或掩护后接球时额外加宽的绿区比例' },
-    { k: 't5_fat_up', g: 't5', cat: 'stam', sub: '消耗', gm: '5v5', syn: ['l1_stFat0'], label: '长期疲劳 累积', v: 21, min: 0, max: 80, step: 1, mode: 'int', note: '每 7 分钟（12 分钟一节的比例）在场活球时间累积的疲劳点数，冲刺时 ×1.5。1V1 对应：l1_stFat0（疲劳起点）是短时体力的疲劳影响，这里是 5V5 的长期疲劳，两层叠加' },
+    { k: 't5_fat_up', g: 't5', cat: 'stam', sub: '消耗', gm: '5v5', syn: ['l1_stFat0'], label: '长期疲劳 累积', v: 24, min: 0, max: 80, step: 1, mode: 'int', note: '每 7 分钟（12 分钟一节的比例）在场活球时间累积的疲劳点数，高速跑动时再乘高速倍率。1V1 对应：l1_stFat0（疲劳起点）是短时体力的疲劳影响，这里是 5V5 的长期疲劳，两层叠加' },
     { k: 't5_fat_dn', g: 't5', cat: 'stam', sub: '恢复', gm: '5v5', label: '长期疲劳 板凳恢复', v: 35, min: 0, max: 120, step: 1, mode: 'int', note: '每 4 分钟（按节长比例）在板凳上恢复的疲劳点数，死球时减半' },
     { k: 't5_fat_max', g: 't5', cat: 'stam', sub: '疲劳影响', gm: '5v5', syn: ['l1_stFat0'], label: '长期疲劳 上限', v: 60, min: 10, max: 100, step: 1, mode: 'int', note: '疲劳最多累积到这个值（体力上限 = 100 − 疲劳）。1V1 对应：l1_stFat0' },
     { k: 't5_fat_qb', g: 't5', cat: 'stam', sub: '恢复', gm: '5v5', label: '节间休息 恢复', v: 5, min: 0, max: 30, step: 1, mode: 'int', note: '每节之间所有人恢复的疲劳点数' },
@@ -2218,7 +2218,7 @@
     T.sclock = G.shotClock; T.off = G.off;
     // 体力 / 上场时间
     // V3.9h 2K 式两层体力：p.stam 是短时体力（冲刺/动作消耗、喘口气恢复，沿用 1V1 规则），r.fat 是长期疲劳（场上活球时间累积，只在板凳上缓慢恢复）。
-    // 场上体力上限 = 100 - 长期疲劳。按节长比例缩放：首发打约 7 分钟（12 分钟一节的比例）后疲劳约 30 → 体力 ~70%，约 9 分钟后到 ~60% 触发自动换人
+    // 场上体力上限 = 100 - 长期疲劳；疲劳累积和板凳恢复随节长缩放。
     const live = T.phase === 'live', sc = Math.max(0.1, T.qlen / 720);
     for (const tm of T.tm) for (const r of tm.ros) {
       r.fat = r.fat || 0;

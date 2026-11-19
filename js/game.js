@@ -5,7 +5,7 @@
   const GP = 17, GB = 12.5;
     // 可调参数（训练场面板可改，本次打开期间对比赛同样生效）
   const CFG_DEF = { shotClock: 24, shotIdeal: 0.52, greenBase: 0.02, greenRating: 0.07, greenContest: 0.03, greenHeavy: 0.6, lateSlope: 1.2,
-    contestRange: 2.7, contestShot: 0.42, contestLay: 0.45, blockMul: 1, stealMul: 1, ankle: 1, stunMul: 1, speedMul: 1, sprintDrain: 10.5, moveCost: 8.4, stamRegen: 1.68,
+    contestRange: 2.7, contestShot: 0.42, contestLay: 0.45, blockMul: 1, stealMul: 1, ankle: 1, stunMul: 1, speedMul: 1, sprintDrain: 12, moveCost: 9.6, stamRegen: 1.68,
     ibufT: 0.4, ibufMax: 1.5, ibufTap: 0.6 }; // 输入缓冲：有效期 / 绝对上限（含空中、落地硬直）/ 缓冲的点按投篮出手的时机偏差（0=完美 1=很晚）
   const CFG = Object.assign({}, CFG_DEF);
 
@@ -329,7 +329,8 @@
     ['akKyPw', 'ankle', '魔术手 强度倍率', 3, 0, 8, 0.1, '倍率'],
     ['akKyStun', 'ankle', '魔术手 最终时长', 1.6, 0, 4, 0.05, '秒'],
     // —— 体力 ——
-    ['stCost', 'stam', '动作固定消耗倍率', 0.7, 0, 2, 0.05, '倍率：扣篮 / 上篮 / 变向等每次动作的体力'],
+    ['stCost', 'stam', '动作固定消耗倍率', 0.8, 0, 2, 0.05, '倍率：跳投、上篮、扣篮、起跳、抢断、扑球与身体对抗的体力消耗（不含冲刺与运球招式）'],
+    ['stShotCost', 'stam', '跳投 体力消耗', 3, 0, 20, 0.5, '点：实际出手时扣除，再乘动作固定消耗倍率；假投不扣'],
     ['stFat0', 'stam', '疲劳起点', 25, 0, 100, 1, '体力：低于这个开始掉命中 / 速度'],
     ['stLow', 'stam', '低体力门槛', 15, 0, 60, 1, '体力'],
     ['stLay', 'stam', '上篮最低体力', 12, 0, 60, 1, '体力'],
@@ -940,7 +941,7 @@
     for (const [n, f] of [['reach', 'Reach'], ['far', 'Far'], ['rev', 'Rev'], ['swap', 'Swap']]) Object.assign(LSV[n], { blk: K['lv' + f + 'B'], p: K['lv' + f + 'P'], c: K['lv' + f + 'C'] });
   }
   // V3.9q 体力放宽：动作固定消耗 ×0.7；疲劳惩罚从 25 以下才开始（原 40 线性），低体力门槛 25→15、20→12，扣篮最低体力 12→7，跳/动作做不出 5→3、8→5
-  const ST = { cost: 0.7, fat0: 25, low: 15, layLow: 12, dunk: 7, act: 5, jump: 3 };
+  const ST = { cost: K.stCost, fat0: 25, low: 15, layLow: 12, dunk: 7, act: 5, jump: 3 };
   const SV = {
     set: { name: '定点跳投', c: 1, g: 1, p: 1, blk: 1, back: 0, lat: 0 },
     pullup: { name: '急停跳投', c: 1, g: 0.92, p: 0.95, blk: 1, back: 0, lat: 0 },
@@ -2095,6 +2096,7 @@
     const st = G.stats[pl.id]; st.fga++; if (three) st.tpa++; if (kind === 'lay') st.ina++;
     const hp = heldShotPos(pl);
     a.released = true; pl.hasBall = false;
+    if (kind === 'shot') pl.stam = Math.max(0, pl.stam - K.stShotCost * ST.cost);
     if (SK) { pl.sk.cd = 0; fireSkill(pl); }
     if (!SK) {
       if (kind === 'lay') { if (ci.c > 0.2) { bpop(pl, 'acrobat'); bpop(pl, 'bully'); } }
