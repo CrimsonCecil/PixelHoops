@@ -278,8 +278,8 @@
     ['akPred', 'ankle', '读招 成功率抵扣', 0.5, 0, 1, 0.01, '比例'],
     ['akFat', 'ankle', '进攻方疲劳 惩罚', 0.6, 0, 1, 0.01, '比例：体力耗尽时成功率 ×(1 − 这个)'],
     ['akFatD', 'ankle', '防守方疲劳 加成', 0, 0, 3, 0.05, '比例：防守人体力耗尽时成功率 ×(1 + 这个)，默认 0'],
-    ['akHnd0', 'ankle', '控球权重 基础', 0.7, 0, 3, 0.05, '倍率：基础 + 系数 × 控球'],
-    ['akHnd', 'ankle', '控球权重 系数', 0.6, 0, 3, 0.05, '倍率'],
+    ['akHnd0', 'ankle', '控球权重 基础', 0.25, 0, 3, 0.05, '倍率：基础 + 系数 × 控球'],
+    ['akHnd', 'ankle', '控球权重 系数', 1.05, 0, 3, 0.05, '倍率'],
     ['akTk', 'ankle', '控球接管 加成', 1.6, 0, 5, 0.05, '倍率'],
     ['akBmD', 'ankle', '晃开程度 距离权重', 0.4, 0, 1, 0.01, '比例：被晃程度 = 重心 × (1 − 这个 + 这个 × 距离系数)'],
     ['akHesi', 'ankle', '晃人 急停硬直', 0.24, 0, 1, 0.01, '秒：普通晃开的硬直（再乘规则组的硬直倍率）'],
@@ -295,6 +295,7 @@
     ['akT1h', 'ankle', '急停 失重心阈值', 0.5, 0, 2, 0.01, '强度：急停低于这个只是失重心'],
     ['akT2', 'ankle', '踉跄 → 僵直 阈值', 0.62, 0, 2, 0.01, '强度'],
     ['akT3', 'ankle', '僵直 → 晃倒 阈值', 0.8, 0, 3, 0.01, '强度：超过这个晃倒'],
+    ['akT3H', 'ankle', '普通运球 晃倒门槛加成', 0.4, 0, 2, 0.01, '强度：控球 0.70 以下全额加到晃倒门槛，至 0.90 线性归零；背身转身和晃倒必杀不受影响'],
     ['akOffM', 'ankle', '失重心 时长倍率', 1, 0, 4, 0.05, '倍率'],
     ['akDazeM', 'ankle', '踉跄 时长倍率', 1.2, 0, 4, 0.05, '倍率'],
     ['akSpinM', 'ankle', '僵直 时长倍率', 1.35, 0, 4, 0.05, '倍率'],
@@ -3029,7 +3030,8 @@
           : (kind === 'hesi' ? K.akHesi : K.akCross + K.akCrossH * pl.r.hnd) * (df.stance ? K.akStS : 1) * (1 + K.akComboS * (pl.combo - 1)) * bk(pl, 'ankle', K.akBdgS) * (CBk ? CBk.stun : 1) * CFG.stunMul;
         // 四档：晃开（重心偏移）→ 晃晕（踉跄冒星）→ 晃飞（扑空转圈）→ 晃倒（坐地）
         const pw = df.stun * rr(1 - K.akPwR, 1 + K.akPwR) * (K.akPw0 + K.akPwM * df.biteMis) * (kySk ? K.akKyPw : 1) * (PS && !PS.dream ? 0.85 : 1);
-        let tier = kind === 'hesi' && pw < K.akT1h ? 'off' : pw < K.akT1 ? 'off' : pw < K.akT2 ? 'daze' : pw < K.akT3 ? 'spin' : 'fall';
+        const fallAt = K.akT3 + (PS || kySk ? 0 : K.akT3H * clamp((0.9 - hnd) / 0.2, 0, 1));
+        let tier = kind === 'hesi' && pw < K.akT1h ? 'off' : pw < K.akT1 ? 'off' : pw < K.akT2 ? 'daze' : pw < fallAt ? 'spin' : 'fall';
         if (PS && !PS.dream && (tier === 'spin' || tier === 'fall')) tier = pAdv > 0.3 && tier === 'fall' ? 'spin' : 'daze';
         if (PS) scoutRec(pl, 'postspin', tier === 'off' ? 0.25 : 0.5);
         df.stunK = tier; df.stun *= tier === 'off' ? K.akOffM : tier === 'daze' ? K.akDazeM : tier === 'spin' ? K.akSpinM : K.akFallM; if (tier === 'fall') df.stun = Math.max(df.stun, K.akFallMin); if (kySk) df.stun = K.akKyStun;
