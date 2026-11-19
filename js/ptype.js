@@ -1,13 +1,13 @@
 window.PH = window.PH || {};
 (function () {
   const types = {
-    allstar: { name: '全能明星', col: '#ffd24a', pixels: ['....#....', '...###...', '...###...', '#########', '.#######.', '..#####..', '..#####..', '.###.###.', '.#.....#.'] },
-    sniper: { name: '三分射手', col: '#6edcff', pixels: ['.#####...', '##...##..', '.....##..', '...###...', '.....##..', '.....##..', '##...##..', '.#####...'] },
-    slasher: { name: '突破手', col: '#ff9b4a', pixels: ['....###..', '...###...', '..###....', '.######..', '....###..', '...###...', '..###....', '..##.....', '.#.......'] },
-    playmaker: { name: '组织大师', col: '#c69bff', pixels: ['.....#...', '.....##..', '########.', '#########', '########.', '.....##..', '.....#...'] },
-    post: { name: '内线支柱', col: '#ff7f89', pixels: ['#.......#', '#########', '#.......#', '.#######.', '..#.#.#..', '..#####..', '...#.#...', '...###...'] },
-    rim: { name: '护框者', col: '#69b5ff', pixels: ['.#######.', '#########', '#########', '#########', '.#######.', '.#######.', '..#####..', '...###...', '....#....'] },
-    lockdown: { name: '防守大闸', col: '#7de0a2', pixels: ['..#####..', '.##...##.', '.##...##.', '#########', '#########', '####.####', '####.####', '#########', '.#######.'] }
+    allstar: { name: '全能明星', col: '#ffd24a', pixels: ['..#..', '#####', '.###.', '.###.', '#...#'] },
+    sniper: { name: '三分射手', col: '#6edcff', pixels: ['####.', '....#', '..##.', '....#', '####.'] },
+    slasher: { name: '突破手', col: '#ff9b4a', pixels: ['..##.', '.##..', '#####', '..##.', '.##..'] },
+    playmaker: { name: '组织大师', col: '#c69bff', pixels: ['..#..', '...#.', '#####', '...#.', '..#..'] },
+    post: { name: '内线支柱', col: '#ff7f89', pixels: ['#...#', '#####', '.#.#.', '.###.', '..#..'] },
+    rim: { name: '护框者', col: '#69b5ff', pixels: ['#####', '#...#', '#...#', '.#.#.', '..#..'] },
+    lockdown: { name: '防守大闸', col: '#7de0a2', pixels: ['.###.', '.#.#.', '#####', '##.##', '#####'] }
   };
   function of(a) {
     if (!a || typeof a !== 'object') return null;
@@ -36,12 +36,16 @@ window.PH = window.PH || {};
     const t = types[id]; if (!t) return 0;
     x = Math.round(x); y = Math.round(y);
     ctx.save();
-    ctx.fillStyle = '#15101f';
-    t.pixels.forEach((row, r) => { for (let c = 0; c < row.length; c++) if (row[c] === '#') ctx.fillRect(x + c - 1, y + r - 1, 3, 3); });
-    ctx.fillStyle = t.col;
-    t.pixels.forEach((row, r) => { for (let c = 0; c < row.length; c++) if (row[c] === '#') ctx.fillRect(x + c, y + r, 1, 1); });
+    for (let r = 0; r < 11; r++) for (let c = 0; c < 11; c++) {
+      const d = (c - 5) * (c - 5) + (r - 5) * (r - 5);
+      if (d > 30) continue;
+      ctx.fillStyle = d > 21 ? '#15101f' : d > 13 ? t.col : '#202334';
+      ctx.fillRect(x + c, y + r, 1, 1);
+    }
+    ctx.fillStyle = '#fff9e8';
+    t.pixels.forEach((row, r) => { for (let c = 0; c < row.length; c++) if (row[c] === '#') ctx.fillRect(x + c + 3, y + r + 3, 1, 1); });
     ctx.restore();
     return 11;
   }
-  PH.PT = { of: of, draw: draw };
+  PH.PT = { of: of, draw: draw, SIZE: 11 };
 })();
