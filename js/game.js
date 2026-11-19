@@ -146,6 +146,7 @@
     ['dmHesi', 'drib', '犹豫步 位移倍数', 1, 0.3, 2.5, 0.01, '倍率：不推方向'],
     ['dmStep', 'drib', '后撤步 位移倍数', 1, 0.3, 2.5, 0.01, '倍率：后拉。其他动作的百分比都以它为参照'],
     ['dmPost', 'drib', '背身转身 位移倍数', 1, 0.3, 2.5, 0.01, '倍率'],
+    ['pcHnd', 'drib', '急停干拔 控球门槛', 0.88, 0, 1, 0.01, '真实控球达到此值可随时中断运球起跳；脚踝终结者/运球如丝无门槛，后撤步大师仅限后撤步'],
     ['dmKiller', 'drib', '杀手变向 位移倍数', 1, 0.3, 2.5, 0.01, '倍率：运球包招式（不再乘基础动作的倍数）。原来 ≈ 后撤步的 110%'],
     ['dmLegsx', 'drib', '胯下变向 位移倍数', 1.25, 0.3, 2.5, 0.01, '倍率：原来 ≈ 后撤步的 65~67%，1.25 ≈ 82%'],
     ['dmBtbx', 'drib', '背后变向突破 位移倍数', 1, 0.3, 2.5, 0.01, '倍率：斜前，横向分量原来 ≈ 后撤步的 93%'],
@@ -1096,9 +1097,9 @@
     quick: { name: '快速出手', desc: '跳投出手时间缩短 10%，跳投被盖概率 -25%' },
     clutch: { name: '关键先生', desc: '进攻时间 ≤5 秒或赛点时绿区 +30%' },
     fade: { name: '后仰大师', desc: '后仰 / 转身跳投受干扰 -30%、绿区 +20%' },
-    stepper: { name: '后撤步大师', desc: '后撤步距离 +25%，后撤步跳投受干扰 -30%、绿区 +20%' },
-    ankle: { name: '脚踝终结者', desc: '晃人成功率 +50%，晃倒时间 +25%' },
-    tight: { name: '运球如丝', desc: '运球动作体力消耗 -40%，运球时被抢断率 -50%' },
+    stepper: { name: '后撤步大师', desc: '后撤步距离 +25%，后撤步跳投受干扰 -30%、绿区 +20%，后撤步可随时接跳投' },
+    ankle: { name: '脚踝终结者', desc: '晃人成功率 +50%，晃倒时间 +25%，运球可随时接干拔' },
+    tight: { name: '运球如丝', desc: '运球动作体力消耗 -40%，运球时被抢断率 -50%，运球可随时接干拔' },
     acrobat: { name: '杂耍终结', desc: '上篮 / 抛投受干扰 -35%、绿区 +30%' },
     poster: { name: '隔人暴扣', desc: '隔扣对抗 +8：扣篮更难被盖，被干扰时命中下降更少' },
     launch: { name: '起飞跑道', desc: '扣篮起跳距离 +0.4 米' },
@@ -2348,10 +2349,12 @@
   function faceHoop(pl) { const h = hoopDir(pl); return Math.cos(pl.face) * h.x + Math.sin(pl.face) * h.y; }
   // 背身（背打刚结束 / 转身刚做完且背对篮筐）：投篮键出转身跳投，不出抛投
   function backTurn(pl) { const t = G.time; return !pl.post && pl.hasBall && faceHoop(pl) < -0.2 && (t - (pl.postAt || -9) < 0.7 || ((pl.lastMove === 'spin' || pl.lastMove === 'postspin') && t - pl.lastMoveT < 0.9)); }
-  function startShot(pl, inp, btn) {
+  function canPullupCancel(pl, a) { return pl.r.hnd >= K.pcHnd || hasB(pl, 'ankle') || hasB(pl, 'tight') || (a.kind === 'stepback' && hasB(pl, 'stepper')); }
+  function startShot(pl, inp, btn, cancelVariant) {
     const d = distHoop(pl), q = inDir(pl, inp), df = OP(pl);
     let v;
-    if (pl.post || (backTurn(pl) && d < 6.5)) v = q.l > 0.35 && q.fwd < -0.35 ? 'postfade' : d < 4.8 && sigOf(pl, 'hook') >= 0.5 ? 'hook' : 'turn';
+    if (cancelVariant) v = cancelVariant;
+    else if (pl.post || (backTurn(pl) && d < 6.5)) v = q.l > 0.35 && q.fwd < -0.35 ? 'postfade' : d < 4.8 && sigOf(pl, 'hook') >= 0.5 ? 'hook' : 'turn';
     else if (q.l > 0.35 && q.fwd < -0.5) v = 'fade';
     else if (pl.lastMove === 'stepback' && G.time - pl.lastMoveT < 0.8) v = 'stepback';
     else if (q.l > 0.35 && Math.abs(q.lat) > 0.6 && pl.speed > 3) v = 'drift';
@@ -3566,12 +3569,20 @@
         if (was && !pl.post && q.l > 0.3 && Math.abs(q.lat) > 0.5 && can) startMove(pl, inp, 'postspin');
       }
     } else if (!pl.hasBall || frozen || pl.stun > 0) { pl.post = false; pl.a3W = 0; pl.postK = false; }
-    // 输入缓存：运球动作进行中按的键记住 0.35 秒；动作过半就能直接接下一招（连招 / 运球接投篮）
+    // 运球接招按取消窗口；普通投篮等动作做完，高控球/徽章可随时干拔
     // 只缓存"动作进行中"新按的键（刚由这一下触发的动作不再重复缓存），并记住按下那一刻的方向，接招时按当时推的方向出，不会变成别的动作
-    if (pl.hasBall && pl.action && pl.action.type === 'move' && pl.action.t > 0 && (pr.a1 || pr.a2 || pr.a3)) { const q0 = inDir(pl, inp, true); pl.buf = { a1: pr.a1, a2: pr.a2, a3: pr.a3, t: G.time, x: q0.x, y: q0.y, l: q0.l }; }
+    if (pl.hasBall && pl.action && pl.action.type === 'move' && (pr.a1 || pr.a2 || pr.a3)) { const q0 = inDir(pl, inp, true), a = pl.action; pl.buf = { a1: pr.a1, a2: pr.a2, a3: pr.a3, t: G.time, until: G.time + Math.max(0.45, pr.a1 ? a.T - a.t + 0.15 : 0), x: q0.x, y: q0.y, l: q0.l }; }
     if (pl.post) pl.postAt = G.time;
-    if (pl.buf && G.time - pl.buf.t > 0.45) pl.buf = null;
-    if (pl.buf && pl.action && pl.action.type === 'move' && pl.action.t >= pl.action.T * (pl.action.cw || 0.55)) { pl.action = null; pl.cd = 0; pl.mvEndT = G.time; }
+    if (pl.buf && G.time > pl.buf.until) pl.buf = null;
+    if (pl.buf && pl.action && pl.action.type === 'move') {
+      const a = pl.action, B = pl.buf, shot = B.a1 && !B.a2 && !B.a3;
+      if (shot && canPullupCancel(pl, a) && pl.hasBall && !frozen && pl.stun <= 0 && G.phase === 'live') {
+        pl.buf = null; pl.cd = 0; pl.mvEndT = G.time; pl.lastMoveT = G.time;
+        pl.vx = pl.vy = pl.vz = pl.z = pl.speed = 0;
+        startShot(pl, inp, 'a1', a.kind === 'stepback' ? 'stepback' : 'pullup');
+        if (a.kind !== 'stepback') float('急停干拔', pl, '#f6efe0', 1);
+      } else if (a.t >= a.T * (shot ? 1 : (a.cw || 0.55))) { pl.action = null; pl.cd = 0; pl.mvEndT = G.time; }
+    }
     if (pl.buf && !pl.action) {
       const B = pl.buf; pl.buf = null;
       if (pl.hasBall && !frozen && pl.stun <= 0 && G.phase === 'live') {
