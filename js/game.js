@@ -3863,7 +3863,7 @@
     W.swish = green ? (lay ? 7 : 16) : lay ? 2.6 : 3;
     W.kiss = (green ? 1.6 : 1.8) * (arc === 'low' ? 2.6 : arc === 'high' ? 0.6 : 1);
     W.front = (lay ? 1.5 : 1.6) * gq; W.back = (lay ? 0.8 : 1.4) * gq; W.roll = 1.3 * gq; W.rattle = 1.2 * gq;
-    W.bank = (lay || (d < 6 && Math.abs(pl.x - hx) > 1.2)) && !V.hook ? (lay ? 2.5 : 1.2) * (green ? 0.6 : 1) : 0;
+    W.bank = (lay || (d < 6 && Math.abs(pl.x - hx) > 1.2)) && !V.hook ? (lay ? (d < 3 && !V.floater ? 5 : 2.5) : 1.2) * (green ? 0.6 : 1) : 0;
     W.high = 0.45 * far * gq; W.sit = 0.3 * gq; W.top = 0.25 * far * gq; W.lip = 0.5 * gq; W.spin = 0.6 * gq; if (d < 3) { W.rattle *= 0.6; W.back *= 0.6; }
     if (V.floater || V.hook) { W.front += 0.8 * gq; W.roll += 0.5 * gq; W.kiss += 0.6; }
     if (arc === 'low') { W.swish *= green ? 0.75 : 0.6; W.front *= 1.4; W.rattle *= 1.3; }
