@@ -1831,6 +1831,7 @@
   function methodOf(p, info) {
     const mv = G.time - (p.lastMoveT || -9) < 2.2 ? p.lastMove : '', a = p.action;
     if (mv === 'postspin') return 'postspin';
+    if (playCPU(p) && a && a.playOrigin === 'post') return 'post';
     if (p.post || (a && a.V && (a.V.hook || a.v === 'postfade' || a.v === 'turn') && distHoop(p) < 4.6)) return 'post';
     if (info.zone === 'lay') return 'drive';
     if (mv === 'stepback') return 'stepback';
@@ -4211,7 +4212,7 @@
     const W = base.map((w, i) => Math.pow(Math.max(0.001, w) * clamp(Math.exp(K.aiPlLearn * M[PLAYS[i]]), 0.4, 2.5), 1 / temp));
     let x = rnd() * W.reduce((a, b) => a + b, 0), call = PLAYS[4];
     for (let i = 0; i < W.length; i++) { x -= W[i]; if (x < 0) { call = PLAYS[i]; break; } }
-    A.call = call; A.callLost = false; playCount('call_' + call); return call;
+    A.call = call; A.callLost = false; A.rangeAt = null; A.driveAt = null; A.postFinish = null; playCount('call_' + call); return call;
   }
   function playResult(pl, info) {
     if (!playCPU(pl) || !pl.ai.call || pl.ai.playShot === info.id) return;
@@ -4321,6 +4322,18 @@
     return v;
   }
   function aiInput(pl, dt, opt) {
+    const o = aiInputCore(pl, dt, opt);
+    if (playCPU(pl) && pl.hasBall) {
+      if (pl.x > 6.6 && o.mx > 0) o.mx = -0.5; if (pl.x < -6.6 && o.mx < 0) o.mx = 0.5;
+      if (pl.y < 0.9 && o.my < 0) o.my = 0.5; if (pl.y > 13 && o.my > 0) o.my = -0.5;
+      if (o.a3) {
+        if (pl.x > 5.2 && o.dx > 0) o.dx = -Math.abs(o.dx); if (pl.x < -5.2 && o.dx < 0) o.dx = Math.abs(o.dx);
+        if (pl.y < 2.5 && o.dy < 0) o.dy = -o.dy; if (pl.y > 11.5 && o.dy > 0) o.dy = -o.dy;
+      }
+    }
+    return o;
+  }
+  function aiInputCore(pl, dt, opt) {
     const o = zeroInp();
     const ai = pl.ai, opp = OP(pl), b = G.ball, D = diffOf(pl);
     ai.t -= dt; ai.stealCd -= dt; ai.moveCd -= dt;
@@ -4332,6 +4345,7 @@
     if (G.phase === 'dead') { go(pl.x * 0.7, 6.5, 0.5); return o; }
     if (pl.hasBall) {
       const d = distHoop(pl), a = pl.action;
+      if (playCPU(pl) && a && (a.type === 'shot' || a.type === 'layup' || a.type === 'dunk') && ai.postFinish != null && G.time - ai.postFinish < 2.5 && pl.lastMoveT <= ai.postFinish) a.playOrigin = 'post';
       const duel = G.mode !== 't5' && (G.mode === 'cpu' || G.mode === 'train') && (playCPU(pl) && ai.call ? !postCall(pl) : styOf(pl) !== 'post');
       const rhythm = duel ? duelRhythm(pl) : 0;
       if (duel && ai.su && a && a.type === 'move' && ai.su.moveFor !== a) { ai.su.moveFor = a; ai.su.nm = (ai.su.nm || 0) + 1; }
@@ -4370,10 +4384,15 @@
       // 自己投篮比终结更可能得分时（相对能力，不是绝对数值）：返回 0~1 的偏好；对面护框越强，终结越打折
       const jPref = () => { const jr = isThree(pl.x, pl.y) ? pl.r.three : pl.r.mid, rk = ai.rimK == null ? 1 : ai.rimK, f = ai.fin == null ? 0.5 : ai.fin; return jr < 0.55 ? 0 : clamp((jr - f * Math.min(1.1, rk) - 0.06) / 0.3, 0, 1) * (playCPU(pl) && ai.call ? offK(pl, 'Pull') / Math.max(0.01, styK(pl, 'Pull')) : 1); };
       const shootNow = () => {
+        if (playCPU(pl) && ai.call === 'drive' && d > 4 && G.shotClock > K.aiSuClk) {
+          if (ai.driveAt == null) ai.driveAt = G.time;
+          if (setDef) { ai.driveAt = -Infinity; ai.plan = 'iso'; return; }
+          if (G.time - ai.driveAt < 0.6) { ai.plan = 'drive'; ai.t = 0.6; go(pl.x + hx * 2, pl.y + hy * 2); o.sprint = pl.stam > 30; return; }
+        }
         if (playCPU(pl) && G.shotClock > K.aiSuClk && (ai.call === 'mid' && isThree(pl.x, pl.y) || ai.call === 'three' && !isThree(pl.x, pl.y) && d > 3)) {
           const target = ai.call === 'mid' ? 5.2 : 7.3;
-          if (setDef) { ai.plan = 'iso'; return; }
-          go(HOOP.x - hx * target, HOOP.y - hy * target, 0.85); return;
+          if (ai.rangeAt == null) ai.rangeAt = G.time;
+          if (G.time - ai.rangeAt < 0.45 && !setDef) { go(HOOP.x - hx * target, HOOP.y - hy * target, 0.85); return; }
         }
         const lay = (FP.inside || FP.back) && (FP.lay || d < K.aiLay * K.layK);
         o.mx = 0; o.my = 0;
@@ -4496,6 +4515,7 @@
         }
         if (Math.abs(pl.x) > 5.5) ai.side = pl.x > 0 ? -1 : 1;
       }
+      if (playCPU(pl) && postCall(pl) && setDef && d < 6.2) ai.plan = 'post';
       if (ai.plan === 'post') {
         ai.postT += dt; o.post = true;
         // 背身跳投能力：不会投的内线（加福德这类）不在中距离硬投后仰，要么继续往里顶，要么面框突破
@@ -4505,6 +4525,7 @@
         if (dd > 2.4 && ai.postT > 0.4) ai.plan = 'drive';
         else if (ready && d >= 4.3 && pj < 0.58 && !late) { ai.plan = 'drive'; ai.t = 0.6; ai.postT = 0; o.mx = hx; o.my = hy; return o; }
         else if (ready) {
+          if (playCPU(pl)) ai.postFinish = G.time;
           if ((d < 2.9 && pl.r.dunk > 0.6 && rnd() < 0.4) || (opp.seal > G.time && d < 3.4 && pl.r.sdunk >= 0.6 && rnd() < 0.8) || (d < 3.1 && pj < 0.5 && rnd() < 0.6)) o.a2 = true;
           else { o.a1 = true; if (pj >= 0.58 && (rnd() < 0.4 * pj || d >= 4.8)) { o.mx = -hx; o.my = -hy; } }
           ai.plan = 'drive'; ai.t = 0.5; return o;
