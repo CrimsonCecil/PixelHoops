@@ -46,76 +46,19 @@
   window.__pickArch = pickArch; window.__portrait = (cv, k, side) => portrait(cv, GM.ARCH[k], GM.TEAMS[side || 0]);
   // ---------- 球员选择 ----------
   const A99 = (v) => Math.round(v * 99);
-  function faceCanvas(cv, a, team) {
-    const c = cv.getContext('2d'), W = cv.width, k = W / 16; c.imageSmoothingEnabled = false; c.clearRect(0, 0, W, W);
-    const px = (x, y, w, h, col) => { c.fillStyle = col; c.fillRect(Math.round(x * k), Math.round(y * k), Math.ceil(w * k), Math.ceil(h * k)); };
-    const T = team || GM.TEAMS[0], sk = a.skin, dk = PH.shade(sk, 0.72), bw = a.bw || 1;
-    const fw = Math.max(6.6, Math.min(9.6, 8 * (0.82 + 0.18 * bw))), x0 = 8 - fw / 2, nw = 4 * bw;
-    px(Math.max(0, 8 - 6 * (0.7 + 0.3 * bw)), 12, 12 * (0.7 + 0.3 * bw), 4, T.jersey); px(3, 12, 10, 1, T.trim); px(8 - nw / 2, 11, nw, 2, dk);
-    px(x0, 3, fw, 9, dk); px(x0, 3, fw - 0.6, 8.4, sk);
-    const st = a.style;
-    if (st === 'afro') px(x0 - 1, 0.5, fw + 2, 4.2, a.hair);
-    else if (st === 'curly') { px(x0, 1.6, fw, 2.6, a.hair); for (let i = 0; i < fw; i += 1.6) px(x0 + i, 1, 1, 0.8, a.hair); }
-    else if (st === 'buzz') { c.globalAlpha = 0.7; px(x0, 2.6, fw, 1.4, a.hair); c.globalAlpha = 1; }
-    else if (st === 'bald') px(x0 + 1, 3.2, 2, 0.8, 'rgba(255,255,255,0.35)');
-    else px(x0, 2, fw, 2.4, a.hair);
-    if (a.band) px(x0, 3.8, fw, 1, a.band);
-    px(x0 + 1.6, 6.6, 1.2, 1.2, '#1a1020'); px(x0 + fw - 2.8, 6.6, 1.2, 1.2, '#1a1020');
-    const bd = a.beard === true ? 'full' : a.beard;
-    if (bd === 'full') { px(x0, 9.6, fw, 1.6, a.hair); px(x0, 8, 0.8, 2, a.hair); px(x0 + fw - 0.8, 8, 0.8, 2, a.hair); px(x0 + 2, 9, fw - 4, 0.6, a.hair); }
-    else if (bd === 'goatee') { px(7, 9.8, 2, 1.4, a.hair); px(6.6, 9.2, 2.8, 0.5, a.hair); }
-    else if (bd === 'stubble') { c.globalAlpha = 0.4; px(x0, 9.4, fw, 1.8, a.hair); c.globalAlpha = 1; px(6.6, 9.4, 2.8, 0.6, dk); }
-    else px(6.6, 9.4, 2.8, 0.7, dk);
-  }
-  // V3.3：必杀技插屏用的 32×32 高精度头像（阴影、眉眼、鼻嘴、胡子、头带、队色轮廓光）
-  function portrait(cv, a, team, eyesOnly) {
-    const c = cv.getContext('2d'), W = cv.width, k = W / 32; c.imageSmoothingEnabled = false; c.clearRect(0, 0, W, cv.height);
-    const px = (x, y, w, h, col) => { c.fillStyle = col; c.fillRect(Math.round(x * k), Math.round(y * k), Math.ceil(w * k), Math.ceil(h * k)); };
-    const T = team || GM.TEAMS[0], sk = a.skin, dk = PH.shade(sk, 0.74), dk2 = PH.shade(sk, 0.58), hl = PH.shade(sk, 1.12), hr = a.hair, hrL = PH.shade(hr, 1.6), bw = a.bw || 1;
-    const fc = (GM.lookOf ? GM.lookOf(a).face : 'square') || 'square';
-    let fw = Math.max(13, Math.min(18, 15 * (0.86 + 0.14 * bw))), top = 6, chin = 24;
-    if (fc === 'long') { fw -= 1; top = 5; chin = 25; } else if (fc === 'wide') fw += 1.5; else if (fc === 'round') { fw += 0.5; chin = 23.5; } else if (fc === 'oval') fw -= 0.5;
-    fw = Math.round(fw); const x0 = 16 - fw / 2, x1 = x0 + fw;
-    // 肩膀与球衣
-    const sw = Math.min(30, 22 + 6 * bw); px(16 - sw / 2, 27, sw, 5, T.jersey); px(16 - sw / 2, 27, sw, 0.8, PH.shade(T.jersey, 1.25));
-    px(11, 26.4, 10, 1.2, T.trim); px(12.4, 26.4, 7.2, 2.6, dk); px(13.6, 26.4, 4.8, 1.8, dk2);
-    c.fillStyle = T.trim; c.font = 'bold ' + Math.round(3.6 * k) + 'px monospace'; c.textAlign = 'center'; c.fillText(String(a.num == null ? '' : a.num), 16 * k, 31.6 * k);
-    // 脖子
-    px(16 - fw * 0.26, 22, fw * 0.52, 5, dk); px(16 - fw * 0.26, 22, fw * 0.12, 5, dk2);
-    // 耳朵
-    px(x0 - 1, 13, 1.4, 4, dk); px(x1 - 0.4, 13, 1.4, 4, dk);
-    // 脸：主体 + 下颌收窄 + 侧影 + 高光
-    px(x0, top, fw, chin - top - 3, sk);
-    const jw = fc === 'square' || fc === 'wide' ? 1 : fc === 'long' ? 2 : 1.5;
-    px(x0 + jw * 0.5, chin - 3, fw - jw, 2, sk); px(x0 + jw + 1, chin - 1, fw - 2 * jw - 2, 1, sk);
-    px(x1 - 2, top + 1, 2, chin - top - 4, dk); px(x1 - 2.5, chin - 3, 2, 2, dk); px(x0 + jw + 1, chin - 0.4, fw - 2 * jw - 2, 0.6, dk2);
-    px(x0 + 1.2, top + 2.5, 1, 6, hl);
-    // 头发
-    const st = a.style;
-    if (st === 'afro') { px(x0 - 2, top - 4, fw + 4, 6.5, hr); px(x0 - 2, top + 2, 2, 5, hr); px(x1, top + 2, 2, 5, hr); px(x0, top - 3.4, fw, 0.8, hrL); }
-    else if (st === 'curly') { px(x0 - 0.5, top - 2.4, fw + 1, 4, hr); for (let i = 0; i < fw; i += 2) px(x0 + i, top - 3, 1.2, 0.8, hr); for (let i = 1; i < fw; i += 3) px(x0 + i, top - 1.6, 0.8, 0.6, hrL); }
-    else if (st === 'buzz') { c.globalAlpha = 0.75; px(x0, top - 1, fw, 2.6, hr); px(x0, top + 1.6, 1, 3, hr); px(x1 - 1, top + 1.6, 1, 3, hr); c.globalAlpha = 1; }
-    else if (st === 'bald') { px(x0 + 2, top + 0.4, 4, 1, 'rgba(255,255,255,0.38)'); px(x0 + 2, top + 1.4, 1.5, 0.6, 'rgba(255,255,255,0.25)'); }
-    else if (st === 'long') { px(x0 - 1, top - 2, fw + 2, 3.4, hr); px(x0 - 1.5, top, 2, 14, hr); px(x1 - 0.5, top, 2, 14, hr); px(x0 + 1, top - 1.6, fw - 2, 0.6, hrL); }
-    else { px(x0 - 0.4, top - 2, fw + 0.8, 3.6, hr); px(x0, top + 1.4, 1.2, 3.2, hr); px(x1 - 1.2, top + 1.4, 1.2, 3.2, hr); px(x0 + 2, top - 1.4, fw - 5, 0.6, hrL); }
-    if (a.band) { px(x0 - 0.4, top + 1.6, fw + 0.8, 1.6, a.band); px(x0 - 0.4, top + 1.6, fw + 0.8, 0.5, PH.shade(a.band, 1.4)); }
-    // 眉眼：压低的怒眉 + 眼白 + 瞳孔 + 高光
-    const ey = top + 7.2, eL = x0 + fw * 0.2, eR = x1 - fw * 0.2 - 3;
-    px(eL - 0.4, ey - 1.6, 3.6, 1, PH.shade(hr, 0.9)); px(eR - 0.2, ey - 1.6, 3.6, 1, PH.shade(hr, 0.9)); px(eL + 2.4, ey - 1, 1, 0.6, PH.shade(hr, 0.9)); px(eR - 0.2, ey - 1, 1, 0.6, PH.shade(hr, 0.9));
-    px(eL, ey, 3, 1.4, '#f2eee6'); px(eR, ey, 3, 1.4, '#f2eee6'); px(eL + 1.2, ey, 1.4, 1.4, '#1a1020'); px(eR + 0.4, ey, 1.4, 1.4, '#1a1020');
-    px(eL + 1.2, ey, 0.5, 0.5, '#ffffff'); px(eR + 0.4, ey, 0.5, 0.5, '#ffffff'); px(eL, ey + 1.4, 3, 0.5, dk); px(eR, ey + 1.4, 3, 0.5, dk);
-    if (!eyesOnly) {
-      // 鼻子与嘴
-      px(15.4, ey + 1.4, 1, 3.4, dk); px(14.4, ey + 4.4, 3.2, 1, dk2); px(16.4, ey + 3.6, 0.8, 0.8, dk);
-      const my = ey + 6.6; px(13.6, my, 4.8, 0.8, dk2); px(14.2, my + 0.8, 3.6, 0.5, dk);
-      const bd = a.beard === true ? 'full' : a.beard;
-      if (bd === 'full') { px(x0, my - 1.2, 1.6, chin - my + 0.4, hr); px(x1 - 1.6, my - 1.2, 1.6, chin - my + 0.4, hr); px(x0 + 1.2, my + 1.2, fw - 2.4, chin - my - 1, hr); px(13, my - 1, 6, 0.8, hr); }
-      else if (bd === 'goatee') { px(14.2, my + 1.4, 3.6, chin - my - 1.6, hr); px(13.4, my - 1, 5.2, 0.7, hr); }
-      else if (bd === 'stubble') { c.globalAlpha = 0.38; px(x0 + 0.5, my - 1.4, fw - 1, chin - my + 0.6, hr); c.globalAlpha = 1; }
-    }
-    // 队色轮廓光（右侧）
-    c.globalAlpha = 0.55; px(x1 - 0.4, top + 1, 0.6, chin - top - 4, T.trim); c.globalAlpha = 1;
-    return { eyeY: ey };
+  function portrait(cv, a, team) {
+    const c = cv.getContext('2d'), W = cv.width, k = W / 32;
+    c.imageSmoothingEnabled = false; c.clearRect(0, 0, W, cv.height);
+    const look = GM.lookOf(a), T = team || GM.TEAMS[0];
+    const shoulder = look.body ? look.body.shoulder : 1;
+    const sw = Math.min(31, 24 * shoulder) * k, neck = Math.min(12, 7.5 * shoulder) * k;
+    c.fillStyle = T.jersey; c.fillRect(Math.round((W - sw) / 2), Math.round(26 * k), Math.round(sw), Math.round(6 * k));
+    c.fillStyle = T.trim; c.fillRect(Math.round((W - neck) / 2 - k), Math.round(25 * k), Math.round(neck + 2 * k), Math.round(4 * k));
+    c.fillStyle = look.skin[0]; c.fillRect(Math.round((W - neck) / 2), Math.round(20 * k), Math.round(neck), Math.round(7 * k));
+    c.fillStyle = T.trim; c.font = 'bold ' + Math.round(3.6 * k) + 'px monospace'; c.textAlign = 'center';
+    c.fillText(String(a.num == null ? '' : a.num), W / 2, 31.6 * k);
+    const eyeY = R.drawHead(c, look, W / 2, 14 * k, 17 * k, -Math.PI / 2) / k;
+    return { eyeY };
   }
   const IC = PH.icons, TT = { star: 'S', mid: 'A', avg: 'B', rook: 'C' };
   // 装备品质属性档位：灰 <55、白 55+、绿 64+、蓝 72+、紫 80+、橙 88+、金 95+
@@ -124,10 +67,11 @@
   // V4.5 选人能力卡徽章：和比赛中同一套六边形图标，按档位配色（铜 / 银 / 金 / 名人堂，不写档位字）
   const badgeHtml = (k, full, t) => { const B = GM.BADGES[k]; return '<div class="bdg tr' + (t || 3) + '">' + bHex(k, t) + (full ? '<div><b>' + B.name + (B.five ? '<sup>5V5</sup>' : '') + '</b><span>' + B.desc + '</span></div>' : '<b>' + B.name + '</b>') + '</div>'; };
   let pkSide = 0, pkSel = 'curry';
+  const listedHeight = (a) => (PH.measurements && PH.measurements[a.key] ? PH.measurements[a.key][0] * 0.0254 : a.h).toFixed(2);
   function pkCard(key) {
     if (key === 'random') return '<button class="pkc rnd" data-pk="random" data-testid="pk-random"><span class="pkf q">?</span><span class="pkn">随机</span><span class="pkp">任意球员</span></button>';
     const a = GM.ARCH[key];
-    return '<button class="pkc t' + TT[a.tier] + '" data-pk="' + key + '" data-testid="pk-' + key + '"><canvas class="pkf" width="32" height="32"></canvas><span class="pkn">' + a.name + (a.skill ? '<i class="pkst">' + IC.svg('takeover') + '</i>' : '') + '</span><span class="pkp">' + a.pos + '<small class="pkh"> · ' + a.h.toFixed(2) + '</small></span><span class="pko">' + a.ovr + '</span></button>';
+    return '<button class="pkc t' + TT[a.tier] + '" data-pk="' + key + '" data-testid="pk-' + key + '"><canvas class="pkf" width="32" height="32"></canvas><span class="pkn">' + a.name + (a.skill ? '<i class="pkst">' + IC.svg('takeover') + '</i>' : '') + '</span><span class="pkp">' + a.pos + '<small class="pkh"> · ' + listedHeight(a) + '</small></span><span class="pko">' + a.ovr + '</span></button>';
   }
   const LTIP = { normal: 'lay' };
   let pkShown = '';
@@ -174,7 +118,7 @@
     if (key === 'random') { el.innerHTML = '<div class="pkd-h"><b>随机对手</b></div><p class="tnote">每局开赛重新抽一位（不会抽到你自己选的人，一轮之内不重复）。</p>'; return; }
     const a = GM.ARCH[key];
     const tm = a.team && GM.NBA[a.team], tmS = tm ? (a.team === 'LEG' ? '传奇' : tm.city + tm.name) + ' · ' : a.tier === 'rook' ? '新秀 · ' : '';
-    let h = '<div class="pkd-h"><canvas class="pkf big" width="64" height="64"></canvas><div><b>' + a.full + '</b><span>' + tmS + a.pos + ' · ' + a.h.toFixed(2) + ' 米 · ' + a.num + ' 号</span><span class="pkd-desc">' + a.desc + '</span></div><em class="t' + TT[a.tier] + '">' + a.ovr + '<small>' + GM.TIERS[a.tier] + '</small></em></div>';
+    let h = '<div class="pkd-h"><canvas class="pkf big" width="64" height="64"></canvas><div><b>' + a.full + '</b><span>' + tmS + a.pos + ' · ' + listedHeight(a) + ' 米 · ' + a.num + ' 号</span><span class="pkd-desc">' + a.desc + '</span></div><em class="t' + TT[a.tier] + '">' + a.ovr + '<small>' + GM.TIERS[a.tier] + '</small></em></div>';
     const pt = PH.PT.of(a);
     h += '<p class="pkform" data-testid="ptype"><canvas width="' + PH.PT.SIZE + '" height="' + PH.PT.SIZE + '" data-ptype="' + pt.id + '" style="width:26px;height:26px;image-rendering:pixelated;vertical-align:middle"></canvas> ' + pt.name + '</p>';
     h += '<div class="pkd-tabs" data-testid="pk-tabs">' + PK_TABS.map((t) => '<button data-nonav="1" data-pkt="' + t[0] + '" class="' + (t[0] === pkTab ? 'on' : '') + '" data-testid="pkt-tab-' + t[0] + '">' + t[1] + '</button>').join('') + '<span class="pkd-lr">LB</span><span class="pkd-lr r">RB</span></div>';
@@ -223,7 +167,7 @@
     if (pkTeam === 'all') { for (const t of Object.keys(GM.TIERS)) { const ks = GM.ROSTER.filter((k) => GM.ARCH[k].tier === t); if (ks.length) gh += '<div class="pk-tier t' + TT[t] + '"><i>' + TT[t] + '</i>' + GM.TIERS[t] + '</div>' + ks.map(pkCard).join(''); } }
     else gh += GM.ROSTER.filter((k) => pkTeam === 'rook' ? GM.ARCH[k].tier === 'rook' : GM.ARCH[k].team === pkTeam).map(pkCard).join('');
     $('pk-grid').innerHTML = gh; $('pk-grid').scrollTop = 0;
-    $('pk-grid').querySelectorAll('canvas.pkf').forEach((cv) => faceCanvas(cv, GM.ARCH[cv.parentElement.getAttribute('data-pk')], GM.TEAMS[pkSide]));
+    $('pk-grid').querySelectorAll('canvas.pkf').forEach((cv) => portrait(cv, GM.ARCH[cv.parentElement.getAttribute('data-pk')], GM.TEAMS[pkSide]));
     pkMark();
   }
   $('pk-teams').addEventListener('click', (e) => { const b = e.target.closest('.pkt'); if (!b) return; pkTeam = b.getAttribute('data-tm'); $('pk-teams').querySelectorAll('.pkt').forEach((x) => x.classList.toggle('on', x === b)); pkFill(); PH.audio.play('ui'); });
@@ -251,7 +195,7 @@
     if (key === 'random') { el.className = 'pick'; el.innerHTML = '<span class="pkf q">?</span><span class="pk-n">随机</span><span class="pk-s">任意球员</span><span class="pk-c">更换</span>'; return; }
     const a = GM.ARCH[key];
     el.className = 'pick t' + TT[a.tier]; el.innerHTML = '<canvas class="pkf" width="32" height="32"></canvas><span class="pk-n">' + a.name + ' <small>' + a.ovr + '</small></span><span class="pk-s">' + (a.skill ? '必杀技 · ' + a.skill.name : a.pos + ' · ' + GM.TIERS[a.tier]) + '</span><span class="pk-c">更换</span>';
-    faceCanvas(el.querySelector('canvas'), a, GM.TEAMS[id === 'pick0' ? 0 : 1]);
+    portrait(el.querySelector('canvas'), a, GM.TEAMS[id === 'pick0' ? 0 : 1]);
   }
   function refreshMenu() {
     document.querySelectorAll('#menu .seg').forEach((seg) => {
