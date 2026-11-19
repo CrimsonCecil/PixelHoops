@@ -118,8 +118,8 @@
     return { eyeY: ey };
   }
   const IC = PH.icons, TT = { star: 'S', mid: 'A', avg: 'B', rook: 'C' };
-  // 数值颜色：越高越亮越醒目。90+ 亮绿发光，80+ 黄绿，70+ 金黄，60+ 暗橙，60 以下暗红
-  const vcl = (v) => v >= 90 ? 'v9' : v >= 80 ? 'v8' : v >= 70 ? 'v7' : v >= 60 ? 'v6' : 'v5';
+  // 数值颜色：90+ 精英绿光，80+ 绿，70+ 黄，60+ 橙，50+ 红，50 以下深红
+  const vcl = (v) => v >= 90 ? 'v9' : v >= 80 ? 'v8' : v >= 70 ? 'v7' : v >= 60 ? 'v6' : v >= 50 ? 'v5' : 'v4';
   const tg = (v01) => GM.grade(v01)[0];
   // V4.5 选人能力卡徽章：和比赛中同一套六边形图标，按档位配色（铜 / 银 / 金 / 名人堂，不写档位字）
   const badgeHtml = (k, full, t) => { const B = GM.BADGES[k]; return '<div class="bdg tr' + (t || 3) + '">' + bHex(k, t) + (full ? '<div><b>' + B.name + (B.five ? '<sup>5V5</sup>' : '') + '</b><span>' + B.desc + '</span></div>' : '<b>' + B.name + '</b>') + '</div>'; };
@@ -180,6 +180,7 @@
     const AT = {}; GM.ATTRS.forEach((t) => { AT[t[0]] = t[2]; }); Object.assign(AT, R5TIP);
     const AG = attrGroups(a, a), bl = bList(a, true), have = {}; bl.forEach((x) => { have[x[0]] = x[1]; });
     if (pkTab === 'ov') {
+      h += '<div class="rating-legend" aria-label="属性颜色分档"><span>属性</span>' + [[90, '90+'], [80, '80+'], [70, '70+'], [60, '60+'], [50, '50+'], [0, '&lt;50']].map(([v, n]) => '<span class="' + vcl(v) + '">' + n + '</span>').join('') + '</div>';
       h += '<div class="pkov" data-testid="pk-ov">' + AG.map(([g, gs, v]) => '<div class="pko1"><span>' + g + '</span><b class="' + vcl(v) + '">' + v + '</b></div>').join('') + '</div>';
       { const F = GM.SF[a.form] || GM.SF.std, sp = F.sp <= 0.85 ? '极快' : F.sp <= 0.92 ? '快' : F.sp <= 1.04 ? '中等' : F.sp <= 1.15 ? '偏慢' : '慢', hi = F.blk <= 0.85 ? '高' : F.blk >= 1.1 ? '低' : '中'; h += '<p class="pkform">投篮包 <b>' + F.name + '</b>' + (a.lefty ? ' · 左手' : '') + ' · 出手 ' + sp + ' · 出手点 ' + hi + (F.two ? ' · 两段式' : ' · 一段式') + '</p>'; }
       { const K = GM.dunkPkg(a), N = { two: '双手', one: '单手', rimpull: '挂筐', reverse: '背扣', tomahawk: '战斧', poster: '隔扣', cock: '拉弓', windmill: '风车', '360': '360', glide: '滑翔', cradle: '摇篮', pump: '双抽', scissor: '剪刀腿', shaq: '大鲨鱼' }, L = Object.keys(N).filter((k) => K.S[k]).map((k) => N[k]);
@@ -685,8 +686,9 @@
   let trTab = 'dummy', ctl = [];
   const pct = (v) => Math.round(v * 100) + '', m2 = (v) => v.toFixed(2), m1 = (v) => v.toFixed(1);
   function sld(label, get, set, min, max, step, fmt, note) {
-    const i = ctl.length; ctl.push({ get: get, set: set, fmt: fmt });
-    return '<div class="sl"><label>' + label + '</label><output id="o' + i + '">' + fmt(get()) + '</output><input type="range" data-c="' + i + '" min="' + min + '" max="' + max + '" step="' + step + '" value="' + get() + '"' + ' aria-label="' + label + '">' + (note ? '<small>' + note + '</small>' : '') + '</div>';
+    const rating = fmt === A99, cl = rating ? vcl(A99(get())) : '';
+    const i = ctl.length; ctl.push({ get: get, set: set, fmt: fmt, rating: rating });
+    return '<div class="sl"><label>' + label + '</label><output class="' + cl + '" id="o' + i + '">' + fmt(get()) + '</output><input class="' + cl + '" type="range" data-c="' + i + '" min="' + min + '" max="' + max + '" step="' + step + '" value="' + get() + '"' + ' aria-label="' + label + '">' + (note ? '<small>' + note + '</small>' : '') + '</div>';
   }
   // 球员下拉：按球队分组（全名单太长，按钮放不下）
   function selArch(label, cur, key) {
@@ -731,9 +733,9 @@
         h += sld('反应时间（秒）', () => TR.react, (v) => { TR.react = v; GM.applyTrain(); }, 0.05, 0.6, 0.01, m2, '跟防的迟滞和起跳封盖的延迟');
         h += sld('吃晃概率', () => TR.bite, (v) => { TR.bite = v; GM.applyTrain(); }, 0, 1, 0.05, pct, '% 被假动作骗起跳、被运球晃开的概率');
         h += sld('假人身高（米）', () => dm.h, (v) => { dm.h = v; }, 1.7, 2.25, 0.01, m2, '');
-        h += sld('假人外线防守', () => dm.r.def, (v) => { dm.r.def = v; }, 0, 1, 0.01, pct, '影响干扰强度');
-        h += sld('假人盖帽', () => dm.r.blk, (v) => { dm.r.blk = v; }, 0, 1, 0.01, pct, '影响盖帽概率');
-        h += sld('假人力量', () => dm.r.str, (v) => { dm.r.str = v; }, 0, 1, 0.01, pct, '影响背打时能否顶开');
+        h += sld('假人外线防守', () => dm.r.def, (v) => { dm.r.def = v; }, 0, 1, 0.01, A99, '影响干扰强度');
+        h += sld('假人盖帽', () => dm.r.blk, (v) => { dm.r.blk = v; }, 0, 1, 0.01, A99, '影响盖帽概率');
+        h += sld('假人力量', () => dm.r.str, (v) => { dm.r.str = v; }, 0, 1, 0.01, A99, '影响背打时能否顶开');
       } else {
         h += segb('电脑难度', G.diff, [[0, '简单'], [1, '普通'], [2, '困难']], 'diff');
         h += selArch('电脑球员', dm.arch.key, 'cpuarch');
@@ -742,7 +744,7 @@
     } else if (trTab === 'player') {
       h += selArch('套用球员', me.arch.key, 'myarch');
       h += '<p class="tnote">套用后属性、徽章、必杀技和外形一起换；下面的滑块只改属性。</p>';
-      for (const a of ATTR) h += sld(a[1], () => me.r[a[0]], (v) => { me.r[a[0]] = v; }, 0, 1, 0.01, pct, a[2]);
+      for (const a of ATTR) h += sld(a[1], () => me.r[a[0]], (v) => { me.r[a[0]] = v; }, 0, 1, 0.01, A99, a[2]);
       h += sld('身高（米）', () => me.h, (v) => { me.h = v; }, 1.7, 2.25, 0.01, m2, '');
       h += segb('体力', TR.infStam ? 1 : 0, [[0, '正常消耗'], [1, '无限体力']], 'stam');
     } else if (trTab === 'rules') {
@@ -774,6 +776,7 @@
   $('tr-body').addEventListener('input', (e) => {
     const i = e.target.getAttribute('data-c'); if (i == null) return;
     const c = ctl[+i], v = +e.target.value; c.set(v); $('o' + i).textContent = c.fmt(v);
+    if (c.rating) { const cl = vcl(A99(v)); $('o' + i).className = cl; e.target.className = cl; }
   });
   $('tr-body').addEventListener('change', (e) => {
     const sk = e.target.getAttribute && e.target.getAttribute('data-sel'), v = e.target.value;
@@ -1049,7 +1052,7 @@
     const N = PH.RX.teams[ab], L = T5.lineup(ab);
     const ovr = Math.round(L.start.reduce((s, k) => s + GM.ARCH[k].ovr, 0) / 5);
     // V4.2 首发五人六大类均值（同选人面板的分组）
-    const GA = L.start.map((k) => attrGroups(GM.ARCH[k], GM.ARCH[k])), gv = (gi) => Math.round(GA.reduce((t, g) => t + g[gi][2], 0) / GA.length);
+    const GA = L.start.map((k) => attrGroups(GM.ARCH[k], GM.ARCH[k])), gv = (gi) => { const v = Math.round(GA.reduce((t, g) => t + g[gi][2], 0) / GA.length); return '<b class="' + vcl(v) + '">' + v + '</b>'; };
     const g5 = '<span class="pk-s pk-5" data-testid="' + id + '-r5">' + AGRP.slice(0, 3).map((g, gi) => g[1] + gv(gi)).join(' ') + '</span><span class="pk-s pk-5">' + AGRP.slice(3).map((g, gi) => g[1] + gv(gi + 3)).join(' ') + '</span>';
     $(id).innerHTML = '<span class="tb5-sw" style="background:' + N.jersey + ';border-color:' + N.trim + '"></span><span class="pk-n">' + N.name + ' <small>' + ovr + '</small></span><span class="pk-s">' + N.city + ' · ' + L.start.map((k) => GM.ARCH[k].name).join(' ') + '</span>' + g5 + '<span class="pk-c">更换</span>';
   }
