@@ -4599,7 +4599,7 @@
         DM.sch = defenseScheme(pl, opp, DM.plan, false);
         DM.stance = DM.sch === 'mix' ? defenseScheme(pl, opp, DM.plan, true) : DM.sch;
         DM.nextStance = G.time + rr(1.2, 2.8); DM.drift = 0; DM.driftTo = rr(-1, 1) * K.aiGapDrift; DM.driftAt = G.time + rr(1.2, 2.8);
-        if (rnd() < K.aiDfBluff + 0.05 * G.diff) { DM.bluff = G.time + rr(0.8, 1.5); DM.afterBluff = DM.stance === 'tight' ? 'sag' : 'tight'; DM.stance = DM.afterBluff === 'tight' ? 'sag' : 'tight'; }
+        if (rnd() < K.aiDfBluff + 0.05 * G.diff) { DM.bluff = G.time + rr(0.8, 1.5); DM.afterBluff = DM.stance; DM.stance = DM.stance === 'tight' ? 'sag' : DM.stance === 'sag' ? 'tight' : rnd() < 0.5 ? 'tight' : 'sag'; }
       }
       if (DM.bluff && G.time >= DM.bluff) { DM.stance = DM.afterBluff; DM.bluff = 0; DM.nextStance = G.time + rr(1.2, 2.8); }
       if (!DM.bluff && DM.sch === 'mix' && G.time >= DM.nextStance) { DM.stance = defenseScheme(pl, opp, DM.plan, true); DM.nextStance = G.time + rr(1.2, 2.8); }
