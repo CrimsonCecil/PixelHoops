@@ -89,11 +89,12 @@
   }
   // V4.2 属性分组（参考 2K 六大类）：只列游戏里真实使用的字段；第三项 1 = 5V5 专用能力（js/r5.js，取自 2K），没有数据的球员不显示该项
   const AGRP = [
-    ['投篮', '投篮', [['close', '近距离'], ['mid', '中投'], ['three', '三分'], ['fade', '后仰'], ['siq', '投篮 IQ', 1]]],
+    ['投篮', '投篮', [['close', '近距离'], ['mid', '中投'], ['three', '三分'], ['fade', '后仰'], ['ocon', '进攻稳定'], ['siq', '投篮 IQ', 1]]],
     ['终结', '终结', [['lay', '上篮'], ['flo', '抛投'], ['dunk', '扣篮'], ['sdunk', '站扣'], ['post', '低位'], ['hook', '勾手']]],
-    ['组织', '组织', [['hnd', '控球'], ['pac', '传球准度', 1], ['piq', '传球 IQ', 1], ['vis', '传球视野', 1], ['iq', '球商', 1], ['hands', '接球', 1]]],
-    ['运动', '运动', [['spd', '速度'], ['acc', '加速'], ['str', '力量'], ['vert', '弹跳'], ['sta', '体力']]],
-    ['防守', '防守', [['def', '外防'], ['intD', '内防'], ['stl', '抢断'], ['blk', '盖帽'], ['hlp', '协防 IQ', 1], ['ppc', '传球预判', 1]]],
+    ['组织', '组织', [['hnd', '控球'], ['spdB', '持球速度'], ['pac', '传球准度', 1], ['piq', '传球 IQ', 1], ['vis', '传球视野', 1], ['iq', '球商', 1], ['hands', '接球', 1]]],
+    ['运动', '运动', [['spd', '速度'], ['acc', '敏捷'], ['str', '力量'], ['sta', '体力'], ['hus', '拼抢'], ['dur', '耐久']]],
+    ['弹跳', '弹跳', [['vert', '弹跳高度'], ['rej', '二次起跳'], ['leap', '起跳距离'], ['hang', '滞空']]],
+    ['防守', '防守', [['def', '外防'], ['lat', '横移'], ['dcon', '防守稳定'], ['intD', '内防'], ['stl', '抢断'], ['blk', '盖帽'], ['hlp', '协防 IQ', 1], ['ppc', '传球预判', 1]]],
     ['篮板', '篮板', [['oreb', '前场板'], ['dreb', '后场板']]],
   ];
   const R5TIP = { siq: '5V5：出手选择（少投坏球）与接球投篮', hands: '5V5：接球稳定，低了容易漏接', pac: '5V5：传球速度与落点准确，越准越难被截', piq: '5V5：读秒快慢、避开被卡的传球线路', vis: '5V5：发现空位队友、长传与跳传', iq: '5V5：无球跑动、空切与拉开站位', hlp: '5V5：协防补位与换防判断', ppc: '5V5：预判传球、截传范围' };
@@ -107,7 +108,7 @@
       return [g, gs, rows.length ? Math.round(rows.reduce((t, x) => t + x[2], 0) / rows.length) : null, rows];
     });
   }
-  PH.attrG = attrGroups; PH.vcl = vcl;
+  PH.attrG = attrGroups; PH.attrGN = AGRP.map((g) => g[1]); PH.vcl = vcl;
   // 球员详情分页（参考 2K：概览 / 属性六大类 / 徽章四大类 / 动作与热区）；LB·RB 或点页签切换，右摇杆上下滚动
   const PK_TABS = [['ov', '概览'], ['at', '属性'], ['bd', '徽章'], ['mv', '动作 · 热区']];
   const BCAT = [['终结', ['acrobat', 'poster', 'launch', 'bully', 'dream']], ['投篮', ['limitless', 'deadeye', 'quick', 'clutch', 'fade', 'stepper', 'cs']], ['组织', ['ankle', 'tight', 'dimer', 'needle', 'bailout', 'breaker', 'postpm']], ['防守 / 篮板', ['rim', 'pick', 'clamps', 'motor', 'hustle', 'brick', 'dodger', 'intercept', 'anchor', 'chaser', 'boxout']]];
@@ -120,7 +121,7 @@
     const tm = a.team && GM.NBA[a.team], tmS = tm ? (a.team === 'LEG' ? '传奇' : tm.city + tm.name) + ' · ' : a.tier === 'rook' ? '新秀 · ' : '';
     let h = '<div class="pkd-h"><canvas class="pkf big" width="64" height="64"></canvas><div><b>' + a.full + '</b><span>' + tmS + a.pos + ' · ' + listedHeight(a) + ' 米 · ' + a.num + ' 号</span><span class="pkd-desc">' + a.desc + '</span></div><em class="t' + TT[a.tier] + '">' + a.ovr + '<small>' + GM.TIERS[a.tier] + '</small></em></div>';
     const pt = PH.PT.of(a);
-    h += '<p class="pkform" data-testid="ptype"><canvas width="' + PH.PT.SIZE + '" height="' + PH.PT.SIZE + '" data-ptype="' + pt.id + '" style="width:26px;height:26px;image-rendering:pixelated;vertical-align:middle"></canvas> ' + pt.name + '</p>';
+    h += '<p class="pkform" data-testid="ptype"><canvas width="' + PH.PT.SIZE + '" height="' + PH.PT.SIZE + '" data-ptype="' + pt.id + '" style="width:26px;height:26px;image-rendering:pixelated;vertical-align:middle"></canvas> <b>' + pt.name + '</b> · ' + (pt.desc || '') + '</p>';
     h += '<div class="pkd-tabs" data-testid="pk-tabs">' + PK_TABS.map((t) => '<button data-nonav="1" data-pkt="' + t[0] + '" class="' + (t[0] === pkTab ? 'on' : '') + '" data-testid="pkt-tab-' + t[0] + '">' + t[1] + '</button>').join('') + '<span class="pkd-lr">LB</span><span class="pkd-lr r">RB</span></div>';
     const bar = (n, v, tip) => { const cl = vcl(v); return '<div class="pkr"' + (tip ? ' title="' + tip + '"' : '') + '><span>' + n + '</span><i><s class="' + cl + '" style="width:' + v + '%"></s></i><b class="' + cl + '">' + v + '</b></div>'; };
     const AT = {}; GM.ATTRS.forEach((t) => { AT[t[0]] = t[2]; }); Object.assign(AT, R5TIP);
@@ -536,17 +537,17 @@
   $('tr-reset-pos').addEventListener('click', () => GM.trainReset());
   // ---------- 球员信息卡 ----------
   const PC_WEIGHTS = {
-    shooting: { three: 45, mid: 30, close: 15, fade: 10 },
-    finishing: { lay: 45, dunk: 20, flo: 15, post: 10, sdunk: 5, hook: 5 },
-    athleticism: { spd: 30, acc: 25, vert: 20, str: 15, sta: 10 },
-    defense: { def: 35, intD: 30, blk: 20, stl: 15 },
-    rebounding: { dreb: 60, oreb: 40 },
+    shooting: { three: 42, mid: 28, close: 15, fade: 10, ocon: 5 },
+    finishing: { lay: 42, dunk: 18, flo: 13, post: 10, sdunk: 5, hook: 5, leap: 4, hang: 3 },
+    athleticism: { spd: 25, acc: 20, vert: 15, str: 15, sta: 10, leap: 5, rej: 5, hus: 5 },
+    defense: { def: 30, lat: 10, intD: 28, blk: 17, stl: 12, dcon: 3 },
+    rebounding: { dreb: 50, oreb: 35, vert: 10, rej: 5 },
   };
   const PC_WEIGHTS_5 = {
     ...PC_WEIGHTS,
-    shooting: { three: 40, mid: 25, close: 15, fade: 10, siq: 10 },
-    playmaking: { hnd: 30, pac: 25, piq: 15, vis: 15, hands: 10, iq: 5 },
-    defense: { def: 30, intD: 25, stl: 15, blk: 15, hlp: 10, ppc: 5 },
+    shooting: { three: 37, mid: 23, close: 15, fade: 10, siq: 10, ocon: 5 },
+    playmaking: { hnd: 25, spdB: 10, pac: 22, piq: 15, vis: 13, hands: 10, iq: 5 },
+    defense: { def: 25, lat: 10, intD: 22, stl: 13, blk: 13, hlp: 10, ppc: 5, dcon: 2 },
   };
   const PC_SHOOT = ['shooting', '投篮'], PC_FINISH = ['finishing', '终结'], PC_ATH = ['athleticism', '运动'];
   const PC_GUARD = ['defense', '防守'], PC_REB = ['rebounding', '篮板'];

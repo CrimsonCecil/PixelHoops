@@ -142,10 +142,10 @@
   // 换人页：我方在场 5 人 + 替补；先选场上一人，再选替补
   function subList() { const T = TT(); if (T.hum < 0) return []; const R = rows(T.hum); return R.on.concat(R.bn); }
   // V4.2 换人页：每人六大类均值（与选人面板 / 能力卡同一分组，main.js PH.attrG）
-  const AGH = () => (PH.attrG ? ['投篮', '终结', '组织', '运动', '防守', '篮板'].map((n) => '<span class="b5ag">' + n + '</span>').join('') : '');
+  const AGH = () => (PH.attrG ? (PH.attrGN || ['投篮', '终结', '组织', '运动', '防守', '篮板']).map((n) => '<span class="b5ag">' + n + '</span>').join('') : '');
   function agCells(t, key) {
     if (!PH.attrG) return '';
-    const q = TT().tm[t].ros.find((x) => x.key === key), a = q && q.a; if (!a) return '<span class="b5ag"></span>'.repeat(6);
+    const q = TT().tm[t].ros.find((x) => x.key === key), a = q && q.a; if (!a) return '<span class="b5ag"></span>'.repeat(PH.attrGN ? PH.attrGN.length : 6);
     const pl = q.p, src = pl && pl.rBase ? pl.rBase : a;
     return PH.attrG(a, src, pl).map((g) => '<span class="b5ag ' + PH.vcl(g[2]) + '">' + g[2] + '</span>').join('');
   }

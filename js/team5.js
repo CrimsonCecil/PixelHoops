@@ -435,9 +435,13 @@
     if (T.ps) neg(T.ps, ['x0', 'y0', 'tx', 'ty']);
   }
   function setOff(t) { if (G.off !== t) { G.off = t; flipAll(); } T.off = t; }
+  const ptIs5 = (p, id) => !!(PH.game && PH.game.ptIs && PH.game.ptIs(p, id));
   function assignMarks() {
     const O = offs(), D = defs();
     for (let i = 0; i < 5; i++) { D[i].mark = O[i]; O[i].mark = null; }
+    // V4.6 防守大闸：自动去防对方总评最高的人（和原本防他的人互换）
+    const L = D.find((d) => ptIs5(d, 'lockdown')), star = O.reduce((b, o) => (!b || (o.a && b.a && o.a.ovr > b.a.ovr) ? o : b), null);
+    if (L && star && L.mark !== star) { const o2 = D.find((d) => d.mark === star); if (o2) o2.mark = L.mark; L.mark = star; }
   }
   function setCtl(p, why) {
     if (!p || T.hum < 0 || p.tm !== T.hum) return;
@@ -763,7 +767,7 @@
     // 击地传球球在膝盖高度、线路低，防守人够得到的范围和截下概率都打折（同条件被断率不高于普通传球的 1.3 倍）
     let first = null; const cutP = cutNow(m);
     const pdx = m.x - p.x, pdy = m.y - p.y, blind = (pdx * Math.cos(p.face) + pdy * Math.sin(p.face)) / (d0 || 1) < -0.2;
-    const chK = TV.t5_int_chK * TV.l1_stealMul * (0.7 + TV.t5_int_long * Math.min(d0, 14)) * (blind ? TV.t5_int_blind : 1) * (kind === 'bounce' ? TV.t5_int_bnc : kind === 'lob' || kind === 'alley' ? TV.t5_int_lob : 1) * (T.plPassing ? TV.t5_int_play : 1);  // C2 战术设计好的传球路线更安全
+    const chK = (ptIs5(p, 'pointC') && dHoop(p) > 3.5 && dHoop(p) < 7.5 ? 0.85 : 1) * TV.t5_int_chK * TV.l1_stealMul * (0.7 + TV.t5_int_long * Math.min(d0, 14)) * (blind ? TV.t5_int_blind : 1) * (kind === 'bounce' ? TV.t5_int_bnc : kind === 'lob' || kind === 'alley' ? TV.t5_int_lob : 1) * (T.plPassing ? TV.t5_int_play : 1);  // C2 战术设计好的传球路线更安全
     for (const d of defs()) {
       const s = segD(d.x, d.y, T.ps.x0, T.ps.y0, tx, ty); if (s.k < 0.12 || s.k > 0.97) continue;
       const hz = kind === 'bounce' ? 0.8 : kind === 'lob' || kind === 'alley' ? lerp(1, 4, 4 * s.k * (1 - s.k)) : kind === 'skip' ? 1.3 + 1.2 * 4 * s.k * (1 - s.k) : 1.3;
@@ -954,6 +958,7 @@
       }
       csBadge(p, a);
     }
+    for (const p of ps()) { const a = p.action; if (a && (a.type === 'shot' || a.type === 'layup' || a.type === 'dunk') && !a.pmD && p.pmT != null && T.time - p.pmT < 1) { a.pmD = 1; a.V = Object.assign({}, a.V, { p: (a.V.p || 1) * 1.03 }); } }
   }
   // V3.9k 5V5 命中修正（只走 5V5，不碰 1V1 的公式）：1V1 的干扰 / 盖帽是按“永远一对一贴身”调的，5V5 里每次出手几乎都有人在 1 米内，
   // 结果整体命中只有 34%。按区域缩放这次出手的干扰系数 c、命中系数 p、被盖系数 blk（都是乘法，射手 / 非射手、强弱防守的差距保留）
@@ -1004,12 +1009,13 @@
     const b = G.ball;
     if (b.z > r.z + r.h * 0.85) r.catchAt = G.time;
     b.cT = 0.1; b.cx = b.x; b.cy = b.y; b.cz = b.z;
-    b.state = 'held'; b.holder = r.id; r.hasBall = true; b.shot = null; b.under = false; b.trail = null; b.lastTouch = r.id; r.drib = 0; r.catchT = T.time;
+    b.state = 'held'; b.holder = r.id; r.hasBall = true; b.shot = null; b.under = false; b.trail = null; b.lastTouch = r.id; r.drib = 0; r.catchT = T.time; r.gotT = G.time;
     if (P.rec && P.rec.ov != null) { let nd = 9; for (const d of defs()) nd = Math.min(nd, dist(d, r)); P.rec.cnd = +nd.toFixed(2); }
     if (P.inb || T.phase === 'inb') { T.phase = 'live'; G.shotClock = 24; }
     for (const p of ps()) { p.ai.t = 0.25; p.ai.hold = false; if (p.tm !== G.off) p.ai.dm = null; }
     r.ai.om = null; T.holdT = 0; r.f5.hold = 0; r.f5.dec = T.time + rr(0.35, 0.8);
     T.lastPass = { from: P.from, to: r, t: T.time, prev: T.lastPass && T.lastPass.to === P.from ? Object.assign({}, T.lastPass, { prev: null }) : null, pa: false, rec: P.rec };
+    r.pmT = P.from && ptIs5(P.from, 'playmaker') ? T.time : null;
     let od = 9; for (const d of defs()) od = Math.min(od, dist(d, r));
     if (P.rec) P.rec.open = +od.toFixed(2);
     // V4.2 传球质量（0~1）：落点准、球快 → 高；偏球 / 失手的高难度传球 → 低。接球投篮按它加减成（csTick）
@@ -1211,7 +1217,7 @@
     if (T.pick && T.pick.h === h) { if (T.pick.ph !== 'roll') { T.pick.ph = 'roll'; T.pick.t0 = T.time; } return; }   // 再按一次 LB：顺下（slip）
     const c = T.tm[h.tm].on.filter((m) => m !== h && m.slot >= 3);
     const s = nearestTo(c.length ? c : T.tm[h.tm].on.filter((m) => m !== h), h.x, h.y); if (!s) return;
-    T.pick = { s: s, h: h, ph: 'go', t0: T.time, side: h.x > 0 ? -1 : 1, hum: !!hum, pop: s.r.three > 0.62 && rnd() < TV.t5_pick_pop, sw: false };
+    T.pick = { s: s, h: h, ph: 'go', t0: T.time, side: h.x > 0 ? -1 : 1, hum: !!hum, pop: !ptIs5(s, 'lob') && (ptIs5(s, 'stretch') || (s.r.three > 0.62 && rnd() < TV.t5_pick_pop)), sw: false };
     T.cnt.picks++;
   }
 
@@ -1365,7 +1371,7 @@
       else if (Lc <= TV.t5_clk_late && best) { const jr = three(best.x, best.y) ? best.r.three : best.r.mid; if (openOf(best) > 0.45 && jr >= 0.72 && dHoop(best) > 2) { bv += TV.t5_clk_pass; clkCnt('clkPass'); } }
       if (best && bv > self + TV.t5_ai_passTh - urge) {
         const dd = dist(h, best), lr = laneRisk(h, best, 'chest');
-        let kind = dHoop(best) < TV.t5_pk_lobD && lr > 0.2 ? (best.r.dunk > 0.7 && best.speed > 3 ? 'alley' : 'lob') : dd > TV.t5_pk_skipD ? 'skip' : lr > TV.t5_pk_bncR && dd < 7 ? 'bounce' : 'chest';
+        let kind = dHoop(best) < TV.t5_pk_lobD && lr > 0.2 ? ((best.r.dunk > 0.7 && best.speed > 3) || (ptIs5(best, 'lob') && best.speed > 2) ? 'alley' : 'lob') : dd > TV.t5_pk_skipD ? 'skip' : lr > TV.t5_pk_bncR && dd < 7 ? 'bounce' : 'chest';
         if (kind !== 'chest' && kind !== 'skip' && rnd() < Math.max(0, -U(h, 'piq')) * TV.t5_pk_err) kind = 'chest';   // 传球意识低：选错传球方式
         if (doPass(h, best, kind)) return A5.zeroInp();
       }
@@ -1631,7 +1637,7 @@
       return goInp(p, P.tx, P.ty, true);
     }
     if (b.state === 'shot' || b.state === 'loose') {
-      { const bd = defSet(T.tm[p.tm]).board, nb = bd === 'back' ? 3 : bd === 'crash' ? 1 : 2; if (b.state === 'shot' && p.slot < nb && dHoop(p) > (bd === 'back' ? 5 : 6)) return goInp(p, p.x * 0.4, 3, false); }
+      { const bd = defSet(T.tm[p.tm]).board, nb = bd === 'back' ? 3 : bd === 'crash' ? 1 : 2; if (b.state === 'shot' && p.slot < nb && !ptIs5(p, 'glass') && dHoop(p) > (bd === 'back' ? 5 : 6)) return goInp(p, p.x * 0.4, 3, false); }
       return A5.aiInput(p, dt);
     }
     return offBall(p, dt);
@@ -2224,7 +2230,7 @@
     for (const tm of T.tm) for (const r of tm.ros) {
       r.fat = r.fat || 0;
       if (r.p) {
-        if (live) { r.st.sec += dt; r.fat = Math.min(TV.t5_fat_max, r.fat + TV.t5_fat_up / (420 * sc) * dt * (r.p.speed > TV.t5_fat_runV ? TV.t5_fat_run : 1)); }
+        if (live) { r.st.sec += dt; r.fat = Math.min(TV.t5_fat_max, r.fat + TV.t5_fat_up / (420 * sc) * dt * (r.p.speed > TV.t5_fat_runV ? TV.t5_fat_run : 1) * clamp(1 + 1.2 * (0.81 - (r.p.r.dur || 0.81)), 0.7, 1.35)); }
         r.p.stam = Math.min(r.p.stam, 100 - r.fat); r.stam = r.p.stam;
       } else { r.fat = Math.max(0, r.fat - TV.t5_fat_dn / (240 * sc) * dt * (live ? 1 : TV.t5_fat_dead)); r.stam = 100 - r.fat; }
     }
