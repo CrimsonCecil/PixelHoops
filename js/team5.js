@@ -958,7 +958,7 @@
       }
       csBadge(p, a);
     }
-    for (const p of ps()) { const a = p.action; if (a && (a.type === 'shot' || a.type === 'layup' || a.type === 'dunk') && !a.pmD && p.pmT != null && T.time - p.pmT < 1) { a.pmD = 1; a.V = Object.assign({}, a.V, { p: (a.V.p || 1) * 1.03 }); } }
+    for (const p of ps()) { const a = p.action; if (a && a.V && (a.type === 'shot' || a.type === 'layup' || a.type === 'dunk') && !a.pmD && p.pmT != null && T.time - p.pmT < 1) { a.pmD = 1; a.V = Object.assign({}, a.V, { p: (a.V.p || 1) * 1.03 }); } }
   }
   // V3.9k 5V5 命中修正（只走 5V5，不碰 1V1 的公式）：1V1 的干扰 / 盖帽是按“永远一对一贴身”调的，5V5 里每次出手几乎都有人在 1 米内，
   // 结果整体命中只有 34%。按区域缩放这次出手的干扰系数 c、命中系数 p、被盖系数 blk（都是乘法，射手 / 非射手、强弱防守的差距保留）
