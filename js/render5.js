@@ -549,22 +549,18 @@
     for (const p of Gm.players) { if (p.tm === T.hum || p.tm == null || p.off) continue; if (p.mark === c || p.opp === c) return p; const d = Math.hypot(p.x - c.x, p.y - c.y); if (d < bd) { bd = d; m = p; } }
     return m;
   }
-  // 名字标签：白字深色描边；用户控制的人名字前有星形
-  const STAR = ['....#....', '...###...', '#########', '.#######.', '..#####..', '.###.###.', '##.....##'];
-  function nameTag(t, cx, y, star, alpha, col) {
+  // 名字标签：白字深色描边
+  function nameTag(a, cx, y, alpha, col) {
+    const t = a.name, pt = PH.PT.of(a), oldAlpha = ctx.globalAlpha;
     ctx.font = FONT; ctx.textBaseline = 'top';
-    const tw = Math.ceil(ctx.measureText(t).width), sw = star ? 11 : 0, w = tw + sw, x0 = Math.round(cx - w / 2), yy = Math.round(y);
+    const tw = Math.ceil(ctx.measureText(t).width), w = tw + 3 + PH.PT.SIZE, x0 = Math.round(Math.max(2, Math.min(W - w - 2, cx - w / 2))), yy = Math.round(y);
     ctx.globalAlpha = alpha == null ? 1 : alpha;
     ctx.fillStyle = '#15101f';
-    for (const [dx, dy] of [[-1, 0], [1, 0], [0, -1], [0, 1], [-1, -1], [1, -1], [-1, 1], [1, 1]]) ctx.fillText(t, x0 + sw + dx, yy + dy);
-    if (star) {
-      const sy = yy + 2;
-      ctx.fillStyle = '#15101f'; for (let r = 0; r < STAR.length; r++) for (let c = 0; c < 9; c++) if (STAR[r][c] === '#') ctx.fillRect(x0 + c - 1, sy + r - 1, 3, 3);
-      ctx.fillStyle = '#ffffff'; for (let r = 0; r < STAR.length; r++) for (let c = 0; c < 9; c++) if (STAR[r][c] === '#') ctx.fillRect(x0 + c, sy + r, 1, 1);
-    }
-    ctx.fillStyle = col ? (R.curCol ? R.curCol(col) : col) : '#ffffff'; ctx.fillText(t, x0 + sw, yy);
-    ctx.globalAlpha = 1;
-    return { x0: x0, x1: x0 + w, y0: yy, y1: yy + 12 };
+    for (const [dx, dy] of [[-1, 0], [1, 0], [0, -1], [0, 1], [-1, -1], [1, -1], [-1, 1], [1, 1]]) ctx.fillText(t, x0 + dx, yy + dy);
+    ctx.fillStyle = col ? (R.curCol ? R.curCol(col) : col) : '#ffffff'; ctx.fillText(t, x0, yy);
+    PH.PT.draw(ctx, pt.id, x0 + tw + 3, yy - 1);
+    ctx.globalAlpha = oldAlpha;
+    return { x0: x0, x1: x0 + w, y0: yy - 1, y1: yy - 1 + PH.PT.SIZE };
   }
   // 遮挡物（底部比分条、左右上角信息卡）在 480x270 画布坐标里的矩形
   let uiAv = [];   // C2：战术选择条 / 角落战术名，本帧的矩形（名字标签要避开）
@@ -587,7 +583,7 @@
       // V4.4 体力条（render.js PH.stamBar：刻度、阈值、残影）；旧版 bw 20–40 × 3 → 28–56 × 3（只拉长）
       if (PH.stamBar) PH.stamBar(ctx, Math.round(cx - bw / 2), by + 2, bw, bh, p.stam, 'f' + (p.id != null ? p.id : p.a.name), (G5() && G5().time) || 0);
     }
-    const r = nameTag(p.a.name, cx, by + (star ? bh + 5 : 0), star, star || col ? 1 : 0.85, col);
+    const r = nameTag(p.a, cx, by + (star ? bh + 5 : 0), star || col ? 1 : 0.85, col);
     return { x0: r.x0, x1: r.x1, y0: by - 1, y1: r.y1 };
   }
   function overlays(T) {
@@ -600,7 +596,7 @@
       if (nm) uiAv.push({ x0: 4, x1: 8 + Math.ceil(ctx.measureText(nm).width) + 12, y0: H - 28, y1: H - 8 });
       if (T.bar) uiAv.push({ x0: W / 2 - 150, x1: W / 2 + 150, y0: H - 46, y1: H - 20 });
     }
-    // 控制球员：脚下体力条 + 带星名字；对方/队友持球人只显示名字
+    // 控制球员：脚下体力条 + 名字；对方/队友持球人只显示名字
     if (hum && ctl && T.phase !== 'over' && !(PH.render5.k2 && PH.render5.k2.tip && PH.render5.k2.tipE < 0.5)) {
       const h = PH.T5.holder && PH.T5.holder();
       const mine = ctlTag(ctl, P[ctl.id], pr, true);
