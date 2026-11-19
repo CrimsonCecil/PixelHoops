@@ -564,7 +564,11 @@
     ['sm30', 'shot', '三分 基础命中', 0.12, 0, 1, 0.01, '概率：三分命中 = 基础 + 三分 × 系数 − 超远惩罚'],
     ['sm3R', 'shot', '三分 能力系数', 0.34, 0, 1, 0.01, '概率'],
     ['smDeep', 'shot', '超远三分 起算距离', 7.6, 6.7, 10, 0.05, '米：超出这个（+ 无限射程徽章）每米扣命中'],
-    ['smDeepK', 'shot', '超远三分 每米惩罚', 0.13, 0, 0.5, 0.01, '概率/米'],
+    ['smDeepK', 'shot', '超远三分 每米惩罚', 0.2, 0, 0.5, 0.01, '概率/米'],
+    ['smDeepGW', 'shot', '超远三分 绿区每米缩减', 0.28, 0, 1, 0.01, '比例/米：超过起算距离后缩小绿区'],
+    ['smDeepGWLo', 'shot', '超远三分 绿区倍率下限', 0.25, 0, 1, 0.01, '倍率：相对正常距离绿区'],
+    ['smDeepG', 'shot', '超远三分 完美命中每米惩罚', 0.65, 0, 1, 0.01, '概率/米：超过起算距离后，完美出手也不再必进'],
+    ['smDeepGLo', 'shot', '超远三分 完美命中下限', 0.35, 0, 1, 0.01, '概率：干扰惩罚前的下限'],
     ['sm20', 'shot', '中投 基础命中', 0.18, 0, 1, 0.01, '概率'],
     ['sm2R', 'shot', '中投 能力系数', 0.34, 0, 1, 0.01, '概率'],
     ['sm2Cl', 'shot', '中投 近距离加成', 0.16, 0, 0.5, 0.01, '概率：4.2 米以内越近越高，1.6 米满额'],
@@ -1771,6 +1775,8 @@
   // 绿区按出手类型区分：上篮最宽（空位几乎必中），抛投/勾手次之，中投、三分最窄；徽章再放大
   const GW_TYPE = { lay: 5, float: 3, hook: 3.1, post: 1.6, mid: 1.2, three: 1 }, GW0 = Object.assign({}, GW_TYPE);
   function shotKind(a) { return a.type === 'layup' ? (a.V.floater ? 'float' : 'lay') : a.V.hook ? 'hook' : a.pts === 3 ? 'three' : (a.v === 'turn' || a.v === 'postfade') && a.d0 != null && a.d0 < 4.6 ? 'post' : 'mid'; }
+  function deepStart(pl) { return K.smDeep + ba(pl, 'limitless', K.bgLimD); }
+  function deepExcess(pl) { return Math.max(0, distHoop(pl) - deepStart(pl)); }
   function greenWidth(pl, r, contest, kind, a) {
     kind = kind || 'mid';
     const inside = kind === 'lay' || kind === 'float' || kind === 'hook';
@@ -1780,6 +1786,7 @@
     g = clamp(g, 0.012, 0.3 * Math.max(1, (CFG.greenBase + CFG.greenRating) / (CFG_DEF.greenBase + CFG_DEF.greenRating))) * (GW_TYPE[kind] || 1);   // 上限跟着绿区基础 / 能力系数放大（默认 0.3）
     if (!inside) g *= K.gwJump; // V3.2：跳投绿区整体放宽 12%
     if (!inside) g *= K.gwOut; // V3.9q 外线跳投（中投 / 三分 / 背身后仰）绿区再按比例放宽 13.5%；上篮扣篮不变
+    if (kind === 'three') g *= clamp(1 - deepExcess(pl) * K.smDeepGW, K.smDeepGWLo, 1);
     // 徽章加成叠乘但封顶 1.45 倍，避免高能力球员绿区大到"怎么投都进"
     let bm = 1;
     if (inside) { if (hasB(pl, 'acrobat')) bm *= bk(pl, 'acrobat', K.bgAcroG); if (hasB(pl, 'bully') && contest > 0.2) bm *= bk(pl, 'bully', K.bgBullyG); }
@@ -2146,7 +2153,7 @@
   function releaseShot(pl, e, kind) {
     const df = OP(pl), b = G.ball, a = pl.action, V = a.V;
     const sk = shotKind(a), inCls = sk === 'lay' || sk === 'float' || sk === 'hook' || a.v === 'postfade' ? 'in' : 'shot';
-    const d = distHoop(pl), ci = contestInfo(pl, df, inCls), three = a.pts === 3, SK = a.skill;
+    const d = distHoop(pl), ci = contestInfo(pl, df, inCls), three = a.pts === 3, SK = a.skill, deep = three ? deepExcess(pl) : 0;
     let cm = 1;
     if (kind === 'lay') { cm *= K.smLayC0 - K.smLayCS * pl.r.str; cm *= bk(pl, 'acrobat', K.bgAcroC) * bk(pl, 'bully', K.bgBullyC); }
     else { if (a.F && !V.hook) cm *= a.F.ct; cm *= bk(pl, 'deadeye', K.bgDeadC); if (hasB(pl, 'fade') && (a.v === 'fade' || a.v === 'postfade' || a.v === 'turn')) cm *= bk(pl, 'fade', K.bgFadeC); if (hasB(pl, 'stepper') && a.v === 'stepback') cm *= bk(pl, 'stepper', K.bgStepC); }
@@ -2177,7 +2184,7 @@
     // 能力只决定"基础命中"的一部分，上下限收窄：顶级射手空位非完美出手约 45%，弱射手约 25%
     if (kind === 'lay') base = V.floater ? K.smFlo0 + K.smFloR * r : K.smLay0 + K.smLayR * r;
     else if (V.hook) base = K.smHook0 + K.smHookR * r;
-    else if (three) base = K.sm30 + K.sm3R * r - Math.max(0, d - (K.smDeep + ba(pl, 'limitless', K.bgLimD))) * K.smDeepK;
+    else if (three) base = K.sm30 + K.sm3R * r - deep * K.smDeepK;
     else base = K.sm20 + K.sm2R * r + K.sm2Cl * clamp((4.2 - d) / 2.6, 0, 1); // 禁区内近距离跳投更好进
     // 空位平衡：能力低的人空位多给一点，顶级射手空位稍微收一点，整体差距收窄
     const openK = kind !== 'lay' && !V.hook ? clamp((K.smOpen - c) / K.smOpen, 0, 1) : 0;
@@ -2187,14 +2194,13 @@
     if (inCls === 'in' && !SK) base += clamp(K.smInR * (reachOf(pl) - reachOf(df)) + K.smInS * (pl.r.str - df.r.str), -K.smInCap, K.smInCap) * (df.off ? 0 : 1);
     const cE = LAYC && K.ctOwn > 0 ? 0 : c;   // V4.3 被封堵的上篮：干扰惩罚整个交给下面的对抗模型（双方能力决定），这里不再重复扣
     const contestF = 1 - (kind === 'lay' ? CFG.contestLay * K.smCLay : CFG.contestShot * K.smCShot) * cE * (K.smCR0 - K.smCRK * r), stamF = 1 - K.smFat * fat(pl);
-    // 完美出手（绿区）也不是必进：空位 75%~88%，被干扰会继续往下掉
-    const gp = (three ? K.smG3 : K.smG2) + 0.13 * r + openK * 0.08 * Math.max(0, 0.85 - r) - Math.max(0, d - (7.6 + ba(pl, 'limitless', K.bgLimD))) * 0.1;
     // V3.2：完美出手（绿区）= 进。只有被严重干扰（≥50%）时才会掉，最多掉到约 65%
     let ng = base * timingF * contestF * stamF * V.p * (a.v === 'stepback' && !green ? K.smSb0 + K.smSb1 * clamp(r / 0.85, 0, 1) : 1); // 后撤步没按到绿区：投射差的人更难进
     // V4.5 上篮的时机系数放在封顶之后乘：5V5 命中校准把 V.p 调到 1.7+，以前 base×V.p 超过 1、很早 / 很晚也被 clamp 成 100%（时机完全不起作用）
     if (kind === 'lay' && !green && pl.ctrl !== 'cpu') { const raw = base * contestF * stamF * V.p; if (raw > 1) ng = timingF; }
     // 内线终结（上篮/抛投/勾手）绿区很宽，完美出手不能无视干扰：干扰超过 25% 就开始掉，78% 的正面封盖约剩四成
     let prob = green ? (SK ? 1 : kind === 'lay' || V.hook ? Math.max(ng, clamp(1 - K.smGInK * Math.max(0, cE - K.smGIn), K.smGInLo, 1)) : 1 - (1 - CFG.greenHeavy) * 2 * Math.max(0, c - 0.5)) : ng;
+    if (green && three && !SK) prob *= clamp(1 - deep * K.smDeepG, K.smDeepGLo, 1);
     if (SK && !green) prob = Math.max(prob, Math.min(K.smSkMax, base * K.smSkK * timingF));
     if (LAYC && c >= (K.ctOwn > 0 ? 0.12 : 0.2)) { const gk = green ? K.ctGreen : 1; let f = 1 - c * K.ctLayP * ek * gk; if (c >= 0.5) f *= 1 - K.ctHvy * ek * gk; if (a.dbl) f *= 1 - K.ctDbl * ek * gk; prob *= clamp(f, 0.08, 1); }
     if (a.blockEscape) { const esc = a.blockEscape; prob *= K.smEsc; if (!a.cv) { a.cv = esc; a.cvT = a.t; a.cvR = a.t; if (esc === 'switch') a.cvSw = a.t; } float(esc === 'switch' ? '拉杆躲帽' : '硬挤出手', pl, '#ffd24a', 1); }
@@ -2212,9 +2218,9 @@
     // 结果原因
     info.green = green; info.made = made; info.prob = prob; info.tl = tl; info.gw = gw; info.cl = cl;
     if (!made) {
-      if (green) info.reason = c < 0.2 ? '完美出手，但运气不佳（' + Math.round(prob * 100) + '%）' : '完美出手，但受到干扰（只有 ' + Math.round(prob * 100) + '% 命中）';
+      if (green) info.reason = deep > 0 && !SK ? '距离太远，完美出手也只有 ' + Math.round(prob * 100) + '% 命中' : c < 0.2 ? '完美出手，但运气不佳（' + Math.round(prob * 100) + '%）' : '完美出手，但受到干扰（只有 ' + Math.round(prob * 100) + '% 命中）';
       else {
-        const L = [[1 - Math.min(1, timingF) + (ae > 0.5 ? 0.25 : 0.05), '出手' + tl + '，松手时机偏离绿区'], [1 - contestF, '防守干扰大（' + (ci.src || '贴身') + '）'], [1 - stamF, '体力不足，出手变形'], [(1 - V.p) * 1.5, V.name + '难度高'], [three && d > (hasB(pl, 'limitless') ? 9.4 : 7.6) ? (d - 7.6) * 0.4 : 0, '距离太远'], [(1 - base) * 0.45, '该位置能力值偏低']];
+        const L = [[1 - Math.min(1, timingF) + (ae > 0.5 ? 0.25 : 0.05), '出手' + tl + '，松手时机偏离绿区'], [1 - contestF, '防守干扰大（' + (ci.src || '贴身') + '）'], [1 - stamF, '体力不足，出手变形'], [(1 - V.p) * 1.5, V.name + '难度高'], [deep * 0.4, '距离太远'], [(1 - base) * 0.45, '该位置能力值偏低']];
         L.sort((x, y) => y[0] - x[0]);
         info.reason = prob > 0.62 ? '运气不佳（本次命中率 ' + Math.round(prob * 100) + '%）' : L[0][1];
       }
@@ -4699,7 +4705,7 @@
       if (ai.t <= 0 && !SU) {
         ai.t = rr(K.aiDec0, K.aiDec1) * lerp(1, K.aiRhGap, rhythm);
         const r = pl.r, three = isThree(pl.x, pl.y), rS = three ? r.three : r.mid, M = ai.om;
-        const range = three ? (d < (hasB(pl, 'limitless') ? 9.2 : 8.0) ? 1 : 0.12) : 0.8;
+        const range = three ? (d <= deepStart(pl) ? 1 : 0.12) : 0.8;
         // 投：投射越强越爱投；防守人站得越远越想投
         const sag = clamp((S.gap - 1.1) / 1.2, 0, 1.2);
         // 出手倾向按能力分档（参考 2K 球员倾向）：投篮 D 档（<0.6）基本不投，A 档以上才爱投
