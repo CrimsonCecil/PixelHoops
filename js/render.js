@@ -1028,7 +1028,50 @@
     T[arm + 'e'] = lerpN(T[arm + 'e'], 0.08, w);
   }
 
-  function rig(pl, P = pl.pose) {
+  function gripArm(k, side, end, gathering) {
+    const sh = k['sh' + side], el = k['el' + side], hand = k['hand' + side];
+    const diff = (a, b) => a.map((x, i) => x - b[i]), dot = (a, b) => a.reduce((s, x, i) => s + x * b[i], 0);
+    const axis = diff(end, sh), d0 = Math.hypot(...axis);
+    if (d0 < 0.001) return;
+    const v = axis.map((x) => x / d0), upper = diff(el, sh);
+    let ua = Math.hypot(...upper), fa = Math.hypot(...diff(hand, el));
+    const d = gathering ? Math.min(d0, (ua + fa) * 1.04) : d0;
+    if (d < d0) end = sh.map((x, i) => x + v[i] * d);
+    const reach = Math.max(1, d / ((ua + fa) * 0.99)); ua *= reach; fa *= reach;
+    const along = Math.max(-ua, Math.min(ua, (d * d + ua * ua - fa * fa) / (2 * d)));
+    const perp = (a) => { const t = dot(a, v); return a.map((x, i) => x - t * v[i]); };
+    let bend = perp(upper), n = Math.hypot(...bend);
+    if (n < 0.001) { bend = perp(Math.abs(v[2]) < 0.9 ? [0, 0, -1] : [0, -1, 0]); n = Math.hypot(...bend); }
+    const h = Math.sqrt(Math.max(0, ua * ua - along * along)), fg = diff(k['fg' + side], hand);
+    k['el' + side] = sh.map((x, i) => x + v[i] * along + bend[i] * h / n);
+    k['hand' + side] = end; k['fg' + side] = end.map((x, i) => x + fg[i]);
+  }
+  function finishGrip(k, pl) {
+    const g = pl.grip, fwd = pl.face + (pl.pose.yaw || 0);
+    const w = g.right, both = 4 * w * (1 - w), L = k.handL, R = k.handR;
+    const across = R.map((x, i) => x - L[i]), d = Math.hypot(...across);
+    const axis = d > 0.02 ? across.map((x) => x / d) : [Math.sin(fwd), -Math.cos(fwd), 0];
+    const side = w >= 0.5 ? 'R' : 'L', hand = k['hand' + side], el = k['el' + side];
+    const palm = g.dunk ? hand.map((x, i) => x - el[i]) : [0, 0, 1], n = Math.hypot(...palm) || 1;
+    const natural = L.map((x, i) => lerpN(x, R[i], w) + 0.105 * (1 - both) * palm[i] / n);
+    const rim = [pl.gripRimX ?? HOOP.x, pl.gripRimY ?? HOOP.y, HOOP.z + BALL_R + 0.045];
+    let center = natural.map((x, i) => lerpN(x, rim[i], g.rim));
+    const a = g.gather;
+    if (a) {
+      const fx = Math.cos(pl.face), fy = Math.sin(pl.face);
+      const start = [pl.x + fx * a.fwd + fy * a.lat, pl.y + fy * a.fwd - fx * a.lat, a.z];
+      center = center.map((x, i) => lerpN(start[i], x, a.mix));
+    }
+    for (const [s, hd, sign, weight] of [['L', L, -1, 1 - w], ['R', R, 1, w]]) {
+      const f = Math.min(1, weight * 2) * g.fade;
+      if (f === 0 || (!g.rim && !both && !a)) continue;
+      const wArm = a ? f * (0.4 + 0.6 * a.mix) : f;
+      const end = center.map((x, i) => lerpN(hd[i], x + 0.108 * (sign * both * axis[i] - (1 - both) * palm[i] / n), wArm));
+      gripArm(k, s, end, !!a);
+    }
+    k.ball = center;
+  }
+  function rig(pl, P = pl.pose, grip = true) {
     // 卡通化体型：身高差放大 1.7 倍，宽度/臂展按球员体型
     const C = pl.col || {}, bw = C.bw || 1, wg = C.wing || 1;
     const Hh = 1 + (pl.h / 1.95 - 1) * 1.7;
@@ -1065,7 +1108,7 @@
       return [A[2][0] + c[0] * L, A[2][1] + c[1] * L, A[2][2] + c[2] * L]; };
     const fa_ = pl.face + ((P && P.yaw) || 0), fx = Math.cos(fa_), fy = Math.sin(fa_), rx = fy, ry = -fx;
     const tw = (v) => [pl.x + rx * v[0] * sxk + fx * v[1], pl.y + ry * v[0] * sxk + fy * v[1], pelZ + v[2] * sy];
-    return {
+    const k = {
       hipL: tw(L[0]), kneeL: tw(L[1]), footL: tw(L[2]), toeL: tw(L[3]),
       hipR: tw(R[0]), kneeR: tw(R[1]), footR: tw(R[2]), toeR: tw(R[3]),
       pelvis: tw([0, 0, 0]), chest: tw(chest), head: tw(head),
@@ -1074,6 +1117,8 @@
       // V4.0 手指段：沿前臂延长；投篮压腕（pose.flR/flL）时朝前下方弯（鹅颈）
       fgL: tw(fing(AL, P.flL || 0)), fgR: tw(fing(AR, P.flR || 0)),
     };
+    if (grip && P === pl.pose && pl.grip) finishGrip(k, pl);
+    return k;
   }
   PH.rig = rig;
 
