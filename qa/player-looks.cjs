@@ -18,12 +18,16 @@ for (const name of ['tune', 'render', 'roster', 'measurements', 'r5', 'game', 'b
   vm.runInContext(fs.readFileSync(file, 'utf8'), ctx, { filename: file });
 }
 
-const { game, render, rig, measurements, T5 } = ctx.PH;
+const { game, render, rig, measurements, buildTags, T5 } = ctx.PH;
 render.init(canvas());
 assert.deepEqual(Object.keys(measurements).sort(), Array.from(game.ROSTER).sort());
+assert.deepEqual(Object.keys(buildTags).sort(), Array.from(game.ROSTER).sort());
+const classes = ['lean', 'balanced', 'muscular', 'heavy'];
 for (const key of game.ROSTER) {
   const p = game.t5.makePlayer(0, key, 'cpu');
   const m = measurements[key], body = p.col.body;
+  assert(classes.includes(buildTags[key]), key);
+  assert.equal(p.col.buildTag, buildTags[key], key);
   assert.equal(body.height, m[0] * 0.0254);
   assert(body.height > 1.7 && body.height < 2.35 && m[1] > 150 && m[1] <= 325, key);
   if (!m[2]) assert.equal(body.arm, p.col.wing, key);
@@ -98,16 +102,36 @@ for (const key of ['curry', 'cade', 'shaq', 'jokic', 'morant', 'butler', 'kawhi'
 }
 console.log('PASS every rostered player renders; 302 measured-height profiles, signature looks, original gameplay rig and held-ball wrist anchors');
 
-const bmi = key => {
-  const [inches, pounds] = measurements[key];
-  return pounds * 0.45359237 / (inches * 0.0254) ** 2;
-};
-const averageBmi = game.ROSTER.reduce((total, key) => total + bmi(key), 0) / game.ROSTER.length;
+const widths = Object.fromEntries(classes.map(tag => [tag, []]));
 for (const key of game.ROSTER) {
-  if (bmi(key) < averageBmi) continue;
-  const { height, shoulder, chest, waist } = look(key).body;
-  const scale = 1 + (height / 1.95 - 1) * 1.55;
-  assert(shoulder >= 1.045 && chest / scale >= 1.035 && waist / scale >= 1.035 && relativeLimb(key) >= 1.01, key);
+  const { height, waist, limb } = look(key).body;
+  const scale = 1 + 1.05 * Math.max(0, height / 1.95 - 1);
+  widths[buildTags[key]].push({ waist: waist / scale, limb: limb / scale });
+}
+const max = (tag, part) => Math.max(...widths[tag].map(body => body[part]));
+const min = (tag, part) => Math.min(...widths[tag].map(body => body[part]));
+assert(classes.every(tag => widths[tag].length > 0));
+assert(max('lean', 'limb') < min('balanced', 'limb'));
+assert(max('balanced', 'limb') < min('muscular', 'limb'));
+assert(max('muscular', 'waist') < min('heavy', 'waist'));
+for (const key of ['kdunn', 'curry', 'wemby']) assert.equal(buildTags[key], 'lean', key);
+assert.equal(buildTags.holiday, 'muscular');
+for (const part of ['shoulder', 'chest', 'waist', 'armThickness', 'limb']) {
+  assert(look('kdunn').body[part] < look('holiday').body[part], part);
+}
+const approvedWidths = {
+  holiday: [1.2193, 1.4798, 1.5209, 1.4044],
+  queta: [1.1834, 1.5399, 1.5777, 1.4706],
+  lebron: [1.8, 2.4098, 1.7891, 2.2396],
+  shaq: [1.7875, 2.429, 2.7421, 2.2221],
+  jokic: [1.3652, 1.7979, 2.1303, 1.6859],
+  zion: [1.9679, 2.7851, 2.579, 2.5297],
+  gobert: [1.1369, 1.4459, 1.4745, 1.3935],
+  sabonis: [1.1515, 1.4268, 1.4572, 1.3709]
+};
+for (const [key, floors] of Object.entries(approvedWidths)) {
+  const { shoulder, chest, waist, armThickness } = look(key).body;
+  assert([shoulder, chest, waist, armThickness].every((v, i) => v >= floors[i] - 1e-9), key);
 }
 assert(relativeLimb('queta') > relativeLimb('tatum') * 1.1);
 assert(relativeLimb('queta') > relativeLimb('wemby') * 1.5);
@@ -117,7 +141,7 @@ const { k: visual } = render.drawPlayer(queta);
 const dist = (a, b) => Math.hypot(...a.map((v, i) => v - b[i]));
 assert(dist(visual.shL, visual.elL) < 0.96 * 0.28 * scale * arm);
 assert(dist(visual.hipL, visual.kneeL) < 0.97 * 0.41 * scale * legs);
-console.log('PASS above-average BMI profiles have solid height-relative widths; Queta has shorter visual limbs and a fuller frame');
+console.log('PASS all 302 builds are tagged and ordered; Dunn stays lean and approved V6 builds are preserved');
 
 const gameCanvas = canvas();
 let spriteContext;
