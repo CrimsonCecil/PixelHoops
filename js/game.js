@@ -1392,15 +1392,23 @@
       const aboveAverage = bmi - 24.5, density = aboveAverage / 5.25;
       // 从名单平均值起放大中上体型，接近最厚重的球员时回到原曲线。
       const midrange = Math.max(0, Math.min(aboveAverage / 2.25, (28.9 - bmi) / 2.15));
-      const build = clamp(Math.sign(density) * Math.abs(density) ** 1.35 + 0.2 * midrange + (sig.build || 0), -0.42, 2.05);
+      const weightBuild = Math.sign(density) * Math.abs(density) ** 1.35 + 0.2 * midrange;
+      const signatureBuild = sig.build || 0, muscle = sig.muscle || 0;
+      const legacyBuild = clamp(weightBuild + signatureBuild, -0.42, 2.05);
+      const belowHeavy = clamp((28.9 - bmi) / 3, 0, 1);
+      const solid = clamp((bmi - 24.1) / 0.45, 0, 1);
+      const broadFrame = 0.4 * Math.max(0, look.bw - 1);
+      const build = clamp(weightBuild + signatureBuild + belowHeavy * (solid * (0.2 - 0.5 * Math.min(0, signatureBuild)) + broadFrame), -0.42, 2.05);
       // 骨架比例保留测量值，胸腰与四肢粗细单独放大。
       const frame = clamp((bmi - 25.4) * 0.091, -0.36, 0.55);
-      const muscle = sig.muscle || 0, limb = 1 + 0.59 * build;
+      const widthScale = 1 + 1.05 * Math.max(0, height / 1.95 - 1), limb = 1 + 0.59 * build;
       const shoulder = (1 + 0.32 * build) * (sig.shoulder || 1) + 0.48 * muscle;
-      look.body = { height, baseHeight: a.h, shoulder, chest: 1 + 0.7 * build + 0.9 * muscle, waist: 1 + 0.76 * build + (sig.waist || 0), hip: 1 + 0.4 * build,
+      const waistBuild = build - 0.5 * muscle * (build - legacyBuild);
+      look.body = { height, baseHeight: a.h, shoulder, chest: (1 + 0.7 * build + 0.9 * muscle) * widthScale, waist: (1 + 0.76 * waistBuild + (sig.waist || 0)) * widthScale, hip: 1 + 0.4 * build,
         arm: span ? clamp(1 + 1.65 * (span / inches - 1.047) - 0.086 * frame, 0.87, 1.17) : look.wing,
         legs: sig.legs || clamp(1 + (inches - 78) * 0.002 - frame * 0.06, 0.96, 1.04),
-        limb, armThickness: limb + 0.82 * muscle, hand: hand ? clamp(hand / (0.11 * inches), 0.84, 1.18) : 1 };
+        limb: limb * widthScale, armThickness: (limb + 0.82 * muscle) * widthScale, hand: hand ? clamp(hand / (0.11 * inches), 0.84, 1.18) : 1,
+        headScale: 0.92 + 0.08 * Math.min(1.4, 1 + 0.7 * legacyBuild + 0.9 * muscle) };
     }
     return look;
   }
