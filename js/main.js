@@ -118,8 +118,8 @@
     return { eyeY: ey };
   }
   const IC = PH.icons, TT = { star: 'S', mid: 'A', avg: 'B', rook: 'C' };
-  // MyTeam 属性档位：铜 <55、银 55+、金 65+、翡翠 70+、蓝宝石 74+、红宝石 78+、紫晶 82+、钻石 86+、粉钻 90+、暗物质 95+
-  const vcl = (v) => v >= 95 ? 'rating-dark-matter' : v >= 90 ? 'rating-pink-diamond' : v >= 86 ? 'rating-diamond' : v >= 82 ? 'rating-amethyst' : v >= 78 ? 'rating-ruby' : v >= 74 ? 'rating-sapphire' : v >= 70 ? 'rating-emerald' : v >= 65 ? 'rating-gold' : v >= 55 ? 'rating-silver' : 'rating-bronze';
+  // 装备品质属性档位：灰 <55、白 55+、绿 64+、蓝 72+、紫 80+、橙 88+、金 95+
+  const vcl = (v) => v >= 95 ? 'rating-gold' : v >= 88 ? 'rating-orange' : v >= 80 ? 'rating-purple' : v >= 72 ? 'rating-blue' : v >= 64 ? 'rating-green' : v >= 55 ? 'rating-white' : 'rating-grey';
   const tg = (v01) => GM.grade(v01)[0];
   // V4.5 选人能力卡徽章：和比赛中同一套六边形图标，按档位配色（铜 / 银 / 金 / 名人堂，不写档位字）
   const badgeHtml = (k, full, t) => { const B = GM.BADGES[k]; return '<div class="bdg tr' + (t || 3) + '">' + bHex(k, t) + (full ? '<div><b>' + B.name + (B.five ? '<sup>5V5</sup>' : '') + '</b><span>' + B.desc + '</span></div>' : '<b>' + B.name + '</b>') + '</div>'; };
@@ -180,7 +180,7 @@
     const AT = {}; GM.ATTRS.forEach((t) => { AT[t[0]] = t[2]; }); Object.assign(AT, R5TIP);
     const AG = attrGroups(a, a), bl = bList(a, true), have = {}; bl.forEach((x) => { have[x[0]] = x[1]; });
     if (pkTab === 'ov') {
-      h += '<div class="rating-legend" aria-label="属性颜色分档">' + [[95, '暗物质 95+'], [90, '粉钻 90+'], [86, '钻石 86+'], [82, '紫晶 82+'], [78, '红宝石 78+'], [74, '蓝宝石 74+'], [70, '翡翠 70+'], [65, '金 65+'], [55, '银 55+'], [0, '铜 &lt;55']].map(([v, n]) => '<span class="' + vcl(v) + '">' + n + '</span>').join('') + '</div>';
+      h += '<div class="rating-legend" aria-label="属性颜色分档">' + [[95, '金 95+'], [88, '橙 88+'], [80, '紫 80+'], [72, '蓝 72+'], [64, '绿 64+'], [55, '白 55+'], [0, '灰 &lt;55']].map(([v, n]) => '<span class="' + vcl(v) + '">' + n + '</span>').join('') + '</div>';
       h += '<div class="pkov" data-testid="pk-ov">' + AG.map(([g, gs, v]) => '<div class="pko1"><span>' + g + '</span><b class="' + vcl(v) + '">' + v + '</b></div>').join('') + '</div>';
       { const F = GM.SF[a.form] || GM.SF.std, sp = F.sp <= 0.85 ? '极快' : F.sp <= 0.92 ? '快' : F.sp <= 1.04 ? '中等' : F.sp <= 1.15 ? '偏慢' : '慢', hi = F.blk <= 0.85 ? '高' : F.blk >= 1.1 ? '低' : '中'; h += '<p class="pkform">投篮包 <b>' + F.name + '</b>' + (a.lefty ? ' · 左手' : '') + ' · 出手 ' + sp + ' · 出手点 ' + hi + (F.two ? ' · 两段式' : ' · 一段式') + '</p>'; }
       { const K = GM.dunkPkg(a), N = { two: '双手', one: '单手', rimpull: '挂筐', reverse: '背扣', tomahawk: '战斧', poster: '隔扣', cock: '拉弓', windmill: '风车', '360': '360', glide: '滑翔', cradle: '摇篮', pump: '双抽', scissor: '剪刀腿', shaq: '大鲨鱼' }, L = Object.keys(N).filter((k) => K.S[k]).map((k) => N[k]);
