@@ -1,0 +1,8 @@
+﻿name = "pixelhoops-api"
+main = "src/index.js"
+compatibility_date = "2025-01-01"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "pixelhoops-db"
+database_id = "d98e7312-ab35-4a37-bd87-6f9517c59c12"
