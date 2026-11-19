@@ -1370,7 +1370,7 @@
     booker: { style: 'fade', face: 'oval', beard: 'stubble', brow: 'heavy' },
     draymond: { style: 'crop', face: 'wide', beard: 'boxed', shoulder: 1.07 },
     mitchell: { style: 'fade', face: 'round', beard: 'goatee' },
-    cade: { style: 'afro', face: 'oval', beard: 'trimmed', build: 0.16, shoulder: 1.06 },
+    cade: { style: 'curlfade', face: 'oval', beard: 'trimmed', build: 0.16, shoulder: 1.06 },
     banchero: { style: 'braids', face: 'wide', beard: 'goatee', shoulder: 1.06 },
     jbrown: { style: 'braids', beard: 'boxed', face: 'square' },
     sabonis: { style: 'swept', face: 'square', beard: 'boxed' },

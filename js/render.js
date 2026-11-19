@@ -195,18 +195,18 @@
   }
 
   // ---------- 像素图元 ----------
-  function brush(c, x0, y0, x1, y1, w, dark, light) {
+  function brush(c, x0, y0, x1, y1, w, dark, light, top = -Infinity) {
     w = Math.max(1, Math.round(w));
     const dx = x1 - x0, dy = y1 - y0, n = Math.max(1, Math.ceil(Math.max(Math.abs(dx), Math.abs(dy)))), h = w / 2;
-    c.fillStyle = dark;
-    for (let i = 0; i <= n; i++) { const t = i / n; c.fillRect(Math.round(x0 + dx * t - h), Math.round(y0 + dy * t - h), w, w); }
-    if (w >= 3 && light) {
-      c.fillStyle = light;
-      for (let i = 0; i <= n; i++) { const t = i / n; c.fillRect(Math.round(x0 + dx * t - h), Math.round(y0 + dy * t - h), w - 1, w - 1); }
-    } else if (light) {
-      c.fillStyle = light;
-      for (let i = 0; i <= n; i++) { const t = i / n; c.fillRect(Math.round(x0 + dx * t - h), Math.round(y0 + dy * t - h), w, w); }
-    }
+    const paint = (col, size) => {
+      c.fillStyle = col;
+      for (let i = 0; i <= n; i++) {
+        const t = i / n, y = Math.round(y0 + dy * t - h), start = Math.max(y, top);
+        if (start < y + size) c.fillRect(Math.round(x0 + dx * t - h), start, size, y + size - start);
+      }
+    };
+    paint(dark, w);
+    if (light) paint(light, w >= 3 ? w - 1 : w);
   }
   function ellipse(c, cx, cy, rx, ry, col) {
     c.fillStyle = col; cx = Math.round(cx); cy = Math.round(cy);
@@ -1143,9 +1143,10 @@
   const FACES = { square: { w: 1, h: 1.05, r: 0.1, rb: 0.12, chin: 0 }, round: { w: 1.04, h: 1.02, r: 0.42, rb: 0.42, chin: 0 }, oval: { w: 0.9, h: 1.14, r: 0.34, rb: 0.38, chin: 0.12 },
     long: { w: 0.84, h: 1.26, r: 0.24, rb: 0.3, chin: 0.08 }, wide: { w: 1.2, h: 0.98, r: 0.34, rb: 0.3, chin: 0 },
     tapered: { w: 1, h: 1.14, r: 0.33, rb: 0.34, chin: 0.13 } };
+  const headHeight = (face, size) => Math.max(5, Math.round(size * (FACES[face] || FACES.square).h));
   function drawHead(c, C, x, y, size, facing) {
     const fs = FACES[C.face] || FACES.square;
-    const w = Math.max(5, Math.round(size * fs.w)), h = Math.max(5, Math.round(size * fs.h));
+    const w = Math.max(5, Math.round(size * fs.w)), h = headHeight(C.face, size);
     const left = Math.round(x - w / 2), top = Math.round(y - h / 2);
     const away = Math.sin(facing) > 0.35, side = Math.cos(facing), profile = Math.abs(side) > 0.45;
     const px = (x, y, w, h, col) => {
@@ -1269,10 +1270,12 @@
     const s = base.s, C = pl.col;
     sctx.clearRect(0, 0, SZ, SZ);
     const segs = [];
-    const seg = (a, b, w, col, bias = 0) => segs.push({ a: J[a], b: J[b], w: w * s, c: col, d: (J[a].d + J[b].d) / 2 + bias });
+    const seg = (a, b, w, col, bias = 0, top) => segs.push({ a: J[a], b: J[b], w: w * s, c: col, d: (J[a].d + J[b].d) / 2 + bias, top });
     // 体型夸张化：瘦的更瘦、壮的更壮（bw 偏离 1 的部分放大 1.5 倍）
     const bw = C.bw || 1, fb = Math.max(0.6, 1 + 1.5 * (bw - 1)), B = C.body;
     const lw = B ? B.limb : (0.5 + 0.5 * fb) * 1.12, tw = B ? B.chest : (0.2 + 0.8 * fb) * 1.06;
+    const headSize = 0.38 * s * (0.92 + 0.08 * Math.min(1.4, tw));
+    const shoulderTop = Math.ceil(J.head.y + 0.25 * headHeight(C.face, headSize));
     seg('hipL', 'kneeL', 0.17 * lw, C.shorts); seg('hipR', 'kneeR', 0.17 * lw, C.shorts);
     seg('kneeL', 'footL', 0.11 * lw, C.skin); seg('kneeR', 'footR', 0.11 * lw, C.skin);
     seg('footL', 'toeL', 0.12, C.shoe, -0.01); seg('footR', 'toeR', 0.12, C.shoe, -0.01);
@@ -1281,14 +1284,15 @@
       const P = J.pelvis, Q = J.chest;
       J.mid = { x: (P.x + Q.x) / 2, y: (P.y + Q.y) / 2, d: (P.d + Q.d) / 2 };
       J.neck = { x: lerpN(Q.x, J.head.x, 0.55), y: lerpN(Q.y, J.head.y, 0.55), d: Q.d };
-      seg('pelvis', 'mid', 0.29 * B.waist, C.jersey);
-      seg('mid', 'chest', 0.34 * tw, C.jersey);
+      seg('pelvis', 'mid', 0.29 * B.waist, C.jersey, 0, shoulderTop);
+      seg('mid', 'chest', 0.34 * tw, C.jersey, 0, shoulderTop);
       seg('chest', 'neck', 0.13 * lw, C.skin, 0.02);
-    } else seg('pelvis', 'chest', 0.31 * tw, C.jersey);
-    seg('shL', 'shR', 0.12 * (B ? B.chest : 0.6 + 0.4 * fb), C.jersey);
+    } else seg('pelvis', 'chest', 0.31 * tw, C.jersey, 0, shoulderTop);
+    seg('shL', 'shR', 0.12 * (B ? B.chest : 0.6 + 0.4 * fb), C.jersey, 0, shoulderTop);
     for (const side of ['L', 'R']) {
       const sleeve = C.sleeve === side ? [C.shorts[0], C.trim] : C.skin;
-      seg('sh' + side, 'el' + side, 0.11 * lw, sleeve);
+      const upper = 0.11 * lw, elbowTop = Math.round(J['el' + side].y - Math.max(1, Math.round(upper * s)) / 2);
+      seg('sh' + side, 'el' + side, upper, sleeve, 0, Math.min(shoulderTop, elbowTop));
       seg('el' + side, 'hand' + side, 0.095 * lw, sleeve);
       if (B || (pl.pose['fl' + side] || 0) > 0.15) seg('hand' + side, 'fg' + side, 0.075 * lw, C.skin);
     }
@@ -1297,8 +1301,8 @@
     const facing = pl.face + (pl.pose.yaw || 0), away = Math.sin(facing);
     for (const g of segs) {
       if (g.head) {
-        drawHead(sctx, C, J.head.x, J.head.y, 0.38 * s * (0.92 + 0.08 * Math.min(1.4, tw)), facing);
-      } else brush(sctx, g.a.x, g.a.y, g.b.x, g.b.y, g.w, g.c[0], g.c[1]);
+        drawHead(sctx, C, J.head.x, J.head.y, headSize, facing);
+      } else brush(sctx, g.a.x, g.a.y, g.b.x, g.b.y, g.w, g.c[0], g.c[1], g.top);
     }
     // 球衣号码色块
     if (s > 20 && Math.abs(away) > 0.3) {
