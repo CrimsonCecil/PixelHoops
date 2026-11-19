@@ -766,6 +766,13 @@
     ['aiSuFar', 'ai', '电脑持球 真空位距离', 3.2, 2.5, 5, 0.1, '米：1V1 防守人离这么远或被晃倒时可提前出手'],
     ['aiSuMin', 'ai', '电脑持球 组织最低招数', 2, 1, 5, 1, '招：1V1 非背打组织招数下限；按个性增加，保留左右来回试探', 'int'],
     ['aiDrvSet', 'ai', '电脑持球 正面受阻距离', 1.6, 1, 2, 0.05, '米：1V1 防守人正面站稳时不硬冲，先变向或退一步重新单打'],
+    ['aiRhH0', 'ai', '电脑运球 节奏控球起点', 0.65, 0, 1, 0.01, '能力：1V1 非背打球员从此控球值开始缩短观察和招式间停顿'],
+    ['aiRhH1', 'ai', '电脑运球 快节奏控球门槛', 0.85, 0, 1, 0.01, '能力：达到此控球值时使用完整快节奏；连续过人型更积极'],
+    ['aiRhRead', 'ai', '电脑运球 快节奏开局观察', 0.18, 0, 0.6, 0.01, '秒：高控球球员开局只短暂读防守，马上出第一招'],
+    ['aiRhGap', 'ai', '电脑运球 快节奏间隔倍率', 0.25, 0.05, 1, 0.05, '倍率：高控球球员单打起手、续招、决策间隔缩短至此比例'],
+    ['aiRhBeat', 'ai', '电脑运球 连招后短停', 0.2, 0, 0.6, 0.01, '秒：高控球球员连招结束后短暂换节奏，不再空等整串连招预留时间'],
+    ['aiRhCbP', 'ai', '电脑运球 快节奏连招概率加成', 0.25, 0, 1, 0.05, '倍率加成：随控球和个性增加起连招概率，只影响1V1非背打球员'],
+    ['aiRhCbN', 'ai', '电脑运球 快节奏连招加段', 1, 0, 3, 1, '段：高控球球员连招长度和上限额外增加的段数', 'int'],
     ['aiSuOpP', 'ai', '电脑持球 组织中空位出手 频率', 2.5, 0, 20, 0.1, '次/秒'],
     ['aiSuMv', 'ai', '电脑持球 组织中试探招式频率', 0.25, 0, 5, 0.05, '次/秒：× (0.5 + 控球)；试探步 / 犹豫 / 变向'],
     ['aiSuStun', 'ai', '电脑持球 组织中晃开门槛', 0.5, 0, 3, 0.05, '秒：防守人硬直超过这个（被晃开 / 晃倒）就结束组织直接进攻'],
@@ -4154,6 +4161,10 @@
     return U.bt ? U.bc : null;
   }
   function styIso(pl, s) { let m = 0; for (const t of s) m += styK(pl, 'm' + t); return (m / s.length) * Math.pow(styK(pl, 'Len'), s.length - 2); }
+  function duelRhythm(pl) {
+    if (G.mode === 't5' || (G.mode !== 'cpu' && G.mode !== 'train') || styOf(pl) === 'post') return 0;
+    return clamp((pl.r.hnd - K.aiRhH0) / Math.max(0.01, K.aiRhH1 - K.aiRhH0), 0, 1) * clamp(styK(pl, 'Len'), 0.85, 1);
+  }
   function pickIso(pl) {
     const r = pl.r, jr = Math.max(r.mid, r.three), PK = dpkOf(pl.arch), X = [];
     // 运球包里的招牌招（斜前 D / 斜后 K）多用一些，看得到每个人的特色
@@ -4164,7 +4175,7 @@
     const w = ok.map((c) => (c.w || 1) * styIso(pl, c.s) * (1 + c.s.length * (r.hnd - 0.5)) * (c.s.indexOf('B') >= 0 && hasB(pl, 'stepper') ? 2 : 1) * (c.s.indexOf('P') >= 0 ? 0.7 : 1));
     let x = rnd() * w.reduce((a, b) => a + b, 0), c = ok[0];
     for (let i = 0; i < ok.length; i++) { if ((x -= w[i]) < 0) { c = ok[i]; break; } }
-    return { seq: c.s.split(''), i: 0, next: G.time + rr(0.15, 0.45), side: rnd() < 0.5 ? 1 : -1, end: 0 };
+    return { seq: c.s.split(''), i: 0, next: G.time + rr(0.15, 0.45) * lerp(1, K.aiRhGap, duelRhythm(pl)), side: rnd() < 0.5 ? 1 : -1, end: 0 };
   }
   // V4.2 AI 连续过人：出第一招时决定这一串打几段（控球 / 体力），之后每段按防守人位置和重心挑下一招；防守人失位就停下来果断攻 / 投
   function cbJr(pl) { return isThree(pl.x, pl.y) ? pl.r.three : pl.r.mid; }
@@ -4172,10 +4183,11 @@
     const ai = pl.ai, hn = pl.r.hnd; ai.cb = null;
     if (pl.stam < K.ai_cb_stMin) return;
     const pc = clamp(K.ai_cb_p0 + K.ai_cb_pH * (hn - 0.7), 0.03, Math.max(0.95, K.ai_cb_p0)) * (0.75 + 0.25 * G.diff);
-    if (rnd() >= Math.min(0.97, pc * styK(pl, 'CbP'))) return;
+    const rhythm = duelRhythm(pl), extra = Math.round(K.aiRhCbN * rhythm);
+    if (rnd() >= Math.min(0.97, pc * styK(pl, 'CbP') * (1 + K.aiRhCbP * rhythm))) return;
     let N = Math.round(K.ai_cb_n0 + K.ai_cb_nH * (hn - 0.75) + (rnd() - 0.5) * 1.6 + styK(pl, 'CbN'));
     if (pl.stam < K.ai_cb_stLo) N -= 1;
-    N = clamp(N, 2, K.ai_cb_max); if (N < 2) return;
+    N = clamp(N + extra, 2, K.ai_cb_max + extra); if (N < 2) return;
     ai.cb = { N: N, k: 0, a: null, at: 0, pr: false, last: tok, side: side || ai.side || 1, toks: [tok] };
     G.aiCb = G.aiCb || {}; G.aiCb.start = (G.aiCb.start || 0) + 1; G.aiCb['N' + N] = (G.aiCb['N' + N] || 0) + 1;
   }
@@ -4229,6 +4241,7 @@
     if (pl.hasBall) {
       const d = distHoop(pl), a = pl.action;
       const duel = G.mode !== 't5' && (G.mode === 'cpu' || G.mode === 'train') && styOf(pl) !== 'post';
+      const rhythm = duel ? duelRhythm(pl) : 0;
       if (duel && ai.su && a && a.type === 'move' && ai.su.moveFor !== a) { ai.su.moveFor = a; ai.su.nm = (ai.su.nm || 0) + 1; }
       if (a && (a.type === 'shot' || a.type === 'layup')) {
         if (ai.relFor !== a) {
@@ -4331,7 +4344,7 @@
           if (duel) U.mx = Math.max(U.mx, U.min);
           if ((U.nm || 0) >= U.mx + 2 * (U.nk || 0) && !(pl.action && pl.action.type === 'move') && !(U.bt && U.bc === 'keep' && opp.stun > 0)) { U.end = 0; SU = false; ai.iso = null; const fn = 0.55 * pl.r.lay + 0.45 * Math.max(pl.r.dunk, 0.35), wd = styK(pl, 'Drv') * fn * fn, wp = styK(pl, 'Pull') * rS0 * rS0; ai.plan = rnd() < wd / (wd + wp) ? 'drive' : 'shoot'; ai.t = K.aiStyCommit; G.aiSty = G.aiSty || {}; G.aiSty['end_' + ai.plan] = (G.aiSty['end_' + ai.plan] || 0) + 1; }   // 招式出完就定：突或投（按个性的突 / 急停倾向）
           else {
-          if (U.rd == null) U.rd = U.t0 + rr(K.aiStyRd0, K.aiStyRd1) * styK(pl, 'Su');
+          if (U.rd == null) { const read = rr(K.aiStyRd0, K.aiStyRd1) * styK(pl, 'Su'); U.rd = U.t0 + lerp(read, Math.min(read, K.aiRhRead), rhythm); }
           if (U.st !== 'post' && G.time < U.rd && ai.plan !== 'post') { const ph = Math.sin((G.time - U.t0) * K.aiStyRdW + (U.ph0 || (U.ph0 = rr(0, 6)))); o.mx = -hy * ph * K.aiStyRdA; o.my = hx * ph * K.aiStyRdA; return o; }
           if (U.st === 'post' && ai.plan !== 'post') {
             // 背打型：去低位要位（离筐 4.2~5.4 米的两侧低位），防守人跟上贴住就背身
@@ -4344,7 +4357,7 @@
         }
       }
       if (ai.t <= 0 && !SU) {
-        ai.t = rr(K.aiDec0, K.aiDec1);
+        ai.t = rr(K.aiDec0, K.aiDec1) * lerp(1, K.aiRhGap, rhythm);
         const r = pl.r, three = isThree(pl.x, pl.y), rS = three ? r.three : r.mid, M = ai.om;
         const range = three ? (d < (hasB(pl, 'limitless') ? 9.2 : 8.0) ? 1 : 0.12) : 0.8;
         // 投：投射越强越爱投；防守人站得越远越想投
@@ -4451,6 +4464,7 @@
           if (jp > 0.25 && opp.stun < 0.25 && front > 0.15 && rnd() < 0.2 + 0.6 * jp) { ai.t = 0.6; return o; }
           ai.plan = 'drive'; const lat = (opp.x - pl.x) * -hy + (opp.y - pl.y) * hx; ai.side = lat > 0 ? -1 : 1;
         } else if (I.end) {
+          if (rhythm > 0 && I.rest == null) { I.rest = lerp(I.end, G.time + K.aiRhBeat, rhythm); I.end = Math.min(I.end, I.rest); }
           if (G.time > I.end) { ai.iso = null; ai.t = 0; ai.plan = SU ? 'iso' : rnd() < 0.1 + 0.45 * Math.min(1, (ai.rimK == null ? 1 : ai.rimK) / 0.8) ? 'drive' : 'iso'; }
           go(pl.x - hx * (dd < 1.2 ? 0.6 : 0), pl.y - hy * (dd < 1.2 ? 0.6 : 0), 0.4); return o;
         } else {
@@ -4469,7 +4483,7 @@
             else if (t === 'H') { o.a3 = true; o.dx = 0; o.dy = 0; }
             else if (t === 'P') { ai.fakeNext = true; o.a1 = true; ai.fakeChk = { t: G.time + 0.55, jumped: false }; }
             if (o.a3 && !(ai.cb && ai.cb.a)) { cbStart(pl, t, I.side); if (ai.cb) { I.end = null; I.i = I.seq.length; } }   // V4.2 这一招起连招：连招打完再读防守（不再按 seq 一招一招慢慢试）
-            I.next = G.time + rr(0.24, 0.42) * (1.35 - 0.45 * pl.r.hnd) + (rnd() < 0.25 ? rr(0.2, 0.5) : 0);
+            I.next = G.time + (rr(0.24, 0.42) * (1.35 - 0.45 * pl.r.hnd) + (rnd() < 0.25 ? rr(0.2, 0.5) : 0)) * lerp(1, K.aiRhGap, rhythm);
             ai.mvChk = { t: G.time + 0.6 };
             if (I.i >= I.seq.length) I.end = G.time + rr(0.35, 0.7) + (ai.cb ? 0.5 * ai.cb.N : 0);
             if ((t === 'B' || (t === 'K' && dpkOf(pl.arch).m.BD === 'btbsb')) && jr >= 0.7) { ai.iso = null; ai.plan = 'shoot'; ai.t = 0.9; }
