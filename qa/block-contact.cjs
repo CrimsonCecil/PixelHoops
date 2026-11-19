@@ -131,6 +131,34 @@ for (const outcome of ['block', 'make', 'miss']) {
 }
 console.log('PASS shooting form: projected/blocked makes grant no hot-zone or cold-streak boosts; resolved makes/misses update form');
 
+for (const outcome of ['make', 'miss', 'cleared', 'no-stats']) {
+  const { ctx, gm, sh, df, qa } = fixture();
+  gm.G.mode = 'train'; gm.G.phase = 'live'; gm.G.needClear = false;
+  gm.G.train.stats = gm.newTrainStats(); df.off = true;
+  ctx.Math.random = () => 0.999999;
+  gm._dbg.startShot(sh, { mx: 0, my: 0 }, 'a1');
+  gm._dbg.releaseShot(sh, outcome === 'miss' ? 1 : 0, 'shot');
+  const s = gm.G.ball.shot, S = gm.G.train.stats;
+  assert.equal(S.n, 1); assert.equal(S.made, outcome === 'miss' ? 0 : 1);
+  const timing = JSON.stringify(S.timing), sumC = S.sumC;
+  if (outcome === 'cleared') gm.G.train.stats = gm.newTrainStats();
+  if (outcome === 'no-stats') gm.G.train.stats = null;
+  ctx.Math.random = () => 0; df.off = false; df.z = 1; gm.CFG.blockMul = 100;
+  const hand = ctx.PH.rig(df).handR;
+  Object.assign(gm.G.ball, { x: hand[0], y: hand[1], z: hand[2], vz: 1 });
+  qa.updateBall(1 / 60);
+  assert.equal(s.info.blocked, true);
+  assert.equal(qa.contactBlock(sh, s.attempt, { x: hand[0], y: hand[1], z: hand[2] }, 'shot', s.info), false);
+  if (outcome === 'cleared') { assert.equal(gm.G.train.stats.n, 0); assert.equal(gm.G.train.stats.blocked, 0); }
+  else if (outcome !== 'no-stats') {
+    assert.equal(S.n, 1); assert.equal(S.made, 0); assert.equal(S.blocked, 1);
+    assert.equal(S.zones[s.info.zone][0], 0); assert.equal(S.zones[s.info.zone][1], 1);
+    assert.equal(S.last.length, 1); assert.equal(S.last[0].made, false); assert.equal(S.last[0].tl, '—');
+    assert.equal(JSON.stringify(S.timing), timing); assert.equal(S.sumC, sumC);
+  }
+}
+console.log('PASS training flight blocks: one attempt, no made credit, one block, coherent zone/timing/recent totals; cleared/missing stats safe');
+
 function cpuRuns(baseline) {
   const ctx = load(baseline), gm = ctx.PH.game;
   let blocks = 0, attempts = 0;

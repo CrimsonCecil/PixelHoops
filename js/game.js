@@ -1397,12 +1397,24 @@
     setupCheck(0, null); G.phaseT = 0.25; G.train.ret = 0;
     if (G.train.role === 'off') { applyTrain(); placeDummy(); }
   }
+  const trainLogs = new WeakMap();
   function trainLog(info) {
     const S = G.train.stats; if (!S || G.mode !== 'train' || info.who !== 0) return;
+    const prev = trainLogs.get(info);
+    if (prev) {
+      if (prev.stats !== S) return;
+      const delta = Number(!!info.made) - Number(prev.made);
+      S.made += delta; S.zones[info.zone][0] += delta;
+      S.blocked += Number(!!info.blocked) - Number(prev.blocked);
+      prev.made = !!info.made; prev.blocked = !!info.blocked;
+      Object.assign(prev.entry, { made: info.made, prob: info.prob, tl: info.tl });
+      return;
+    }
     S.n++; if (info.made) S.made++; if (info.blocked) S.blocked++; S.sumC += info.contest;
     const z = S.zones[info.zone]; z[1]++; if (info.made) z[0]++;
     if (info.e != null) { const e = info.e, ae = Math.abs(e); S.timing[info.green ? 2 : e < 0 ? (ae > 0.6 ? 0 : 1) : (ae > 0.6 ? 4 : 3)]++; }
     S.last.unshift({ name: info.name, made: info.made, prob: info.prob, tl: info.tl }); if (S.last.length > 8) S.last.pop();
+    trainLogs.set(info, { stats: S, entry: S.last[0], made: !!info.made, blocked: !!info.blocked });
   }
 
   function isThree(x, y) { return y < 11.01 ? Math.hypot(x - HOOP.x, y - HOOP.y) > 6.75 : Math.abs(x) > 6.6; }
@@ -1823,7 +1835,7 @@
       if (a.meter) { a.meter.done = true; a.meter.color = '#ff5a4a'; }
       blkReact(df, sh, kind); cold(sh.id);
       Object.assign(info, { blocked: true, made: false, tl: '—', reason: '被盖帽：防守手接触到球' });
-      if (G.lastShot !== info) publishShot(info);
+      if (G.lastShot !== info) publishShot(info); else trainLog(info);
       return true;
     }
     return false;
