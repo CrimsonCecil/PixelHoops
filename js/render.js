@@ -1071,12 +1071,14 @@
     }
     k.ball = center;
   }
-  function rig(pl, P = pl.pose, grip = true) {
+  function rig(pl, P = pl.pose, grip = true, body) {
     // 卡通化体型：身高差放大 1.7 倍，宽度/臂展按球员体型
     const C = pl.col || {}, bw = C.bw || 1, wg = C.wing || 1;
-    const Hh = 1 + (pl.h / 1.95 - 1) * 1.7;
+    const Hh = body ? 1 + (body.height / 1.95 - 1) * 1.55 : 1 + (pl.h / 1.95 - 1) * 1.7;
     // 像素风头身比（约 1:4.5）：大头、短躯干、短腿
-    const th = 0.41 * Hh, sh = 0.41 * Hh, to = 0.48 * Hh, ua0 = 0.28 * Hh * wg, fa0 = 0.26 * Hh * wg, fb = Math.max(0.6, 1 + 1.5 * (bw - 1)), hw = 0.12 * Hh * (0.5 + 0.5 * fb), sw = 0.21 * Hh * (0.55 + 0.45 * fb);
+    const legs = body ? body.legs : 1, armLength = body ? body.arm : wg, fb = Math.max(0.6, 1 + 1.5 * (bw - 1));
+    const th = 0.41 * Hh * legs, sh = th, to = 0.48 * Hh - 0.82 * Hh * (legs - 1), ua0 = 0.28 * Hh * armLength, fa0 = 0.26 * Hh * armLength;
+    const hw = 0.12 * Hh * (body ? body.hip : 0.5 + 0.5 * fb), sw = 0.21 * Hh * (body ? body.shoulder : 0.55 + 0.45 * fb);
     function leg(side, a, b, s) {
       const hip = [side * hw, 0, 0];
       const knee = [hip[0] + side * Math.sin(s) * th, Math.sin(a) * Math.cos(s) * th, -Math.cos(a) * Math.cos(s) * th];
@@ -1103,7 +1105,7 @@
       return [s0, el, hd];
     }
     const AL = arm(-1, P.aLp, P.aLq, P.aLe), AR = arm(1, P.aRp, P.aRq, P.aRe);
-    const fing = (A, f) => { const d = [A[2][0] - A[1][0], A[2][1] - A[1][1], A[2][2] - A[1][2]], n = Math.hypot(d[0], d[1], d[2]) || 1, L = (0.075 + 0.03 * f) * Hh;
+    const fing = (A, f) => { const d = [A[2][0] - A[1][0], A[2][1] - A[1][1], A[2][2] - A[1][2]], n = Math.hypot(d[0], d[1], d[2]) || 1, L = (0.075 + 0.03 * f) * Hh * (body ? body.hand : 1);
       const u = [d[0] / n, d[1] / n, d[2] / n], w = [u[0] * 0.25, 0.75, -0.66], m = Math.hypot(w[0], w[1], w[2]), c = [lerpN(u[0], w[0] / m, f), lerpN(u[1], w[1] / m, f), lerpN(u[2], w[2] / m, f)];
       return [A[2][0] + c[0] * L, A[2][1] + c[1] * L, A[2][2] + c[2] * L]; };
     const fa_ = pl.face + ((P && P.yaw) || 0), fx = Math.cos(fa_), fy = Math.sin(fa_), rx = fy, ry = -fx;
@@ -1122,80 +1124,159 @@
   }
   PH.rig = rig;
 
+  function visualRig(pl) {
+    const body = pl.col.body;
+    if (!body) return rig(pl);
+    const k = rig(pl, pl.pose, false, body);
+    // 用比赛骨架的手部落点，保持持球、触球和盖帽动作对齐。
+    if (pl.grip || pl.hasBall || pl.anim === 'block' || pl.anim === 'steal' || pl.armS) {
+      const live = rig(pl);
+      for (const side of ['L', 'R']) gripArm(k, side, live['hand' + side], false);
+    }
+    return k;
+  }
+
   const SZ = 300, OX = 150, OY = 270;
   const FACES = { square: { w: 1, h: 1.05, r: 0.1, rb: 0.12, chin: 0 }, round: { w: 1.04, h: 1.02, r: 0.42, rb: 0.42, chin: 0 }, oval: { w: 0.9, h: 1.14, r: 0.34, rb: 0.38, chin: 0.12 },
     long: { w: 0.84, h: 1.26, r: 0.24, rb: 0.3, chin: 0.08 }, wide: { w: 1.2, h: 0.98, r: 0.34, rb: 0.3, chin: 0 } };
+  function drawHead(c, C, x, y, size, facing) {
+    const fs = FACES[C.face] || FACES.square;
+    const w = Math.max(5, Math.round(size * fs.w)), h = Math.max(5, Math.round(size * fs.h));
+    const left = Math.round(x - w / 2), top = Math.round(y - h / 2);
+    const away = Math.sin(facing) > 0.35, side = Math.cos(facing), profile = Math.abs(side) > 0.45;
+    const px = (x, y, w, h, col) => {
+      c.fillStyle = col; c.fillRect(left + Math.round(x), top + Math.round(y), Math.max(1, Math.round(w)), Math.max(1, Math.round(h)));
+    };
+    const dark = C.skin[0], skin = C.skin[1], hr = C.hair, st = C.style, bh = shade(hr, 1.85);
+    const crown = Math.max(1, Math.round(h * 0.15));
+    const earY = h * 0.49, earW = Math.max(1, w * 0.09);
+    if (!profile || side > 0) px(-earW, earY, earW, h * 0.22, dark);
+    if (!profile || side < 0) px(w, earY, earW, h * 0.22, dark);
+    if (st === 'afro') {
+      px(0, -2 * crown, w, crown, hr); px(-earW, -crown, w + 2 * earW, 3 * crown, hr);
+    }
+    if (st === 'curly' || st === 'locks' || st === 'wispy') {
+      const step = Math.max(2, Math.floor(w / 5));
+      for (let i = 0; i < w; i += step) {
+        const lift = st === 'wispy' ? (i % 3 + 1) * 0.6 : crown * (i === 0 ? 0.6 : 1.3);
+        px(i, -lift, Math.min(step, w - i), h * 0.2 + lift, hr);
+      }
+    }
+    if (st === 'swept') {
+      px(w * 0.17, -crown, w * 0.59, crown, hr); px(0, -crown * 0.45, w * 0.89, crown, hr);
+    }
+    if (st === 'locks' || st === 'long' || (st === 'braids' && away)) {
+      const stride = Math.max(2, Math.round(w / 4));
+      for (let i = 0; i < w + stride; i += stride) {
+        const lx = Math.min(w, i) - 1;
+        if (away || i === 0 || i >= w) px(lx, h * 0.16, Math.max(1, stride - 1), h * (st === 'locks' ? 0.71 : 0.66) - i % 3, hr);
+      }
+    }
+    c.save(); c.beginPath();
+    const rt = Math.round(fs.r * w), rb = Math.round(fs.rb * w);
+    const inset = (i, r) => i < r ? r - Math.round(Math.sqrt(r * r - (r - i - 0.5) ** 2)) : 0;
+    for (let i = 0; i < h; i++) {
+      const chin = Math.round(fs.chin * w * Math.max(0, (i / h - 0.55) / 0.45) ** 1.6);
+      const edge = Math.min(Math.max(inset(i, rt), inset(h - 1 - i, rb)) + chin, (w >> 1) - 1);
+      c.rect(left + edge, top + i, w - edge * 2, 1);
+    }
+    c.clip();
+    px(0, 0, w, h, dark); px(0, 0, w - Math.max(1, w * 0.13), h - 1, skin);
+    if (st === 'bald') px(w * 0.25, h * 0.12, w * 0.26, 1, shade(skin, 1.18));
+    else {
+      const hairline = { buzz: 0.14, receding: 0.14, crop: 0.23, fade: 0.23, braids: 0.24, wispy: 0.2 };
+      const depth = away ? 0.74 : hairline[st] || 0.3;
+      const col = st === 'buzz' || st === 'receding' ? shade(skin, 0.72) : hr;
+      px(0, 0, w, h * depth, col);
+      if (!away && st === 'receding') px(w * 0.33, h * 0.08, w * 0.34, h * 0.12, hr);
+      if (!away && st === 'swept') {
+        px(w * 0.04, h * 0.19, w * 0.55, h * 0.12, hr);
+        px(w * 0.16, h * 0.07, w * 0.48, 1, bh);
+      }
+      if (st === 'fade' || st === 'crop') {
+        px(0, h * 0.17, w * 0.13, h * 0.25, shade(skin, 0.7));
+        px(w * 0.87, h * 0.17, w * 0.13, h * 0.25, shade(skin, 0.7));
+      }
+      if (st === 'braids') {
+        for (let i = Math.max(1, Math.round(w / 6)); i < w - 1; i += Math.max(2, Math.round(w / 4))) px(i, 0, 1, h * depth, bh);
+      }
+      if (!away && profile && st !== 'buzz' && st !== 'receding') px(side > 0 ? 0 : w * 0.78, h * 0.25, w * 0.22, h * 0.29, hr);
+    }
+    if (C.band) {
+      px(0, h * 0.22, w, h * 0.1, C.band);
+      if (h >= 15) px(0, h * 0.22, w, 1, shade(C.band, 1.16));
+    }
+    if (!away) {
+      const ey = h * 0.49, es = Math.max(1, Math.floor(w * 0.15)), ei = Math.max(1, Math.round(w * 0.19));
+      const eyes = profile ? [side > 0 ? w - ei - es : ei] : [ei, w - ei - es];
+      const cx = w * 0.5 + side * w * 0.21, nose = shade(skin, 0.81);
+      for (const ex of eyes) {
+        if (w >= 10) px(ex, ey - (C.brow === 'soft' ? 1 : 2), es + (C.brow === 'heavy' ? 1 : 0), 1, hr);
+        if (es > 1) px(ex, ey, es, es * 0.74, '#eee6da');
+        px(ex + (es > 1 && side >= 0 ? es - 1 : 0), ey, 1, Math.max(1, es * 0.74), '#211620');
+      }
+      if (!profile && C.brow === 'joined') px(ei, ey - 2, w - ei * 2, 1, hr);
+      if (w >= 8) {
+        px(cx, h * 0.58, w * 0.09, h * 0.1, nose);
+        px(cx - w * 0.09, h * 0.68, w * 0.18, 1, dark);
+      }
+      const bd = C.beard === true ? 'full' : C.beard;
+      if (bd === 'full' || bd === 'boxed' || bd === 'long') {
+        const cheek = bd === 'boxed' ? 0.16 : 0.22;
+        px(0, h * 0.62, w * cheek, h * 0.38, hr); px(w * (1 - cheek), h * 0.62, w * cheek, h * 0.38, hr);
+        px(0, h * 0.82, w, h * 0.18, hr); px(cx - w * 0.18, h * 0.73, w * 0.36, 1, hr);
+      } else if (bd === 'goatee') {
+        px(cx - w * 0.14, h * 0.84, w * 0.28, h * 0.16, hr);
+      } else if (bd === 'stubble') px(0, h * 0.85, w, h * 0.15, shade(skin, 0.64));
+      if (w >= 8) px(cx - w * 0.12, h * 0.79, w * 0.24, 1, dark);
+      if (C.mouthguard) px(cx + (side < -0.45 ? -w * 0.17 : w * 0.08), h * 0.79, w * 0.14, 1, '#f4ede0');
+      if (bd === 'long') {
+        c.restore();
+        px(w * 0.16, h * 0.89, w * 0.68, h * 0.19, hr); px(w * 0.24, h, w * 0.52, h * 0.19, hr);
+        return top + h * 0.49;
+      }
+    }
+    c.restore();
+    return top + h * 0.49;
+  }
+
   function drawPlayer(pl, opts) {
-    const k = rig(pl), J = {};
+    const k = visualRig(pl), J = {};
     const base = proj(pl.x, pl.y, 0);
     const ox = Math.round(base.x) - OX, oy = Math.round(base.y) - OY;
     for (const n in k) { const p = proj(k[n][0], k[n][1], k[n][2]); J[n] = { x: p.x - ox, y: p.y - oy, d: p.d, s: p.s }; }
     const s = base.s, C = pl.col;
     sctx.clearRect(0, 0, SZ, SZ);
     const segs = [];
-    const seg = (a, b, w, col, bias) => segs.push({ a: J[a], b: J[b], w: w * s, c: col, d: (J[a].d + J[b].d) / 2 + (bias || 0) });
+    const seg = (a, b, w, col, bias = 0) => segs.push({ a: J[a], b: J[b], w: w * s, c: col, d: (J[a].d + J[b].d) / 2 + bias });
     // 体型夸张化：瘦的更瘦、壮的更壮（bw 偏离 1 的部分放大 1.5 倍）
-    const bw = C.bw || 1, fb = Math.max(0.6, 1 + 1.5 * (bw - 1)), lw = (0.5 + 0.5 * fb) * 1.12, tw = (0.2 + 0.8 * fb) * 1.06;
+    const bw = C.bw || 1, fb = Math.max(0.6, 1 + 1.5 * (bw - 1)), B = C.body;
+    const lw = B ? B.limb : (0.5 + 0.5 * fb) * 1.12, tw = B ? B.chest : (0.2 + 0.8 * fb) * 1.06;
     seg('hipL', 'kneeL', 0.17 * lw, C.shorts); seg('hipR', 'kneeR', 0.17 * lw, C.shorts);
     seg('kneeL', 'footL', 0.11 * lw, C.skin); seg('kneeR', 'footR', 0.11 * lw, C.skin);
     seg('footL', 'toeL', 0.12, C.shoe, -0.01); seg('footR', 'toeR', 0.12, C.shoe, -0.01);
     seg('hipL', 'hipR', 0.2 * lw, C.shorts);
-    seg('pelvis', 'chest', 0.31 * tw, C.jersey);
-    seg('shL', 'shR', 0.11 * (0.6 + 0.4 * fb), C.jersey);
-    seg('shL', 'elL', 0.11 * lw, C.skin); seg('elL', 'handL', 0.095 * lw, C.skin);
-    seg('shR', 'elR', 0.11 * lw, C.skin); seg('elR', 'handR', 0.095 * lw, C.skin);
-    if ((pl.pose.flR || 0) > 0.15) seg('handR', 'fgR', 0.075 * lw, C.skin); if ((pl.pose.flL || 0) > 0.15) seg('handL', 'fgL', 0.075 * lw, C.skin);
+    if (B) {
+      const P = J.pelvis, Q = J.chest;
+      J.mid = { x: (P.x + Q.x) / 2, y: (P.y + Q.y) / 2, d: (P.d + Q.d) / 2 };
+      J.neck = { x: lerpN(Q.x, J.head.x, 0.55), y: lerpN(Q.y, J.head.y, 0.55), d: Q.d };
+      seg('pelvis', 'mid', 0.29 * B.waist, C.jersey);
+      seg('mid', 'chest', 0.34 * tw, C.jersey);
+      seg('chest', 'neck', 0.13 * lw, C.skin, 0.02);
+    } else seg('pelvis', 'chest', 0.31 * tw, C.jersey);
+    seg('shL', 'shR', 0.12 * (B ? B.chest : 0.6 + 0.4 * fb), C.jersey);
+    for (const side of ['L', 'R']) {
+      const sleeve = C.sleeve === side ? [C.shorts[0], C.trim] : C.skin;
+      seg('sh' + side, 'el' + side, 0.11 * lw, sleeve);
+      seg('el' + side, 'hand' + side, 0.095 * lw, sleeve);
+      if (B || (pl.pose['fl' + side] || 0) > 0.15) seg('hand' + side, 'fg' + side, 0.075 * lw, C.skin);
+    }
     segs.push({ head: true, d: J.head.d - 0.02 });
     segs.sort((a, b) => b.d - a.d);
-    const away = Math.sin(pl.face), side = Math.cos(pl.face);
+    const facing = pl.face + (pl.pose.yaw || 0), away = Math.sin(facing);
     for (const g of segs) {
       if (g.head) {
-        const FS = FACES[C.face] || FACES.square, hb = 0.38 * s * (0.92 + 0.08 * Math.min(1.4, bw));
-        const hw = Math.max(5, Math.round(hb * FS.w)), hh = Math.max(5, Math.round(hb * FS.h));
-        const hx = Math.round(J.head.x - hw / 2), hy = Math.round(J.head.y - hh / 2);
-        // 逐行生成脸型轮廓（圆角 + 下巴收窄），之后的头发/胡子都裁在轮廓里
-        const ins = [], cr = Math.round(FS.r * hw), crB = Math.round(FS.rb * hw);
-        for (let i = 0; i < hh; i++) {
-          let v = 0;
-          if (i < cr) v = cr - Math.round(Math.sqrt(cr * cr - (cr - i - 0.5) * (cr - i - 0.5)));
-          const ib = hh - 1 - i; if (ib < crB) v = Math.max(v, crB - Math.round(Math.sqrt(crB * crB - (crB - ib - 0.5) * (crB - ib - 0.5))));
-          v += Math.round(FS.chin * hw * Math.pow(Math.max(0, (i / hh - 0.55) / 0.45), 1.6));
-          ins.push(Math.min(v, (hw >> 1) - 1));
-        }
-        if (C.style === 'afro') { sctx.fillStyle = C.hair; sctx.fillRect(hx - 1, hy - 2, hw + 2, Math.round(hh * (away > 0.35 ? 0.72 : 0.34)) + 2); }
-        sctx.save(); sctx.beginPath();
-        for (let i = 0; i < hh; i++) sctx.rect(hx + ins[i], hy + i, hw - ins[i] * 2, 1);
-        sctx.rect(hx + ins[0], hy - 2, hw - ins[0] * 2, 2);
-        sctx.clip();
-        sctx.fillStyle = C.skin[0]; sctx.fillRect(hx, hy, hw, hh);
-        sctx.fillStyle = C.skin[1]; for (let i = 0; i < hh - 1; i++) sctx.fillRect(hx + ins[i], hy + i, hw - ins[i] * 2 - 1, 1);
-        const st = C.style, back = away > 0.35;
-        sctx.fillStyle = C.hair;
-        if (st === 'bald') { sctx.fillStyle = C.skin[0]; sctx.fillRect(hx, hy - 1, hw, 1); sctx.fillStyle = '#ffffff'; sctx.globalAlpha = 0.35; sctx.fillRect(hx + 1, hy, Math.max(1, hw >> 2), 1); sctx.globalAlpha = 1; }
-        else if (st === 'afro') sctx.fillRect(hx - 1, hy - 2, hw + 2, Math.round(hh * (back ? 0.72 : 0.34)) + 2);
-        else if (st === 'curly') { sctx.fillRect(hx, hy - 1, hw, Math.round(hh * (back ? 0.72 : 0.32)) + 1); for (let i = 0; i < hw; i += 2) sctx.fillRect(hx + i, hy - 2, 1, 1); }
-        else if (st === 'buzz') { sctx.globalAlpha = 0.75; sctx.fillRect(hx, hy - 1, hw, back ? Math.round(hh * 0.6) : 2); sctx.globalAlpha = 1; }
-        else sctx.fillRect(hx, hy - 1, hw, Math.round(hh * (back ? 0.72 : 0.3)) + 1);
-        sctx.fillStyle = C.hair;
-        if (st !== 'bald' && st !== 'buzz' && !back && Math.abs(side) > 0.45) { const bw2 = Math.round(hw * 0.4); sctx.fillRect(side > 0 ? hx : hx + hw - bw2, hy, bw2, Math.round(hh * 0.6)); }
-        const bd = C.beard === true ? 'full' : C.beard;
-        if (bd && away < 0.5) {
-          if (bd === 'full') { sctx.fillRect(hx, hy + hh - 2, hw, 2); if (hw > 5) sctx.fillRect(hx, hy + hh - 4, 1, 2), sctx.fillRect(hx + hw - 1, hy + hh - 4, 1, 2); }
-          else if (bd === 'goatee') { const gw = Math.max(2, Math.round(hw * 0.35)); sctx.fillRect(Math.round(hx + (hw - gw) / 2 + side * hw * 0.2), hy + hh - 2, gw, 2); }
-          else { sctx.globalAlpha = 0.45; sctx.fillRect(hx, hy + hh - 2, hw, 2); sctx.globalAlpha = 1; }
-        }
-        if (C.band) { sctx.fillStyle = C.band; sctx.fillRect(hx, hy + Math.round(hh * 0.22), hw, Math.max(1, Math.round(hh * 0.08))); }
-        if (away < 0.35) {
-          const ey = hy + Math.round(hh * 0.52), es = hw >= 14 ? 2 : 1, ins = Math.max(1, Math.round(hw * 0.2));
-          const eyes = Math.abs(side) > 0.45 ? [side > 0 ? hx + hw - ins - es : hx + ins] : [hx + ins, hx + hw - ins - es];
-          for (const ex of eyes) {
-            if (es > 1) { sctx.fillStyle = '#f4f0e6'; sctx.fillRect(ex, ey, es, es); sctx.fillStyle = '#1a1020'; sctx.fillRect(ex + (side > 0.2 ? 1 : 0), ey, 1, es); }
-            else { sctx.fillStyle = '#1a1020'; sctx.fillRect(ex, ey, 1, 1); }
-            if (hw >= 10 && C.style !== 'bald') { sctx.fillStyle = C.hair; sctx.fillRect(ex, ey - 2, es + (hw >= 14 ? 1 : 0), 1); }
-          }
-          if (hw >= 12 && !(bd === 'full')) { sctx.fillStyle = C.skin[0]; sctx.fillRect(Math.round(hx + hw / 2 - 1 + side * hw * 0.25), hy + Math.round(hh * 0.8), Math.max(2, Math.round(hw * 0.22)), 1); }
-        }
-        sctx.restore();
+        drawHead(sctx, C, J.head.x, J.head.y, 0.38 * s * (0.92 + 0.08 * Math.min(1.4, tw)), facing);
       } else brush(sctx, g.a.x, g.a.y, g.b.x, g.b.y, g.w, g.c[0], g.c[1]);
     }
     // 球衣号码色块
@@ -1539,5 +1620,5 @@
 
   PH.render = { init: init, resize: resize, get W() { return W; }, get H() { return H; }, render: render, setTheme: setTheme, proj: proj, cam: cam, CAMV: CAMV, CAM_DEF: CAM_DEF, setCam: setCam, HOOP: HOOP, BOARD_Y: BOARD_Y, BALL_R: BALL_R, curCol: curCol,
     // 5V5 全场模式复用的绘制图元（不影响 1V1）
-    drawMeter: (pl, hp) => drawMeter(pl, hp), drawPlayer: drawPlayer, drawBall: drawBall, shadow: shadow, ellipse: ellipse, ring: ring, brush: brush, getCtx: () => ctx, BAYER: BAYER };
+    drawMeter: (pl, hp) => drawMeter(pl, hp), drawPlayer: drawPlayer, drawHead: drawHead, drawBall: drawBall, shadow: shadow, ellipse: ellipse, ring: ring, brush: brush, getCtx: () => ctx, BAYER: BAYER };
 })();
