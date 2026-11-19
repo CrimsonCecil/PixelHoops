@@ -144,6 +144,22 @@ for (const dir of ['KeyS', 'KeyD']) {
   assert.equal(p.action, null);
 }
 
+// Pull-up privileges can interrupt the held fake; other players must let it finish.
+for (const [arch, canCancel] of [['kyrie', true], ['shaq', false]]) {
+  const { p, key, step } = fixture(1, arch);
+  key('KeyL'); step(80);
+  assert.equal(p.action.kind, 'hesi');
+  key('KeyJ'); step();
+  if (canCancel) {
+    assert.equal(p.action.type, 'shot');
+    assert.equal(p.action.v, 'pullup');
+  } else {
+    assert.equal(p.action.kind, 'hesi');
+    key('KeyL', false); step(50);
+    assert.equal(p.action.type, 'shot');
+  }
+}
+
 // The 5V5 binding uses the dedicated hesitation key, not a pass button.
 {
   const { game, key, team5 } = fixture();
