@@ -2100,7 +2100,8 @@
     const ARCF = { low: 0.86, mid: 1, high: 1.12 }[arcOf(pl)] || 1;
     const T = kind === 'lay' ? (V.floater ? 0.72 : 0.34) : V.hook ? 0.62 + d * 0.04 : (0.6 + d * 0.065) * ARCF;
     let tx = HOOP.x, ty = HOOP.y, tz = HOOP.z + 0.02;
-    const MK = made ? makeStyle(pl, kind, V, green, d, c) : null, MS = !made && !air ? missStyle(pl, kind, V, d) : null;
+    const glass = kind === 'lay' && a.v === 'normal' && a.sty === 'glass' && !a.cv;
+    const MK = made ? makeStyle(pl, kind, V, green, d, c, glass) : null, MS = !made && !air ? missStyle(pl, kind, V, d, glass) : null;
     if (MK) { tx = MK.p0[0]; ty = MK.p0[1]; tz = MK.p0[2]; }
     if (air) { const h = hoopDir(pl), k = e < 0 ? -rr(0.55, 0.9) : rr(0.5, 0.8); tx += h.x * k + rr(-0.2, 0.2); ty += h.y * k; }
     else if (MS) { tx = MS.p0[0]; ty = MS.p0[1]; tz = MS.p0[2]; }
@@ -2704,7 +2705,7 @@
     return o;
   }
   const MIR = { lA: 'rA', lB: 'rB', lS: 'rS', aLp: 'aRp', aLq: 'aRq', aLe: 'aRe' };
-  function mir(o) { const r = {}; for (const n in o) { if (n === 'tilt') { r.tilt = -o.tilt; continue; } let m = n; for (const k in MIR) { if (n === k) m = MIR[k]; else if (n === MIR[k]) m = k; } r[m] = o[n]; } return r; }
+  function mir(o) { const r = {}; for (const n in o) { if (n === 'tilt' || n === 'yaw') { r[n] = -o[n]; continue; } let m = n; for (const k in MIR) { if (n === k) m = MIR[k]; else if (n === MIR[k]) m = k; } r[m] = o[n]; } return r; }
   // 上篮空中关键帧（按右手写，左手镜像）：u 0=收球到胸前 → 1=手臂伸到出手点
   const LEG1 = { lA: -0.25, lB: 0.3, rA: 1.15, rB: 1.35 }, CH = { aRp: 1.35, aRe: 1.25, aRq: 0.15, aLp: 1.3, aLe: 1.25, aLq: 0.15 };
   const LKF = {
@@ -2731,9 +2732,11 @@
     spin: [[0, Object.assign({ lean: 0.18 }, LEG1, { aRp: 1.5, aRq: 0.75, aRe: 0.6, aLp: 0.9, aLq: 0.6, aLe: 0.7 })], [0.6, { aRp: 2.3, aRq: 0.5, aRe: 0.4 }], [1, { lean: 0.1, aRp: 2.9, aRq: 0.25, aRe: 0.12, aLp: 0.8, aLq: 0.5 }]],
   };
   const LAY_LAND = { lean: 0.13, tilt: 0, lA: 0.2, lB: 0.48, rA: 0.28, rB: 0.54, aRp: 0.79, aRq: 0.26, aRe: 0.61, aLp: 0.44, aLq: 0.24, aLe: 0.52 };
+  const SCOOP_STYLES = new Set(['tip', 'roll', 'scoop', 'glide']);
   function layFlow(a) {
     const release = a.released ? (a.relT ?? a.ideal) : a.t;
-    const o = kf(LKF[a.sty], clamp(release / (a.ideal * 0.82), 0, 1));
+    const lift = a.v === 'euro' || a.sty === 'glide' ? 0.82 : 1;
+    const o = Object.assign({}, LAY_LAND, kf(LKF[a.sty], clamp(release / (a.ideal * lift), 0, 1)));
     if (a.released) {
       const w = sm(clamp((a.t - release - 0.05) / 0.22, 0, 1));
       for (const k in LAY_LAND) o[k] = lerp(o[k], LAY_LAND[k], w);
@@ -2744,8 +2747,21 @@
     }
     return o;
   }
-  // 拉杆：先举高 → 收到腰间、屈膝滞空 → 换到另一侧出手
-  const CLUTCHKF = [[0, { aRp: 2.7, aRe: 0.3, aLp: 1.6, aLe: 0.8, tilt: 0 }], [0.45, { lean: 0.12, lA: 0.75, lB: 1.4, rA: 0.95, rB: 1.5, aRp: 1.05, aRe: 1.15, aLp: 1.05, aLe: 1.15, tilt: 0.12 }], [1, { lean: 0.02, aRp: 2.75, aRe: 0.15, aRq: 0.45, aLp: 0.9, aLq: 0.6, tilt: -0.18 }]];
+  const CLUTCH_TUCK = { lean: 0.43, tilt: -0.32, yaw: 0.38, lA: 0.67, lB: 1.38, rA: 1.22, rB: 1.62, aRp: 0.17, aRq: -0.09, aRe: 1.08, aLp: 0.69, aLq: -0.23, aLe: 1.14 };
+  const CLUTCH_FINISH = { lean: 0.21, tilt: 0.3, yaw: -0.29, lA: -0.29, lB: 0.56, rA: 0.84, rB: 0.86, aRp: 2.56, aRq: 0.19, aRe: 0.11, aLp: 0.45, aLq: 0.58, aLe: 0.65 };
+  function clutchPose(a) {
+    const start = a.ideal + 0.015, end = K.clutchTi + (a.cvD || 0);
+    const release = a.released ? (a.relT ?? end) : a.t;
+    const normal = Object.assign({}, LAY_LAND, kf(LKF[a.sty] || LKF.tip, 1), { yaw: 0 });
+    const u = clamp((release - start) / Math.max(0.08, end - start), 0, 1);
+    const o = kf([[0, normal], [0.44, CLUTCH_TUCK], [1, CLUTCH_FINISH]], u);
+    if (a.released) {
+      const w = sm(clamp((a.t - release - 0.03) / 0.18, 0, 1));
+      for (const k in LAY_LAND) o[k] = lerp(o[k], LAY_LAND[k], w);
+      o.yaw *= 1 - w;
+    }
+    return o;
+  }
   // 扣篮空中关键帧（右手）：u 0=起跳 → 1=砸筐；dn=扣完后
   const DLEG = { lA: 0.35, lB: 1.2, rA: 0.95, rB: 1.4 };
   const DKF = {
@@ -2767,7 +2783,6 @@
   };
   function cum(fr) { let acc = {}; return fr.map((f) => { acc = Object.assign({}, acc, f[1]); return [f[0], acc]; }); }
   for (const k in LKF) LKF[k] = cum(LKF[k]); for (const k in DKF) DKF[k] = cum(DKF[k]);
-  const CLUTCHKF_C = cum(CLUTCHKF);
   // 运球动作关键帧：cross/legs/behind 按“向左变向（球到左手）”写；其余按“球在右手”写
   const MKF = {
     cross: [[0, { lean: 0.28, lA: 0.25, lB: 0.5, rA: 0.15, rB: 0.55, lS: 0.1, rS: 0.1 }], [0.3, { lean: 0.42, lA: 0.3, lB: 0.8, rA: 0.3, rB: 1.05, lS: 0.12, rS: 0.55 }],
@@ -2865,8 +2880,9 @@
     if (a.v === 'euro') {
       const lead = w.lead === 'R' ? 1 : -1, first = a.wp[0].lead === 'R' ? 1 : -1;
       const carry = lerp(first, a.hand, last ? sm(u) : 0), plant = Math.sin(Math.PI * u);
-      o.lean = 0.25 + 0.07 * plant; o.tilt = 0.1 * carry;
-      o[lead > 0 ? 'rS' : 'lS'] = 0.06 + 0.19 * plant;
+      o.lean = 0.22 + 0.17 * plant; o.tilt = 0.08 * carry + 0.42 * lead * plant;
+      o.yaw = -0.24 * lead * plant;
+      o[lead > 0 ? 'rS' : 'lS'] = 0.06 + 0.32 * plant;
       o.aRp = 0.78; o.aRe = 1.14 - 0.06 * carry; o.aRq = -0.33 + 0.19 * carry;
       o.aLp = 0.78; o.aLe = 1.14 + 0.06 * carry; o.aLq = -0.33 - 0.19 * carry;
     }
@@ -3672,14 +3688,15 @@
     else if ((an === 'layup' || an === 'dunk') && a && a.inSteps) set(stepPose(a));
     else if (an === 'layup') {
       const v = a ? a.v : 'normal', rel = a && a.released, M = a && a.hand < 0 ? (o) => set(mir(o)) : set;
-      const flow = a && !a.cv && (v === 'euro' || (v === 'normal' && a.sty === 'glide'));
+      const flow = a && !a.cv && (v === 'euro' || (v === 'normal' && (SCOOP_STYLES.has(a.sty) || a.sty === 'glass')));
+      const clutch = a && (v === 'clutch' || (!a.cv && !a.V.floater && (a.relT ?? a.t) > a.ideal + 0.015));
       if (v === 'floater') M({ lean: 0.06, lA: 0.3, lB: 0.7, rA: 0.6, rB: 0.9, aRp: rel ? 2.7 : 2.3, aRe: rel ? 0.15 : 0.8, aRq: 0.05, aLp: 0.9, aLe: 0.9 });
+      else if (clutch) M(clutchPose(a));
       else if (v === 'power') set({ lean: 0.04, lA: 0.45, lB: 0.85, rA: 0.45, rB: 0.85, lS: 0.12, rS: 0.12, aRp: rel ? 2.85 : 2.6, aRe: rel ? 0.1 : 0.4, aRq: 0.1, aLp: rel ? 2.3 : 2.5, aLe: 0.4, aLq: 0.1 });
-      else if (v === 'clutch' || (!rel && a && a.t > K.layTi + 0.09)) { const fr = LKF[a.sty] || LKF.tip, o = kf(fr, 1); Object.assign(o, kf(CLUTCHKF_C, clamp((a.t - K.layTi) / (K.clutchTi - K.layTi), 0, 1))); M(o); }
       else if (flow) M(layFlow(a));
       else { const fr = LKF[a ? a.sty : 'tip'] || LKF.tip; M(kf(fr, rel ? 1 : clamp((a ? a.t : 1) / K.layTi, 0, 1))); }
       // 出手 IK：出手那一下，持球手伸向篮筐
-      if (a && !flow && !a.inSteps && v !== 'floater' && v !== 'clutch' && v !== 'reverse') {
+      if (a && !flow && !clutch && !a.inSteps && v !== 'floater' && v !== 'reverse') {
         const w = 0.85 * (a.t < K.layTi ? clamp((a.t - (K.layTi - 0.15)) / 0.15, 0, 1) : clamp(1 - (a.t - K.layTi) / 0.25, 0, 1));
         if (w > 0) { const Hh = pl.h / 1.95, fx = Math.cos(pl.face), fy = Math.sin(pl.face), dx = HOOP.x - pl.x, dy = HOOP.y - 0.1 - pl.y, T2 = Object.assign({}, T), sd = a.hand < 0 ? -1 : 1;
           armTo(T2, sd, (dx * fy - dy * fx) / Hh, (dx * fx + dy * fy) / Hh, (HOOP.z + 0.25 - pl.z) / Hh, Hh);
@@ -3814,22 +3831,29 @@
   function rimPt(an, dz) { return [HOOP.x + Math.cos(an) * RIM, HOOP.y + Math.sin(an) * RIM * 0.95, HOOP.z + 0.12 + (dz || 0)]; }
   const ARC0 = { curry: 'high', luka: 'high', joe: 'high', karaban: 'high', kobe: 'mid', kyrie: 'mid', lebron: 'low', giannis: 'low', shaq: 'low', kessler: 'low', gafford: 'low', sengun: 'mid', maxey: 'mid', bridges: 'mid' };
   function arcOf(pl) { const a = pl.arch || pl; return a.arc || ARC0[a.key] || 'mid'; }
+  function bankStyle(pl, made, ang) {
+    const side = pl.x >= HOOP.x ? 1 : -1;
+    const p0 = [HOOP.x + side * rr(0.18, 0.38), PH.render.BOARD_Y - PH.render.BALL_R, HOOP.z + rr(0.46, 0.62)];
+    if (made) return { ty: 'bank', p0: p0, seg: [[[HOOP.x, HOOP.y, HOOP.z - 0.1], 0.2, 0, 'board']], txt: '打板' };
+    const rim = rimPt(ang + Math.PI + side * 0.6, 0);
+    return { ty: 'bank', miss: true, p0: p0, seg: [[rim, 0.18, 0, 'board']], out: { an: ang - side * rr(0.3, 0.9), hs: rr(0.9, 1.6), vz: rr(1.4, 2.2) }, txt: '打板没进' };
+  }
   // V3.2：没进的球也分几种：磕前框短弹、砸后框长弹、转一圈吐出来、框里颠两下弹出、打板弹框
-  function missStyle(pl, kind, V, d) {
-    const hx = HOOP.x, hy = HOOP.y, hz = HOOP.z, ang = Math.atan2(pl.y - hy, pl.x - hx), lay = kind === 'lay', arc = arcOf(pl);
+  function missStyle(pl, kind, V, d, glass) {
+    const hx = HOOP.x, hy = HOOP.y, ang = Math.atan2(pl.y - hy, pl.x - hx), lay = kind === 'lay', arc = arcOf(pl);
     const W = { brick: 3, front: arc === 'low' ? 2.6 : 1.6, back: 1.6 + 0.12 * Math.min(d, 8), lip: 1.1, rattle: 1.0, board: lay || (d < 6 && Math.abs(pl.x - hx) > 1.2) ? 1.2 : 0.25 };
     let sum = 0; for (const k in W) sum += W[k]; let x = rnd() * sum, ty = 'brick'; for (const k in W) if ((x -= W[k]) < 0) { ty = k; break; }
+    if (glass || ty === 'board') return bankStyle(pl, false, ang);
     if (ty === 'brick') return null;
-    const C = [hx, hy, hz], out = (a, hs, vz) => ({ an: a, hs: hs, vz: vz });
+    const out = (a, hs, vz) => ({ an: a, hs: hs, vz: vz });
     if (ty === 'front') return { ty: ty, miss: true, p0: rimPt(ang, 0), seg: [], out: out(ang + rr(-0.5, 0.5), rr(0.5, 1.1), rr(1.4, 2.4)), txt: rnd() < 0.5 ? '短了' : '磕前框' };
     if (ty === 'back') return { ty: ty, miss: true, p0: rimPt(ang + Math.PI, 0), seg: [], out: out(ang + rr(-0.6, 0.6), rr(1.6, 2.4) + 0.1 * Math.min(d, 8), rr(2.6, 3.6)), txt: rnd() < 0.5 ? '砸后框弹出' : '长了' };
     if (ty === 'lip') { const n = rr(0.4, 1.1), dir = rnd() < 0.5 ? 1 : -1, a1 = ang + dir * n * Math.PI * 2; return { ty: ty, miss: true, p0: rimPt(ang, 0), seg: [[{ roll: true, a0: ang, a1: a1 }, 0.4 + 0.3 * n, 0, 'rim']], out: out(a1 + dir * 0.6, rr(0.9, 1.6), rr(0.8, 1.6)), txt: n > 0.8 ? '转一圈吐出来了' : '弹框而出' }; }
     if (ty === 'rattle') { const a2 = ang + Math.PI + rr(-0.5, 0.5); return { ty: ty, miss: true, p0: rimPt(ang, 0), seg: [[rimPt(a2, 0), 0.2, 0.22, 'rim'], [rimPt(ang + rr(-0.5, 0.5), 0), 0.17, 0.12, 'rim']], out: out(ang + rr(-0.8, 0.8), rr(0.8, 1.5), rr(1.6, 2.4)), txt: '颠了两下还是出来了' }; }
-    const side = pl.x >= hx ? 1 : -1, bp = [hx + side * rr(0.15, 0.4), hy + 0.3, hz + rr(0.3, 0.55)];
-    return { ty: ty, miss: true, p0: bp, seg: [[rimPt(ang + Math.PI + side * 0.6, 0), 0.18, 0.08, 'board']], out: out(ang - side * rr(0.3, 0.9), rr(0.9, 1.6), rr(1.4, 2.2)), txt: '打板没进' };
+    return null;
   }
-  function makeStyle(pl, kind, V, green, d, c) {
-    const hx = HOOP.x, hy = HOOP.y, hz = HOOP.z, side = pl.x >= HOOP.x ? 1 : -1, fr = -Math.PI / 2, bk = Math.PI / 2;
+  function makeStyle(pl, kind, V, green, d, c, glass) {
+    const hx = HOOP.x, hy = HOOP.y, hz = HOOP.z, bk = Math.PI / 2;
     const ang = Math.atan2(pl.y - hy, pl.x - hx), front = rimPt(ang, 0), back = rimPt(ang + Math.PI, 0);
     const lay = kind === 'lay', W = {};
     // V3.2：完美出手大多空心；非完美才多磕框。低弧度（arc: low）的人更多“擦前沿进”，高弧度更多空心
@@ -3845,6 +3869,7 @@
     if (arc === 'low') { W.swish *= green ? 0.75 : 0.6; W.front *= 1.4; W.rattle *= 1.3; }
     else if (arc === 'high' && jump) { W.swish *= 1.3; W.high *= 1.5; W.top *= 1.4; }
     let sum = 0; for (const k in W) sum += W[k]; let x = rnd() * sum, ty = 'swish'; for (const k in W) if ((x -= W[k]) < 0) { ty = k; break; }
+    if (glass || ty === 'bank') return bankStyle(pl, true, ang);
     const C = [hx, hy, hz - 0.15];
     const P = (a) => [a[0], a[1], a[2]];
     if (ty === 'swish') return null;
@@ -3857,7 +3882,6 @@
     if (ty === 'rattle') { const a2 = ang + Math.PI * rr(0.6, 1.4); return { ty: ty, p0: front, seg: [[rimPt(a2, 0), 0.24, 0.25, 'rim'], [rimPt(a2 + Math.PI * rr(0.7, 1.3), 0), 0.18, 0.13, 'rim'], [C, 0.16, 0.06, 'rim']], txt: '颠进' }; }
     if (ty === 'roll') { const n = rr(0.6, 1.4), dir = rnd() < 0.5 ? 1 : -1; return { ty: ty, p0: front, seg: [[{ roll: true, a0: ang, a1: ang + dir * n * Math.PI * 2 }, 0.45 + 0.3 * n, 0, 'rim'], [C, 0.14, 0, null]], txt: n > 1 ? '转一圈进' : '' }; }
     if (ty === 'lip') return { ty: ty, p0: front, seg: [[{ roll: true, a0: ang, a1: ang + (rnd() < 0.5 ? 1 : -1) * Math.PI * 1.7 }, 0.75, 0, 'rim'], [rimPt(ang + Math.PI, 0.02), 0.12, 0.06, 'rim'], [C, 0.16, 0, null]], txt: '吐出来又滚回去了' };
-    if (ty === 'bank') { const bp = [hx + side * rr(0.15, 0.35), hy + 0.3, hz + rr(0.35, 0.55)]; return { ty: ty, p0: bp, seg: [[C, 0.2, 0, 'board']], txt: '打板' }; }
     if (ty === 'high') return { ty: ty, p0: front, seg: [[[hx + rr(-0.1, 0.1), hy + rr(-0.05, 0.05), hz + 0.1], 0.7 + 0.25 * far, rr(0.8, 1.2) + 0.7 * far, 'rim'], [C, 0.12, 0, 'rim']], txt: '弹老高还进了' };
     if (ty === 'sit') { const sp = rimPt(ang + rr(-0.6, 0.6), 0); return { ty: ty, p0: front, seg: [[sp, 0.2, 0.15, 'rim'], [{ sit: true, at: sp }, rr(0.7, 1.1), 0, null], [C, 0.18, 0, null]], txt: '在框上坐了一会儿' }; }
     // 弹到篮板上沿停一下，再滚下来进
@@ -3915,12 +3939,21 @@
     }
     b.spin += dt * 9;
     if (b.state === 'shot') {
-      const s = b.shot; s.t += dt;
-      b.x += b.vx * dt; b.y += b.vy * dt; b.z += b.vz * dt; b.vz -= GB * dt;
+      const s = b.shot, bank = s.mk && s.mk.ty === 'bank';
+      const flight = bank ? Math.min(dt, Math.max(0, s.T - s.t)) : dt;
+      s.t += dt;
+      b.x += b.vx * flight; b.y += b.vy * flight; b.z += b.vz * flight - (bank ? 0.5 * GB * flight * flight : 0); b.vz -= GB * flight;
       if (b.trail) part(b.x, b.y, b.z, rr(-0.2, 0.2), rr(-0.2, 0.2), rr(-0.2, 0.4), b.trail, 0.28, 0);
       if (s.win && !s.slowed && s.T - s.t < K.fxWinSlowT) { s.slowed = true; G.fx.slow = K.fxWinSlow; }
       if (s.t >= s.T) {
         b.trail = null;
+        if (bank && s.mk.i == null) {
+          // 碰板帧保留接触点；下一帧才向篮筐反弹。
+          [b.x, b.y, b.z] = s.mk.p0;
+          s.mk.t = 0;
+          mkTick(b, s.mk);
+          return;
+        }
         if (s.mk && !s.mk.done) { s.mk.t = (s.mk.t || 0) + dt; if (s.mk.miss && !s.mk.seg.length) { s.mk.done = true; sfx('rim'); G.fx.rim = 1; } else if (mkTick(b, s.mk)) s.mk.done = true; else return; }
         if (s.made) { b.x = HOOP.x; b.y = HOOP.y; b.z = HOOP.z - 0.1; b.vx = 0; b.vy = -0.5; b.vz = -3.2; b.state = 'loose'; b.under = true; scoreBy(s.shooter, s.pts, s.kind, s.name); }
         else {

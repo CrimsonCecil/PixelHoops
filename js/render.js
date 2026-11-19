@@ -5,6 +5,7 @@
   let W = 480, H = 270;
   const BW = 1000;
   const HOOP = { x: 0, y: 12.425, z: 3.05 };
+  const BOARD_Y = 12.8, BALL_R = 0.135;
   const cam = { x: 0, y: -5.5, z: 6.5, F: 400, oy: 10, fy: 0, fz: 0, uy: 0, uz: 0 };
   // 镜头参数：zoom 拉近倍数、height 机位高度、dist 与持球人的前后距离、follow 左右跟随
   const CAM_DEF = { zoom: 1.32, height: 5.8, dist: 8.8, follow: 0.7, push: 1, pin: 0.26, plow: 0.3 };
@@ -285,6 +286,8 @@
       if (pl.pose && pl.pose.bob == null) pl.pose.bob = 0;
       if (T.yaw == null) T.yaw = 0;   // V3.9p 上身/整体视觉转向（rig 用，不改逻辑朝向）
       if (pl.pose && pl.pose.yaw == null) pl.pose.yaw = 0;
+      T.reachL = T.reachR = 1;
+      if (pl.pose && pl.pose.reachL == null) pl.pose.reachL = pl.pose.reachR = 1;
       const gnd = pl.z <= 0.01 && !pl.stun && !a;
       if (gnd && pl.hasBall && !pl.post && (an === 'run' || an === 'idle')) {
         const u = Math.abs(Math.sin(pl.drib || 0)), sp = an === 'run' ? spW(pl) : 0, k = an === 'run' ? Math.min(1, kW(pl)) : 0;
@@ -313,6 +316,7 @@
       if (PH.scr) PH.scr.pose(pl, T, an, a);
       if (PH.blkP) PH.blkP.pose(pl, T, an, a);   // V3.9s 钉板 / 侧面上篮
       if (PH.cvP) PH.cvP.pose(pl, T, an, a);   // V4.3 被封堵的上篮变体（a.cv）
+      if (an === 'layup' && a && !a.inSteps) layReachRim(pl, T, a);
       if (PH.thruP) PH.thruP.pose(pl, T, an, a);   // V4.4 终结顶翻（防守人倒地 / 踉跄、进攻方肩撞）
       if (PH.blkR) PH.blkR.pose(pl, T, an, a);
     }
@@ -745,7 +749,7 @@
       const I = a.ideal || 0.34, release = a.released ? (a.relT ?? I) : a.t;
       const extend = sm((release / I - (far ? 0.2 : 0.1)) / 0.63);
       const recover = a.released ? sm((a.t - release - 0.04) / 0.22) : 0;
-      const blend = sm(a.t / 0.08), knee = sm(release / (I * 0.55));
+      const blend = sm(a.t / 0.08) * (1 - sm((release - I - 0.015) / 0.07)), knee = sm(release / (I * 0.55));
       const reach = far ? { p: 2.26, q: 0.58, e: 0.12 } : { p: 2.6, q: 0.48, e: 0.2 };
       // 球从出手侧髋前托起；另一只手先护在胸前，再向侧下方收回。
       const o = {
@@ -767,7 +771,7 @@
       const s = a.side > 0 ? 1 : -1, v = a.lsv || 'reach', rel = a.released, I = a.ideal || 0.34;
       if (v === 'reach' || v === 'far') return layReach(T, a, s, v === 'far');
       const u = rel ? 1 : cl(a.t / I, 0, 1), pr = rel ? cl((a.t - (a.relAt > 0 ? a.relAt : I)) / 0.25, 0, 1) : 0;
-      const w = sm(a.t / 0.08) * (rel ? 1 - 0.6 * pr : 1), Hh = pl.h / 1.95;
+      const w = sm(a.t / 0.08) * (1 - (rel ? 0.6 * pr : 0)) * (1 - sm(((a.relT ?? a.t) - I - 0.015) / 0.07)), Hh = pl.h / 1.95;
       const o = {};
       // 护球：防守人那侧的手臂横在胸前、肘外顶；上身转开；身体往出手侧倾
       const bar = { p: 1.25, q: 0.95, e: 1.5 };
@@ -996,10 +1000,38 @@
 
   // ---------- 骨架 ----------
   const lerpN = (a, b, u) => a + (b - a) * u;
-  function rig(pl) {
+  function layReachRim(pl, T, a) {
+    const sideScoop = a.lsv === 'reach' || a.lsv === 'far';
+    const scoop = a.cv ? a.cv === 'scoop' : a.side ? sideScoop :
+      a.v === 'euro' || (a.v === 'normal' && (a.sty === 'tip' || a.sty === 'glide' || a.sty === 'roll' || a.sty === 'scoop'));
+    const clutchEnd = PH.game.K.clutchTi + (a.cvD || 0);
+    const t = a.relT ?? a.t;
+    const clutch = !a.cv && !a.V.floater && t > a.ideal + (clutchEnd - a.ideal) * 0.44;
+    if (!scoop && !clutch) return;
+    const end = clutch ? clutchEnd : a.ideal;
+    const start = clutch ? a.ideal + (end - a.ideal) * 0.56 : end * 0.33;
+    const ease = (v) => { const u = Math.max(0, Math.min(1, v)); return u * u * (3 - 2 * u); };
+    const w = ease((t - start) / Math.max(0.05, (end - start) * 0.78))
+      * (clutch ? 1 : 1 - ease((t - end - 0.015) / 0.065))
+      * (a.released ? 1 - ease((a.t - t - 0.025) / 0.19) : 1);
+    if (w <= 0) return;
+    T.lean += 0.19 * w;
+    const left = a.hand < 0, k = left ? 'L' : 'R', s = left ? -1 : 1, arm = 'a' + k;
+    T['reach' + k] += (clutch ? 0.34 : 0.44) * w;
+    const sh = rig(pl, T)['sh' + k], f = pl.face + (T.yaw || 0);
+    const dx = HOOP.x - sh[0], dy = HOOP.y - sh[1], dz = HOOP.z + 0.18 - sh[2];
+    const fwd = Math.max(0.08, dx * Math.cos(f) + dy * Math.sin(f)), lat = dx * Math.sin(f) - dy * Math.cos(f);
+    const p = Math.atan2(fwd, -dz) - 0.04;
+    const q = Math.max(-0.8, Math.min(0.85, 1.35 * Math.atan2(s * lat, Math.hypot(fwd, dz))));
+    T[arm + 'p'] = lerpN(T[arm + 'p'], p, w * 0.94);
+    T[arm + 'q'] = lerpN(T[arm + 'q'], q, w * 0.94);
+    T[arm + 'e'] = lerpN(T[arm + 'e'], 0.08, w);
+  }
+
+  function rig(pl, P = pl.pose) {
     // 卡通化体型：身高差放大 1.7 倍，宽度/臂展按球员体型
     const C = pl.col || {}, bw = C.bw || 1, wg = C.wing || 1;
-    const P = pl.pose, Hh = 1 + (pl.h / 1.95 - 1) * 1.7;
+    const Hh = 1 + (pl.h / 1.95 - 1) * 1.7;
     // 像素风头身比（约 1:4.5）：大头、短躯干、短腿
     const th = 0.41 * Hh, sh = 0.41 * Hh, to = 0.48 * Hh, ua0 = 0.28 * Hh * wg, fa0 = 0.26 * Hh * wg, fb = Math.max(0.6, 1 + 1.5 * (bw - 1)), hw = 0.12 * Hh * (0.5 + 0.5 * fb), sw = 0.21 * Hh * (0.55 + 0.45 * fb);
     function leg(side, a, b, s) {
@@ -1020,7 +1052,7 @@
     const head = [ti * (to + 0.29 * Hh), sl * (to + 0.29 * Hh), cl * tc * (to + 0.29 * Hh) + bz * 0.8];
     function arm(side, p, q, e) {
       // 美卡式拉伸：盖帽 / 抢断瞬间手臂可以拉长去够球
-      const ks = (pl.armS && pl.armS[side < 0 ? 0 : 1]) || 1, ua = ua0 * ks, fa = fa0 * ks;
+      const ks = Math.min(1.6, ((pl.armS && pl.armS[side < 0 ? 0 : 1]) || 1) * (P[side < 0 ? 'reachL' : 'reachR'] || 1)), ua = ua0 * ks, fa = fa0 * ks;
       const s0 = [chest[0] + side * sw * tc, chest[1], chest[2] - 0.03 - side * sw * ti];
       const el = [s0[0] + side * Math.sin(q) * ua, s0[1] + Math.sin(p) * Math.cos(q) * ua, s0[2] - Math.cos(p) * Math.cos(q) * ua];
       const p2 = p + e, q2 = q * 0.4;
@@ -1154,7 +1186,7 @@
   }
 
   function drawBall(b) {
-    const p = proj(b.x, b.y, b.z), r = Math.max(2, Math.round(0.135 * p.s));
+    const p = proj(b.x, b.y, b.z), r = Math.max(2, Math.round(BALL_R * p.s));
     const cx = Math.round(p.x), cy = Math.round(p.y);
     const fl = b.fl > 0 && ((b.fl * 18) | 0) % 2 === 0;
     ellipse(ctx, cx, cy, r + 1, r + 1, fl ? '#fff6c8' : '#15101f');
@@ -1180,7 +1212,7 @@
     ctx.fillStyle = '#2a3a78'; ctx.fillRect(Math.round(pb.x - pw / 2), Math.round(pt.y), pw, Math.round(pb.y - pt.y));
     ctx.fillStyle = '#3d52a0'; ctx.fillRect(Math.round(pb.x - pw / 2), Math.round(pt.y), Math.max(1, pw >> 1), Math.round(pb.y - pt.y));
     const base = proj(0, 15.3, 0); ctx.fillStyle = '#15101f'; ctx.fillRect(Math.round(base.x - pw * 1.6), Math.round(base.y) - 2, Math.round(pw * 3.2), 4);
-    const a = proj(-0.9, 12.8, 3.95), c = proj(0.9, 12.8, 2.9);
+    const a = proj(-0.9, BOARD_Y, 3.95), c = proj(0.9, BOARD_Y, 2.9);
     const x0 = Math.round(a.x), y0 = Math.round(a.y), w = Math.round(c.x - a.x), h = Math.round(c.y - a.y);
     ctx.fillStyle = '#2a3a78'; ctx.fillRect(Math.round(pb.x - pw / 2), y0 + (h >> 1), pw, Math.round(pt.y) - y0);
     ctx.fillStyle = '#15101f'; ctx.fillRect(x0 - 1, y0 - 1, w + 2, h + 2);
@@ -1188,7 +1220,7 @@
     ctx.fillStyle = '#b8c8e0'; ctx.fillRect(x0 + 1, y0 + 1, w - 2, h - 2);
     ctx.fillStyle = '#cfdcee'; for (let i = 0; i < h - 2; i += 2) ctx.fillRect(x0 + 1 + ((i * 3) % (w - 4)), y0 + 1 + i, 3, 1);
     const Gs = PH.game && PH.game.G; if (Gs && Gs.fx && Gs.fx.shatter > 0) { ctx.fillStyle = '#15101f'; const cx = x0 + (w >> 1), cy = y0 + (h >> 1); for (let k = 0; k < 9; k++) { const an = k * 0.7 + 0.3, L = (k % 3 + 2) * Math.max(w, h) / 7; for (let t = 0; t < L; t += 1) ctx.fillRect(Math.round(cx + Math.cos(an) * t + Math.sin(t * 0.9 + k) * 1.2), Math.round(cy + Math.sin(an) * t * 0.6), 1, 1); } ctx.fillStyle = '#5a6a90'; ctx.fillRect(cx - 2, cy - 1, 5, 3); }
-    const i1 = proj(-0.3, 12.8, 3.5), i2 = proj(0.3, 12.8, 3.05);
+    const i1 = proj(-0.3, BOARD_Y, 3.5), i2 = proj(0.3, BOARD_Y, 3.05);
     const ix = Math.round(i1.x), iy = Math.round(i1.y), iw = Math.round(i2.x - i1.x), ih = Math.round(i2.y - i1.y);
     ctx.fillStyle = '#f6efe0'; ctx.fillRect(ix, iy, iw, 1); ctx.fillRect(ix, iy + ih, iw + 1, 1); ctx.fillRect(ix, iy, 1, ih); ctx.fillRect(ix + iw, iy, 1, ih);
   }
@@ -1197,7 +1229,7 @@
     const wz = rw ? Math.sin(rw * 38) * rw * 0.035 : 0;
     const c = proj(HOOP.x, HOOP.y, HOOP.z + wz), f = proj(HOOP.x, HOOP.y - 0.23, HOOP.z), bk = proj(HOOP.x, HOOP.y + 0.23, HOOP.z);
     const rx = 0.23 * c.s, ry = Math.max(1.5, (f.y - bk.y) / 2);
-    const bb = proj(0, 12.8, HOOP.z);
+    const bb = proj(0, BOARD_Y, HOOP.z);
     ctx.fillStyle = '#c23a1e'; ctx.fillRect(Math.round(c.x) - 1, Math.round(bb.y), 2, Math.max(1, Math.round(bk.y - bb.y)));
     // 篮网
     const stretch = 1 + net * 0.45, nh = 0.42 * c.s * stretch, n = 6;
@@ -1460,7 +1492,7 @@
     }
   }
 
-  PH.render = { init: init, resize: resize, get W() { return W; }, get H() { return H; }, render: render, setTheme: setTheme, proj: proj, cam: cam, CAMV: CAMV, CAM_DEF: CAM_DEF, setCam: setCam, HOOP: HOOP, curCol: curCol,
+  PH.render = { init: init, resize: resize, get W() { return W; }, get H() { return H; }, render: render, setTheme: setTheme, proj: proj, cam: cam, CAMV: CAMV, CAM_DEF: CAM_DEF, setCam: setCam, HOOP: HOOP, BOARD_Y: BOARD_Y, BALL_R: BALL_R, curCol: curCol,
     // 5V5 全场模式复用的绘制图元（不影响 1V1）
     drawMeter: (pl, hp) => drawMeter(pl, hp), drawPlayer: drawPlayer, drawBall: drawBall, shadow: shadow, ellipse: ellipse, ring: ring, brush: brush, getCtx: () => ctx, BAYER: BAYER };
 })();
