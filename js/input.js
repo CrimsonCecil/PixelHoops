@@ -19,6 +19,7 @@
 
   const held = (list) => { for (const c of list) if (keys[c] || latch[c]) return true; return false; };
   const padPrev = [{}, {}];
+  const lock = { on: false };
 
   function pads() {
     const out = [];
@@ -35,7 +36,7 @@
     if (held(m.up) || (solo && held(SOLO_EXTRA.up))) my += 1;
     if (held(m.down) || (solo && held(SOLO_EXTRA.down))) my -= 1;
     const o = { mx: mx, my: my, sprint: held(m.sprint), a1: held(m.a1), a2: held(m.a2), a3: held(m.a3), post: false, dx: 0, dy: 0 };
-    const gp = pads()[slot];
+    const gp = lock.on ? null : pads()[slot];
     if (gp) {
       const ax = gp.axes[0] || 0, ay = gp.axes[1] || 0;
       if (Math.hypot(ax, ay) > 0.22) { o.mx = ax; o.my = -ay; }
@@ -61,7 +62,7 @@
     if (held(['KeyA'])) o.lx -= 1; if (held(['KeyD'])) o.lx += 1; if (held(['KeyW'])) o.ly += 1; if (held(['KeyS'])) o.ly -= 1;
     if (held(['ArrowLeft'])) o.rx -= 1; if (held(['ArrowRight'])) o.rx += 1; if (held(['ArrowUp'])) o.ry += 1; if (held(['ArrowDown'])) o.ry -= 1;
     for (const k in K5) if (held(K5[k])) o[k] = true;
-    const gp = pads()[0];
+    const gp = lock.on ? null : pads()[0];
     if (gp) {
       o.pad = true;
       const B = (i) => !!(gp.buttons[i] && (gp.buttons[i].pressed || ((i === 6 || i === 7) && gp.buttons[i].value > 0.3)));
@@ -80,15 +81,27 @@
     return o;
   }
   // 每帧轮询手柄的菜单按键（上下左右 / A / B / Menu）
-  const navPrev = {};
+  const navPrev = {}, navRep = {}, REPEAT = { PadUp: 1, PadDown: 1, PadLeft: 1, PadRight: 1 };
   function pollPads() {
-    const cur = {};
+    const cur = {}, now = performance.now();
     for (const gp of pads()) {
-      const B = (i) => !!(gp.buttons[i] && gp.buttons[i].pressed), ax = gp.axes[0] || 0, ay = gp.axes[1] || 0;
+      const B = (i) => !!(gp.buttons[i] && gp.buttons[i].pressed), ax = gp.axes[0] || 0, ay = gp.axes[1] || 0, rx = gp.axes[2] || 0;
       if (B(12) || ay < -0.6) cur.PadUp = true; if (B(13) || ay > 0.6) cur.PadDown = true; if (B(14) || ax < -0.6) cur.PadLeft = true; if (B(15) || ax > 0.6) cur.PadRight = true;
       if (B(0)) cur.PadA = true; if (B(1)) cur.PadB = true; if (B(9)) cur.PadStart = true; if (B(8)) cur.PadBack = true;
+      if (B(2)) cur.PadX = true; if (B(3)) cur.PadY = true; if (B(4)) cur.PadLB = true; if (B(5)) cur.PadRB = true;
+      if (rx < -0.6) cur.PadRLeft = true; if (rx > 0.6) cur.PadRRight = true;
     }
-    for (const k of ['PadUp', 'PadDown', 'PadLeft', 'PadRight', 'PadA', 'PadB', 'PadStart', 'PadBack']) { if (cur[k] && !navPrev[k]) sys[k] = true; navPrev[k] = !!cur[k]; }
+    for (const k of ['PadUp', 'PadDown', 'PadLeft', 'PadRight', 'PadA', 'PadB', 'PadStart', 'PadBack', 'PadX', 'PadY', 'PadLB', 'PadRB', 'PadRLeft', 'PadRRight']) {
+      if (cur[k] && !navPrev[k]) { sys[k] = true; navRep[k] = now + 380; }
+      else if (cur[k] && REPEAT[k] && now >= navRep[k]) { sys[k] = true; navRep[k] = now + 85; }
+      navPrev[k] = !!cur[k];
+    }
+  }
+  // 右摇杆（菜单里用来滚动 / 翻页）：取摇杆偏移最大的手柄，死区 0.25
+  function rstick() {
+    let bx = 0, by = 0;
+    for (const gp of pads()) { const x = gp.axes[2] || 0, y = gp.axes[3] || 0; if (Math.hypot(x, y) > Math.hypot(bx, by)) { bx = x; by = y; } }
+    return Math.hypot(bx, by) > 0.25 ? { x: bx, y: by } : { x: 0, y: 0 };
   }
   function endTick() { for (const k in latch) delete latch[k]; }
   function sysPressed(code) { if (sys[code]) { delete sys[code]; return true; } return false; }
@@ -119,5 +132,5 @@
     });
   }
 
-  PH.input = { read: read, read5: read5, endTick: endTick, sysPressed: sysPressed, sysAny: sysAny, clearSys: clearSys, initTouch: initTouch, pollPads: pollPads, pads: pads, keys: keys, touch: touch };
+  PH.input = { read: read, read5: read5, endTick: endTick, sysPressed: sysPressed, sysAny: sysAny, clearSys: clearSys, initTouch: initTouch, pollPads: pollPads, rstick: rstick, lock: lock, pads: pads, keys: keys, touch: touch };
 })();

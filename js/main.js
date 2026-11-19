@@ -164,26 +164,44 @@
     });
   }
   PH.attrG = attrGroups; PH.vcl = vcl;
+  // 球员详情分页（参考 2K：概览 / 属性六大类 / 徽章四大类 / 动作与热区）；LB·RB 或点页签切换，右摇杆上下滚动
+  const PK_TABS = [['ov', '概览'], ['at', '属性'], ['bd', '徽章'], ['mv', '动作 · 热区']];
+  const BCAT = [['终结', ['acrobat', 'poster', 'launch', 'bully', 'dream']], ['投篮', ['limitless', 'deadeye', 'quick', 'clutch', 'fade', 'stepper', 'cs']], ['组织', ['ankle', 'tight', 'dimer', 'needle', 'bailout', 'breaker', 'postpm']], ['防守 / 篮板', ['rim', 'pick', 'clamps', 'motor', 'hustle', 'brick', 'dodger', 'intercept', 'anchor', 'chaser', 'boxout']]];
+  let pkTab = 'ov';
+  function pkTabStep(d) { const i = PK_TABS.findIndex((t) => t[0] === pkTab); pkTab = PK_TABS[(i + d + PK_TABS.length) % PK_TABS.length][0]; pkDetail(pkShown || pkSel); $('pk-detail').scrollTop = 0; PH.audio.play('ui'); }
   function pkDetail(key) {
-    const el = $('pk-detail'); pkShown = key;
+    const el = $('pk-detail'), sc = key === pkShown ? el.scrollTop : 0; pkShown = key;
     if (key === 'random') { el.innerHTML = '<div class="pkd-h"><b>随机对手</b></div><p class="tnote">每局开赛重新抽一位（不会抽到你自己选的人，一轮之内不重复）。</p>'; return; }
     const a = GM.ARCH[key];
     const tm = a.team && GM.NBA[a.team], tmS = tm ? (a.team === 'LEG' ? '传奇' : tm.city + tm.name) + ' · ' : a.tier === 'rook' ? '新秀 · ' : '';
     let h = '<div class="pkd-h"><canvas class="pkf big" width="64" height="64"></canvas><div><b>' + a.full + '</b><span>' + tmS + a.pos + ' · ' + a.h.toFixed(2) + ' 米 · ' + a.num + ' 号</span><span class="pkd-desc">' + a.desc + '</span></div><em class="t' + TT[a.tier] + '">' + a.ovr + '<small>' + GM.TIERS[a.tier] + '</small></em></div>';
+    h += '<div class="pkd-tabs" data-testid="pk-tabs">' + PK_TABS.map((t) => '<button data-nonav="1" data-pkt="' + t[0] + '" class="' + (t[0] === pkTab ? 'on' : '') + '" data-testid="pkt-tab-' + t[0] + '">' + t[1] + '</button>').join('') + '<span class="pkd-lr">LB</span><span class="pkd-lr r">RB</span></div>';
     const bar = (n, v, tip) => { const cl = vcl(v); return '<div class="pkr"' + (tip ? ' title="' + tip + '"' : '') + '><span>' + n + '</span><i><s class="' + cl + '" style="width:' + v + '%"></s></i><b>' + v + '</b></div>'; };
-    { const F = GM.SF[a.form] || GM.SF.std, sp = F.sp <= 0.85 ? '极快' : F.sp <= 0.92 ? '快' : F.sp <= 1.04 ? '中等' : F.sp <= 1.15 ? '偏慢' : '慢', hi = F.blk <= 0.85 ? '高' : F.blk >= 1.1 ? '低' : '中'; h += '<p class="pkform">投篮包 <b>' + F.name + '</b>' + (a.lefty ? ' · 左手' : '') + ' · 出手 ' + sp + ' · 出手点 ' + hi + (F.two ? ' · 两段式' : ' · 一段式') + '</p>'; }
-    { const K = GM.dunkPkg(a), N = { two: '双手', one: '单手', rimpull: '挂筐', reverse: '背扣', tomahawk: '战斧', poster: '隔扣', cock: '拉弓', windmill: '风车', '360': '360', glide: '滑翔', cradle: '摇篮', pump: '双抽', scissor: '剪刀腿', shaq: '大鲨鱼' }, L = Object.keys(N).filter((k) => K.S[k]).map((k) => N[k]);
-      h += '<p class="pkform">扣篮包 <b>' + K.name + '</b> · ' + (L.length ? L.join(' / ') : '以上篮为主') + '</p>'; }
     const AT = {}; GM.ATTRS.forEach((t) => { AT[t[0]] = t[2]; }); Object.assign(AT, R5TIP);
-    h += '<div class="agrp" data-testid="pk-attrs">' + attrGroups(a, a).map(([g, gs, v, L]) => '<div class="ag"><h4><span>' + g + '</span><b class="' + vcl(v) + '">' + v + '</b></h4><div class="pka">' + L.map((x) => bar(x[1] + (x[3] ? '<sup>5V5</sup>' : ''), x[2], AT[x[0]])).join('') + '</div></div>').join('') + '</div>';
-    { const ms = GM.moveSet({ r: a, arch: a }), chip = (x) => { const t = x[1] ? tg(x[4]) : 'X'; const tid = LTIP[x[3]] || x[3], tp = GM.TIPS[tid] ? ' data-ptip="' + tid + '" data-tn="' + x[0] + '"' : ''; return '<span class="mvc t' + t + (x[1] ? '' : ' no') + (tp ? ' tip' : '') + '"' + tp + ' title="' + (x[5] ? x[5] + ' · ' : '') + (x[1] ? '熟练度 ' + Math.round(x[4] * 99) : '需要 ' + x[2]) + (x[6] ? ' · ' + x[6] : '') + '">' + IC.svg(x[1] ? x[3] : 'lock') + x[0] + (x[1] ? '<sup>' + t + '</sup>' : '') + (tp ? IC.svg('play', 'tpl') : '') + '</span>'; };
+    const AG = attrGroups(a, a), bl = bList(a, true), have = {}; bl.forEach((x) => { have[x[0]] = x[1]; });
+    if (pkTab === 'ov') {
+      h += '<div class="pkov" data-testid="pk-ov">' + AG.map(([g, gs, v]) => '<div class="pko1"><span>' + g + '</span><b class="' + vcl(v) + '">' + v + '</b></div>').join('') + '</div>';
+      { const F = GM.SF[a.form] || GM.SF.std, sp = F.sp <= 0.85 ? '极快' : F.sp <= 0.92 ? '快' : F.sp <= 1.04 ? '中等' : F.sp <= 1.15 ? '偏慢' : '慢', hi = F.blk <= 0.85 ? '高' : F.blk >= 1.1 ? '低' : '中'; h += '<p class="pkform">投篮包 <b>' + F.name + '</b>' + (a.lefty ? ' · 左手' : '') + ' · 出手 ' + sp + ' · 出手点 ' + hi + (F.two ? ' · 两段式' : ' · 一段式') + '</p>'; }
+      { const K = GM.dunkPkg(a), N = { two: '双手', one: '单手', rimpull: '挂筐', reverse: '背扣', tomahawk: '战斧', poster: '隔扣', cock: '拉弓', windmill: '风车', '360': '360', glide: '滑翔', cradle: '摇篮', pump: '双抽', scissor: '剪刀腿', shaq: '大鲨鱼' }, L = Object.keys(N).filter((k) => K.S[k]).map((k) => N[k]);
+        h += '<p class="pkform">扣篮包 <b>' + K.name + '</b> · ' + (L.length ? L.join(' / ') : '以上篮为主') + '</p>'; }
+      { const ms = GM.moveSet({ r: a, arch: a }); h += '<p class="pkform">运球包 <b>' + ms.pk.name + '</b> · ' + ms.pk.desc + '</p>'; }
+      h += '<div class="pkbrow">' + (bl.length ? bl.map((x) => '<span class="tr' + x[1] + '" title="' + GM.BADGES[x[0]].name + '">' + bHex(x[0], x[1]) + '</span>').join('') : '<span class="none">无徽章</span>') + '</div>';
+      if (a.skill) h += '<div class="pks' + (GM.TIPS['sk-' + key] ? ' tip" data-ptip="sk-' + key + '" data-tn="必杀技 · ' + a.skill.name + '"' : '"') + '><div class="pks-h"><b>必杀技 · ' + a.skill.name + (GM.TIPS['sk-' + key] ? IC.svg('play', 'tpl') : '') + '</b><span>' + a.skill.en + '</span></div><p><em>条件</em>' + a.skill.cond + '</p><p><em>效果</em>' + a.skill.eff + '</p></div>';
+      else h += '<div class="pks none"><p>只有球星有必杀技。</p></div>';
+    } else if (pkTab === 'at') {
+      h += '<div class="agrp" data-testid="pk-attrs">' + AG.map(([g, gs, v, L]) => '<div class="ag"><h4><span>' + g + '</span><b class="' + vcl(v) + '">' + v + '</b></h4><div class="pka">' + L.map((x) => bar(x[1] + (x[3] ? '<sup>5V5</sup>' : ''), x[2], AT[x[0]])).join('') + '</div></div>').join('') + '</div>';
+    } else if (pkTab === 'bd') {
+      const seen = {};
+      h += '<div data-testid="pk-badges">' + BCAT.map(([cn, ks]) => { const own = ks.filter((k) => GM.BADGES[k] && have[k]); own.forEach((k) => { seen[k] = 1; }); return '<h4 class="pkbh"><span>' + cn + '</span><b>' + own.length + '</b></h4>' + (own.length ? '<div class="pkb">' + own.map((k) => badgeHtml(k, true, have[k])).join('') + '</div>' : '<p class="pkno">无</p>'); }).join('');
+      const rest = Object.keys(have).filter((k) => !seen[k] && GM.BADGES[k]); if (rest.length) h += '<h4 class="pkbh"><span>其他</span><b>' + rest.length + '</b></h4><div class="pkb">' + rest.map((k) => badgeHtml(k, true, have[k])).join('') + '</div>';
+      h += '</div>';
+    } else {
+      const ms = GM.moveSet({ r: a, arch: a }), chip = (x) => { const t = x[1] ? tg(x[4]) : 'X'; const tid = LTIP[x[3]] || x[3], tp = GM.TIPS[tid] ? ' data-ptip="' + tid + '" data-tn="' + x[0] + '"' : ''; return '<span class="mvc t' + t + (x[1] ? '' : ' no') + (tp ? ' tip' : '') + '"' + tp + ' title="' + (x[5] ? x[5] + ' · ' : '') + (x[1] ? '熟练度 ' + Math.round(x[4] * 99) : '需要 ' + x[2]) + (x[6] ? ' · ' + x[6] : '') + '">' + IC.svg(x[1] ? x[3] : 'lock') + x[0] + (x[1] ? '<sup>' + t + '</sup>' : '') + (tp ? IC.svg('play', 'tpl') : '') + '</span>'; };
       h += '<p class="pkform">运球包 <b>' + ms.pk.name + '</b> · ' + ms.pk.desc + '</p>';
-      h += '<div class="pkmv"><div><em>运球</em>' + ms.mv.map(chip).join('') + '</div><div><em>上篮</em>' + ms.lay.map(chip).join('') + '</div></div>'; }
-    h += hzMap(a);
-    h += '<div class="pkb" data-testid="pk-badges">' + bList(a, true).map((x) => badgeHtml(x[0], true, x[1])).join('') + '</div>';
-    if (a.skill) h += '<div class="pks' + (GM.TIPS['sk-' + key] ? ' tip" data-ptip="sk-' + key + '" data-tn="必杀技 · ' + a.skill.name + '"' : '"') + '><div class="pks-h"><b>必杀技 · ' + a.skill.name + (GM.TIPS['sk-' + key] ? IC.svg('play', 'tpl') : '') + '</b><span>' + a.skill.en + '</span></div><p><em>条件</em>' + a.skill.cond + '</p><p><em>效果</em>' + a.skill.eff + '</p></div>';
-    else h += '<div class="pks none"><p>只有球星有必杀技。</p></div>';
-    el.innerHTML = h;
+      h += '<div class="pkmv"><div><em>运球</em>' + ms.mv.map(chip).join('') + '</div><div><em>上篮</em>' + ms.lay.map(chip).join('') + '</div></div>';
+      h += hzMap(a);
+    }
+    el.innerHTML = h; el.scrollTop = sc;
     const fc = el.querySelector('canvas'); if (fc) portrait(fc, a, GM.TEAMS[pkSide]);
   }
   function pkMark() { $('pk-grid').querySelectorAll('.pkc').forEach((b) => b.classList.toggle('on', b.getAttribute('data-pk') === pkSel)); }
@@ -482,7 +500,7 @@
       head('进攻（持球时）') + row('投篮 / 上篮', '按住蓄力，条往上涨，涨到顶（绿区）松手最准；过了顶条会往下掉，越掉越偏晚。朝篮筐突破中按出三步上篮', D.a1) + row('假动作', '轻点一下投篮键', D.a1) + row('扣篮 / 上篮（终结键）', '冲向篮筐时，提示“可扣篮”就扣，够不着自动改上篮', D.a2) +
       row('运球动作', '同时按方向：左右变向，前转身，后后撤步', pad ? D.a3r : D.a3) + row('犹豫步', '不按方向轻点', D.a3) + row('背打', pad ? '按住' : '不按方向，按住', pad ? D.post : D.a3) +
       head('防守（对方持球时）') + row('起跳封盖 / 抢篮板', '', pad ? D.blk : D.a1) + row('抢断', '', pad ? D.stl : D.a2) + row('飞身扑球（散球时）', '', pad ? D.stl : D.a2) + row('防守姿态 / 举手干扰', '按住', pad ? D.stance : D.a3) +
-      (pad ? '<p class="tnote">菜单里用十字键或左摇杆选择，A 确认，B 返回。单人模式用第一个手柄；本地双人时第二个手柄控制玩家 2。训练场里 View 键开关参数面板。</p>' : tab === 'k1' ? '<p class="tnote">单人模式下方向键也能移动。训练场里 Tab 开关参数面板，R 重置站位。</p>' : '<p class="tnote">玩家 2 只在本地双人模式使用。</p>') + '</div>';
+      (pad ? '<p class="tnote">菜单里用十字键或左摇杆选择，A 确认，B 返回；滑条 / 下拉左右拨动调整，LB / RB 或右摇杆左右切页签，右摇杆上下滚动；调参台里 X 恢复当前参数默认值。单人模式用第一个手柄；本地双人时第二个手柄控制玩家 2。训练场里 View 键开关参数面板。</p>' : tab === 'k1' ? '<p class="tnote">单人模式下方向键也能移动。训练场里 Tab 开关参数面板，R 重置站位。</p>' : '<p class="tnote">玩家 2 只在本地双人模式使用。</p>') + '</div>';
   }
   let helpTab = 'k1';
   function openHelp() { if (hasPad && helpTab === 'k1') helpTab = 'pad'; renderHelp(); clearPf(); show('help', true); }
@@ -553,7 +571,7 @@
   }
   $('help-body').addEventListener('click', (e) => { const b = e.target.closest && e.target.closest('[data-tip]'); if (b) tipsEnter(b.getAttribute('data-tip'), b.getAttribute('data-tn'), b.getAttribute('data-td')); });
   $('tips-back').addEventListener('click', () => tipsExit());
-  $('pk-detail').addEventListener('click', (e) => { const b = e.target.closest && e.target.closest('[data-ptip]'); const k = pkShown; if (!b || !GM.ARCH[k]) return; tipsEnter(b.getAttribute('data-ptip'), b.getAttribute('data-tn'), GM.ARCH[k].full, k); });
+  $('pk-detail').addEventListener('click', (e) => { const t = e.target.closest && e.target.closest('[data-pkt]'); if (t) { pkTab = t.getAttribute('data-pkt'); pkDetail(pkShown || pkSel); $('pk-detail').scrollTop = 0; PH.audio.play('ui'); return; } const b = e.target.closest && e.target.closest('[data-ptip]'); const k = pkShown; if (!b || !GM.ARCH[k]) return; tipsEnter(b.getAttribute('data-ptip'), b.getAttribute('data-tn'), GM.ARCH[k].full, k); });
   $('btn-help-close').addEventListener('click', () => { show('help', false); clearPf(); });
   $('btn-pause').addEventListener('click', () => setPause(true));
   $('btn-resume').addEventListener('click', () => setPause(false));
@@ -1130,13 +1148,51 @@
   $('btn-pause5').addEventListener('click', () => setPause(true));
 
   // ---------- 手柄菜单导航 ----------
-  function navRoot() { for (const id of ['help', 'tpicker', 'picker', 'pause', 'over5', 'over', 'menu']) if (!$(id).classList.contains('hidden')) return $(id); return null; }
+  const NAV_SEL = 'button, select, input[type=range]';
+  const navList = (root) => Array.prototype.filter.call(root.querySelectorAll(NAV_SEL), (b) => b.offsetParent !== null && !b.disabled && !b.hasAttribute('data-nonav'));
+  const trainPanelOn = () => screen === 'play' && G.mode === 'train' && panelOpen && !paused && !G.replay && !$('train').classList.contains('hidden');
+  // 当前能用手柄操作的界面（从上到下优先）：调参台 / 镜头面板 / 说明 / 选队 / 选人 / 设置 / 结算 / 主菜单 / 训练面板
+  function navRoot() {
+    if (TUI && TUI.isOpen()) return $('tune');
+    if (camOpen && !$('campanel').classList.contains('hidden')) return $('campanel');
+    for (const id of ['help', 'tpicker', 'picker', 'pause', 'over5', 'over', 'menu']) if (!$(id).classList.contains('hidden')) return $(id);
+    return trainPanelOn() ? $('train') : null;
+  }
+  const NAV_SCROLL = { picker: '#pk-detail', help: '#help-body', tune: '#tn-body', train: '#tr-body', over5: '#o5-box', over: '', pause: '', menu: '' };
+  const NAV_TABS = { help: '#help-tabs', tune: '#tn-cats', train: '#tr-tabs', over5: '#o5-tabs' };
+  function scrollBox(root) {
+    const sel = NAV_SCROLL[root.id]; if (sel) return root.querySelector(sel);
+    for (const e of root.querySelectorAll('*')) if (e.scrollHeight > e.clientHeight + 4 && /auto|scroll/.test(getComputedStyle(e).overflowY) && e.offsetParent !== null) return e;
+    return null;
+  }
+  let adj = { el: null, n: 0, t: 0, timer: 0 };
+  // 滑条 / 下拉：左右调整；长按越调越快；松手后才触发 change（避免每一格都播声音 / 重建面板）
+  function navAdjust(el, dir) {
+    const now = performance.now(); adj.n = adj.el === el && now - adj.t < 220 ? adj.n + 1 : 0; adj.el = el; adj.t = now;
+    if (el.tagName === 'SELECT') {
+      const n = el.options.length; let i = el.selectedIndex; for (let k = 0; k < n; k++) { i = (i + dir + n) % n; if (!el.options[i].disabled) break; }
+      if (i !== el.selectedIndex) { el.selectedIndex = i; el.dispatchEvent(new Event('change', { bubbles: true })); PH.audio.play('ui'); }
+      return;
+    }
+    const st = +el.step || 1, mn = +el.min, mx = +el.max, dec = (String(el.step || '1').split('.')[1] || '').length, mult = adj.n < 6 ? 1 : adj.n < 16 ? 4 : 12;
+    let v = +el.value + dir * st * mult; v = Math.min(mx, Math.max(mn, +(Math.round(v / st) * st).toFixed(dec)));
+    if (v === +el.value) return;
+    el.value = v; el.dispatchEvent(new Event('input', { bubbles: true }));
+    clearTimeout(adj.timer); adj.timer = setTimeout(() => el.dispatchEvent(new Event('change', { bubbles: true })), 260);
+  }
+  function navSet(root, el) { clearPf(); el.classList.add('pf'); el.scrollIntoView({ block: 'nearest' }); if (root.id === 'tune') el.dispatchEvent(new FocusEvent('focusin', { bubbles: true })); }
+  // 面板被重建（切页签 / 选项）后，焦点落回原来的位置
+  function navRefocus(root, list, idx, b) {
+    const r2 = navRoot(); if (r2 !== root) return;
+    if (b.isConnected && b.offsetParent !== null) { b.classList.add('pf'); return; }
+    const l2 = navList(root), n = l2[Math.min(Math.max(0, idx), l2.length - 1)]; if (n) navSet(root, n);
+  }
   function navMove(dx, dy) {
     const root = navRoot(); if (!root) return;
-    const list = Array.prototype.filter.call(root.querySelectorAll('button'), (b) => b.offsetParent !== null);
-    if (!list.length) return;
+    const list = navList(root); if (!list.length) return;
     let cur = root.querySelector('.pf');
-    if (!cur || cur.offsetParent === null) { cur = root.querySelector('button.primary') || list[0]; clearPf(); cur.classList.add('pf'); return; }
+    if (!cur || cur.offsetParent === null || !cur.matches(NAV_SEL)) { cur = root.querySelector('button.primary') || list[0]; if (!list.includes(cur)) cur = list[0]; navSet(root, cur); return; }
+    if (dx && cur.type === 'range') { navAdjust(cur, dx); return; }
     const r0 = cur.getBoundingClientRect(), cx = r0.left + r0.width / 2, cy = r0.top + r0.height / 2;
     let best = null, bs = 1e9;
     for (const b of list) {
@@ -1154,9 +1210,33 @@
       }
       if (sc < bs) { bs = sc; best = b; }
     }
-    if (best) { clearPf(); best.classList.add('pf'); best.scrollIntoView({ block: 'nearest' }); PH.audio.play('ui'); if (best.hasAttribute('data-pk')) pkDetail(best.getAttribute('data-pk')); }
+    if (best) { navSet(root, best); PH.audio.play('ui'); if (best.hasAttribute('data-pk')) pkDetail(best.getAttribute('data-pk')); }
+    else if (dx && cur.tagName === 'SELECT') navAdjust(cur, dx);   // 下拉：左右旁边没有别的控件时才左右切选项（A 也能切下一项）
   }
-  function navClick() { const root = navRoot(); if (!root) return false; const b = root.querySelector('.pf') || root.querySelector('button.primary'); if (b) { b.click(); const r2 = navRoot(); if (r2 && b.offsetParent !== null && r2.contains(b)) b.classList.add('pf'); } return true; }
+  function navClick() {
+    const root = navRoot(); if (!root) return false;
+    const list = navList(root), b = root.querySelector('.pf') || root.querySelector('button.primary');
+    if (!b) { if (list[0]) navSet(root, list[0]); return true; }
+    if (b.tagName === 'SELECT') { navAdjust(b, 1); return true; }
+    if (b.type === 'range') return true;
+    const idx = list.indexOf(b); b.click(); navRefocus(root, list, idx, b);
+    return true;
+  }
+  // LB / RB / 右摇杆左右：切页签；X：把当前参数恢复默认（调参台）；右摇杆上下：滚动
+  function navTab(root, d) {
+    if (root.id === 'picker') { pkTabStep(d); return; }
+    const g = NAV_TABS[root.id] && root.querySelector(NAV_TABS[root.id]); if (!g) return;
+    const L = Array.prototype.filter.call(g.querySelectorAll('button'), (b) => b.offsetParent !== null), i = L.findIndex((b) => b.classList.contains('on'));
+    const n = L[(i + d + L.length) % L.length]; if (n && L.length) { n.click(); PH.audio.play('ui'); const cur = root.querySelector('.pf'); if (cur && !cur.isConnected) clearPf(); }
+  }
+  let rsT = 0;
+  function navAct(root, k) {
+    if (k.up) navMove(0, -1); else if (k.dn) navMove(0, 1); else if (k.lf) navMove(-1, 0); else if (k.rt) navMove(1, 0);
+    if (k.lb || k.rl) navTab(root, -1); else if (k.rb || k.rr) navTab(root, 1);
+    if (k.px && root.id === 'tune') { const cur = root.querySelector('.pf'), row = cur && cur.closest('[data-row]'), rs = row && row.querySelector('[data-rs]'); if (rs) rs.click(); }
+    const now = performance.now(), dt = Math.min(60, now - rsT || 16); rsT = now;
+    const r = PH.input.rstick(); if (r.y) { const sb = scrollBox(root); if (sb) sb.scrollTop += r.y * dt * 1.1; }
+  }
 
   // ---------- 循环 ----------
   function sysKeys() {
@@ -1168,15 +1248,21 @@
     if (I.sysPressed('KeyC') && screen === 'play' && G.phase !== 'over') toggleCam();
     if (I.sysPressed('F3')) { debug = !debug; }
     const tab = I.sysPressed('Tab') || I.sysPressed('PadBack'), rk = I.sysPressed('KeyR');
-    if (screen === 'play' && G.mode === 'train' && !paused) { if (tab) togglePanel(); if (rk) GM.trainReset(); }
+    if (screen === 'play' && G.mode === 'train' && !paused && !(TUI && TUI.isOpen())) { if (tab) togglePanel(); if (rk) GM.trainReset(); }
     const up = I.sysPressed('PadUp'), dn = I.sysPressed('PadDown'), lf = I.sysPressed('PadLeft'), rt = I.sysPressed('PadRight');
     const pa = I.sysPressed('PadA'), pb = I.sysPressed('PadB'), ps = I.sysPressed('PadStart');
     const esc = I.sysPressed('Escape') || I.sysPressed('KeyP') || ps;
     const ok = I.sysPressed('Enter');
+    const lb = I.sysPressed('PadLB'), rb = I.sysPressed('PadRB'), rl = I.sysPressed('PadRLeft'), rr = I.sysPressed('PadRRight'), px = I.sysPressed('PadX');
     if (screen === 'tips') { if (esc || pb || ok) tipsExit(); I.clearSys(); return; }
-    if (TUI && TUI.isOpen()) { if (esc || pb) TUI.open(false); I.clearSys(); return; }
     const root = navRoot();
-    if (root) { if (up) navMove(0, -1); else if (dn) navMove(0, 1); else if (lf) navMove(-1, 0); else if (rt) navMove(1, 0); }
+    if (TUI && TUI.isOpen()) {
+      navAct(root, { up: up, dn: dn, lf: lf, rt: rt, lb: lb, rb: rb, rl: rl, rr: rr, px: px });
+      if (pa) navClick();
+      else if (esc || pb) { const sub = ['tn-name', 'tn-pastebox'].map($).find((e) => e && !e.classList.contains('hidden')); if (sub) { const c = sub.querySelector('#tn-cancel,#tn-pastecancel'); if (c) c.click(); } else TUI.open(false); }
+      I.clearSys(); return;
+    }
+    if (root) navAct(root, { up: up, dn: dn, lf: lf, rt: rt, lb: lb, rb: rb, rl: rl, rr: rr, px: px });
     if (!$('help').classList.contains('hidden')) { if (esc || ok || pb) { show('help', false); clearPf(); } else if (pa) navClick(); }
     else if (!$('tpicker').classList.contains('hidden')) { if (pb || esc) closeTP(false); else if (pa || ok) navClick(); }
     else if (!$('picker').classList.contains('hidden')) { if (pb || esc) closePicker(false); else if (ok) closePicker(true); else if (pa) { const b = $('picker').querySelector('.pf'); if (b && b.hasAttribute('data-pk')) { if (b.getAttribute('data-pk') === pkSel) closePicker(true); else b.click(); b.classList.add('pf'); } else navClick(); } }
@@ -1189,7 +1275,7 @@
         if (PH.T5.T.phase === 'over') PH.box5.close();
         else if (esc || pb || tab || (kb && PH.box5.S.tab === 'sub')) close5();
         else if (kb) { PH.box5.S.tab = 'sub'; PH.box5.S.sel = 0; PH.box5.render(); }
-        else PH.box5.keys(I, { up: up, dn: dn, lf: lf, rt: rt, pa: pa });
+        else { PH.box5.keys(I, { up: up, dn: dn, lf: lf, rt: rt, pa: pa }); const r = PH.input.rstick(), now = performance.now(), dt = Math.min(60, now - rsT || 16); rsT = now; if (r.y) $('b5-body').scrollTop += r.y * dt * 1.1; }
       }
       else if (PH.T5.T.phase === 'over') { if (over5Shown) { if (ok) startMatch(true); else if (esc || pb) toMenu(); else if (pa) navClick(); } }
       else if (!paused && (tab || kb || dD)) open5(kb || dD ? 'sub' : null, false);
@@ -1198,7 +1284,9 @@
     }
     else if (screen === 'play') {
       if (G.phase === 'over') { if (overShown) { if (ok) startMatch(true); else if (esc || pb) toMenu(); else if (pa) navClick(); } }
+      else if (root && root.id === 'train' && (pa || pb)) { if (pa) navClick(); else togglePanel(false); }
       else if (camOpen && (esc || pb)) toggleCam(false);
+      else if (camOpen && pa) navClick();
       else if (paused && setV !== 'main' && (esc || pb)) setView('main');
       else if (esc) setPause(!paused); else if (paused) { if (ok || pb) setPause(false); else if (pa) navClick(); }
     }
@@ -1316,6 +1404,7 @@
     const d = Math.min(0.1, (ts - last) / 1000 || 0); last = ts;
     if (d > 0) fps = fps * 0.95 + (1 / d) * 0.05;
     sysKeys();
+    { const nr = navRoot(); PH.input.lock.on = !!nr && (nr.id === 'tune' || nr.id === 'campanel' || nr.id === 'train'); }
     if (!manual && !paused) { acc += d; let n = 0; while (acc >= DT && n < 5) { if (screen === 'play5') tick5(DT); else GM.tick(DT); acc -= DT; n++; } if (n === 5) acc = 0; }
     draw();
   }

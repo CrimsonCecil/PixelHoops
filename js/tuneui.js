@@ -152,7 +152,7 @@
     if (mode) { inp.value = mode === 'ren' ? CS().cur().name : ''; inp.placeholder = mode === 'ren' ? '新名字' : '配置名字'; inp.focus(); inp.select(); }
   }
   async function nameOk() {
-    const v = $('tn-input').value.trim(); if (!v) { $('tn-input').focus(); return; }
+    let v = $('tn-input').value.trim(); if (!v) { const d = new Date(); v = '配置 ' + p2(d.getHours()) + p2(d.getMinutes()); }
     const m = nameMode; nameBox(null);
     if (m === 'ren') await CS().rename(v); else await CS().saveAs(v);
   }

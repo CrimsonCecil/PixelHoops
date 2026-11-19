@@ -925,6 +925,7 @@
     normal: { name: '上篮', c: 1, g: 1, p: 1, blk: 1 },
     euro: { name: '欧洲步上篮', c: 0.7, g: 0.9, p: 0.96, blk: 0.6 },
     reverse: { name: '反篮', c: 0.6, g: 0.85, p: 0.94, blk: 0.4 },
+    back: { name: '篮后挑篮', c: 0.55, g: 0.8, p: 0.92, blk: 0.35 },
     floater: { name: '抛投', c: 0.6, g: 0.9, p: 1, blk: 0.2, floater: true },
     clutch: { name: '拉杆上篮', c: 0.5, g: 0.75, p: 0.92, blk: 0.3 },
     power: { name: '双脚强起上篮', c: 0.85, g: 0.95, p: 1.02, blk: 0.8 },
@@ -937,7 +938,7 @@
     spin: { t: '控球 45 或力量 80', f: (r) => r.hnd >= 0.45 || r.str >= 0.8 }, stepback: { t: '控球 50 或中投 70', f: (r) => r.hnd >= 0.5 || r.mid >= 0.7 },
   };
   const LAY_REQ = {
-    reverse: { t: '突破上篮 70', f: (r) => r.lay >= 0.7 }, hop: { t: '突破上篮 70 + 控球 50', f: (r) => r.lay >= 0.7 && r.hnd >= 0.5 },
+    reverse: { t: '突破上篮 70', f: (r) => r.lay >= 0.7 }, back: { t: '突破上篮 60', f: (r) => r.lay >= 0.6 }, hop: { t: '突破上篮 70 + 控球 50', f: (r) => r.lay >= 0.7 && r.hnd >= 0.5 },
     euro: { t: '突破上篮 78 + 控球 60 + 速度/加速 70', f: (r) => r.lay >= 0.78 && r.hnd >= 0.6 && (r.spd + r.acc) / 2 >= 0.7 }, spin: { t: '突破上篮 80 + 控球 70', f: (r) => r.lay >= 0.8 && r.hnd >= 0.7 },
   };
   const SIG_MV = { giannis: ['euro', 'hop'], shaq: ['spin'], lebron: ['euro', 'hop', 'spin'] };
@@ -950,7 +951,7 @@
       const q = X ? (X.str ? Math.max(pl.r.str * 0.9, mvQ(pl.r, X.kind) * 0.8) : mvQ(pl.r, X.kind)) : mvQ(pl.r, id);
       const e = [X ? X.name : MV[id].name, ok, X ? (X.req ? X.req.t : '') : MV_REQ[id] ? MV_REQ[id].t : '', id, q, sl[1], X ? X.how : '']; seen[id] = e; o.mv.push(e);
     }
-    for (const k of ['normal', 'power', 'reverse', 'floater', 'hop', 'euro', 'spin']) o.lay.push([LVR[k].name, canLay(pl, k), LAY_REQ[k] ? LAY_REQ[k].t : '', k === 'spin' ? 'lspin' : k, layQ(pl.r, k)]); return o; }
+    for (const k of ['normal', 'power', 'reverse', 'back', 'floater', 'hop', 'euro', 'spin']) o.lay.push([LVR[k].name, canLay(pl, k), LAY_REQ[k] ? LAY_REQ[k].t : '', k === 'spin' ? 'lspin' : k, layQ(pl.r, k)]); return o; }
   // 动作熟练度（用于展示等级颜色，和实际判定用的属性一致）
   function mvQ(r, k) { const b = r.hnd * 0.75 + r.acc * 0.25; return k === 'stepback' ? Math.max(b, r.mid * 0.92) : k === 'spin' ? Math.max(b, r.str * 0.9) : b; }
   function layQ(r, k) { return k === 'normal' ? r.lay : k === 'power' ? r.close * 0.5 + r.str * 0.5 : k === 'floater' ? Math.min(r.lay, r.flo != null ? r.flo : 0.4) : r.lay * 0.6 + r.hnd * 0.4; }
@@ -2318,10 +2319,12 @@
     const reach = dR < 0.5 ? 0 : clamp(K.dunkBase + K.dunkAth * dk * Math.pow(ath, 1.5) * (0.4 + 0.6 * run) + (pl.h - 1.95) * 1.2 - heavy * 0.6 + ba(pl, 'launch', K.bgLaunch) - 0.9 * fat(pl), K.dunkMin, K.dunkMax);
     const tko = d - K.stepN * L;
     const inside = pl.y < HOOP.y + 0.3 && d > 0.45;
+    const back = pl.y >= HOOP.y + 0.3 && d > 0.45 && d < 6;
     const dunk = inside && reach > 0 && pl.stam > ST.dunk && Math.max(tko, 1.0) <= reach;
-    return { d: d, h: h, fv: fv, run: run, L: L, adv: adv, reach: reach, tko: tko, inside: inside, dunk: dunk, lay: inside && tko <= K.layMax * K.layK, flo: inside && tko <= K.floMax * K.layK * K.floK && d > K.floMin };
+    return { d: d, h: h, fv: fv, run: run, L: L, adv: adv, reach: reach, tko: tko, inside: inside, back: back, dunk: dunk, lay: (inside || back) && tko <= K.layMax * K.layK, flo: inside && tko <= K.floMax * K.layK * K.floK && d > K.floMin };
   }
   // 生成脚步路点：wp = [{x,y,T,z,lead}]，lead: 'L' / 'R' / 'B'(双脚)
+  const backSide = (pl) => Math.abs(pl.x - HOOP.x) > 0.15 ? (pl.x >= HOOP.x ? 1 : -1) : (pl.hand > 0 ? -1 : 1);
   function buildSteps(pl, a, P, kind, eS) {
     const h = P.h, lx = -h.y, ly = h.x, wp = [];
     let x = pl.x, y = pl.y;
@@ -2345,12 +2348,17 @@
       else push(x + h.x * 0.15, y + h.y * 0.15, GATHER_T + 0.06, 0.03, ft); // 原地收球直接抛
       a.tk = d0 - s; return wp;
     }
-    if (kind === 'reverse') {
-      const sg = pl.x >= HOOP.x ? 1 : -1, ex = HOOP.x + sg * 0.55, ey = HOOP.y - 0.55;
-      push(lerp(x, ex, 0.55), lerp(y, ey, 0.55), STEP_T + GATHER_T, 0.08, hd);
-      push(ex, ey, STEP_T + 0.04, 0.08, ft);
-      a.tk = Math.hypot(HOOP.x - x, HOOP.y - y); return wp;
-    }
+    // 反篮 / 篮板后挑篮：和普通上篮一样每步受步幅限制、时长按步长算（以前固定 0.5 秒，底线离筐远时等于瞬移）
+    const toward = (ex, ey, tkR) => {
+      const dx = ex - x, dy = ey - y, D0 = Math.hypot(dx, dy) || 1, ux = dx / D0, uy = dy / D0, D = tkR ? Math.max(0.5, Math.min(D0, d0 - tkR)) : D0;
+      const s1 = Math.min(D, clamp(Math.max(D / 2, P.L * K.step2K), K.step2A, P.L));
+      push(x + ux * s1, y + uy * s1, sT(s1) + GATHER_T, 0.09, hd);
+      const s2 = Math.min(D - s1, P.L * K.step2Max);
+      if (s2 > 0.05) push(x + ux * s2, y + uy * s2, sT(s2), 0.09, ft);
+      a.tk = Math.hypot(HOOP.x - x, HOOP.y - y);
+    };
+    if (kind === 'reverse') { toward(HOOP.x + (pl.x >= HOOP.x ? 1 : -1) * 0.55, HOOP.y - 0.55, 0.6 * clamp(P.tko, K.layTgtA + 0.7 * P.run + 0.3 * pl.r.lay, K.layTgtB + 0.9 * pl.r.lay + 0.6 * P.run) * K.layK); return wp; }
+    if (kind === 'back') { toward(HOOP.x + backSide(pl) * 1.15, HOOP.y + 0.05, 0.6 * clamp(P.tko, K.layTgtA + 0.7 * P.run + 0.3 * pl.r.lay, K.layTgtB + 0.9 * pl.r.lay + 0.6 * P.run) * K.layK); return wp; }
     // 起跳点：上篮离筐约 1.5~2.1 米（跑得越快越远），扣篮按扣篮距离；离得近就少走步，不碎步
     // V3.6：最后一步离筐更远（跑扣 / 滑翔），离筐已经很近就收球直接起，不再硬走步
     const tgt = a.type === 'dunk' ? clamp(Math.max(Math.min(P.reach, K.dkTgt + K.dkTgtRun * P.run), P.tko), K.dkTgtMin, P.reach) : clamp(P.tko, K.layTgtA + 0.7 * P.run + 0.3 * pl.r.lay, K.layTgtB + 0.9 * pl.r.lay + 0.6 * P.run) * K.layK + (a.sty === 'glide' ? K.layGlide * K.layK : 0);
@@ -2405,6 +2413,7 @@
     if (v === 'floater') { const h = hoopDir(pl); pl.vx = h.x * 2.4; pl.vy = h.y * 2.4; pl.vz = 4.4; pl.z = 0.01; sfx('jump'); return; }
     if (v === 'power' || v === 'hop') { const h = hoopDir(pl), dd = Math.max(0, distHoop(pl) - 0.7); pl.vx = h.x * dd / 0.5; pl.vy = h.y * dd / 0.5; pl.vz = 5.3; pl.z = 0.01; sfx('jump'); return; }
     if (v === 'reverse') { tx = HOOP.x - (pl.x >= HOOP.x ? 1 : -1) * 0.5; ty = HOOP.y - 0.2; }
+    else if (v === 'back') { tx = HOOP.x + backSide(pl) * 0.55; ty = HOOP.y - 0.1; }
     else { const dl = Math.hypot(pl.x - HOOP.x, pl.y - HOOP.y) || 1, rk = clamp(0.75 + (dl - 2.2) * 0.35, 0.75, 1.25); tx = HOOP.x + (pl.x - HOOP.x) / dl * rk * 0.6; ty = HOOP.y - (HOOP.y - pl.y) / dl * rk; }
     let vx = (tx - pl.x) / 0.46, vy = (ty - pl.y) / 0.46; const l = Math.hypot(vx, vy);
     const vMax = 7.5 * Math.max(1, K.layMax / 3, K.layTgtB / 2.8);   // 起跳距离调远时空中水平速度上限跟着放大（默认 7.5）
@@ -2420,7 +2429,7 @@
   const LSV = { reach: { name: '侧身上篮', blk: 0.8, p: 0.97, c: 0.92 }, far: { name: '远端手上篮', blk: 0.78, p: 0.96, c: 0.9 }, rev: { name: '反手上篮', blk: 0.72, p: 0.95, c: 0.88 }, swap: { name: '空中换手上篮', blk: 0.66, p: 0.93, c: 0.85 } };
   function laySide(pl, a, P, df, baseline) {
     a.side = 0; a.lsv = '';
-    if (a.v === 'floater' || a.v === 'power') return;
+    if (a.v === 'floater' || a.v === 'power' || a.v === 'back') return;
     const h = P.h, dx = df.x - pl.x, dy = df.y - pl.y, dd = Math.hypot(dx, dy) || 1, live = !df.off && dd < 3.2;
     const lat = (dx * h.y - dy * h.x) / dd, front = live ? (dx * h.x + dy * h.y) / dd : -1, ang = Math.atan2(Math.abs(pl.x - HOOP.x), Math.max(0.1, HOOP.y - pl.y));
     const blocking = live && df.action && df.action.type === 'block';
@@ -2444,7 +2453,7 @@
   // fast：加速 + 朝筐 + 投篮键（5V5 是 RT + X）发起的终结——按下当帧就判定：能扣就跑扣，否则立刻上篮（不再排队等跑到扣篮起跳点），上篮方式按站位 / 能力随机挑
   function startFinish(pl, inp, want, btn, fast) {
     const P = finPlan(pl), q = inDir(pl, inp, want === 'stick'), df = OP(pl);
-    if (!P.inside) { if (pl.ctrl !== 'cpu' && !pl.finQ) float(pl.y >= HOOP.y ? '在篮板后' : '太近', pl, '#ff6b5e', 1); return false; }
+    if (!P.inside && !(P.back && P.lay)) { if (pl.ctrl !== 'cpu' && !pl.finQ) float(P.back ? '太远' : pl.y >= HOOP.y ? '在篮板后' : '太近', pl, '#ff6b5e', 1); return false; }
     if (want === 'auto' && P.dunk && !(pl.ctrl === 'cpu' && !df.off && contestOf(pl, df, 'in') > 0.45 && dunkAtk(pl, dunkR(pl, P.run)) - rimDef(df) < -0.04 && rnd() < 0.75)) return startDunk(pl, P, btn || 'a2'), true;
     // 人类玩家：扣篮键按早了就先记住，跑到起跳点自动起步（最多 1 秒）
     if (want === 'auto' && !fast && pl.ctrl !== 'cpu' && !pl.finQ && P.reach > 0 && pl.stam > ST.dunk && P.fv > 0.8 && P.tko > P.reach && P.tko < P.reach + 4) { pl.finQ = { want: want, btn: btn || 'a2', t: 1.1 }; return false; }
@@ -2466,6 +2475,7 @@
     else if (P.fv < 1.6 && P.d < 2.6) v = 'power';
     else if (baseline) v = 'reverse';
     else v = 'normal';
+    if (!P.inside) { v = 'back'; eS = 0; }
     if (!canLay(pl, v) && v === 'floater' && !P.lay) { if (pl.ctrl !== 'cpu' && !pl.finQ) float('太远', pl, '#ff6b5e', 1); return false; }   // V3.9r 不会抛投又够不到上篮距离：不再从 4~5 米外双脚强起
     if (!canLay(pl, v)) { v = P.fv < 2.2 || pl.r.str >= 0.8 ? 'power' : 'normal'; eS = 0; }
     if (fast && v === 'normal' && !G.forceSty) {
@@ -2493,6 +2503,7 @@
     const a = { type: 'layup', v: v, sty: sty, V: V, t: 0, pts: 2, released: false, relAt: -1, tap: false, btn: btn || 'a1', ideal: fl ? K.floTi : K.layTi, span: fl ? 0.45 : 0.66, meter: null, inSteps: true, si: 0, st: 0, chaseD: Math.hypot(df.x - pl.x, df.y - pl.y) * (distHoop(df) > distHoop(pl) ? 1 : 0) };
     a.hand = handSide(pl, v === 'euro' ? eS : 0);
     if (v === 'reverse') a.hand = pl.x >= HOOP.x ? -1 : 1;
+    if (v === 'back') a.hand = backSide(pl) > 0 ? -1 : 1;
     laySide(pl, a, P, df, baseline);
     a.wp = buildSteps(pl, a, P, v, eS);
     hzSet(pl, a); if (pl.sk.ky > G.time) { a.ky = true; pl.sk.ky = 0; }
@@ -2697,6 +2708,7 @@
     high: [[0, Object.assign({ lean: 0.08 }, LEG1, CH)], [0.5, { aRp: 2.7, aRe: 0.7, aLp: 2.2, aLe: 0.6 }], [1, { lean: -0.02, aRp: 3.2, aRe: -0.1, aRq: 0.02, aLp: 1.0, aLe: 0.7, aLq: 0.4 }]],
     wrong: [[0, Object.assign({ lean: 0.12 }, { lA: 0.95, lB: 1.4, rA: 0.35, rB: 1.2, lS: 0.06, rS: 0.06 }, CH)], [0.5, { aRp: 2.4, aRe: 0.6, aLp: 1.8, aLe: 0.8, tilt: -0.08 }], [1, { lean: 0.08, tilt: -0.12, aRp: 2.95, aRe: 0.12, aRq: 0.1, aLp: 0.9, aLe: 0.7, aLq: 0.35 }]],
     reverse: [[0, Object.assign({ lean: 0.05 }, LEG1, CH)], [0.5, { lean: -0.12, aRp: 2.8, aRe: 0.6, aLp: 1.4 }], [1, { lean: -0.22, aRp: 3.4, aRe: 0.35, aRq: 0.1, aLp: 0.8, aLq: 0.6, aLe: 0.5 }]],
+    back: [[0, { lean: 0.08, lA: 0.2, lB: 0.6, rA: 0.9, rB: 1.4, aRp: 0.65, aRe: 0.9, aRq: 0.3, aLp: 0.8, aLe: 0.9, aLq: 0.2 }], [0.6, { lean: -0.1, tilt: 0.18, aRp: 1.0, aRe: 0.5 }], [1, { lean: -0.14, tilt: 0.2, aRp: 2.2, aRe: -0.1, aRq: 0.25, aLp: 0.7, aLq: 0.7, aLe: 0.3 }]],
     spin: [[0, Object.assign({ lean: 0.18 }, LEG1, { aRp: 1.5, aRq: 0.75, aRe: 0.6, aLp: 0.9, aLq: 0.6, aLe: 0.7 })], [0.6, { aRp: 2.3, aRq: 0.5, aRe: 0.4 }], [1, { lean: 0.1, aRp: 2.9, aRq: 0.25, aRe: 0.12, aLp: 0.8, aLq: 0.5 }]],
   };
   // 拉杆：先举高 → 收到腰间、屈膝滞空 → 换到另一侧出手
@@ -3259,13 +3271,13 @@
           else startShot(pl, inp, 'a2');
         } else if (pr.a1) {
           const sbk0 = pl.lastMove === 'stepback' && G.time - pl.lastMoveT < 1.2, sbk = sbk0 || d > 5.6; // 刚后撤步、或还在三分线附近：投篮键只出跳投/假投，不自动变抛投、上篮
-          const drive = !sbk && P.inside && P.fv > 2.6 && q.l > 0.3 && q.fwd > 0.45;
+          const drive = !sbk && (P.inside || P.back) && P.fv > 2.6 && q.l > 0.3 && q.fwd > 0.45;
           if (pl.post || (backTurn(pl) && d < 6.5)) startShot(pl, inp);
-          else if (!sbk0 && P.inside && inp.sprint && q.l > 0.3 && q.fwd > 0.45 && (P.fv > 2.6 || P.d < 5) && P.reach > 0 && pl.stam > ST.dunk && (P.dunk || P.lay || P.tko < P.reach + 4)) startFinish(pl, inp, 'auto', 'a1', true);
+          else if (!sbk0 && (P.inside || P.back) && inp.sprint && q.l > 0.3 && q.fwd > 0.45 && (P.fv > 2.6 || P.d < 5) && P.reach > 0 && pl.stam > ST.dunk && (P.dunk || P.lay || P.tko < P.reach + 4)) startFinish(pl, inp, 'auto', 'a1', true);
           else if (!sbk0 && P.inside && inp.sprint && q.l > 0.3 && q.fwd > 0.45 && P.fv > 2.6 && P.reach > 0 && pl.stam > ST.dunk && P.tko < P.reach + 7 && !pl.finQ) pl.finQ = { want: 'auto', btn: 'a1', t: 1.5, fast: true };
           else if (drive && P.lay) startFinish(pl, inp, 'lay', 'a1');
           else if (!sbk && P.inside && q.l > 0.35 && q.fwd < -0.4 && d > 1.6 && d < 4.6 && faceHoop(pl) > 0.3 && !backTurn(pl)) startFinish(pl, inp, 'floater', 'a1');
-          else if (P.inside && d < 2.2) startFinish(pl, inp, 'lay', 'a1');
+          else if ((P.inside || P.back) && d < 2.2) startFinish(pl, inp, 'lay', 'a1');
           else if (drive && P.flo && P.fv > 3.5) startFinish(pl, inp, 'floater', 'a1');
           else startShot(pl, inp);
         }
@@ -3383,7 +3395,7 @@
       if (pr.a3 && pl.cd <= 0 && pl.stam <= ST.act && !pl.post) noGas(pl, '没体力');
       if (pr.a3) {
         if (pl.post) { if (q.l > 0.3 && can) startMove(pl, inp, 'postspin'); }
-        else if (q.l > 0.3) { const P = finPlan(pl); if (inp.sprint && P.dunk && P.fv > 2) { const st = q.fwd > 0.55 ? 'two' : q.fwd < -0.2 ? 'flashy' : 'side'; startDunk(pl, P, 'a3', st, q.lat >= 0 ? 1 : -1); } else if (P.inside && P.fv > 2 && (P.lay || P.flo) && startFinish(pl, inp, 'stick', 'a3')) { } else if (can) startMove(pl, inp); }
+        else if (q.l > 0.3) { const P = finPlan(pl); if (inp.sprint && P.dunk && P.fv > 2) { const st = q.fwd > 0.55 ? 'two' : q.fwd < -0.2 ? 'flashy' : 'side'; startDunk(pl, P, 'a3', st, q.lat >= 0 ? 1 : -1); } else if ((P.inside || P.back) && P.fv > 2 && (P.lay || P.flo) && startFinish(pl, inp, 'stick', 'a3')) { } else if (can) startMove(pl, inp); }
         else pl.a3W = 0.0001;
       } else if (pl.a3W > 0) {
         if (!inp.a3) { pl.a3W = 0; if (can) startMove(pl, inp, 'hesi'); }
@@ -3420,7 +3432,7 @@
     if (pl.finQ) {
       const Q = pl.finQ; Q.t -= dt;
       if (pl.action || !pl.hasBall || frozen || pl.stun > 0 || Q.t <= 0 || G.phase !== 'live') pl.finQ = null;
-      else { const P = finPlan(pl); if (Q.want === 'lay' && Q.btn === 'a1' && inp.sprint && P.dunk && pl.stam > ST.dunk) Q.want = 'auto'; if (!P.inside) pl.finQ = null; else if (P.fv < 1.2) { startFinish(pl, inp, Q.want, Q.btn); pl.finQ = null; } else if (Q.want === 'auto' ? P.dunk || (P.lay && (Q.fast || Q.t < 0.25 || P.d < 1.9)) : P.lay) { if (startFinish(pl, inp, Q.want, Q.btn, Q.fast)) pl.finQ = null; } }
+      else { const P = finPlan(pl); if (Q.want === 'lay' && Q.btn === 'a1' && inp.sprint && P.dunk && pl.stam > ST.dunk) Q.want = 'auto'; if (!P.inside && !P.back) pl.finQ = null; else if (P.fv < 1.2) { startFinish(pl, inp, Q.want, Q.btn); pl.finQ = null; } else if (Q.want === 'auto' ? P.dunk || (P.lay && (Q.fast || Q.t < 0.25 || P.d < 1.9)) : P.lay) { if (startFinish(pl, inp, Q.want, Q.btn, Q.fast)) pl.finQ = null; } }
     }
     const a = pl.action, air = pl.z > 0;
     if (pl.dcn && (!pl.hasBall || (pl.action && pl.action.type !== 'move'))) pl.dcn = 0;   // V4.2 停球 / 丢球：连续过人重置
@@ -3537,7 +3549,7 @@
     pl.cue = null;
     if (pl.hasBall && !a && pl.ctrl !== 'cpu' && G.phase === 'live' && !G.needClear && !pl.post) {
       const F = finPlan(pl);
-      if (F.inside && (F.fv > 2.2 || F.d < 2.2)) pl.cue = F.dunk ? 'dunk' : F.lay ? 'lay' : F.flo && F.fv > 2.2 ? 'float' : null;
+      if ((F.inside || F.back) && (F.fv > 2.2 || F.d < 2.2)) pl.cue = F.dunk ? 'dunk' : F.lay ? 'lay' : F.flo && F.fv > 2.2 ? 'float' : null;
     }
   }
 
@@ -4216,7 +4228,7 @@
       // 自己投篮比终结更可能得分时（相对能力，不是绝对数值）：返回 0~1 的偏好；对面护框越强，终结越打折
       const jPref = () => { const jr = isThree(pl.x, pl.y) ? pl.r.three : pl.r.mid, rk = ai.rimK == null ? 1 : ai.rimK, f = ai.fin == null ? 0.5 : ai.fin; return jr < 0.55 ? 0 : clamp((jr - f * Math.min(1.1, rk) - 0.06) / 0.3, 0, 1); };
       const shootNow = () => {
-        const lay = FP.inside && (FP.lay || d < K.aiLay * K.layK);
+        const lay = (FP.inside || FP.back) && (FP.lay || d < K.aiLay * K.layK);
         o.mx = 0; o.my = 0;
         if (FP.dunk && pl.r.dunk > 0.6 && pl.stam > 20 && rnd() < pl.r.dunk * 0.7) o.a2 = true;
         else if (lay) {
