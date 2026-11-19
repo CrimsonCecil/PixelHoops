@@ -205,7 +205,7 @@
     }
     el.innerHTML = h; el.scrollTop = sc;
     const ptCanvas = el.querySelector('[data-ptype]');
-    if (ptCanvas) PH.PT.draw(ptCanvas.getContext('2d'), pt.id, 0, 0);
+    if (ptCanvas) PH.PT.draw(ptCanvas.getContext('2d'), pt.id, 0, 0, getComputedStyle(el.querySelector('.pkd-h b')).color);
     const fc = el.querySelector('canvas'); if (fc) portrait(fc, a, GM.TEAMS[pkSide]);
   }
   function pkMark() { $('pk-grid').querySelectorAll('.pkc').forEach((b) => b.classList.toggle('on', b.getAttribute('data-pk') === pkSel)); }
@@ -320,6 +320,7 @@
     $('set-title').textContent = v === 'sound' ? '声音' : v === 'disp' ? '显示' : v === 'cam5' ? '镜头' : '设置'; setLabels(); if (v === 'cam5') cam5Labels(); clearPf();
   }
   function setLabels() {
+    $('btn-ptype').textContent = '类型图标样式 ' + PH.PT.style + ' · ' + PH.PT.styles[PH.PT.style - 1];
     $('btn-music').textContent = '音乐 ' + (PH.audio.musicOn ? '开' : '关');
     $('btn-sfx').textContent = '音效 ' + (PH.audio.sfxOn ? '开' : '关');
     $('btn-info').textContent = '球员信息 ' + (opts.info === 'show' ? '显示' : '隐藏');
@@ -544,6 +545,7 @@
     $('mixer').addEventListener('change', (e) => { const k = e.target.getAttribute('data-mx'); PH.audio.play(k === 'vo' ? 'ui' : k === 'music' ? 'ui' : 'swish'); if (k === 'vo' && G.players[0]) PH.audio.vo(G.players[0].arch.key, 'three', 'pri'); });
     sync(); }
   $('btn-info').addEventListener('click', () => { toggleInfo(); setLabels(); });
+  $('btn-ptype').addEventListener('click', () => { PH.PT.setStyle(PH.PT.style % PH.PT.styles.length + 1); setLabels(); });
   const saveV = () => setLabels();
   $('btn-replay').addEventListener('click', () => { G.vopt.replay = !G.vopt.replay; saveV(); });
   $('btn-close').addEventListener('click', () => { G.vopt.close = !G.vopt.close; saveV(); });

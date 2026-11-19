@@ -226,7 +226,7 @@
     const tw = Math.ceil(c.measureText(t).width), w = tw + 3 + PH.PT.SIZE, x0 = Math.round(Math.max(2, Math.min(W - w - 2, cx - w / 2))), yy = Math.round(y);
     c.fillStyle = '#15101f'; for (const [dx, dy] of [[-1, 0], [1, 0], [0, -1], [0, 1], [-1, -1], [1, -1], [-1, 1], [1, 1]]) c.fillText(t, x0 + dx, yy + dy);
     c.fillStyle = curCol(col); c.fillText(t, x0, yy);
-    PH.PT.draw(c, pt.id, x0 + tw + 3, yy + 1);
+    PH.PT.draw(c, pt.id, x0 + tw + 3, yy + 1, curCol(col));
     return { x0: x0, x1: x0 + w, y0: yy, y1: yy + 12 };
   }
   function ring(c, cx, cy, rx, ry, col) {

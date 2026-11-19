@@ -562,7 +562,7 @@
       ctx.fillStyle = '#ffffff'; for (let r = 0; r < STAR.length; r++) for (let c = 0; c < 9; c++) if (STAR[r][c] === '#') ctx.fillRect(x0 + c, sy + r, 1, 1);
     }
     ctx.fillStyle = col ? (R.curCol ? R.curCol(col) : col) : '#ffffff'; ctx.fillText(t, x0 + sw, yy);
-    PH.PT.draw(ctx, pt.id, x0 + sw + tw + 3, yy + 1);
+    PH.PT.draw(ctx, pt.id, x0 + sw + tw + 3, yy + 1, col ? (R.curCol ? R.curCol(col) : col) : '#ffffff');
     ctx.globalAlpha = oldAlpha;
     return { x0: x0, x1: x0 + w, y0: yy, y1: yy + 12 };
   }
