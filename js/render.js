@@ -1141,7 +1141,8 @@
 
   const SZ = 300, OX = 150, OY = 270;
   const FACES = { square: { w: 1, h: 1.05, r: 0.1, rb: 0.12, chin: 0 }, round: { w: 1.04, h: 1.02, r: 0.42, rb: 0.42, chin: 0 }, oval: { w: 0.9, h: 1.14, r: 0.34, rb: 0.38, chin: 0.12 },
-    long: { w: 0.84, h: 1.26, r: 0.24, rb: 0.3, chin: 0.08 }, wide: { w: 1.2, h: 0.98, r: 0.34, rb: 0.3, chin: 0 } };
+    long: { w: 0.84, h: 1.26, r: 0.24, rb: 0.3, chin: 0.08 }, wide: { w: 1.2, h: 0.98, r: 0.34, rb: 0.3, chin: 0 },
+    tapered: { w: 1, h: 1.14, r: 0.33, rb: 0.34, chin: 0.13 } };
   function drawHead(c, C, x, y, size, facing) {
     const fs = FACES[C.face] || FACES.square;
     const w = Math.max(5, Math.round(size * fs.w)), h = Math.max(5, Math.round(size * fs.h));
@@ -1163,6 +1164,13 @@
       for (let i = 0; i < w; i += step) {
         const lift = st === 'wispy' ? (i % 3 + 1) * 0.6 : crown * (i === 0 ? 0.6 : 1.3);
         px(i, -lift, Math.min(step, w - i), h * 0.2 + lift, hr);
+      }
+    }
+    if (st === 'curlfade') {
+      const step = Math.max(2, Math.round(w / 6));
+      for (let i = step; i < w - step; i += step) {
+        const lift = Math.max(1, Math.round(crown * ((i / step) % 2 ? 0.5 : 0.3)));
+        px(i, -lift, Math.min(step + 1, w - step - i), crown + lift, hr);
       }
     }
     if (st === 'swept') {
@@ -1187,7 +1195,7 @@
     px(0, 0, w, h, dark); px(0, 0, w - Math.max(1, w * 0.13), h - 1, skin);
     if (st === 'bald') px(w * 0.25, h * 0.12, w * 0.26, 1, shade(skin, 1.18));
     else {
-      const hairline = { buzz: 0.14, receding: 0.14, crop: 0.23, fade: 0.23, braids: 0.24, wispy: 0.2 };
+      const hairline = { buzz: 0.14, receding: 0.14, crop: 0.23, fade: 0.23, curlfade: 0.22, braids: 0.24, wispy: 0.2 };
       const depth = away ? 0.74 : hairline[st] || 0.3;
       const col = st === 'buzz' || st === 'receding' ? shade(skin, 0.72) : hr;
       px(0, 0, w, h * depth, col);
@@ -1196,7 +1204,7 @@
         px(w * 0.04, h * 0.19, w * 0.55, h * 0.12, hr);
         px(w * 0.16, h * 0.07, w * 0.48, 1, bh);
       }
-      if (st === 'fade' || st === 'crop') {
+      if (st === 'fade' || st === 'crop' || st === 'curlfade') {
         px(0, h * 0.17, w * 0.13, h * 0.25, shade(skin, 0.7));
         px(w * 0.87, h * 0.17, w * 0.13, h * 0.25, shade(skin, 0.7));
       }
@@ -1210,13 +1218,20 @@
       if (h >= 15) px(0, h * 0.22, w, 1, shade(C.band, 1.16));
     }
     if (!away) {
-      const ey = h * 0.49, es = Math.max(1, Math.floor(w * 0.15)), ei = Math.max(1, Math.round(w * 0.19));
+      const ey = h * 0.49, open = C.eyes === 'open', es = Math.max(1, Math.floor(w * (open ? 0.19 : 0.15))), ei = Math.max(1, Math.round(w * (open ? 0.21 : 0.19)));
       const eyes = profile ? [side > 0 ? w - ei - es : ei] : [ei, w - ei - es];
       const cx = w * 0.5 + side * w * 0.21, nose = shade(skin, 0.81);
       for (const ex of eyes) {
-        if (w >= 10) px(ex, ey - (C.brow === 'soft' ? 1 : 2), es + (C.brow === 'heavy' ? 1 : 0), 1, hr);
-        if (es > 1) px(ex, ey, es, es * 0.74, '#eee6da');
-        px(ex + (es > 1 && side >= 0 ? es - 1 : 0), ey, 1, Math.max(1, es * 0.74), '#211620');
+        if (w >= 10) px(ex, ey - (open ? 3 : C.brow === 'soft' ? 1 : 2), es + (C.brow === 'heavy' ? 1 : 0), 1, hr);
+        if (open && es > 2) {
+          px(ex, ey, es, 1, '#eee6da');
+          px(ex + 1, ey + 1, es - 2, 1, '#eee6da');
+          px(ex + Math.floor(es / 2), ey, 1, 2, '#3d2c24');
+        } else {
+          const eh = es * 0.74;
+          if (es > 1) px(ex, ey, es, eh, '#eee6da');
+          px(ex + (es > 1 && side >= 0 ? es - 1 : 0), ey, 1, eh, '#211620');
+        }
       }
       if (!profile && C.brow === 'joined') px(ei, ey - 2, w - ei * 2, 1, hr);
       if (w >= 8) {
@@ -1230,6 +1245,9 @@
         px(0, h * 0.82, w, h * 0.18, hr); px(cx - w * 0.18, h * 0.73, w * 0.36, 1, hr);
       } else if (bd === 'goatee') {
         px(cx - w * 0.14, h * 0.84, w * 0.28, h * 0.16, hr);
+      } else if (bd === 'trimmed') {
+        px(w * 0.04, h * 0.72, w * 0.1, h * 0.19, hr); px(w * 0.86, h * 0.72, w * 0.1, h * 0.19, hr);
+        px(w * 0.1, h * 0.87, w * 0.8, h * 0.13, hr); px(cx - w * 0.17, h * 0.73, w * 0.34, 1, hr);
       } else if (bd === 'stubble') px(0, h * 0.85, w, h * 0.15, shade(skin, 0.64));
       if (w >= 8) px(cx - w * 0.12, h * 0.79, w * 0.24, 1, dark);
       if (C.mouthguard) px(cx + (side < -0.45 ? -w * 0.17 : w * 0.08), h * 0.79, w * 0.14, 1, '#f4ede0');

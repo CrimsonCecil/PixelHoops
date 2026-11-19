@@ -46,6 +46,23 @@ assert(look('wemby').body.arm > curry.body.arm);
 assert(look('zion').body.chest > look('wemby').body.chest);
 assert(look('kawhi').body.hand > curry.body.hand);
 assert(look('harden').beard === 'long' && look('kawhi').style === 'braids');
+assert.equal(curry.style, 'curlfade');
+assert.equal(curry.eyes, 'open');
+assert.equal(look('kyrie').style, 'curlfade');
+assert.equal(look('kyrie').beard, 'trimmed');
+assert.equal(look('wemby').style, 'bald');
+for (const key of ['shaq', 'jokic']) {
+  const { bw, body } = look(key);
+  const legacyWidth = 1 + 1.5 * (bw - 1);
+  assert(0.29 * body.waist >= 0.31 * (0.2 + 0.8 * legacyWidth) * 1.06, key);
+  assert(body.limb >= (0.5 + 0.5 * legacyWidth) * 1.12, key);
+}
+for (const key of ['curry', 'kyrie', 'wemby', 'durant', 'sga']) {
+  assert(look(key).body.limb < 0.9, key);
+}
+for (const key of ['cade', 'giannis', 'embiid', 'lebron']) {
+  assert(look(key).body.shoulder > 1.1 && look(key).body.limb > 1.1, key);
+}
 console.log('PASS every rostered player renders; 302 measured-height profiles, signature looks, original gameplay rig and held-ball wrist anchors');
 
 game.newGame({ mode: 'train', arch0: 'luka', arch1: 'curry' });

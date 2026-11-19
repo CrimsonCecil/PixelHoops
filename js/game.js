@@ -1337,24 +1337,24 @@
   const FACE = { curry: 'oval', kyrie: 'long', kobe: 'long', luka: 'round', lebron: 'square', giannis: 'long', shaq: 'wide', maxey: 'round', sengun: 'wide', white: 'oval', bridges: 'long', herb: 'long', kessler: 'round',
     gafford: 'long', joe: 'oval', dosunmu: 'oval', dybantsa: 'long', peterson: 'oval', boozer: 'square', flemings: 'oval', mara: 'long', peat: 'wide', karaban: 'square', delarrea: 'oval' };
   const SIGNATURE_LOOK = {
-    curry: { style: 'crop', beard: 'goatee', mouthguard: true, build: -0.12, shoulder: 0.94 },
-    lebron: { style: 'receding', beard: 'boxed', brow: 'heavy', build: 0.12, shoulder: 1.13, sleeve: 'L' },
+    curry: { style: 'curlfade', face: 'tapered', skin: '#be8b66', beard: 'trimmed', eyes: 'open', mouthguard: true, build: -0.2, shoulder: 0.94 },
+    lebron: { style: 'receding', beard: 'boxed', brow: 'heavy', build: 0.22, shoulder: 1.13, sleeve: 'L' },
     luka: { style: 'swept', beard: 'stubble', brow: 'soft', build: 0.04 },
-    giannis: { style: 'crop', face: 'long', build: 0.08, shoulder: 1.11, legs: 1.07 },
-    durant: { style: 'receding', face: 'long', beard: 'goatee', build: -0.22, shoulder: 0.94, legs: 1.08 },
-    wemby: { style: 'curly', face: 'oval', build: -0.14, shoulder: 0.96, legs: 1.09 },
+    giannis: { style: 'curlfade', face: 'long', build: 0.26, shoulder: 1.16, legs: 1.07 },
+    durant: { style: 'receding', face: 'long', beard: 'goatee', build: -0.28, shoulder: 0.94, legs: 1.08 },
+    wemby: { style: 'bald', face: 'oval', beard: 'goatee', build: -0.14, shoulder: 0.96, legs: 1.09 },
     chet: { style: 'swept', face: 'long', beard: 'goatee', build: -0.14, legs: 1.08 },
     zion: { style: 'fade', face: 'wide', brow: 'heavy', build: 0.16, shoulder: 1.09, legs: 0.95 },
-    jokic: { style: 'buzz', face: 'wide', beard: '', brow: 'soft', shoulder: 1.05, legs: 0.96 },
-    shaq: { build: 0.18, shoulder: 1.16, brow: 'heavy', legs: 0.95 },
+    jokic: { style: 'buzz', face: 'wide', beard: 'stubble', brow: 'soft', build: 0.13, waist: 0.25, shoulder: 1.05, legs: 0.96 },
+    shaq: { build: 0.18, waist: 0.18, shoulder: 1.16, brow: 'heavy', legs: 0.95 },
     kobe: { style: 'buzz', beard: 'goatee', brow: 'heavy', sleeve: 'R' },
-    kyrie: { style: 'curly', beard: 'boxed', brow: 'soft' },
+    kyrie: { style: 'curlfade', face: 'tapered', beard: 'trimmed', band: '', brow: 'soft', build: -0.27 },
     harden: { style: 'braids', beard: 'long', face: 'oval' },
     kawhi: { style: 'braids', beard: 'goatee', face: 'long', brow: 'soft' },
-    sga: { style: 'braids', face: 'long', build: -0.11, legs: 1.06 },
+    sga: { style: 'braids', face: 'long', band: '#f4f0e0', build: -0.11, legs: 1.06 },
     tatum: { style: 'fade', beard: 'boxed', sleeve: 'L' },
     ad: { style: 'crop', brow: 'joined', beard: 'boxed' },
-    embiid: { style: 'crop', face: 'wide', beard: 'boxed', shoulder: 1.06 },
+    embiid: { style: 'locks', face: 'wide', beard: 'boxed', build: 0.24, shoulder: 1.10 },
     morant: { style: 'locks', face: 'oval', build: -0.12 },
     edwards: { style: 'fade', face: 'wide', brow: 'heavy', build: 0.11, shoulder: 1.08 },
     trae: { style: 'wispy', beard: 'goatee', face: 'oval' },
@@ -1370,7 +1370,7 @@
     booker: { style: 'fade', face: 'oval', beard: 'stubble', brow: 'heavy' },
     draymond: { style: 'crop', face: 'wide', beard: 'boxed', shoulder: 1.07 },
     mitchell: { style: 'fade', face: 'round', beard: 'goatee' },
-    cade: { style: 'curly', face: 'oval', beard: 'goatee' },
+    cade: { style: 'afro', face: 'oval', beard: 'trimmed', build: 0.16, shoulder: 1.06 },
     banchero: { style: 'braids', face: 'wide', beard: 'goatee', shoulder: 1.06 },
     jbrown: { style: 'braids', beard: 'boxed', face: 'square' },
     sabonis: { style: 'swept', face: 'square', beard: 'boxed' },
@@ -1380,16 +1380,19 @@
   function lookOf(a) {
     const sig = SIGNATURE_LOOK[a.key] || {};
     const m = PH.measurements && PH.measurements[a.key];
-    const look = { skin: pair(a.skin), hair: a.hair, style: sig.style || a.style, beard: sig.beard ?? a.beard ?? '', band: a.band || '',
-      bw: a.bw || 1, wing: a.wing || 1, face: sig.face || FACE[a.key] || 'square', brow: sig.brow, mouthguard: sig.mouthguard, sleeve: sig.sleeve };
+    const look = { skin: pair(sig.skin || a.skin), hair: a.hair, style: sig.style || a.style, beard: sig.beard ?? a.beard ?? '', band: sig.band ?? a.band ?? '',
+      bw: a.bw || 1, wing: a.wing || 1, face: sig.face || FACE[a.key] || 'square', brow: sig.brow, eyes: sig.eyes, mouthguard: sig.mouthguard, sleeve: sig.sleeve };
     if (m) {
       const [inches, pounds, span, hand] = m, height = inches * 0.0254;
-      const build = clamp((pounds * 0.45359237 / (height * height) - 25.4) * 0.091 + (sig.build || 0), -0.36, 0.55);
-      const shoulder = (1 + 0.43 * build) * (sig.shoulder || 1);
-      look.body = { height, baseHeight: a.h, shoulder, chest: 1 + 0.76 * build, waist: 1 + 0.65 * build, hip: 1 + 0.32 * build,
-        arm: span ? clamp(1 + 1.65 * (span / inches - 1.047) - 0.2 * (shoulder - 1), 0.87, 1.17) : look.wing,
-        legs: sig.legs || clamp(1 + (inches - 78) * 0.002 - build * 0.06, 0.96, 1.04),
-        limb: 1 + 0.84 * build, hand: hand ? clamp(hand / (0.11 * inches), 0.84, 1.18) : 1 };
+      const bmi = pounds * 0.45359237 / (height * height), density = (bmi - 24.5) / 5.25;
+      const build = clamp(Math.sign(density) * Math.abs(density) ** 1.35 + (sig.build || 0), -0.42, 2.05);
+      // 骨架比例保留测量值，胸腰与四肢粗细单独放大。
+      const frame = clamp((bmi - 25.4) * 0.091, -0.36, 0.55);
+      const shoulder = (1 + 0.32 * build) * (sig.shoulder || 1);
+      look.body = { height, baseHeight: a.h, shoulder, chest: 1 + 0.7 * build, waist: 1 + 0.76 * build + (sig.waist || 0), hip: 1 + 0.4 * build,
+        arm: span ? clamp(1 + 1.65 * (span / inches - 1.047) - 0.086 * frame, 0.87, 1.17) : look.wing,
+        legs: sig.legs || clamp(1 + (inches - 78) * 0.002 - frame * 0.06, 0.96, 1.04),
+        limb: 1 + 0.59 * build, hand: hand ? clamp(hand / (0.11 * inches), 0.84, 1.18) : 1 };
     }
     return look;
   }
