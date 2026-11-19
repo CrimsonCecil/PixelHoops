@@ -549,9 +549,10 @@
   }
   // 名字标签：白字深色描边；用户控制的人名字前有星形
   const STAR = ['....#....', '...###...', '#########', '.#######.', '..#####..', '.###.###.', '##.....##'];
-  function nameTag(t, cx, y, star, alpha, col) {
+  function nameTag(a, cx, y, star, alpha, col) {
+    const t = a.name, pt = PH.PT.of(a), oldAlpha = ctx.globalAlpha;
     ctx.font = FONT; ctx.textBaseline = 'top';
-    const tw = Math.ceil(ctx.measureText(t).width), sw = star ? 11 : 0, w = tw + sw, x0 = Math.round(cx - w / 2), yy = Math.round(y);
+    const tw = Math.ceil(ctx.measureText(t).width), sw = star ? 11 : 0, w = tw + sw + 14, x0 = Math.round(Math.max(2, Math.min(W - w - 2, cx - w / 2))), yy = Math.round(y);
     ctx.globalAlpha = alpha == null ? 1 : alpha;
     ctx.fillStyle = '#15101f';
     for (const [dx, dy] of [[-1, 0], [1, 0], [0, -1], [0, 1], [-1, -1], [1, -1], [-1, 1], [1, 1]]) ctx.fillText(t, x0 + sw + dx, yy + dy);
@@ -561,7 +562,8 @@
       ctx.fillStyle = '#ffffff'; for (let r = 0; r < STAR.length; r++) for (let c = 0; c < 9; c++) if (STAR[r][c] === '#') ctx.fillRect(x0 + c, sy + r, 1, 1);
     }
     ctx.fillStyle = col ? (R.curCol ? R.curCol(col) : col) : '#ffffff'; ctx.fillText(t, x0 + sw, yy);
-    ctx.globalAlpha = 1;
+    PH.PT.draw(ctx, pt.id, x0 + sw + tw + 4, yy + 2);
+    ctx.globalAlpha = oldAlpha;
     return { x0: x0, x1: x0 + w, y0: yy, y1: yy + 12 };
   }
   // 遮挡物（底部比分条、左右上角信息卡）在 480x270 画布坐标里的矩形
@@ -585,7 +587,7 @@
       // V4.4 体力条（render.js PH.stamBar：刻度、阈值、残影）；旧版 bw 20–40 × 3 → 28–56 × 3（只拉长）
       if (PH.stamBar) PH.stamBar(ctx, Math.round(cx - bw / 2), by + 2, bw, bh, p.stam, 'f' + (p.id != null ? p.id : p.a.name), (G5() && G5().time) || 0);
     }
-    const r = nameTag(p.a.name, cx, by + (star ? bh + 5 : 0), star, star || col ? 1 : 0.85, col);
+    const r = nameTag(p.a, cx, by + (star ? bh + 5 : 0), star, star || col ? 1 : 0.85, col);
     return { x0: r.x0, x1: r.x1, y0: by - 1, y1: r.y1 };
   }
   function overlays(T) {

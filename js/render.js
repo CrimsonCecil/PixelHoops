@@ -220,12 +220,14 @@
   const curOn = (p, G) => !p.dummy && !p.off && !!p.arch && !(G.replay && G.replay.view) && G.players.length <= 2;
   // 名字颜色跟光标一致；太暗的队色往白提亮，保证在地板上看得清
   function curCol(c) { const m = /^#([0-9a-f]{6})$/i.exec(c || ''); if (!m) return '#ffffff'; const v = parseInt(m[1], 16), r = v >> 16, g = (v >> 8) & 255, b = v & 255, L = 0.3 * r + 0.59 * g + 0.11 * b; if (L >= 110) return c; const k = (110 - L) / (255 - L); return 'rgb(' + [r, g, b].map((x) => Math.round(x + (255 - x) * k)).join(',') + ')'; }
-  function curName(c, t, cx, y, col) {
+  function curName(c, a, cx, y, col) {
+    const t = a.name, pt = PH.PT.of(a);
     c.font = "12px 'Fusion Pixel 12px Proportional SC', monospace"; c.textBaseline = 'top';
-    const tw = Math.ceil(c.measureText(t).width), x0 = Math.round(Math.max(2, Math.min(W - tw - 2, cx - tw / 2))), yy = Math.round(y);
+    const tw = Math.ceil(c.measureText(t).width), w = tw + 14, x0 = Math.round(Math.max(2, Math.min(W - w - 2, cx - w / 2))), yy = Math.round(y);
     c.fillStyle = '#15101f'; for (const [dx, dy] of [[-1, 0], [1, 0], [0, -1], [0, 1], [-1, -1], [1, -1], [-1, 1], [1, 1]]) c.fillText(t, x0 + dx, yy + dy);
     c.fillStyle = curCol(col); c.fillText(t, x0, yy);
-    return { x0: x0, x1: x0 + tw, y0: yy, y1: yy + 12 };
+    PH.PT.draw(c, pt.id, x0 + tw + 4, yy + 2);
+    return { x0: x0, x1: x0 + w, y0: yy, y1: yy + 12 };
   }
   function ring(c, cx, cy, rx, ry, col) {
     c.fillStyle = col; cx = Math.round(cx); cy = Math.round(cy);
@@ -1455,7 +1457,7 @@
         // V4.0 名字一律在脚下（用户：名称都在脚下显示就好，不用担心遮挡），只夹在画面内，不再挪到头顶
         if (y < 2) continue; y = Math.min(H - 13, y);
         for (const o of tags) if (Math.abs(o.y0 - y) < 12 && Math.abs((o.x0 + o.x1) / 2 - q.x) < 40) y = o.y0 > y ? o.y0 - 13 : o.y1 + 1;
-        tags.push(curName(ctx, p.arch.name, q.x, y, p.col.ringCol));
+        tags.push(curName(ctx, p.arch, q.x, y, p.col.ringCol));
       } }
     // 粒子
     for (const q of F.parts) {
