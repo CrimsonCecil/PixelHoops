@@ -1142,7 +1142,8 @@
   const SZ = 300, OX = 150, OY = 270;
   const FACES = { square: { w: 1, h: 1.05, r: 0.1, rb: 0.12, chin: 0 }, round: { w: 1.04, h: 1.02, r: 0.42, rb: 0.42, chin: 0 }, oval: { w: 0.9, h: 1.14, r: 0.34, rb: 0.38, chin: 0.12 },
     long: { w: 0.84, h: 1.26, r: 0.24, rb: 0.3, chin: 0.08 }, wide: { w: 1.2, h: 0.98, r: 0.34, rb: 0.3, chin: 0 },
-    tapered: { w: 1, h: 1.14, r: 0.33, rb: 0.34, chin: 0.13 } };
+    tapered: { w: 1, h: 1.14, r: 0.33, rb: 0.34, chin: 0.13 },
+    youthful: { w: 1.03, h: 1.07, r: 0.34, rb: 0.42, chin: 0.04, soft: true } };
   const headHeight = (face, size) => Math.max(5, Math.round(size * (FACES[face] || FACES.square).h));
   function drawHead(c, C, x, y, size, facing) {
     const fs = FACES[C.face] || FACES.square;
@@ -1219,11 +1220,12 @@
       if (h >= 15) px(0, h * 0.22, w, 1, shade(C.band, 1.16));
     }
     if (!away) {
-      const ey = h * 0.49, open = C.eyes === 'open', es = Math.max(1, Math.floor(w * (open ? 0.19 : 0.15))), ei = Math.max(1, Math.round(w * (open ? 0.21 : 0.19)));
+      const ey = h * 0.49, open = C.eyes === 'open', es = Math.max(1, Math.floor(w * (open ? 0.22 : 0.15))), ei = Math.max(1, Math.round(w * (open ? 0.2 : 0.19)));
       const eyes = profile ? [side > 0 ? w - ei - es : ei] : [ei, w - ei - es];
-      const cx = w * 0.5 + side * w * 0.21, nose = shade(skin, 0.81);
+      const cx = w * 0.5 + side * w * 0.21, nose = shade(skin, fs.soft ? 0.91 : 0.81);
+      const browWidth = es + (C.brow === 'heavy' ? 1 : 0) - (fs.soft ? 1 : 0), browColor = fs.soft ? shade(skin, 0.62) : hr;
       for (const ex of eyes) {
-        if (w >= 10) px(ex, ey - (open ? 3 : C.brow === 'soft' ? 1 : 2), es + (C.brow === 'heavy' ? 1 : 0), 1, hr);
+        if (w >= 10) px(ex, ey - (open ? 3 : C.brow === 'soft' ? 1 : 2), browWidth, 1, browColor);
         if (open && es > 2) {
           px(ex, ey, es, 1, '#eee6da');
           px(ex + 1, ey + 1, es - 2, 1, '#eee6da');
@@ -1236,8 +1238,8 @@
       }
       if (!profile && C.brow === 'joined') px(ei, ey - 2, w - ei * 2, 1, hr);
       if (w >= 8) {
-        px(cx, h * 0.58, w * 0.09, h * 0.1, nose);
-        px(cx - w * 0.09, h * 0.68, w * 0.18, 1, dark);
+        px(cx, h * 0.58, w * 0.09, h * (fs.soft ? 0.06 : 0.1), nose);
+        if (!fs.soft) px(cx - w * 0.09, h * 0.68, w * 0.18, 1, dark);
       }
       const bd = C.beard === true ? 'full' : C.beard;
       if (bd === 'full' || bd === 'boxed' || bd === 'long') {
@@ -1250,7 +1252,7 @@
         px(w * 0.04, h * 0.72, w * 0.1, h * 0.19, hr); px(w * 0.86, h * 0.72, w * 0.1, h * 0.19, hr);
         px(w * 0.1, h * 0.87, w * 0.8, h * 0.13, hr); px(cx - w * 0.17, h * 0.73, w * 0.34, 1, hr);
       } else if (bd === 'stubble') px(0, h * 0.85, w, h * 0.15, shade(skin, 0.64));
-      if (w >= 8) px(cx - w * 0.12, h * 0.79, w * 0.24, 1, dark);
+      if (w >= 8) px(cx - w * 0.12, h * 0.79, w * 0.24, 1, fs.soft ? shade(skin, 0.81) : dark);
       if (C.mouthguard) px(cx + (side < -0.45 ? -w * 0.17 : w * 0.08), h * 0.79, w * 0.14, 1, '#f4ede0');
       if (bd === 'long') {
         c.restore();

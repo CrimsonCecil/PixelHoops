@@ -47,11 +47,19 @@ assert(look('zion').body.chest > look('wemby').body.chest);
 assert(look('kawhi').body.hand > curry.body.hand);
 assert(look('harden').beard === 'long' && look('kawhi').style === 'braids');
 assert.equal(curry.style, 'curlfade');
+assert.equal(curry.face, 'youthful');
+assert.equal(curry.beard, '');
 assert.equal(curry.eyes, 'open');
 assert.equal(look('kyrie').style, 'curlfade');
 assert.equal(look('kyrie').beard, 'trimmed');
 assert.equal(look('wemby').style, 'bald');
 assert.equal(look('cade').style, 'curlfade');
+assert.equal(look('cade').skin[1], '#a67453');
+const calibrated = ['cade', 'giannis', 'wemby', 'kawhi', 'tatum', 'ad', 'embiid', 'edwards', 'brunson', 'booker'];
+assert.equal(new Set(calibrated.map(key => look(key).skin[1])).size, calibrated.length);
+for (const key of calibrated) {
+  assert.notEqual(look(key).skin[1], game.ARCH[key].skin, key);
+}
 for (const key of ['shaq', 'jokic']) {
   const { bw, body } = look(key);
   const legacyWidth = 1 + 1.5 * (bw - 1);
