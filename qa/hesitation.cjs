@@ -33,8 +33,8 @@ function fixture(hand = 1, arch0 = 'luka') {
 
 // While held, moving the stick previews a direction but never moves the handler.
 {
-  const { p, d, b, rig, key, step } = fixture();
-  const start = [p.x, p.y], base = rig(p);
+  const { p, d, key, step } = fixture();
+  const start = [p.x, p.y];
   Object.assign(p, { vy: 5, speed: 5 });
   key('KeyL'); step();
   assert.equal(p.action.kind, 'hesi');
@@ -42,14 +42,28 @@ function fixture(hand = 1, arch0 = 'luka') {
   assert.equal(p.action.kind, 'hesi');
   assert.deepEqual([p.x, p.y], start);
   assert.equal(p.speed, 0);
-  assert(b.z > 1.45 && p.hasBall);
-  const raised = rig(p);
-  assert(raised.handL[2] > base.handL[2] + 0.2 && raised.handR[2] > base.handR[2] + 0.2);
+  assert(p.hasBall);
   assert.equal(d.action, null);
   key('KeyA', false); step();
   key('KeyL', false); step(80);
   assert.equal(p.action, null);
   assert.deepEqual([p.x, p.y], start);
+}
+
+// Both arms open sideways; the ball follows the same palm, below the head.
+for (const [arch, hand] of [['kyrie', 1], ['kyrie', -1], ['shaq', 1], ['shaq', -1]]) {
+  const { p, b, rig, key, step } = fixture(hand, arch);
+  key('KeyL'); step(80);
+  const k = rig(p);
+  const palm = hand > 0 ? k.handR : k.handL, offHand = hand > 0 ? k.handL : k.handR;
+  const fx = Math.cos(p.face), fy = Math.sin(p.face);
+  const lateral = (from, to) => fy * (to[0] - from[0]) - fx * (to[1] - from[1]);
+  assert(lateral(k.shL, k.handL) < -0.28 && lateral(k.shR, k.handR) > 0.28);
+  assert(k.handL[2] < k.shL[2] + 0.02 && k.handR[2] < k.shR[2] + 0.02);
+  assert(b.z > k.pelvis[2] + 0.15 && b.z < k.chest[2] + 0.055 && b.z < k.head[2] - 0.24);
+  assert.deepEqual([b.x, b.y], Array.from(palm.slice(0, 2)));
+  assert(b.z > palm[2] && b.z - palm[2] < 0.15);
+  assert(Math.hypot(b.x - offHand[0], b.y - offHand[1]) > 0.8);
 }
 
 for (const [hand, dir, kind, side, nextHand] of [
@@ -182,4 +196,4 @@ for (const [arch, canCancel] of [['kyrie', true], ['shaq', false]]) {
   assert(p.action.hesiHold === 'hesi');
 }
 
-console.log('Hesitation: high fake, release directions, buffering, move requirements, post-up, possession loss, and 5V5 passed.');
+console.log('Hesitation: sideways one-hand fake, release directions, buffering, move requirements, post-up, possession loss, and 5V5 passed.');

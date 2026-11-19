@@ -2848,6 +2848,8 @@
   };
   function cum(fr) { let acc = {}; return fr.map((f) => { acc = Object.assign({}, acc, f[1]); return [f[0], acc]; }); }
   for (const k in LKF) LKF[k] = cum(LKF[k]); for (const k in DKF) DKF[k] = cum(DKF[k]);
+  const HESI_READY = { lean: 0.24, tilt: 0, yaw: 0, lA: 0.35, lB: 0.65, rA: 0.16, rB: 0.54, lS: 0.18, rS: 0.18, aLp: 0.45, aLq: 0.37, aLe: 0.58, aRp: 0.3, aRq: 0.32, aRe: 0.58 };
+  const HESI_OPEN = { lean: 0.3, tilt: 0.1, yaw: -0.16, lA: 0.49, lB: 0.86, rA: 0.28, rB: 0.68, lS: 0.27, rS: 0.24, aLp: 0.82, aLq: 1.55, aLe: 0.42, aRp: 0.5, aRq: 1.35, aRe: 0.5 };
   // 运球动作关键帧：cross/legs/behind 按“向左变向（球到左手）”写；其余按“球在右手”写
   const MKF = {
     cross: [[0, { lean: 0.28, lA: 0.25, lB: 0.5, rA: 0.15, rB: 0.55, lS: 0.1, rS: 0.1 }], [0.3, { lean: 0.42, lA: 0.3, lB: 0.8, rA: 0.3, rB: 1.05, lS: 0.12, rS: 0.55 }],
@@ -2856,10 +2858,8 @@
       [0.72, { lean: 0.38, lA: 0.75, lB: 0.8, rA: -0.55, rB: 0.85, lS: 0.36, rS: 0.3 }], [1, { lean: 0.3, lA: 0.5, lB: 0.5, rA: -0.2, rB: 0.6, lS: 0.2, rS: 0.15 }]],
     behind: [[0, { lean: 0.28, lA: 0.5, lB: 0.5, rA: -0.3, rB: 0.7, lS: 0.08, rS: 0.08 }], [0.5, { lean: 0.33, lA: -0.25, lB: 0.85, rA: 0.6, rB: 0.45, lS: 0.2, rS: 0.25 }],
       [1, { lean: 0.28, lA: 0.55, lB: 0.5, rA: -0.35, rB: 0.8, lS: 0.3, rS: 0.08 }]],
-    hesi: [[0, { lean: 0.2, lA: 0.35, lB: 0.65, rA: 0.1, rB: 0.55, aLp: 0.65, aLq: 0.45, aLe: 0.65, aRp: 0.65, aRq: 0.45, aRe: 0.65 }],
-      [0.36, { lean: -0.08, lA: 0.12, lB: 0.2, rA: 0.24, rB: 0.35, lS: 0.16, rS: 0.18, aLp: 2.15, aLq: 0.24, aLe: 0.48, aRp: 2.15, aRq: 0.24, aRe: 0.48 }],
-      [0.6, { lean: -0.08, lA: 0.12, lB: 0.2, rA: 0.24, rB: 0.35, lS: 0.16, rS: 0.18, aLp: 2.15, aLq: 0.24, aLe: 0.48, aRp: 2.15, aRq: 0.24, aRe: 0.48 }],
-      [1, { lean: 0.24, lA: 0.28, lB: 0.58, rA: 0.2, rB: 0.55, aLp: 0.65, aLq: 0.45, aLe: 0.65, aRp: 0.65, aRq: 0.45, aRe: 0.65 }]],
+    hesi: [[0, HESI_READY], [0.14, Object.assign({}, HESI_READY, { lean: 0.38, tilt: -0.13, yaw: 0.21, aLq: 0.8, aRq: 0.7 })],
+      [0.36, HESI_OPEN], [0.6, HESI_OPEN], [1, HESI_READY]],
     inout: [[0, { lean: 0.25, lA: 0.3, lB: 0.5, rA: 0.1, rB: 0.5 }], [0.4, { lean: 0.32, lA: 0.15, lB: 0.65, rA: 0.45, rB: 0.85, lS: 0.5, rS: 0.05, aLp: 0.7, aLq: 0.7 }],
       [0.7, { lean: 0.36, lA: -0.25, lB: 0.7, rA: 0.65, rB: 0.6, rS: 0.38, lS: 0.1 }], [1, { lean: 0.28, lA: 0.5, lB: 0.5, rA: -0.3, rB: 0.7 }]],
     stepback: [[0, { lean: 0.3, lA: 0.8, lB: 0.5, rA: -0.3, rB: 0.6, lS: 0.1, rS: 0.1 }], [0.22, { lean: 0.38, lA: 0.9, lB: 0.8, rA: -0.2, rB: 0.85, aLp: 0.8, aLq: 0.6 }],
@@ -2885,7 +2885,6 @@
       case 'cross': return [lerp(h0 * 0.36, h1 * 0.36, s), 0.38, 0.1 + 0.68 * ab(cs(PI * u))];
       case 'legs': return [lerp(h0 * 0.34, h1 * 0.34, s), 0.06 + 0.3 * ab(2 * u - 1), 0.1 + 0.62 * ab(cs(PI * u))];
       case 'behind': return [lerp(h0 * 0.34, h1 * 0.34, s), 0.25 - 0.58 * Math.sin(PI * u), 0.12 + 0.62 * ab(cs(PI * u))];
-      case 'hesi': { const w = sm(Math.min(u / 0.36, (1 - u) / 0.4, 1)); return [h0 * lerp(0.34, 0.25, w), lerp(0.34, 0.29, w), lerp(0.83, 1.57, w)]; }
       case 'inout': { const o = Math.sin(PI * Math.min(1, u / 0.7)); return [h0 * (0.36 - 0.34 * o), 0.34 + 0.12 * o, 0.12 + 0.66 * ab(cs(PI * 1.5 * u))]; }
       case 'stepback': {
         if (u < 0.45) return [h0 * 0.34, 0.42, 0.1 + 0.68 * ab(cs(PI * u / 0.45))];
@@ -3080,6 +3079,7 @@
     pl.action = { type: 'move', kind: kind, cb: cb, t: 0, T: MT, cw: clamp(0.95 - 0.55 * hnd, 0.4, 0.9), dx: dx, dy: dy, sp: sp * (CBk ? CBk.sp : 1), name: CBk ? CBk.name : M.name, mv: mvx, bp: X ? X.bp : null, f0: pl.face, sd: pl.hand, hx: hx, hy: hy, os: openS, h0: spH0, h1: pl.hand, v0x: pl.vx, v0y: pl.vy };
     pl.stam = Math.max(0, pl.stam - CFG.moveCost * M.cost * (CBk ? 1.3 : 1) * (1 + 0.3 * (pl.combo - 1)) * (1 + K.cbCost * pl.dcn) * bk(pl, 'tight', K.bgTightSt) * (tkIs(pl, 'hnd') ? 0.4 : 1) * stamK(pl)); pl.animT = 0; pl.cd = MT + lerp(0.2, 0.02, clamp((hnd - 0.4) / 0.55, 0, 1)); pl.boost = kind === 'hesi' ? MT + 0.7 : 0.75;
     pl.lastMove = kind; pl.lastMv = mvx || kind; pl.lastMoveT = G.time; pl.post = false;
+    if (kind === 'hesi') blendHeldBall();
     if (force === 'inout') { pl.action.hesiDrive = true; pl.action.name = '同侧突破'; }
     sfx('squeak');
     if (kind === 'stepback' && skOf(pl, 'luka') && !df.off && dd < 2.4) pl.sk.win = G.time + M.T + 1.0;
@@ -3262,10 +3262,14 @@
     startMove(pl, inp, 'hesi');
     if (pl.ctrl !== 'cpu' && h) { pl.action.hesiHold = h.key; pl.action.hesiExit = h.exit; }
   }
+  function blendHeldBall() {
+    const b = G.ball;
+    b.cT = 0.1; b.cx = b.x; b.cy = b.y; b.cz = b.z;
+  }
   function updateHesitation(pl, a, inp) {
     if (!a.hesiHold) return false;
     if (!a.hesiExit && inp[a.hesiHold]) { a.t = Math.min(a.t, a.T * 0.55); return false; }
-    // 提前松手也先读准这一帧左摇杆的方向，再让举球前摇播到峰值。
+    // 提前松手也先读准这一帧左摇杆的方向，再让假突前摇播到峰值。
     if (!a.hesiExit) a.hesiExit = inDir(pl, inp);
     if (a.t < a.T * 0.36) return false;
     a.hesiHold = null;
@@ -3275,8 +3279,7 @@
     if (!canMv(pl, kind)) return false;
     pl.lastMoveT = G.time;
     startMove(pl, { mx: q.x, my: q.y }, kind);
-    const b = G.ball;
-    b.cT = 0.1; b.cx = b.x; b.cy = b.y; b.cz = b.z;
+    blendHeldBall();
     return true;
   }
   function updateAction(pl, inp, dt) {
@@ -3412,7 +3415,7 @@
       if (pl.hasBall && K.mvEdge > 0) { const t5 = G.mode === 't5', XL = (t5 ? 7.62 : 7.5) - K.mvEdge, Y1 = (t5 ? 14.1 : 14) - K.mvEdge, Y0 = t5 ? -Y1 : K.mvEdge;
         if ((pl.x > XL && vx > 0) || (pl.x < -XL && vx < 0)) vx = 0; if ((pl.y > Y1 && vy > 0) || (pl.y < Y0 && vy < 0)) vy = 0; }
       pl.vx = vx; pl.vy = vy;
-      if (a.t >= a.T) { pl.action = null; pl.lastMoveT = G.time; pl.mvEndT = G.time; pl.z = 0; pl.vz = 0; }
+      if (a.t >= a.T) { if (kd === 'hesi') blendHeldBall(); pl.action = null; pl.lastMoveT = G.time; pl.mvEndT = G.time; pl.z = 0; pl.vz = 0; }
     } else if (a.type === 'block') {
       if (pl.z <= 0 && a.t > 0.1) { pl.action = null; pl.cd = a.rbS && pl.hasBall ? a.rcv : K.bkLandCd; if (a.rbS && pl.hasBall) { pl.recT = G.time + a.rcv; pl.landS = a.rbS; pl.landT = G.time; } }
     } else if (a.type === 'steal') {
@@ -3967,7 +3970,7 @@
       if (an === 'idle' && !pl.hasBall && (pl.stam < 15 || pl.gasp > 0)) set({ lean: 0.62 + 0.05 * br, lA: 0.35, lB: 0.6, rA: 0.35, rB: 0.6, lS: 0.16, rS: 0.16, aLp: 0.75, aLq: 0.25, aLe: 0.15, aRp: 0.75, aRq: 0.25, aRe: 0.15 });
       else if (an === 'idle' && pl.hasBall && pl.gasp > 0) set({ lean: 0.4 + 0.05 * br, lA: 0.3, lB: 0.55, rA: 0.3, rB: 0.55 });
     }
-    if (pl.hasBall && an === 'move' && a) {
+    if (pl.hasBall && an === 'move' && a && a.kind !== 'hesi') {
       const bp = movePath(a, clamp(a.t / a.T, 0, 1)), Hh = pl.h / 1.95;
       if (a.kind === 'stepback' && a.t / a.T > 0.6) { armTo(T, 1, bp[0] + 0.1, bp[1], bp[2], Hh); armTo(T, -1, bp[0] - 0.1, bp[1], bp[2], Hh); }
       else armTo(T, bp[0] >= 0 ? 1 : -1, bp[0], bp[1], bp[2] + 0.12, Hh);
@@ -3975,7 +3978,7 @@
       const u = Math.abs(Math.sin(pl.drib)), p = 0.34 + 0.3 * u, e = 0.25 + 0.6 * u, low = an === 'move' ? 0.2 : 0;
       if (pl.handX > 0) set({ aRp: p - low, aRe: e - low, aRq: 0.22 }); else set({ aLp: p - low, aLe: e - low, aLq: 0.22 });
     }
-    if (pl.catchAt && G.time - pl.catchAt < 0.28) set({ aLp: 2.6, aLq: 0.25, aLe: 0.2, aRp: 2.6, aRq: 0.25, aRe: 0.2 });
+    if (pl.catchAt && G.time - pl.catchAt < 0.28 && (!a || a.kind !== 'hesi')) set({ aLp: 2.6, aLq: 0.25, aLe: 0.2, aRp: 2.6, aRq: 0.25, aRe: 0.2 });
     // V3.5：整体重心压低，持球时随运球节拍一沉一起
     if (pl.z <= 0.01 && !pl.stun && (an === 'idle' || an === 'run' || an === 'def' || an === 'post')) {
       const u = pl.hasBall && !a ? Math.abs(Math.sin(pl.drib)) : 1, c = (an === 'def' ? 0.16 : pl.hasBall ? 0.2 : 0.1) + (pl.hasBall && !a ? 0.16 * (1 - u) : 0);
@@ -4070,7 +4073,10 @@
     if (b.state === 'pass' || b.state === 'ext') return;
     if (b.state === 'held') {
       const pl = G.players[b.holder], a = pl.action;
-      if (a && a.type !== 'move') {
+      if (a && a.type === 'move' && a.kind === 'hesi') {
+        const k = PH.rig(pl), hand = a.h0 < 0 ? k.handL : k.handR;
+        b.x = hand[0]; b.y = hand[1]; b.z = hand[2] + PH.render.BALL_R;
+      } else if (a && a.type !== 'move') {
         const hp = heldShotPos(pl); b.x = hp.x; b.y = hp.y; b.z = hp.z;
         if (pl.grip && (a.type === 'layup' || a.type === 'dunk')) b.cT = 0;
       } else {
