@@ -143,7 +143,6 @@
     ['dmBehind', 'drib', '背后运球 位移倍数', 1, 0.3, 2.5, 0.01, '倍率：横推贴身。原来已 ≈ 后撤步的 103~106%'],
     ['dmSpin', 'drib', '转身过人 位移倍数', 1, 0.3, 2.5, 0.01, '倍率：斜前转身，原来 ≈ 后撤步的 150%+'],
     ['dmInout', 'drib', '内外假晃 位移倍数', 1, 0.3, 2.5, 0.01, '倍率：前推'],
-    ['dmHesi', 'drib', '犹豫步 位移倍数', 1, 0.3, 2.5, 0.01, '倍率：不推方向'],
     ['dmStep', 'drib', '后撤步 位移倍数', 1, 0.3, 2.5, 0.01, '倍率：后拉。其他动作的百分比都以它为参照'],
     ['dmPost', 'drib', '背身转身 位移倍数', 1, 0.3, 2.5, 0.01, '倍率'],
     ['dmKiller', 'drib', '杀手变向 位移倍数', 1, 0.3, 2.5, 0.01, '倍率：运球包招式（不再乘基础动作的倍数）。原来 ≈ 后撤步的 110%'],
@@ -997,7 +996,7 @@
     cross: { name: '体前变向', T: 0.3, sp: 7.2, bite: 1, cost: 1 },
     legs: { name: '胯下运球', T: 0.26, sp: 4.6, bite: 0.55, cost: 0.6 },
     behind: { name: '背后运球', T: 0.3, sp: 6.8, bite: 0.9, cost: 1, safe: true },
-    hesi: { name: '犹豫步', T: 0.38, sp: 1.4, bite: 0.7, cost: 0.5 },
+    hesi: { name: '犹豫步', T: 0.38, sp: 0, bite: 0.7, cost: 0.5 },
     inout: { name: '内外假晃', T: 0.3, sp: 6.6, bite: 0.85, cost: 0.9 },
     spin: { name: '转身过人', T: 0.38, sp: 7.0, bite: 1.1, cost: 1.3, safe: true },
     stepback: { name: '后撤步', T: 0.38, sp: 6.0, bite: 0.8, cost: 1 },
@@ -1043,7 +1042,7 @@
   const DSLOT = [['H', '不推方向', 'hesi'], ['S', '横推（跑动）', 'cross'], ['Ss', '横推（原地）', 'legs'], ['St', '横推（贴身）', 'behind'], ['FD', '斜前', ''], ['F', '前推', 'inout'], ['Ft', '前推（贴身）', 'spin'], ['BD', '斜后', ''], ['B', '后拉', 'stepback']];
   function dpkOf(a) { return DPKG[DPK_OF[a.key] || 'std']; }
   // V4.2 位移倍数（TUNE drib 组）：运球包招式用自己的倍数，不再乘基础动作的
-  const DM_K = { cross: 'dmCross', legs: 'dmLegs', behind: 'dmBehind', spin: 'dmSpin', inout: 'dmInout', hesi: 'dmHesi', stepback: 'dmStep', postspin: 'dmPost' };
+  const DM_K = { cross: 'dmCross', legs: 'dmLegs', behind: 'dmBehind', spin: 'dmSpin', inout: 'dmInout', stepback: 'dmStep', postspin: 'dmPost' };
   const DM_X = { killer: 'dmKiller', legsx: 'dmLegsx', btbx: 'dmBtbx', btbsb: 'dmBtbsb', tbb: 'dmTbb', pullback: 'dmPull', shoulder: 'dmShoulder', retreat: 'dmRetreat', bigspin: 'dmBigspin' };
   function dmOf(kind, mvx) { const k = mvx ? DM_X[mvx] : DM_K[kind]; return k && K[k] != null ? K[k] : 1; }
   // 实际生效的动作参数 = 基础动作 × 新招系数 × 运球包对基础动作的加成
@@ -3255,8 +3254,7 @@
         if (u < p0) { const s = 1 - (u / p0) * 0.75; vx = a.v0x * s; vy = a.v0y * s; }
         else { const s = (1 - (u - p0) * 0.5) * (kd === 'legs' ? 0.85 : 1); vx = a.dx * sp * s; vy = a.dy * sp * s; }
       } else if (kd === 'hesi') {
-        if (u < 0.6) { const s = 1 - (u / 0.6) * 0.9; vx = a.v0x * s; vy = a.v0y * s; }
-        else { const s = (u - 0.6) / 0.4 * 7.6; vx = a.hx * s; vy = a.hy * s; }
+        vx = vy = 0;
       } else if (kd === 'inout') {
         const s = u < 0.45 ? 0.8 : -0.4, m = 1 - u * 0.4;
         vx = (a.dx - a.hy * a.os * s) * sp * m; vy = (a.dy + a.hx * a.os * s) * sp * m;
