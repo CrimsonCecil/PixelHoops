@@ -14,7 +14,7 @@ function fixture(source) {
   for (const name of ['tune', 'render', 'roster', 'r5', 'game']) {
     let code = name === 'game' && source ? source : fs.readFileSync(path.join(__dirname, '../js', name + '.js'), 'utf8');
     if (name === 'game') {
-      code = code.replace('_qa: {', '_qa: { updateAction,');
+      code = code.replace('_qa: {', '_qa: { stealRead: typeof stealRead === "function" ? stealRead : null, movePath, updatePlayer, updateBall, updateAction,');
       code = code.replace(/ai.stealPlan = (\{ move: oa, at: Math.max\([^;]+);/, '{ reachAudit.scheduled++; ai.stealPlan = $1; }');
       code = code.replace(
         "if (ai.stealPlan && (ai.stealPlan.move !== oa || oa.t + K.stlHitT > sr.windowEnd)) ai.stealPlan = null;",
@@ -66,11 +66,11 @@ function fixture(source) {
   return gm;
 }
 
-function sample(gm, { kind = 'cross', mv, u = 0.5, side = 1, hand = 1, mode = '2p', chin = false, type = 'move', range = 1.05 } = {}) {
+function sample(gm, { kind = 'cross', mv, u = 0.5, side = 1, hand = 1, mode = '2p', chin = false, type = 'move', range = 1.05, fb = 'detail' } = {}) {
   const { G, K, t5 } = gm, [p, d] = G.players;
   G.mode = mode;
-  Object.assign(G, { phase: 'live', needClear: false, off: 0, fb: 'detail' });
-  Object.assign(p, { x: 0, y: 5, face: Math.PI / 2, hand, handX: 0.33 * hand, hasBall: true, action: type ? { type, kind, mv, t: u, T: 1 } : null, chinT: chin ? G.time + 1 : 0, post: false, z: 0, opp: d });
+  Object.assign(G, { phase: 'live', needClear: false, off: 0, fb, floats: [] });
+  Object.assign(p, { x: 0, y: 5, face: Math.PI / 2, hand, handX: 0.33 * hand, hasBall: true, action: type ? { type, kind, mv, h0: hand, h1: hand, t: u, T: 1 } : null, chinT: chin ? G.time + 1 : 0, post: false, z: 0, opp: d });
   Object.assign(d, { x: side * hand * range * 0.8, y: 5 + range * 0.6, face: -Math.PI / 2, hasBall: false, ctrl: 'p2', action: { type: 'steal', t: K.stlHitT, T: K.stlT }, opp: p });
   Object.assign(G.ball, { state: 'held', holder: 0, dead: false, x: p.x, y: p.y, z: 0.8 });
   const before = G.stats[1].stl;
@@ -124,6 +124,41 @@ function possessions(gm, label) {
   return steals;
 }
 
+for (const hand of [-1, 1]) {
+  const gm = fixture(), { G, _qa, t5 } = gm, [p, d] = G.players;
+  Object.assign(G, { phase: 'live', needClear: false });
+  Object.assign(p, { hand, handX: hand * 0.33, hasBall: true, face: Math.PI / 2 });
+  d.off = true;
+  Object.assign(G.ball, { state: 'held', holder: p.id, cT: 0 });
+  gm._dbg.startMove(p, { ...t5.zeroInp(), mx: 1 }, 'cross');
+  const a = p.action;
+  assert.equal(a.h0, hand);
+  assert.equal(a.h1, -hand);
+  const rows = [];
+  for (let i = 0; i < 120 && p.action === a; i++) {
+    _qa.updatePlayer(p, t5.zeroInp(), 1 / 120);
+    _qa.updateBall(1 / 120);
+    if (p.action !== a) break;
+    const u = a.t / a.T, fx = Math.cos(p.face), fy = Math.sin(p.face);
+    const lateral = fy * (G.ball.x - p.x) - fx * (G.ball.y - p.y);
+    const side = Math.sign(lateral);
+    Object.assign(d, { x: p.x + fy * side, y: p.y - fx * side });
+    const read = _qa.stealRead(d, p);
+    if (rows.length < 4 && u >= [0.1, 0.25, 0.5, 0.75][rows.length]) {
+      rows.push('u=' + u.toFixed(3) + ': ball=' + lateral.toFixed(3) + ', handX=' + p.handX.toFixed(3));
+    }
+    assert(read.ballSide > 0.99 && read.across === 0, 'rendered ball side must receive the bonus throughout a real crossover');
+    Object.assign(d, { x: p.x - fy * side, y: p.y + fx * side });
+    assert(_qa.stealRead(d, p).across > 0.99, 'opposite side remains shielded');
+    const ahead = gm.K.stlHitT;
+    const futureSide = Math.sign(_qa.movePath(a, Math.min(1, (a.t + ahead) / a.T))[0]);
+    Object.assign(d, { x: p.x + fy * futureSide, y: p.y - fx * futureSide });
+    assert(_qa.stealRead(d, p, ahead).ballSide > 0.99, 'CPU lookahead follows the future ball side');
+  }
+  assert.equal(rows.length, 4);
+  console.log('Crossover source hand ' + hand + ': ' + rows.join('; '));
+}
+
 if (process.env.STEAL_BASELINE) {
   const before = fixture(fs.readFileSync(process.env.STEAL_BASELINE, 'utf8'));
   rates(before, 'before');
@@ -147,6 +182,9 @@ gm.CFG.stealMul = 0;
 const good = sample(gm), bad = sample(gm, { u: 0.05, side: -1 });
 assert(bad.recovery > good.recovery);
 assert.equal(bad.text, '伸手失位');
+assert.equal(sample(gm, { u: 0.05, side: -1, fb: 'simple' }).text, '伸手失位');
+assert.equal(sample(gm, { range: 3, fb: 'simple' }).text, '伸手失位');
+assert.equal(sample(gm, { fb: 'simple' }).text, undefined, 'ordinary misses stay hidden in simplified mode');
 gm.CFG.stealMul = 1;
 for (const type of ['layup', 'dunk']) {
   for (let i = 0; i < 100; i++) assert(!sample(gm, { type }).hit);
@@ -173,7 +211,7 @@ for (const type of ['layup', 'dunk']) assert(!sample(gm, { type }).hit, 'finishe
   Object.assign(G.ball, { state: 'held', holder: p.id, dead: false });
   Object.assign(d, { action: null, stun: 0, cd: 0, z: 0 });
   d.ai.stealCd = 0;
-  p.hasBall = true; p.action = { type: 'move', kind: 'cross', t: 0, T: 1 };
+  p.hasBall = true; p.action = { type: 'move', kind: 'cross', h0: 1, h1: 1, t: 0, T: 1 };
   ai.t5.aiInput(d, 0);
   assert.equal(d.ai.stealPlan.move, p.action, 'hard CPU recognizes an exposed move once');
   assert(d.ai.stealPlan.at + K.stlHitT >= K.stlWin0);
@@ -185,12 +223,12 @@ for (const type of ['layup', 'dunk']) assert(!sample(gm, { type }).hit, 'finishe
   assert(d.ai.stealCd > 0);
   for (const [diff, kind, t] of [[0, 'cross', 0], [2, 'behind', 0], [2, 'cross', 0.95]]) {
     G.diff = diff; d.ai.stealCd = 0;
-    p.action = { type: 'move', kind, t, T: 1 };
+    p.action = { type: 'move', kind, h0: 1, h1: 1, t, T: 1 };
     ai.t5.aiInput(d, 0);
     assert.equal(d.ai.stealPlan, null, 'easy CPU, safe moves and expired windows do not schedule reaches');
   }
   G.diff = 2; d.ai.stealCd = 0;
-  p.action = { type: 'move', kind: 'cross', t: 0, T: 1 };
+  p.action = { type: 'move', kind: 'cross', h0: 1, h1: 1, t: 0, T: 1 };
   ai.t5.aiInput(d, 0);
   assert(d.ai.stealPlan);
   p.action = null;

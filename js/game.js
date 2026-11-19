@@ -3384,7 +3384,8 @@
     const dx = pl.x - df.x, dy = pl.y - df.y, dd = Math.hypot(dx, dy) || 1;
     const fx = Math.cos(df.face), fy = Math.sin(df.face);
     const front = (dx * fx + dy * fy) / dd;
-    const side = (dx * fy - dy * fx) / dd * Math.sign(df.handX);
+    const ballX = moving ? a.kind === 'hesi' ? a.h0 : movePath(a, clamp((a.t + ahead) / a.T, 0, 1))[0] : df.handX;
+    const side = (dx * fy - dy * fx) / dd * Math.sign(ballX);
     const across = Math.max(0, -side), ballSide = Math.max(0, side);
     const poor = Math.max(0, -front) * (1 - ballSide);
     const risk = clamp((across + poor + (moving && !timed ? 1 : 0) + clamp(dd / K.stlR, 0, 1)) / 3 - (timed ? ballSide * 0.4 : 0), 0, 1);
@@ -3553,8 +3554,8 @@
             looseBall({ x: bx, y: by, z: 0.6 }, ux * K.stlBallV + rr(-K.stlBallR, K.stlBallR), uy * K.stlBallV + rr(-K.stlBallR, K.stlBallR), K.stlBallZ, pl.id);
             G.ball.noPick = K.stlNoPick; G.stats[pl.id].stl++; G.stats[df.id].tov++; vo(pl, 'steal'); vic(df, 'stolen'); a.T = K.stlRecT;
             float(read.timed ? '时机抢断' : '掏球', pl, '#7dff8a', 1); tkAdd(pl, 14); tkAdd(df, -10); bigPlay('steal', pl, bx, by, 0.7, stTier); bpop(pl, 'pick');
-          } else { reachTo(pl, { x: G.ball.x, y: G.ball.y, z: Math.max(0.3, G.ball.z) }, K.stlMissReach, K.stlMissReachT); a.T = Math.max(a.t, K.stlMissT + K.stlRiskT * read.risk - (read.timed ? K.stlGoodT * read.ballSide : 0)); float(read.risk > 0.5 ? '伸手失位' : '抢断落空', pl, '#9aa3c0'); bpop(df, 'tight'); }
-        } else { a.T = K.stlFarT + K.stlRiskT; float('伸手失位', pl, '#9aa3c0'); }
+          } else { reachTo(pl, { x: G.ball.x, y: G.ball.y, z: Math.max(0.3, G.ball.z) }, K.stlMissReach, K.stlMissReachT); a.T = Math.max(a.t, K.stlMissT + K.stlRiskT * read.risk - (read.timed ? K.stlGoodT * read.ballSide : 0)); float(read.risk > 0.5 ? '伸手失位' : '抢断落空', pl, '#9aa3c0', read.risk > 0.5 ? 1 : 0); bpop(df, 'tight'); }
+        } else { a.T = K.stlFarT + K.stlRiskT; float('伸手失位', pl, '#9aa3c0', 1); }
       }
       if (a.t >= a.T) pl.action = null;
     }
