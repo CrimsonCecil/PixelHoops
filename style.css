@@ -513,8 +513,14 @@ button.pick .pk-n small { color: var(--tc, var(--gold)); }
 
 /* V2.4 信息卡分区 */
 .pcard .pcg { border-top: 1px solid rgba(255, 255, 255, 0.14); padding-top: calc(var(--u) * 1); }
-.pcard .pc-speed { grid-column: 1 / -1; justify-self: start; color: var(--text); background: var(--panel); padding: 0 0.35em; }
-.pcard.p1 .pc-speed { justify-self: end; }
+.pcard .pc-head-ratings { display: flex; gap: calc(var(--u) * 2); align-items: center; }
+.pcard.p1 .pc-head-ratings { flex-direction: row-reverse; }
+.pcard .pc-speed-chip { display: flex; align-items: center; gap: 0.18em; background: var(--panel); box-shadow: inset 0 0 0 1px var(--line); padding: 0 0.28em; }
+.pcard .pc-speed-chip i { font-style: normal; }
+.pcard .pc-bolt { display: block; width: 0.46em; height: 0.7em; background: var(--gold); clip-path: polygon(51% 0, 100% 0, 65% 41%, 100% 41%, 27% 100%, 44% 56%, 0 56%); }
+#hud .pcard .pcg-off { grid-template-columns: repeat(2, auto); }
+#hud .pcard.p1 .pcg { direction: rtl; }
+#hud .pcard.p1 .pcg > span { direction: ltr; }
 #hud5 .pcard .pcg { grid-template-columns: repeat(2, 1fr); }
 .pcard .pctki { border-top: 1px solid rgba(255, 138, 42, 0.45); padding-top: calc(var(--u) * 1); }
 .pcard .pctki .tkh { display: flex; justify-content: space-between; gap: calc(var(--u) * 3); white-space: nowrap; }
@@ -883,7 +889,7 @@ td.b5cn { color: var(--muted); font-size: var(--fs-xs) !important; }
 select.pf, input.pf, .tn-row.pf, .sl.pf, .crow.pf, .mx.pf { outline: calc(var(--u) * 1) solid var(--gold); outline-offset: 1px; filter: brightness(1.25); }
 .tn-row:has(.pf), .sl:has(.pf), .crow:has(.pf), .mx:has(.pf) { background: rgba(242, 193, 78, .12); }
 
-:is(.pko1 b, .pkr b, .agrp .ag h4 b, .b5r .b5ag, .pcard .pcg i, .sl output, .pk-5 b, .rating-legend span)[class*="rating-"] { color: var(--rating); font-weight: var(--rating-weight, normal); text-shadow: var(--rating-glow, none); }
+:is(.pko1 b, .pkr b, .agrp .ag h4 b, .b5r .b5ag, .pcard .pcg i, .pcard .pc-speed-chip i, .sl output, .pk-5 b, .rating-legend span)[class*="rating-"] { color: var(--rating); font-weight: var(--rating-weight, normal); text-shadow: var(--rating-glow, none); }
 .pkr s[class*="rating-"], .sl input[class*="rating-"] { background: var(--rating); box-shadow: var(--rating-glow, none); }
 .sl input[class*="rating-"]::-webkit-slider-thumb { background: var(--rating); }
 .sl input[class*="rating-"]::-moz-range-thumb { background: var(--rating); }

@@ -568,9 +568,14 @@
     }
     return used ? Math.round(total / used) : null;
   }
-  function pcCell(name, v, d, klass = '') {
+  function pcCell(name, v, d) {
     const change = d > 0 ? '<sup>↑' + d + '</sup>' : d < 0 ? '<sup>↓' + (-d) + '</sup>' : '';
-    return '<span' + (klass ? ' class="' + klass + '"' : '') + '>' + name + '<i class="' + vcl(v) + (d > 0 ? ' up' : d < 0 ? ' dn' : '') + '">' + (v == null ? '—' : v) + change + '</i></span>';
+    return '<span>' + name + '<i class="' + vcl(v) + (d > 0 ? ' up' : d < 0 ? ' dn' : '') + '">' + (v == null ? '—' : v) + change + '</i></span>';
+  }
+  function pcSpeedChip(pl) {
+    const v = pcRating('spd', pl.rBase || pl.r, null, PC_WEIGHTS, 0);
+    const text = v == null ? '—' : v;
+    return '<span class="pc-speed-chip" role="img" title="基础速度" aria-label="基础速度 ' + text + '"><span class="pc-bolt" aria-hidden="true"></span><i class="' + vcl(v) + '">' + text + '</i></span>';
   }
   function pcRatings(pl, isOff, is5) {
     const weights = is5 ? PC_WEIGHTS_5 : PC_WEIGHTS;
@@ -579,8 +584,7 @@
     const keys = is5
       ? (isOff ? PC_OFF_5 : [PC_GUARD, PC_REB, PC_ATH, A99(base.stl) >= A99(base.blk) ? PC_STEAL : PC_BLOCK])
       : (isOff ? PC_OFF : PC_DEF);
-    const speed = is5 ? '' : pcCell('速度', pcRating('spd', base, null, weights, 0), 0, 'pc-speed');
-    return speed + keys.map(([k, name]) => {
+    return keys.map(([k, name]) => {
       const v = pcRating(k, pl.r, raw, weights, heat);
       const original = base !== pl.r || heat ? pcRating(k, base, raw, weights, 0) : v;
       return pcCell(name, v, v != null && original != null ? v - original : 0);
@@ -589,13 +593,16 @@
   function cardHTML(pl, isOff, st, is5 = false) {
     const a = pl.arch, tkOn = pl.tkOn > 0;
     const cells = pcRatings(pl, isOff, is5);
+    const ovr = '<em class="t' + TT[a.tier] + '">' + a.ovr + '</em>';
+    const headRatings = is5 ? ovr : '<span class="pc-head-ratings">' + pcSpeedChip(pl) + ovr + '</span>';
+    const gridClass = !is5 && isOff ? ' pcg-off' : '';
     const TD = tkOn && pl.tkT ? GM.TKD[pl.tkT] : null;
     const tkl = TD ? '<div class="pctki"><div class="tkh"><b>主宰 · ' + TD.n + '</b><span>' + Math.ceil(pl.tkOn) + '秒</span></div><div class="tkg">' + ['全属性 +5', TD.n + '类 +20'].concat(TD.ab, ['体力消耗 -30%']).map((x) => '<i>' + x + '</i>').join('') + '</div></div>' : '';
     const sl = st && is5 ? '<div class="pcs pcs5">' + [[st.pts, '分'], [st.fg + '/' + st.fga, '投'], [st.reb, '板'], [st.ast, '助'], [st.stl, '断'], [st.blk, '帽'], [st.tov, '误']].map((x) => '<b' + (x[0] === 0 ? ' class="z"' : '') + '>' + x[0] + '</b>' + x[1]).join('') + '</div>' : st ? '<div class="pcs"><b>' + st.pts + '</b>分<b>' + st.fg + '/' + st.fga + '</b>投<b>' + st.reb + '</b>板<b>' + st.blk + '</b>帽<b>' + st.stl + '</b>断</div>' : '';
     // V4.5 信息卡徽章行（1V1 / 5V5 同一套）：档位配色的六边形图标，正在触发的徽章高亮
     const bl = bList(pl, is5), hot = new Set((G.bpops || []).filter((x) => G.time - x.t0 < 1.8 && G.time >= x.t0 && G.players[x.pid] === pl).map((x) => x.key));
     const brow = bl.length ? '<div class="pcb" data-testid="pc-badges">' + bl.map((x) => '<span class="tr' + x[1] + (hot.has(x[0]) ? ' hot' : '') + '" title="' + GM.BADGES[x[0]].name + '">' + bHex(x[0], x[1]) + '</span>').join('') + '</div>' : '';
-    return '<div class="pch"><b>' + a.name + '</b><u class="' + (isOff ? 'ro' : 'rd') + '">' + (isOff ? '进攻' : '防守') + '</u><em class="t' + TT[a.tier] + '">' + a.ovr + '</em></div>' + sl + '<div class="pcg">' + cells + '</div>' + brow + tkl + '<div class="pctk' + (tkOn ? ' on' : '') + '"><span>主宰</span><s><b style="width:' + Math.round(pl.tk) + '%"></b></s></div>';
+    return '<div class="pch"><b>' + a.name + '</b><u class="' + (isOff ? 'ro' : 'rd') + '">' + (isOff ? '进攻' : '防守') + '</u>' + headRatings + '</div>' + sl + '<div class="pcg' + gridClass + '">' + cells + '</div>' + brow + tkl + '<div class="pctk' + (tkOn ? ' on' : '') + '"><span>主宰</span><s><b style="width:' + Math.round(pl.tk) + '%"></b></s></div>';
   }
   function pcards() {
     for (let i = 0; i < 2; i++) {
