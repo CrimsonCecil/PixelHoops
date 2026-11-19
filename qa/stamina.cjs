@@ -37,6 +37,8 @@ for (const mode of ['2p', 't5']) {
   const checks = [
     ['sprint', 12 * 0.925 * dt, ({ step }) => step({ mx: 1, sprint: true })],
     ['crossover', 9.6 * 0.925, ({ p, step }) => {
+      p.arch = { ...p.arch, key: 'qa' };
+      p.speed = 2;
       step({ dx: 1, a3: true });
       assert.equal(p.action?.kind, 'cross');
     }],
@@ -92,9 +94,20 @@ for (const mode of ['2p', 't5']) {
 const { p, step } = fixture('2p', { l1_stShotCost: 5, l1_stCost: 1 });
 p.stam = 3;
 dbg.startShot(p, t5.zeroInp());
-step({ a1: true });
-dbg.releaseShot(p, 0, 'shot');
+Object.assign(p.action, { t: p.action.ideal - dt, vt: p.action.ideal - dt });
+step({});
 close(p.stam, 0, 'custom shot cost clamps stamina to zero');
+
+{
+  const { p, step } = fixture('2p');
+  p.stam = 25;
+  dbg.startShot(p, t5.zeroInp());
+  const a = p.action, releaseAt = a.ideal + 0.98 * a.meter.gw * a.meter.span;
+  Object.assign(a, { t: releaseAt - dt, vt: releaseAt - dt });
+  step({});
+  assert(G.lastShot?.green, 'stamina cost must not shrink the green window of the shot being released');
+  close(p.stam, 22.6, 'green jump shot still costs stamina');
+}
 
 tune.reset();
 team.start({ home: 'LAL', away: 'BOS', human: -1, qlen: 720 });

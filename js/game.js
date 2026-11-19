@@ -2096,7 +2096,6 @@
     const st = G.stats[pl.id]; st.fga++; if (three) st.tpa++; if (kind === 'lay') st.ina++;
     const hp = heldShotPos(pl);
     a.released = true; pl.hasBall = false;
-    if (kind === 'shot') pl.stam = Math.max(0, pl.stam - K.stShotCost * ST.cost);
     if (SK) { pl.sk.cd = 0; fireSkill(pl); }
     if (!SK) {
       if (kind === 'lay') { if (ci.c > 0.2) { bpop(pl, 'acrobat'); bpop(pl, 'bully'); } }
@@ -2180,6 +2179,10 @@
     if (SK) info.reason = (made ? '' : '未命中：') + pl.arch.skill.name + (green ? '（完美出手）' : '（未完美出手）');
     info.skill = SK || null;
     publishShot(info);
+  }
+  function releaseJumpShot(pl, e) {
+    releaseShot(pl, e, 'shot');
+    pl.stam = Math.max(0, pl.stam - K.stShotCost * ST.cost);
   }
 
   // 球员配音：按事件随机挑一条，演示模式不播；q=忙时排队
@@ -3265,15 +3268,15 @@
         // 按住超过 1 秒的按 ideal 出手；执行后又按住了：交还给玩家
         if (a.vh != null && btnHeld(pl, a, inp, a.btn || 'a1')) a.vh = null;
         const rp = a.vh != null, hT = rp ? a.vh : pl.ctrl === 'cpu' ? a.t : (a.vt || a.t); // 假投判定用玩家实际按住的时长（不含 cs 提前量）
-        if (rp && a.vh > 1) { if (a.t >= TI) releaseShot(pl, 0, 'shot'); }
+        if (rp && a.vh > 1) { if (a.t >= TI) releaseJumpShot(pl, 0); }
         else if (rp ? a.vt >= a.vh : !btnHeld(pl, a, inp, a.btn || 'a1')) {
           // 假投窗口（人控球员）：fkT = clamp(0.4 × ideal, 0.17, 最早绿区 − 0.08)，即条涨到约 40% 前松手算假投。起跳前松开 = 原地假投；已离地、fkT 前松开 = 起跳假投：取消出手、快速落地，之后可接运球/传球。
           // fkT 之后到绿区之间松开仍按偏早出手结算；按住到绿区永远是出手。电脑球员仍是 0.17 秒，不改 AI 节奏；ibuf 缓冲的点按（a.vh）回放按住时长后也走这里
           if (a.fkT == null) a.fkT = pl.ctrl === 'cpu' ? K.fkCpu : Math.max(K.fkFloor, Math.min(a.ideal - (a.meter ? a.meter.gw * a.meter.span : 0) - K.fkGap, Math.max(K.fkMin, K.fkFrac * a.ideal))); // 条涨到约 40% 前松手 = 假投
           if (hT < a.fkT && !a.jumped) { pl.action = { type: 'fake', t: 0, T: 0.26 }; pl.animT = 0; float('假动作', pl, '#f6efe0'); return; }
           if (hT < a.fkT && pl.ctrl !== 'cpu') { pl.action = { type: 'fake', t: 0, T: 0.15, jf: true }; pl.animT = 0; pl.vz = Math.min(pl.vz, -1.5); pl.vx *= 0.3; pl.vy *= 0.3; float('假动作', pl, '#f6efe0'); return; }
-          releaseShot(pl, clamp((a.t - TI) / 0.2, -1, 1), 'shot');
-        } else if (a.t > TI + 0.22) releaseShot(pl, 1, 'shot');
+          releaseJumpShot(pl, clamp((a.t - TI) / 0.2, -1, 1));
+        } else if (a.t > TI + 0.22) releaseJumpShot(pl, 1);
       } else if (pl.z <= 0 && a.t > (a.jT || K.shotJump) + 0.2) pl.action = null;
     } else if (a.type === 'fake') {
       if (a.jf && pl.z > 0) pl.vz = Math.min(pl.vz, -1.5); // 起跳假投：压着落地，0.12–0.18 秒收势
