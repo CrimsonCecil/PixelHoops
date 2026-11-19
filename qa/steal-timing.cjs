@@ -8,12 +8,59 @@ function fixture(source) {
   const ctx = vm.createContext({ performance: { now: () => 0 }, setTimeout() {}, clearTimeout() {} });
   ctx.window = ctx;
   ctx.PH = { input: { endTick() {}, read: () => ({}) } };
+  ctx.reachAudit = { judged: 0, inRange: 0, moving: 0, timed: 0, timedHits: 0,
+    scheduled: 0, fired: 0, cancelledMove: 0, cancelledWindow: 0, cancelledOutOfRange: 0,
+    started: 0, scheduledJudged: 0, lostMove: 0, lostToMove: 0, lostToGather: 0, lostToIdle: 0, missedWindow: 0, missedRange: 0, rangeOnly: 0, scheduledTimedInRange: 0, scheduledHits: 0 };
   for (const name of ['tune', 'render', 'roster', 'r5', 'game']) {
     let code = name === 'game' && source ? source : fs.readFileSync(path.join(__dirname, '../js', name + '.js'), 'utf8');
-    if (name === 'game') code = code.replace('_qa: {', '_qa: { updateAction,');
+    if (name === 'game') {
+      code = code.replace('_qa: {', '_qa: { updateAction,');
+      code = code.replace(/ai.stealPlan = (\{ move: oa, at: Math.max\([^;]+);/, '{ reachAudit.scheduled++; ai.stealPlan = $1; }');
+      code = code.replace(
+        "if (ai.stealPlan && (ai.stealPlan.move !== oa || oa.t + K.stlHitT > sr.windowEnd)) ai.stealPlan = null;",
+        "if (ai.stealPlan && (ai.stealPlan.move !== oa || oa.t + K.stlHitT > sr.windowEnd)) { if (ai.stealPlan.move !== oa) reachAudit.cancelledMove++; else reachAudit.cancelledWindow++; if (dd >= K.aiStlD) reachAudit.cancelledOutOfRange++; ai.stealPlan = null; }"
+      );
+      code = code.replace(
+        'o.a2 = true; ai.stealPlan = null;',
+        'reachAudit.fired++; pl.qaReachMove = oa; o.a2 = true; ai.stealPlan = null;'
+      );
+      code = code.replace(
+        "T: K.stlT, done: false }; pl.animT",
+        "T: K.stlT, done: false, qaMove: pl.qaReachMove }; if (pl.qaReachMove) { reachAudit.started++; pl.qaReachMove = null; } pl.animT"
+      );
+      code = code.replace('function updateAction(pl, inp, dt) {', `function updateAction(pl, inp, dt) {
+        const df = OP(pl), a = pl.action;
+        const judge = a.type === 'steal' && !a.done && a.t + dt >= K.stlHitT;
+        const inRange = judge && df.hasBall && Math.hypot(df.x - pl.x, df.y - pl.y) < K.stlR;
+        const timed = inRange && typeof stealRead === 'function' && stealRead(pl, df).timed;
+        const before = G.stats[pl.id].stl;
+        if (judge) reachAudit.judged++;
+        if (inRange) reachAudit.inRange++;
+        if (inRange && df.action?.type === 'move') reachAudit.moving++;
+        if (timed) reachAudit.timed++;
+        if (judge && a.qaMove) {
+          reachAudit.scheduledJudged++;
+          if (df.action !== a.qaMove) {
+            reachAudit.lostMove++;
+            if (df.action?.type === 'move') reachAudit.lostToMove++;
+            else if (df.action) reachAudit.lostToGather++;
+            else reachAudit.lostToIdle++;
+          }
+          else if (!stealRead(pl, df).timed) reachAudit.missedWindow++;
+          if (!inRange) reachAudit.missedRange++;
+          if (!inRange && df.action === a.qaMove && stealRead(pl, df).timed) reachAudit.rangeOnly++;
+          if (timed && df.action === a.qaMove) reachAudit.scheduledTimedInRange++;
+        }
+        updateActionOriginal(pl, inp, dt);
+        if (timed && G.stats[pl.id].stl > before) reachAudit.timedHits++;
+        if (judge && a.qaMove && G.stats[pl.id].stl > before) reachAudit.scheduledHits++;
+      }
+      function updateActionOriginal(pl, inp, dt) {`);
+    }
     vm.runInContext(code, ctx, { filename: name + '.js' });
   }
   const gm = ctx.PH.game;
+  gm.reachAudit = ctx.reachAudit;
   gm.seed(7);
   gm.newGame({ mode: '2p', arch0: 'luka', arch1: 'joe', target: 999 });
   return gm;
@@ -49,6 +96,7 @@ function rates(gm, label) {
 }
 
 function possessions(gm, label) {
+  for (const k in gm.reachAudit) gm.reachAudit[k] = 0;
   let steals = 0, attempts = 0, timeouts = 0;
   const N = 3000, dt = 1 / 60;
   for (let n = 0; n < N; n++) {
@@ -72,6 +120,7 @@ function possessions(gm, label) {
   }
   assert.equal(timeouts, 0, 'all CPU possessions should finish');
   console.log(label + ' CPU-vs-CPU: ' + steals + ' steals / ' + N + ' possessions; ' + attempts + ' reaches; timeouts=' + timeouts);
+  console.log(label + ' reach audit: ' + JSON.stringify(gm.reachAudit));
   return steals;
 }
 
@@ -84,6 +133,7 @@ const gm = fixture();
 const r = rates(gm, 'after');
 assert(r['cross in-window'] > r['cross out-of-window'] + 0.2);
 assert(r['ball-side'] > r['across-body'] + 0.1);
+assert(r['across-body'] >= 0.04 && r['across-body'] <= 0.06, 'reckless reaches retain a low real chance');
 assert.equal(r['safe behind'], 0);
 for (const hand of [-1, 1]) {
   gm.seed(7); const right = Array.from({ length: 100 }, () => sample(gm, { hand, mode: '2p' }).hit);
@@ -115,5 +165,38 @@ for (let i = 0; i < 100; i++) chinHits += sample(gm, { side: -1, chin: true }).h
 assert(chinHits < 20, 'chin retains low ordinary odds rather than the guaranteed skill');
 assert.equal(d.sk.cd, 0, 'chin prevents the guaranteed skill from firing');
 for (const type of ['layup', 'dunk']) assert(!sample(gm, { type }).hit, 'finishes exclude the skill too');
-possessions(fixture(), 'after');
+{
+  const ai = fixture(), { G, K } = ai;
+  sample(ai);
+  const [p, d] = G.players;
+  Object.assign(G, { diff: 2, phase: 'live' });
+  Object.assign(G.ball, { state: 'held', holder: p.id, dead: false });
+  Object.assign(d, { action: null, stun: 0, cd: 0, z: 0 });
+  d.ai.stealCd = 0;
+  p.hasBall = true; p.action = { type: 'move', kind: 'cross', t: 0, T: 1 };
+  ai.t5.aiInput(d, 0);
+  assert.equal(d.ai.stealPlan.move, p.action, 'hard CPU recognizes an exposed move once');
+  assert(d.ai.stealPlan.at + K.stlHitT >= K.stlWin0);
+  assert(d.ai.stealPlan.at + K.stlHitT <= K.stlWin1);
+  assert.equal(d.ai.stealPlan.at + K.stlHitT, K.stlWin0, 'reach targets the window opening before combo cancels and separation');
+  p.action.t = d.ai.stealPlan.at;
+  assert(ai.t5.aiInput(d, 0).a2, 'scheduled reach fires at its target frame');
+  assert.equal(d.ai.stealPlan, null);
+  assert(d.ai.stealCd > 0);
+  for (const [diff, kind, t] of [[0, 'cross', 0], [2, 'behind', 0], [2, 'cross', 0.95]]) {
+    G.diff = diff; d.ai.stealCd = 0;
+    p.action = { type: 'move', kind, t, T: 1 };
+    ai.t5.aiInput(d, 0);
+    assert.equal(d.ai.stealPlan, null, 'easy CPU, safe moves and expired windows do not schedule reaches');
+  }
+  G.diff = 2; d.ai.stealCd = 0;
+  p.action = { type: 'move', kind: 'cross', t: 0, T: 1 };
+  ai.t5.aiInput(d, 0);
+  assert(d.ai.stealPlan);
+  p.action = null;
+  ai.t5.aiInput(d, 0);
+  assert.equal(d.ai.stealPlan, null, 'possession/action changes discard pending reactions');
+}
+const steals = possessions(fixture(), 'after');
+assert(steals >= 1.6 * 13 && steals <= 40, 'CPU steals should be at least 1.6x the 13/3000 baseline, without overshooting');
 console.log('PASS steal timing, geometry, recovery, exclusions and shared 5V5 judgement');

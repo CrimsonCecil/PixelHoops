@@ -362,13 +362,14 @@
     ['stlHesi1', 'def', '抢断 犹豫窗口终点', 0.8, 0, 1, 0.01, '比例：犹豫停球的露球结束帧'],
     ['stlTimed', 'def', '抢断 时机加成', 0.28, 0, 1, 0.01, '概率：命中露球关键帧的额外加成'],
     ['stlSide', 'def', '抢断 持球侧加成', 0.2, 0, 0.5, 0.01, '概率：从球侧伸手的最大加成'],
-    ['stlAcross', 'def', '抢断 隔身惩罚', 0.16, 0, 0.6, 0.01, '概率：从护球侧隔身够球的最大扣减'],
+    ['stlAcross', 'def', '抢断 隔身惩罚', 0.04, 0, 0.6, 0.01, '概率：从护球侧隔身够球的最大扣减；不影响落空失位惩罚'],
     ['stlTrail', 'def', '抢断 追身掏球加成', 0.08, 0, 0.5, 0.01, '概率：从侧后方球侧追掏的额外加成'],
     ['stlBack', 'def', '抢断 背面惩罚', 0.08, 0, 0.5, 0.01, '概率：正后方无角度伸手的扣减'],
     ['stlRiskT', 'def', '抢断 冒险失位时长', 0.5, 0, 2, 0.01, '秒：风险越高落空后追加的收手时间'],
     ['stlGoodT', 'def', '抢断 好时机落空减罚', 0.18, 0, 0.5, 0.01, '秒：好时机球侧伸手落空减少的收手时间'],
     ['stlAiWindow', 'def', '抢断 电脑时机偏好', 8, 0, 16, 0.1, '倍率增量：困难电脑预判露球窗口，中等减半，简单随机'],
     ['stlAiBad', 'def', '抢断 电脑坏角度抑制', 0.75, 0, 1, 0.05, '比例：困难电脑减少非窗口和隔身伸手，中等减半'],
+    ['stlAiReact', 'def', '抢断 电脑读招伸手', 1, 0, 1, 0.01, '概率：每次可读运球招式安排一次伸手，乘难度、抢断能力和角度；简单不预判'],
     ['stlShot', 'def', '抢断 投篮 / 假投加成', 0.14, 0, 0.5, 0.01, '概率：持球人脚在地上做投篮 / 假投动作时加成'],
     ['stlLowSt', 'def', '抢断 对手低体力加成', 0.08, 0, 0.3, 0.01, '概率：持球人体力低于“疲劳线”时加成'],
     ['stlPost', 'def', '抢断 背打倍率', 0.5, 0, 1, 0.05, '倍率：持球人在背打时'],
@@ -3371,12 +3372,13 @@
     const a = df.action, moving = a && a.type === 'move';
     const m = moving && (a.mv ? MVX[a.mv] : MV[a.kind]);
     const safe = !!(m && m.safe);
-    let timed = false;
+    let timed = false, windowStart = 0, windowEnd = 0;
     if (moving && !safe) {
       const u = (a.t + ahead) / a.T;
       const legs = a.kind === 'legs' && a.mv !== 'legsx', hesi = a.kind === 'hesi';
       const lo = legs ? K.stlLeg0 : hesi ? K.stlHesi0 : K.stlWin0;
       const hi = legs ? K.stlLeg1 : hesi ? K.stlHesi1 : K.stlWin1;
+      windowStart = lo * a.T; windowEnd = hi * a.T;
       timed = u >= lo && u <= hi;
     }
     const dx = pl.x - df.x, dy = pl.y - df.y, dd = Math.hypot(dx, dy) || 1;
@@ -3387,7 +3389,7 @@
     const poor = Math.max(0, -front) * (1 - ballSide);
     const risk = clamp((across + poor + (moving && !timed ? 1 : 0) + clamp(dd / K.stlR, 0, 1)) / 3 - (timed ? ballSide * 0.4 : 0), 0, 1);
     const bonus = ballSide * K.stlSide - across * K.stlAcross - poor * K.stlBack + ballSide * Math.max(0, -front) * K.stlTrail;
-    return { timed, safe, moving, bonus, risk, ballSide, across };
+    return { timed, safe, moving, bonus, risk, ballSide, across, windowStart, windowEnd };
   }
 
   function updateAction(pl, inp, dt) {
@@ -4987,7 +4989,15 @@
     const sr = stealRead(pl, opp, K.stlHitT), awareness = clamp(G.diff / 2, 0, 1);
     const seek = 1 + awareness * (sr.timed ? K.stlAiWindow : -K.stlAiBad * (sr.moving ? 1 : sr.across));
     const angle = 1 + awareness * (sr.ballSide - sr.across * K.stlAiBad);
-    if (D.steal > 0 && dd < K.aiStlD && ai.stealCd <= 0 && (!oa || oa.type === 'move') && rnd() < D.steal * dt * 1.6 * seek * angle * (pl.dummy ? 1 : DM.gamble) * (0.6 + 0.8 * pl.r.stl)) { o.a2 = true; ai.stealCd = rr(K.aiStlCd0, K.aiStlCd1); }
+    const ready = D.steal > 0 && dd < K.aiStlD && ai.stealCd <= 0 && !pl.action && pl.stun <= 0 && pl.cd <= 0 && pl.z <= 0;
+    if (ai.stealPlan && (ai.stealPlan.move !== oa || oa.t + K.stlHitT > sr.windowEnd)) ai.stealPlan = null;
+    if (ready && awareness > 0 && sr.moving && !sr.safe && ai.stealSeen !== oa && oa.t + K.stlHitT <= sr.windowEnd) {
+      ai.stealSeen = oa;
+      if (rnd() < K.stlAiReact * awareness * (0.6 + 0.8 * pl.r.stl) * angle) ai.stealPlan = { move: oa, at: Math.max(oa.t, sr.windowStart - K.stlHitT) };
+    }
+    if (ready && ai.stealPlan && oa.t >= ai.stealPlan.at) {
+      o.a2 = true; ai.stealPlan = null; ai.stealCd = rr(K.aiStlCd0, K.aiStlCd1);
+    } else if (!ai.stealPlan && ready && (!oa || oa.type === 'move') && rnd() < D.steal * dt * 1.6 * seek * angle * (pl.dummy ? 1 : DM.gamble) * (0.6 + 0.8 * pl.r.stl)) { o.a2 = true; ai.stealCd = rr(K.aiStlCd0, K.aiStlCd1); }
     return o;
   }
 
