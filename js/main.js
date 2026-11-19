@@ -145,10 +145,10 @@
   }
   // V4.2 属性分组（参考 2K 六大类）：只列游戏里真实使用的字段；第三项 1 = 5V5 专用能力（js/r5.js，取自 2K），没有数据的球员不显示该项
   const AGRP = [
-    ['外线得分', '外线', [['close', '近距离'], ['mid', '中投'], ['three', '三分'], ['fade', '后仰'], ['siq', '投篮 IQ', 1]]],
-    ['内线得分', '内线', [['lay', '上篮'], ['flo', '抛投'], ['dunk', '扣篮'], ['sdunk', '站扣'], ['post', '低位'], ['hook', '勾手'], ['hands', '接球', 1]]],
-    ['组织', '组织', [['hnd', '控球'], ['pac', '传球准度', 1], ['piq', '传球 IQ', 1], ['vis', '传球视野', 1], ['iq', '球商', 1]]],
-    ['运动能力', '运动', [['spd', '速度'], ['acc', '加速'], ['str', '力量'], ['vert', '弹跳'], ['sta', '体力']]],
+    ['投篮', '投篮', [['close', '近距离'], ['mid', '中投'], ['three', '三分'], ['fade', '后仰'], ['siq', '投篮 IQ', 1]]],
+    ['终结', '终结', [['lay', '上篮'], ['flo', '抛投'], ['dunk', '扣篮'], ['sdunk', '站扣'], ['post', '低位'], ['hook', '勾手']]],
+    ['组织', '组织', [['hnd', '控球'], ['pac', '传球准度', 1], ['piq', '传球 IQ', 1], ['vis', '传球视野', 1], ['iq', '球商', 1], ['hands', '接球', 1]]],
+    ['运动', '运动', [['spd', '速度'], ['acc', '加速'], ['str', '力量'], ['vert', '弹跳'], ['sta', '体力']]],
     ['防守', '防守', [['def', '外防'], ['intD', '内防'], ['stl', '抢断'], ['blk', '盖帽'], ['hlp', '协防 IQ', 1], ['ppc', '传球预判', 1]]],
     ['篮板', '篮板', [['oreb', '前场板'], ['dreb', '后场板']]],
   ];
@@ -175,6 +175,8 @@
     const a = GM.ARCH[key];
     const tm = a.team && GM.NBA[a.team], tmS = tm ? (a.team === 'LEG' ? '传奇' : tm.city + tm.name) + ' · ' : a.tier === 'rook' ? '新秀 · ' : '';
     let h = '<div class="pkd-h"><canvas class="pkf big" width="64" height="64"></canvas><div><b>' + a.full + '</b><span>' + tmS + a.pos + ' · ' + a.h.toFixed(2) + ' 米 · ' + a.num + ' 号</span><span class="pkd-desc">' + a.desc + '</span></div><em class="t' + TT[a.tier] + '">' + a.ovr + '<small>' + GM.TIERS[a.tier] + '</small></em></div>';
+    const pt = PH.PT.of(a);
+    h += '<p class="pkform" data-testid="ptype"><canvas width="' + PH.PT.SIZE + '" height="' + PH.PT.SIZE + '" data-ptype="' + pt.id + '" style="width:26px;height:26px;image-rendering:pixelated;vertical-align:middle"></canvas> ' + pt.name + '</p>';
     h += '<div class="pkd-tabs" data-testid="pk-tabs">' + PK_TABS.map((t) => '<button data-nonav="1" data-pkt="' + t[0] + '" class="' + (t[0] === pkTab ? 'on' : '') + '" data-testid="pkt-tab-' + t[0] + '">' + t[1] + '</button>').join('') + '<span class="pkd-lr">LB</span><span class="pkd-lr r">RB</span></div>';
     const bar = (n, v, tip) => { const cl = vcl(v); return '<div class="pkr"' + (tip ? ' title="' + tip + '"' : '') + '><span>' + n + '</span><i><s class="' + cl + '" style="width:' + v + '%"></s></i><b class="' + cl + '">' + v + '</b></div>'; };
     const AT = {}; GM.ATTRS.forEach((t) => { AT[t[0]] = t[2]; }); Object.assign(AT, R5TIP);
@@ -203,6 +205,8 @@
       h += hzMap(a);
     }
     el.innerHTML = h; el.scrollTop = sc;
+    const ptCanvas = el.querySelector('[data-ptype]');
+    if (ptCanvas) PH.PT.draw(ptCanvas.getContext('2d'), pt.id, 0, 0);
     const fc = el.querySelector('canvas'); if (fc) portrait(fc, a, GM.TEAMS[pkSide]);
   }
   function pkMark() { $('pk-grid').querySelectorAll('.pkc').forEach((b) => b.classList.toggle('on', b.getAttribute('data-pk') === pkSel)); }
