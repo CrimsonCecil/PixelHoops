@@ -723,6 +723,10 @@
     ['aiRxSag', 'ai', '电脑读招 退防时长', 0.75, 0, 2, 0.05, '秒'],
     ['aiRxHoldT', 'ai', '电脑读招 稳住时长', 0.4, 0, 2, 0.05, '秒'],
     ['aiGap', 'ai', '电脑防守 常规距离', 1.25, 0.3, 3, 0.05, '米：离进攻人（篮下 0.8，远处 2.0）'],
+    ['aiSchGap', 'ai', '电脑防守 策略间距', 0.45, 0, 1, 0.05, '米：封投减距、退防加距'],
+    ['aiGapDrift', 'ai', '电脑防守 距离游移', 0.2, 0, 0.5, 0.01, '米：低频随机游移幅度'],
+    ['aiGapSmooth', 'ai', '电脑防守 变距速度', 2.5, 0.5, 8, 0.1, '每秒：策略和读招间距平滑过渡'],
+    ['aiDfBluff', 'ai', '电脑防守 虚晃概率', 0.15, 0, 0.6, 0.01, '概率：随难度增加，先展示反向站位再切换'],
     ['aiGapSag', 'ai', '电脑防守 退防加距', 0.95, 0, 3, 0.05, '米'],
     ['aiGapPress', 'ai', '电脑防守 扑上距离', 0.55, 0.2, 2, 0.05, '米'],
     ['aiJmpS', 'ai', '电脑封盖 跳投起跳概率', 0.55, 0, 1, 0.01, '概率：+ 难度 × 0.15'],
@@ -1827,7 +1831,7 @@
     b.state = 'loose'; b.holder = -1; b.x = from.x; b.y = from.y; b.z = from.z; b.vx = vx; b.vy = vy; b.vz = vz; b.noPick = 0.22; b.dead = false; b.shot = null; b.lastTouch = last; b.under = false; b.trail = null; b.lk = null; b.pin = null;
   }
   let shotSeq = 0;
-  function publishShot(info) { info.id = ++shotSeq; info.time = G.time; G.lastShot = info; trainLog(info); const p = G.players[info.who]; if (p) { playResult(p, info); scoutRec(p, methodOf(p, info), info.made ? 1 : 0.45); } }
+  function publishShot(info) { info.id = ++shotSeq; info.time = G.time; G.lastShot = info; trainLog(info); const p = G.players[info.who]; if (p) { playResult(p, info); scoutRec(p, methodOf(p, info), info.made ? 1 : -0.8); } }
   // ---------- 球探：电脑记住你最近几回合靠什么得分，下回合提前针对（猜错了反而更好打）----------
   function methodOf(p, info) {
     const mv = G.time - (p.lastMoveT || -9) < 2.2 ? p.lastMove : '', a = p.action;
@@ -1840,15 +1844,34 @@
   }
   function scoutRec(p, m, w) {
     if (!G.scout || G.mode === 'demo') return; const S = G.scout[p.id] || (G.scout[p.id] = {});
-    for (const k in S) S[k] *= 0.8; S[m] = (S[m] || 0) + w;
+    for (const k in S) S[k] *= 0.8;
+    if (w >= 1) for (const df of G.players) {
+      const plan = df.ai && df.ai.dm && df.ai.dm.plan;
+      if (df.ctrl === 'cpu' && !df.dummy && TM(df) !== TM(p) && plan && plan !== m) S[plan] = (S[plan] || 0) * 0.45;
+    }
+    S[m] = Math.max(0, (S[m] || 0) + w);
   }
   function scoutPlan(df, opp) {
     const S = G.scout && G.scout[opp.id]; if (!S || df.ctrl !== 'cpu' || df.dummy) return null;
     let tot = 0, best = null, bw = 0; const ks = Object.keys(S), ws = ks.map((k) => Math.pow(S[k], 1.6)); for (const w of ws) tot += w;
     if (tot < 0.9) return null;
     let u = rnd() * tot; for (let i = 0; i < ks.length; i++) { if (ws[i] > bw) bw = ws[i]; if (best == null && (u -= ws[i]) <= 0) best = ks[i]; }
-    const commit = clamp((0.3 + 0.2 * G.diff + 0.35 * bw / tot) * (0.6 + 0.5 * df.r.def), 0, 0.92);
-    return rnd() < commit ? best : null;
+    const commit = clamp((0.18 + 0.1 * G.diff + 0.15 * bw / tot + 0.1 * Math.pow(bw, 1 / 1.6)) * (0.6 + 0.5 * df.r.def), 0, 0.85);
+    if (rnd() >= commit) return null;
+    if (G.mode === 'cpu' && S[best] >= 2.4 && df.ai.adapt !== best) {
+      df.ai.adapt = best;
+      const names = { drive: '突破', three: '三分', post: '背打', postspin: '背打', mid: '中投', stepback: '后撤步' };
+      float('电脑：针对' + names[best], df, '#9aa3c0', 1);
+    }
+    return best;
+  }
+  function defenseScheme(df, opp, plan, mix) {
+    const shoot = Math.max(opp.r.three, opp.r.mid), edge = opp.r.spd - df.r.spd + opp.r.hnd - df.r.def;
+    const weights = { tight: 0.35 + 1.5 * shoot + (plan === 'three' || plan === 'stepback' ? 2 : 0), sag: 0.5 + 1.6 * Math.max(0, edge) + (1 - shoot) + (plan === 'drive' ? 2 : 0), std: 0.5 + 1.8 * df.r.def };
+    if (!mix) weights.mix = 0.65 + 0.7 * (1 - df.r.def);
+    let total = 0; for (const k in weights) total += weights[k] *= rr(0.7, 1.3);
+    let u = rnd() * total; for (const k in weights) if ((u -= weights[k]) <= 0) return k;
+    return 'std';
   }
   // 针对某种打法时对各个动作的被晃系数：猜中了很难晃到，猜反了更容易被打穿
   function scoutRead(plan, kind) {
@@ -4660,6 +4683,18 @@
     // 本回合防守状态：有时贴得紧、有时放投、偶尔走神，防守好的人更稳定
     if (!ai.dm) { const sd = K.aiDfSd0 - 0.5 * pl.r.def; ai.dm = { gap: 1 + rr(-0.22, 0.28) * sd + (opp.r.three > 0.82 ? -0.12 : opp.r.three < 0.5 ? 0.3 : 0), react: 1 + rr(-0.2, 0.35) * sd, bite: clamp(1 + rr(-0.4, 0.5) * sd, 0.4, 1.6), lapse: rnd() < K.aiDfLapse * sd ? rr(0.6, 1.2) : 0, gamble: rnd() < K.aiDfGamble ? 1.8 : 1, plan: scoutPlan(pl, opp) }; if (ai.dm.plan) ai.dm.lapse = 0; }
     const DM = ai.dm; if (DM.lapse > 0 && G.phase === 'live') DM.lapse -= dt;
+    if (!pl.dummy) {
+      if (!DM.sch) {
+        DM.sch = defenseScheme(pl, opp, DM.plan, false);
+        DM.stance = DM.sch === 'mix' ? defenseScheme(pl, opp, DM.plan, true) : DM.sch;
+        DM.nextStance = G.time + rr(1.2, 2.8); DM.drift = 0; DM.driftTo = rr(-1, 1) * K.aiGapDrift; DM.driftAt = G.time + rr(1.2, 2.8);
+        if (rnd() < K.aiDfBluff + 0.05 * G.diff) { DM.bluff = G.time + rr(0.8, 1.5); DM.afterBluff = DM.stance; DM.stance = DM.stance === 'tight' ? 'sag' : DM.stance === 'sag' ? 'tight' : rnd() < 0.5 ? 'tight' : 'sag'; }
+      }
+      if (DM.bluff && G.time >= DM.bluff) { DM.stance = DM.afterBluff; DM.bluff = 0; DM.nextStance = G.time + rr(1.2, 2.8); }
+      if (!DM.bluff && DM.sch === 'mix' && G.time >= DM.nextStance) { DM.stance = defenseScheme(pl, opp, DM.plan, true); DM.nextStance = G.time + rr(1.2, 2.8); }
+      if (G.time >= DM.driftAt) { DM.driftTo = rr(-1, 1) * K.aiGapDrift; DM.driftAt = G.time + rr(1.2, 2.8); }
+      DM.drift = lerp(DM.drift, DM.driftTo, 1 - Math.exp(-dt));
+    }
     const dq = pl.dummy ? 1 : K.aiDfQ0 + 0.65 * pl.r.def + 0.25 * (pl.r.spd - opp.r.spd); // 防守/速度差决定跟防是否跟得上
     // 读招反应（节奏博弈）：进攻人做动作后，电脑防守隔一个反应时间做出选择
     //  扑（press）：贴上来举手 → 投篮难，但重心前压，此时变向/突破更容易过；
@@ -4684,6 +4719,10 @@
     if (!pl.dummy && DM.plan && !opp.post) { if (DM.plan === 'drive' && hl > 3) gap += 0.55; else if ((DM.plan === 'three' || DM.plan === 'stepback') && hl > 6) gap = Math.min(gap, 0.7); else if (DM.plan === 'mid' && hl > 3.5 && hl < 6.8) gap = Math.min(gap, 0.85); }
     if (pl.dummy) gap = G.train.gap; else if (opp.post) gap = DM.plan === 'postspin' ? 1.05 : DM.plan === 'post' ? 0.55 : 0.75;
     else if (RX.m === 'press') gap = Math.min(gap, K.aiGapPress); else if (RX.m === 'sag') gap += K.aiGapSag;
+    if (!pl.dummy) {
+      gap = Math.max(0.35, gap + (DM.stance === 'tight' ? -K.aiSchGap : DM.stance === 'sag' ? K.aiSchGap : 0) + DM.drift);
+      DM.liveGap = DM.liveGap == null ? gap : lerp(DM.liveGap, gap, 1 - Math.exp(-K.aiGapSmooth * dt)); gap = DM.liveGap;
+    }
     const l = go(ai.hx + hx * Math.min(gap, hl * 0.8), ai.hy + hy * Math.min(gap, hl * 0.8), 1);
     o.sprint = (l > 1.6 || RX.m === 'press') && pl.stam > 15; o.a3 = ((l < 0.7 && !far) || (opp.post && l < 1.2) || RX.m === 'press') && RX.m !== 'sag';
     pl.rx = RX.m;
@@ -4920,6 +4959,7 @@
       coord: 'x 向右, y 朝篮筐(篮筐 y=12.43, 中线 y=0), z 向上, 单位米',
       state: G.state, mode: G.mode, phase: G.phase, score: G.score, target: G.target, offense: G.off, shotClock: r2(G.shotClock), needClear: G.needClear, winner: G.winner,
       ball: { state: b.state, holder: b.holder, x: r2(b.x), y: r2(b.y), z: r2(b.z) },
+      defense: G.players.filter((p) => p.ctrl === 'cpu' && !p.dummy && !p.hasBall && p.ai && p.ai.dm).map((p) => ({ id: p.id, scheme: p.ai.dm.sch || null, stance: p.ai.dm.stance || null, plan: p.ai.dm.plan, gap: p.ai.dm.liveGap == null ? null : r2(p.ai.dm.liveGap) })),
       cutin: G.cutin ? G.cutin.skill : null, players: G.players.map((p) => ({ id: p.id, ctrl: p.ctrl, arch: p.arch.key, sk: p.sk.hint, skCd: Math.round(p.sk.cd), x: r2(p.x), y: r2(p.y), z: r2(p.z), vx: r2(p.vx), vy: r2(p.vy), hasBall: p.hasBall, action: p.action ? p.action.type : null, variant: p.action ? (p.action.v || p.action.kind || null) : null, anim: p.anim, stam: Math.round(p.stam), stun: r2(p.stun), stance: p.stance, post: p.post, combo: p.combo, hidden: p.off })),
       ...(G.mode === 'cpu' || G.mode === 'train' ? { aiCall: G.players.map((p) => p.ai.call || null) } : {}),
       banner: G.banner ? G.banner.text : null, floats: G.floats.map((f) => f.text), stats: G.stats,
