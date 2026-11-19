@@ -1386,11 +1386,13 @@
     bam: { style: 'fade', face: 'square', beard: 'goatee', shoulder: 1.07 },
     flagg: { style: 'swept', face: 'long', beard: '' },
   };
+  const BUILD_RANGES = { lean: [-0.42, -0.12], balanced: [-0.1, 0.325], muscular: [0.335, 1.075], heavy: [0.9, 2.05] };
   function lookOf(a) {
     const sig = SIGNATURE_LOOK[a.key] || {};
     const m = PH.measurements && PH.measurements[a.key];
+    const buildTag = PH.buildTags?.[a.key] || 'balanced';
     const look = { skin: pair(sig.skin || a.skin), hair: a.hair, style: sig.style || a.style, beard: sig.beard ?? a.beard ?? '', band: sig.band ?? a.band ?? '',
-      bw: a.bw || 1, wing: a.wing || 1, face: sig.face || FACE[a.key] || 'square', brow: sig.brow, eyes: sig.eyes, mouthguard: sig.mouthguard, sleeve: sig.sleeve };
+      bw: a.bw || 1, wing: a.wing || 1, face: sig.face || FACE[a.key] || 'square', brow: sig.brow, eyes: sig.eyes, mouthguard: sig.mouthguard, sleeve: sig.sleeve, buildTag };
     if (m) {
       const [inches, pounds, span, hand] = m, height = inches * 0.0254;
       const bmi = pounds * 0.45359237 / (height * height);
@@ -1403,13 +1405,16 @@
       const belowHeavy = clamp((28.9 - bmi) / 3, 0, 1);
       const solid = clamp((bmi - 24.1) / 0.45, 0, 1);
       const broadFrame = 0.4 * Math.max(0, look.bw - 1);
-      const build = clamp(weightBuild + signatureBuild + belowHeavy * (solid * (0.2 - 0.5 * Math.min(0, signatureBuild)) + broadFrame), -0.42, 2.05);
+      const measuredBuild = weightBuild + signatureBuild + belowHeavy * (solid * (0.2 - 0.5 * Math.min(0, signatureBuild)) + broadFrame);
+      const [minBuild, maxBuild] = BUILD_RANGES[buildTag];
+      const build = clamp(measuredBuild, minBuild, maxBuild);
       // 骨架比例保留测量值，胸腰与四肢粗细单独放大。
       const frame = clamp((bmi - 25.4) * 0.091, -0.36, 0.55);
       const widthScale = 1 + 1.05 * Math.max(0, height / 1.95 - 1), limb = 1 + 0.59 * build;
       const shoulder = (1 + 0.32 * build) * (sig.shoulder || 1) + 0.48 * muscle;
       const waistBuild = build - 0.5 * muscle * (build - legacyBuild);
-      look.body = { height, baseHeight: a.h, shoulder, chest: (1 + 0.7 * build + 0.9 * muscle) * widthScale, waist: (1 + 0.76 * waistBuild + (sig.waist || 0)) * widthScale, hip: 1 + 0.4 * build,
+      const waist = Math.max(1 + 0.76 * waistBuild + (sig.waist || 0), buildTag === 'heavy' ? 1.83 : 0);
+      look.body = { height, baseHeight: a.h, shoulder, chest: (1 + 0.7 * build + 0.9 * muscle) * widthScale, waist: waist * widthScale, hip: 1 + 0.4 * build,
         arm: span ? clamp(1 + 1.65 * (span / inches - 1.047) - 0.086 * frame, 0.87, 1.17) : look.wing,
         legs: sig.legs || clamp(1 + (inches - 78) * 0.002 - frame * 0.06, 0.96, 1.04),
         limb: limb * widthScale, armThickness: (limb + 0.82 * muscle) * widthScale, hand: hand ? clamp(hand / (0.11 * inches), 0.84, 1.18) : 1,
