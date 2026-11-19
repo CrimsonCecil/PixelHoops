@@ -18,12 +18,16 @@ for (const name of ['tune', 'render', 'roster', 'measurements', 'r5', 'game', 'b
   vm.runInContext(fs.readFileSync(file, 'utf8'), ctx, { filename: file });
 }
 
-const { game, render, rig, measurements, T5 } = ctx.PH;
+const { game, render, rig, measurements, buildTags, T5 } = ctx.PH;
 render.init(canvas());
 assert.deepEqual(Object.keys(measurements).sort(), Array.from(game.ROSTER).sort());
+assert.deepEqual(Object.keys(buildTags).sort(), Array.from(game.ROSTER).sort());
+const classes = ['lean', 'balanced', 'muscular', 'heavy'];
 for (const key of game.ROSTER) {
   const p = game.t5.makePlayer(0, key, 'cpu');
   const m = measurements[key], body = p.col.body;
+  assert(classes.includes(buildTags[key]), key);
+  assert.equal(p.col.buildTag, buildTags[key], key);
   assert.equal(body.height, m[0] * 0.0254);
   assert(body.height > 1.7 && body.height < 2.35 && m[1] > 150 && m[1] <= 325, key);
   if (!m[2]) assert.equal(body.arm, p.col.wing, key);
@@ -47,23 +51,121 @@ assert(look('zion').body.chest > look('wemby').body.chest);
 assert(look('kawhi').body.hand > curry.body.hand);
 assert(look('harden').beard === 'long' && look('kawhi').style === 'braids');
 assert.equal(curry.style, 'curlfade');
+assert.equal(curry.face, 'youthful');
+assert.equal(curry.beard, '');
 assert.equal(curry.eyes, 'open');
 assert.equal(look('kyrie').style, 'curlfade');
 assert.equal(look('kyrie').beard, 'trimmed');
 assert.equal(look('wemby').style, 'bald');
+assert.equal(look('cade').style, 'curlfade');
+assert.equal(look('cade').skin[1], '#a67453');
+const calibrated = ['cade', 'giannis', 'kawhi', 'tatum', 'ad', 'brunson', 'booker'];
+assert.equal(new Set(calibrated.map(key => look(key).skin[1])).size, calibrated.length);
+for (const key of calibrated) {
+  assert.notEqual(look(key).skin[1], game.ARCH[key].skin, key);
+}
+const expectedTones = {
+  wemby: '#4e3324', embiid: '#4e3324', giannis: '#6a4430', edwards: '#5e3c2a',
+  curry: '#be8b66', kawhi: '#88543f', tatum: '#a16e50', ad: '#9c6749', brunson: '#a97759', booker: '#d29a76'
+};
+for (const [key, tone] of Object.entries(expectedTones)) {
+  assert.equal(look(key).skin[1], tone, key);
+}
 for (const key of ['shaq', 'jokic']) {
   const { bw, body } = look(key);
   const legacyWidth = 1 + 1.5 * (bw - 1);
   assert(0.29 * body.waist >= 0.31 * (0.2 + 0.8 * legacyWidth) * 1.06, key);
   assert(body.limb >= (0.5 + 0.5 * legacyWidth) * 1.12, key);
 }
-for (const key of ['curry', 'kyrie', 'wemby', 'durant', 'sga']) {
+for (const key of ['curry', 'wemby', 'sga']) {
   assert(look(key).body.limb < 0.9, key);
 }
+const relativeLimb = key => {
+  const { height, limb } = look(key).body;
+  return limb / (1 + (height / 1.95 - 1) * 1.55);
+};
+assert(relativeLimb('kyrie') < relativeLimb('fvv'));
+assert(relativeLimb('durant') < relativeLimb('tatum'));
 for (const key of ['cade', 'giannis', 'embiid', 'lebron']) {
   assert(look(key).body.shoulder > 1.1 && look(key).body.limb > 1.1, key);
 }
+for (const key of ['lebron', 'giannis', 'zion', 'embiid', 'edwards']) {
+  const { chest, waist, limb, armThickness } = look(key).body;
+  assert(chest > waist * 1.07 && armThickness > limb * 1.1, key);
+}
+assert(lebron.body.chest > lebron.body.waist * 1.3);
+assert(lebron.body.armThickness > lebron.body.limb * 1.3);
+assert(look('clingan').body.chest > look('kobe').body.chest * 1.3);
+for (const key of ['curry', 'cade', 'shaq', 'jokic', 'morant', 'butler', 'kawhi']) {
+  const { limb, armThickness } = look(key).body;
+  assert.equal(armThickness, limb, key);
+}
 console.log('PASS every rostered player renders; 302 measured-height profiles, signature looks, original gameplay rig and held-ball wrist anchors');
+
+const widths = Object.fromEntries(classes.map(tag => [tag, []]));
+for (const key of game.ROSTER) {
+  const { height, waist, limb } = look(key).body;
+  const scale = 1 + 1.05 * Math.max(0, height / 1.95 - 1);
+  widths[buildTags[key]].push({ waist: waist / scale, limb: limb / scale });
+}
+const max = (tag, part) => Math.max(...widths[tag].map(body => body[part]));
+const min = (tag, part) => Math.min(...widths[tag].map(body => body[part]));
+assert(classes.every(tag => widths[tag].length > 0));
+assert(max('lean', 'limb') < min('balanced', 'limb'));
+assert(max('balanced', 'limb') < min('muscular', 'limb'));
+assert(max('muscular', 'waist') < min('heavy', 'waist'));
+for (const key of ['kdunn', 'curry', 'wemby']) assert.equal(buildTags[key], 'lean', key);
+assert.equal(buildTags.holiday, 'muscular');
+for (const part of ['shoulder', 'chest', 'waist', 'armThickness', 'limb']) {
+  assert(look('kdunn').body[part] < look('holiday').body[part], part);
+}
+const approvedWidths = {
+  holiday: [1.2193, 1.4798, 1.5209, 1.4044],
+  queta: [1.1834, 1.5399, 1.5777, 1.4706],
+  lebron: [1.8, 2.4098, 1.7891, 2.2396],
+  shaq: [1.7875, 2.429, 2.7421, 2.2221],
+  jokic: [1.3652, 1.7979, 2.1303, 1.6859],
+  zion: [1.9679, 2.7851, 2.579, 2.5297],
+  gobert: [1.1369, 1.4459, 1.4745, 1.3935],
+  sabonis: [1.1515, 1.4268, 1.4572, 1.3709]
+};
+for (const [key, floors] of Object.entries(approvedWidths)) {
+  const { shoulder, chest, waist, armThickness } = look(key).body;
+  assert([shoulder, chest, waist, armThickness].every((v, i) => v >= floors[i] - 1e-9), key);
+}
+assert(relativeLimb('queta') > relativeLimb('tatum') * 1.1);
+assert(relativeLimb('queta') > relativeLimb('wemby') * 1.5);
+const queta = game.t5.makePlayer(0, 'queta', 'cpu');
+const { height, arm, legs } = queta.col.body, scale = 1 + (height / 1.95 - 1) * 1.55;
+const { k: visual } = render.drawPlayer(queta);
+const dist = (a, b) => Math.hypot(...a.map((v, i) => v - b[i]));
+assert(dist(visual.shL, visual.elL) < 0.96 * 0.28 * scale * arm);
+assert(dist(visual.hipL, visual.kneeL) < 0.97 * 0.41 * scale * legs);
+console.log('PASS all 302 builds are tagged and ordered; Dunn stays lean and approved V6 builds are preserved');
+
+const gameCanvas = canvas();
+let spriteContext;
+gameCanvas.getContext().drawImage = (image) => { spriteContext = image.getContext('2d'); };
+render.init(gameCanvas);
+render.drawPlayer(game.t5.makePlayer(0, 'zion', 'cpu'));
+assert(spriteContext);
+for (const key of game.ROSTER) {
+  const p = game.t5.makePlayer(0, key, 'cpu');
+  const jerseyRows = [], headRows = [];
+  spriteContext.fillRect = (_x, y) => { if (p.col.jersey.includes(spriteContext.fillStyle)) jerseyRows.push(y); };
+  spriteContext.rect = (_x, y) => headRows.push(y);
+  for (const [face, tilt, lean] of [[-Math.PI / 2, 0, 0], [-Math.PI / 4, 0.48, 0.38]]) {
+    Object.assign(p, { face });
+    Object.assign(p.pose, { tilt, lean });
+    jerseyRows.length = headRows.length = 0;
+    render.drawPlayer(p);
+    assert(headRows.length && jerseyRows.length, key);
+    const jaw = Math.min(...headRows) + Math.floor(headRows.length * 0.75);
+    assert(Math.min(...jerseyRows) >= jaw, `${key}: shoulders overlap the upper face`);
+  }
+}
+spriteContext.fillRect = spriteContext.rect = noop;
+console.log('PASS shoulders stay below the upper face for all 302 players in front and tilted poses');
 
 game.newGame({ mode: 'train', arch0: 'luka', arch1: 'curry' });
 for (const p of game.G.players) {

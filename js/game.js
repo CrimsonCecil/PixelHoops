@@ -131,6 +131,11 @@
     ['ctHvy', 'ct', '严重封堵 额外惩罚', 0, 0, 0.5, 0.01, '干扰 ≥ 0.5 时命中再 × (1 − 此 × 对抗系数)'],
     ['ctDbl', 'ct', '双人封堵 额外惩罚', 0.52, 0, 0.6, 0.01, '5V5 双人封堵时命中再 × (1 − 此 × 对抗系数)'],
     ['ctGreen', 'ct', '绿区 抗封堵比例', 0.85, 0, 1, 0.05, '绿区出手只吃这个比例的封堵惩罚'],
+    ['ctLayCapStart', 'ct', '上篮 命中上限起算干扰', 0.25, 0, 1, 0.01, '原始内线干扰超过此值，逐渐限制命中；不受5V5命中校准放大'],
+    ['ctLayCapSpan', 'ct', '上篮 命中上限过渡区间', 0.55, 0.05, 1, 0.01, '超过起算干扰这么多时，完全应用贴防命中上限'],
+    ['ctLayCap', 'ct', '上篮 贴防命中上限', 0.55, 0, 1, 0.01, '70终结对60内防的贴防命中上限；绿区同样受限'],
+    ['ctLayCapR', 'ct', '上篮 上限终结系数', 0.6, 0, 2, 0.05, '终结能力每高于70一点，上限增加此比例'],
+    ['ctLayCapD', 'ct', '上篮 上限内防系数', 0.65, 0, 2, 0.05, '防守人内防每高于60一点，上限降低此比例'],
     ['ctBlkE', 'ct', '被盖率 对抗斜率', 1.0, 0, 4, 0.05, '上篮 / 扣篮被盖率 × clamp(1 − 差值×此, 0.25, 1.8)'],
     ['ctBlkH', 'ct', '严重封堵 被盖倍率', 1.0, 1, 3, 0.05, '干扰 ≥ 0.5 时上篮被盖率再乘'],
     ['ctBlkD', 'ct', '双人封堵 被盖倍率', 1.2, 1, 3, 0.05, '双人封堵时上篮被盖率再乘'],
@@ -1365,28 +1370,28 @@
   const FACE = { curry: 'oval', kyrie: 'long', kobe: 'long', luka: 'round', lebron: 'square', giannis: 'long', shaq: 'wide', maxey: 'round', sengun: 'wide', white: 'oval', bridges: 'long', herb: 'long', kessler: 'round',
     gafford: 'long', joe: 'oval', dosunmu: 'oval', dybantsa: 'long', peterson: 'oval', boozer: 'square', flemings: 'oval', mara: 'long', peat: 'wide', karaban: 'square', delarrea: 'oval' };
   const SIGNATURE_LOOK = {
-    curry: { style: 'curlfade', face: 'tapered', skin: '#be8b66', beard: 'trimmed', eyes: 'open', mouthguard: true, build: -0.2, shoulder: 0.94 },
-    lebron: { style: 'receding', beard: 'boxed', brow: 'heavy', build: 0.22, shoulder: 1.13, sleeve: 'L' },
+    curry: { style: 'curlfade', face: 'youthful', skin: '#be8b66', beard: '', eyes: 'open', mouthguard: true, build: -0.2, shoulder: 0.94 },
+    lebron: { style: 'receding', beard: 'boxed', brow: 'heavy', build: 0.22, muscle: 0.65, shoulder: 1.13, sleeve: 'L' },
     luka: { style: 'swept', beard: 'stubble', brow: 'soft', build: 0.04 },
-    giannis: { style: 'curlfade', face: 'long', build: 0.26, shoulder: 1.16, legs: 1.07 },
+    giannis: { style: 'curlfade', face: 'long', skin: '#6a4430', build: 0.26, muscle: 0.48, shoulder: 1.16, legs: 1.07 },
     durant: { style: 'receding', face: 'long', beard: 'goatee', build: -0.28, shoulder: 0.94, legs: 1.08 },
     wemby: { style: 'bald', face: 'oval', beard: 'goatee', build: -0.14, shoulder: 0.96, legs: 1.09 },
     chet: { style: 'swept', face: 'long', beard: 'goatee', build: -0.14, legs: 1.08 },
-    zion: { style: 'fade', face: 'wide', brow: 'heavy', build: 0.16, shoulder: 1.09, legs: 0.95 },
+    zion: { style: 'fade', face: 'wide', brow: 'heavy', build: 0.16, muscle: 0.36, shoulder: 1.09, legs: 0.95 },
     jokic: { style: 'buzz', face: 'wide', beard: 'stubble', brow: 'soft', build: 0.13, waist: 0.25, shoulder: 1.05, legs: 0.96 },
     shaq: { build: 0.18, waist: 0.18, shoulder: 1.16, brow: 'heavy', legs: 0.95 },
     kobe: { style: 'buzz', beard: 'goatee', brow: 'heavy', sleeve: 'R' },
     kyrie: { style: 'curlfade', face: 'tapered', beard: 'trimmed', band: '', brow: 'soft', build: -0.27 },
     harden: { style: 'braids', beard: 'long', face: 'oval' },
-    kawhi: { style: 'braids', beard: 'goatee', face: 'long', brow: 'soft' },
+    kawhi: { style: 'braids', beard: 'goatee', face: 'long', skin: '#88543f', brow: 'soft' },
     sga: { style: 'braids', face: 'long', band: '#f4f0e0', build: -0.11, legs: 1.06 },
-    tatum: { style: 'fade', beard: 'boxed', sleeve: 'L' },
-    ad: { style: 'crop', brow: 'joined', beard: 'boxed' },
-    embiid: { style: 'locks', face: 'wide', beard: 'boxed', build: 0.24, shoulder: 1.10 },
+    tatum: { style: 'fade', skin: '#a16e50', beard: 'boxed', sleeve: 'L' },
+    ad: { style: 'crop', skin: '#9c6749', brow: 'joined', beard: 'boxed' },
+    embiid: { style: 'locks', face: 'wide', beard: 'boxed', build: 0.24, muscle: 0.43, shoulder: 1.10 },
     morant: { style: 'locks', face: 'oval', build: -0.12 },
-    edwards: { style: 'fade', face: 'wide', brow: 'heavy', build: 0.11, shoulder: 1.08 },
+    edwards: { style: 'fade', face: 'wide', brow: 'heavy', build: 0.11, muscle: 0.4, shoulder: 1.08 },
     trae: { style: 'wispy', beard: 'goatee', face: 'oval' },
-    brunson: { style: 'braids', face: 'round', beard: 'boxed', shoulder: 1.05 },
+    brunson: { style: 'braids', face: 'round', skin: '#a97759', beard: 'boxed', shoulder: 1.05 },
     haliburton: { style: 'crop', face: 'oval', beard: 'goatee', legs: 1.05 },
     maxey: { style: 'locks', face: 'round', beard: '' },
     bane: { style: 'fade', face: 'square', build: 0.12, shoulder: 1.12 },
@@ -1395,32 +1400,49 @@
     sengun: { style: 'swept', face: 'wide', beard: 'boxed' },
     gobert: { style: 'fade', face: 'long', beard: 'goatee', legs: 1.05 },
     lamelo: { style: 'curly', face: 'oval', legs: 1.05, sleeve: 'R' },
-    booker: { style: 'fade', face: 'oval', beard: 'stubble', brow: 'heavy' },
+    booker: { style: 'fade', face: 'oval', skin: '#d29a76', beard: 'stubble', brow: 'heavy' },
     draymond: { style: 'crop', face: 'wide', beard: 'boxed', shoulder: 1.07 },
     mitchell: { style: 'fade', face: 'round', beard: 'goatee' },
-    cade: { style: 'afro', face: 'oval', beard: 'trimmed', build: 0.16, shoulder: 1.06 },
+    cade: { style: 'curlfade', face: 'oval', skin: '#a67453', beard: 'trimmed', build: 0.16, shoulder: 1.06 },
     banchero: { style: 'braids', face: 'wide', beard: 'goatee', shoulder: 1.06 },
     jbrown: { style: 'braids', beard: 'boxed', face: 'square' },
     sabonis: { style: 'swept', face: 'square', beard: 'boxed' },
     bam: { style: 'fade', face: 'square', beard: 'goatee', shoulder: 1.07 },
     flagg: { style: 'swept', face: 'long', beard: '' },
   };
+  const BUILD_RANGES = { lean: [-0.42, -0.12], balanced: [-0.1, 0.325], muscular: [0.335, 1.075], heavy: [0.9, 2.05] };
   function lookOf(a) {
     const sig = SIGNATURE_LOOK[a.key] || {};
     const m = PH.measurements && PH.measurements[a.key];
+    const buildTag = PH.buildTags?.[a.key] || 'balanced';
     const look = { skin: pair(sig.skin || a.skin), hair: a.hair, style: sig.style || a.style, beard: sig.beard ?? a.beard ?? '', band: sig.band ?? a.band ?? '',
-      bw: a.bw || 1, wing: a.wing || 1, face: sig.face || FACE[a.key] || 'square', brow: sig.brow, eyes: sig.eyes, mouthguard: sig.mouthguard, sleeve: sig.sleeve };
+      bw: a.bw || 1, wing: a.wing || 1, face: sig.face || FACE[a.key] || 'square', brow: sig.brow, eyes: sig.eyes, mouthguard: sig.mouthguard, sleeve: sig.sleeve, buildTag };
     if (m) {
       const [inches, pounds, span, hand] = m, height = inches * 0.0254;
-      const bmi = pounds * 0.45359237 / (height * height), density = (bmi - 24.5) / 5.25;
-      const build = clamp(Math.sign(density) * Math.abs(density) ** 1.35 + (sig.build || 0), -0.42, 2.05);
+      const bmi = pounds * 0.45359237 / (height * height);
+      const aboveAverage = bmi - 24.5, density = aboveAverage / 5.25;
+      // 从名单平均值起放大中上体型，接近最厚重的球员时回到原曲线。
+      const midrange = Math.max(0, Math.min(aboveAverage / 2.25, (28.9 - bmi) / 2.15));
+      const weightBuild = Math.sign(density) * Math.abs(density) ** 1.35 + 0.2 * midrange;
+      const signatureBuild = sig.build || 0, muscle = sig.muscle || 0;
+      const legacyBuild = clamp(weightBuild + signatureBuild, -0.42, 2.05);
+      const belowHeavy = clamp((28.9 - bmi) / 3, 0, 1);
+      const solid = clamp((bmi - 24.1) / 0.45, 0, 1);
+      const broadFrame = 0.4 * Math.max(0, look.bw - 1);
+      const measuredBuild = weightBuild + signatureBuild + belowHeavy * (solid * (0.2 - 0.5 * Math.min(0, signatureBuild)) + broadFrame);
+      const [minBuild, maxBuild] = BUILD_RANGES[buildTag];
+      const build = clamp(measuredBuild, minBuild, maxBuild);
       // 骨架比例保留测量值，胸腰与四肢粗细单独放大。
       const frame = clamp((bmi - 25.4) * 0.091, -0.36, 0.55);
-      const shoulder = (1 + 0.32 * build) * (sig.shoulder || 1);
-      look.body = { height, baseHeight: a.h, shoulder, chest: 1 + 0.7 * build, waist: 1 + 0.76 * build + (sig.waist || 0), hip: 1 + 0.4 * build,
+      const widthScale = 1 + 1.05 * Math.max(0, height / 1.95 - 1), limb = 1 + 0.59 * build;
+      const shoulder = (1 + 0.32 * build) * (sig.shoulder || 1) + 0.48 * muscle;
+      const waistBuild = build - 0.5 * muscle * (build - legacyBuild);
+      const waist = Math.max(1 + 0.76 * waistBuild + (sig.waist || 0), buildTag === 'heavy' ? 1.83 : 0);
+      look.body = { height, baseHeight: a.h, shoulder, chest: (1 + 0.7 * build + 0.9 * muscle) * widthScale, waist: waist * widthScale, hip: 1 + 0.4 * build,
         arm: span ? clamp(1 + 1.65 * (span / inches - 1.047) - 0.086 * frame, 0.87, 1.17) : look.wing,
         legs: sig.legs || clamp(1 + (inches - 78) * 0.002 - frame * 0.06, 0.96, 1.04),
-        limb: 1 + 0.59 * build, hand: hand ? clamp(hand / (0.11 * inches), 0.84, 1.18) : 1 };
+        limb: limb * widthScale, armThickness: (limb + 0.82 * muscle) * widthScale, hand: hand ? clamp(hand / (0.11 * inches), 0.84, 1.18) : 1,
+        headScale: 0.92 + 0.08 * Math.min(1.4, 1 + 0.7 * legacyBuild + 0.9 * muscle) };
     }
     return look;
   }
@@ -2234,6 +2256,12 @@
     if (LAYC && c >= (K.ctOwn > 0 ? 0.12 : 0.2)) { const gk = green ? K.ctGreen : 1; let f = 1 - c * K.ctLayP * ek * gk; if (c >= 0.5) f *= 1 - K.ctHvy * ek * gk; if (a.dbl) f *= 1 - K.ctDbl * ek * gk; prob *= clamp(f, 0.08, 1); }
     if (a.blockEscape) { const esc = a.blockEscape; prob *= K.smEsc; if (!a.cv) { a.cv = esc; a.cvT = a.t; a.cvR = a.t; if (esc === 'switch') a.cvSw = a.t; } float(esc === 'switch' ? '拉杆躲帽' : '硬挤出手', pl, '#ffd24a', 1); }
     if (a.thru && kind === 'lay' && !SK) prob = a.thru === 'fall' ? Math.max(prob, K.ctThruLay) : prob * (1 - K.ctThruPen);   // V4.5 顶翻
+    if (LAYC) {
+      const cd = ctDef(pl, df), cc = cd === df ? ci.c : contestOf(pl, cd, 'in');
+      const w = clamp((cc - K.ctLayCapStart) / Math.max(0.05, K.ctLayCapSpan), 0, 1);
+      const cap = clamp(K.ctLayCap + K.ctLayCapR * (r - 0.7) - K.ctLayCapD * (cd.r.intD - 0.6), K.smMin, 1);
+      prob = Math.min(prob, 1 - w * (1 - cap));
+    }
     prob = clamp(prob, K.smMin, 1);
     const made = G.tips && G.tips.mk && pl.id === 0 ? true : rnd() < prob;
     const cl = SK ? '无视干扰' : c < 0.2 ? '空位' : c < 0.5 ? '轻微干扰' : '严重干扰';
