@@ -131,6 +131,11 @@
     ['ctHvy', 'ct', '严重封堵 额外惩罚', 0, 0, 0.5, 0.01, '干扰 ≥ 0.5 时命中再 × (1 − 此 × 对抗系数)'],
     ['ctDbl', 'ct', '双人封堵 额外惩罚', 0.52, 0, 0.6, 0.01, '5V5 双人封堵时命中再 × (1 − 此 × 对抗系数)'],
     ['ctGreen', 'ct', '绿区 抗封堵比例', 0.85, 0, 1, 0.05, '绿区出手只吃这个比例的封堵惩罚'],
+    ['ctLayCapStart', 'ct', '上篮 命中上限起算干扰', 0.25, 0, 1, 0.01, '原始内线干扰超过此值，逐渐限制命中；不受5V5命中校准放大'],
+    ['ctLayCapSpan', 'ct', '上篮 命中上限过渡区间', 0.55, 0.05, 1, 0.01, '超过起算干扰这么多时，完全应用贴防命中上限'],
+    ['ctLayCap', 'ct', '上篮 贴防命中上限', 0.55, 0, 1, 0.01, '70终结对60内防的贴防命中上限；绿区同样受限'],
+    ['ctLayCapR', 'ct', '上篮 上限终结系数', 0.6, 0, 2, 0.05, '终结能力每高于70一点，上限增加此比例'],
+    ['ctLayCapD', 'ct', '上篮 上限内防系数', 0.65, 0, 2, 0.05, '防守人内防每高于60一点，上限降低此比例'],
     ['ctBlkE', 'ct', '被盖率 对抗斜率', 1.0, 0, 4, 0.05, '上篮 / 扣篮被盖率 × clamp(1 − 差值×此, 0.25, 1.8)'],
     ['ctBlkH', 'ct', '严重封堵 被盖倍率', 1.0, 1, 3, 0.05, '干扰 ≥ 0.5 时上篮被盖率再乘'],
     ['ctBlkD', 'ct', '双人封堵 被盖倍率', 1.2, 1, 3, 0.05, '双人封堵时上篮被盖率再乘'],
@@ -2209,6 +2214,12 @@
     if (LAYC && c >= (K.ctOwn > 0 ? 0.12 : 0.2)) { const gk = green ? K.ctGreen : 1; let f = 1 - c * K.ctLayP * ek * gk; if (c >= 0.5) f *= 1 - K.ctHvy * ek * gk; if (a.dbl) f *= 1 - K.ctDbl * ek * gk; prob *= clamp(f, 0.08, 1); }
     if (a.blockEscape) { const esc = a.blockEscape; prob *= K.smEsc; if (!a.cv) { a.cv = esc; a.cvT = a.t; a.cvR = a.t; if (esc === 'switch') a.cvSw = a.t; } float(esc === 'switch' ? '拉杆躲帽' : '硬挤出手', pl, '#ffd24a', 1); }
     if (a.thru && kind === 'lay' && !SK) prob = a.thru === 'fall' ? Math.max(prob, K.ctThruLay) : prob * (1 - K.ctThruPen);   // V4.5 顶翻
+    if (LAYC) {
+      const cd = ctDef(pl, df), cc = cd === df ? ci.c : contestOf(pl, cd, 'in');
+      const w = clamp((cc - K.ctLayCapStart) / Math.max(0.05, K.ctLayCapSpan), 0, 1);
+      const cap = clamp(K.ctLayCap + K.ctLayCapR * (r - 0.7) - K.ctLayCapD * (cd.r.intD - 0.6), K.smMin, 1);
+      prob = Math.min(prob, 1 - w * (1 - cap));
+    }
     prob = clamp(prob, K.smMin, 1);
     const made = G.tips && G.tips.mk && pl.id === 0 ? true : rnd() < prob;
     const cl = SK ? '无视干扰' : c < 0.2 ? '空位' : c < 0.5 ? '轻微干扰' : '严重干扰';
