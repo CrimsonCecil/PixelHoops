@@ -1742,6 +1742,10 @@
     if (n >= K.hzUpN) { H[z] = Math.min(2 - b, (H[z] || 0) + 1); H['_' + z] = 0; }
     else if (n <= -K.hzDnN) { H[z] = Math.max(-1 - b, (H[z] || 0) - 1); H['_' + z] = 0; }
   }
+  function shotForm(pl, a, kind, made) {
+    hzRec(pl, a.hzZ, made);
+    if (kind !== 'lay' && G.mode !== 'train') { if (made) { if (pl.icy) float('手感回暖', pl, '#7fd0ff'); pl.icy = false; pl.mk = 0; } else if (++pl.mk >= K.hcIcyN && !pl.icy) { pl.icy = true; float('手感冰冷', pl, '#5ab8ff'); } }
+  }
   const HZC = {};
   function hzCells(z) { if (HZC[z]) return HZC[z]; const o = []; for (let x = -7.5; x < 7.5; x += 0.15) for (let y = 2; y < 14; y += 0.15) if (zoneOf(x + 0.075, y + 0.075) === z) o.push([x, y]); return (HZC[z] = o); }
   function hzView() {
@@ -2084,8 +2088,6 @@
     if (a.thru && kind === 'lay' && !SK) prob = a.thru === 'fall' ? Math.max(prob, K.ctThruLay) : prob * (1 - K.ctThruPen);   // V4.5 顶翻
     prob = clamp(prob, K.smMin, 1);
     const made = G.tips && G.tips.mk && pl.id === 0 ? true : rnd() < prob;
-    hzRec(pl, a.hzZ, made);
-    if (kind !== 'lay' && G.mode !== 'train') { if (made) { if (pl.icy) float('手感回暖', pl, '#7fd0ff'); pl.icy = false; pl.mk = 0; } else if (++pl.mk >= K.hcIcyN && !pl.icy) { pl.icy = true; float('手感冰冷', pl, '#5ab8ff'); } }
     const cl = SK ? '无视干扰' : c < 0.2 ? '空位' : c < 0.5 ? '轻微干扰' : '严重干扰';
     const tl = green ? '完美' : e < 0 ? (ae > 0.5 ? '很早' : '稍早') : (ae > 0.5 ? '很晚' : '稍晚');
     const colr = green ? '#7dff8a' : ae > 0.5 ? '#ff6b5e' : '#ffd24a';
@@ -3963,6 +3965,7 @@
           return;
         }
         if (s.mk && !s.mk.done) { s.mk.t = (s.mk.t || 0) + dt; if (s.mk.miss && !s.mk.seg.length) { s.mk.done = true; sfx('rim'); G.fx.rim = 1; } else if (mkTick(b, s.mk)) s.mk.done = true; else return; }
+        if (s.attempt) shotForm(G.players[s.shooter], s.attempt, s.kind, s.made);
         if (s.made) { b.x = HOOP.x; b.y = HOOP.y; b.z = HOOP.z - 0.1; b.vx = 0; b.vy = -0.5; b.vz = -3.2; b.state = 'loose'; b.under = true; scoreBy(s.shooter, s.pts, s.kind, s.name); }
         else {
           // 篮板反弹：近距离出手软着弹（1~2 米），越远弹得越远；方向以球场一侧为主

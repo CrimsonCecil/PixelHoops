@@ -102,6 +102,35 @@ for (const rising of [false, true]) {
 }
 console.log('PASS flight contact: rising shot blocked and pending make cancelled; descending shot not blocked');
 
+for (const outcome of ['block', 'make', 'miss']) {
+  const { ctx, gm, sh, df, qa } = fixture();
+  gm.G.phase = 'live'; gm.G.needClear = false; df.off = true;
+  sh.icy = true; sh.mk = 2;
+  gm._dbg.startShot(sh, { mx: 0, my: 0 }, 'a1');
+  const a = sh.action, hzBefore = JSON.stringify(gm.G.hz[sh.id]);
+  gm._dbg.releaseShot(sh, 0, 'shot');
+  const s = gm.G.ball.shot;
+  assert(s && s.made, 'uncontested green release should project a make');
+  assert.equal(JSON.stringify(gm.G.hz[sh.id]), hzBefore);
+  assert.equal(sh.icy, true); assert.equal(sh.mk, 2);
+  if (outcome === 'block') {
+    df.off = false; df.z = 1; gm.CFG.blockMul = 100;
+    const hand = ctx.PH.rig(df).handR;
+    Object.assign(gm.G.ball, { x: hand[0], y: hand[1], z: hand[2], vz: 1 });
+    qa.updateBall(1 / 60);
+    assert.equal(s.info.blocked, true);
+    assert.equal(JSON.stringify(gm.G.hz[sh.id]), hzBefore);
+    assert.equal(sh.icy, true); assert.equal(sh.mk, 2);
+  } else {
+    s.made = outcome === 'make'; s.T = 0; s.mk = null;
+    qa.updateBall(1 / 60);
+    assert.equal(gm.G.hz[sh.id]['_' + a.hzZ], outcome === 'make' ? 1 : -1);
+    assert.equal(sh.icy, outcome !== 'make');
+    assert.equal(sh.mk, outcome === 'make' ? 0 : 3);
+  }
+}
+console.log('PASS shooting form: projected/blocked makes grant no hot-zone or cold-streak boosts; resolved makes/misses update form');
+
 function cpuRuns(baseline) {
   const ctx = load(baseline), gm = ctx.PH.game;
   let blocks = 0, attempts = 0;
