@@ -1139,6 +1139,7 @@
       if (R.X && R.RT && dHoop(p) < 6.5 && p.speed > 2.5) { o.a2 = true; o.a1 = false; }
       if (p.f5.alley > T.time - 0.35) { o.a2 = true; o.sprint = true; }
       if (rsM > 0.5) { o.a3 = true; o.dx = RS.x / rsM; o.dy = RS.y / rsM; }
+      if (R.hesi) o.a3 = o.hesi = true;
       o.post = R.LT;
       passKeys(p, L);
       if (E.LB) callPick(p, true);

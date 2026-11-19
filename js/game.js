@@ -1338,7 +1338,7 @@
   function makePlayer(id, archKey, ctrl, tm) {
     const a = ARCH[archKey], t = tm || TEAMS[id];
     return {
-      id: id, arch: a, r: Object.assign({}, a, { badges: a.badges.slice(), sig: Object.assign({}, a.sig) }), h: a.h, sk: { cd: 0, ready: false, streak: 0, postT: 0, win: -9, n: 0, hint: '' }, off: false, dummy: false, D: null, post: false, postK: false, a3W: 0, combo: 0, lastMove: '', lastMoveT: -9, ctrl: ctrl, team: t,
+      id: id, arch: a, r: Object.assign({}, a, { badges: a.badges.slice(), sig: Object.assign({}, a.sig) }), h: a.h, sk: { cd: 0, ready: false, streak: 0, postT: 0, win: -9, n: 0, hint: '' }, off: false, dummy: false, D: null, post: false, combo: 0, lastMove: '', lastMoveT: -9, ctrl: ctrl, team: t,
       col: Object.assign({ jersey: pair(t.jersey), shorts: pair(t.shorts), shoe: pair(t.shoe), trim: t.trim, ringCol: t.css }, lookOf(a)),
       x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0, face: Math.PI / 2, speed: 0, stam: 100, hasBall: false, hand: a.lefty ? -1 : 1, handX: a.lefty ? -0.33 : 0.33,
       action: null, stun: 0, cd: 0, boost: 0, stance: false, anim: 'idle', animT: 0, runPh: 0, drib: 0, flash: 0, ring: ctrl !== 'cpu', tk: 0, tkOn: 0, rBase: null, icy: false, mk: 0,
@@ -1470,7 +1470,7 @@
     if (G.mode === 'train') offId = G.train.role === 'def' ? 1 : 0;
     const o = G.players[offId], d = G.players[1 - offId], b = G.ball;
     G.off = offId; G.needClear = false; G.illId = -1; G.shotClock = CFG.shotClock; G.phase = 'check'; G.phaseT = 1.1;
-    for (const p of G.players) { p.vx = p.vy = p.vz = 0; p.z = 0; p.action = null; p.stun = 0; p.hasBall = false; p.stance = false; p.box = false; p.jbuf = 0; p.post = false; p.postK = false; p.a3W = 0; p.boost = 0; p.combo = 0; p.stam = Math.min(100, p.stam + 25); p.ai.t = 0.3; p.ai.jumpAt = -1; p.ai.hold = false; p.ai.comboAt = -1; }
+    for (const p of G.players) { p.vx = p.vy = p.vz = 0; p.z = 0; p.action = null; p.stun = 0; p.hasBall = false; p.stance = false; p.box = false; p.jbuf = 0; p.post = false; p.boost = 0; p.combo = 0; p.stam = Math.min(100, p.stam + 25); p.ai.t = 0.3; p.ai.jumpAt = -1; p.ai.hold = false; p.ai.comboAt = -1; }
     o.x = 0; o.y = 4.4; o.face = Math.PI / 2; o.hasBall = true; o.hand = o.arch.lefty ? -1 : 1; o.handX = 0.33 * o.hand;
     if (!d.off) { d.x = 0; d.y = 6.6; d.face = -Math.PI / 2; } d.ai.hx = o.x; d.ai.hy = o.y;
     b.state = 'held'; b.holder = offId; b.dead = false; b.shot = null; b.lastTouch = offId; b.under = false; b.trail = null; b.wasShot = false; b.slam = null;
@@ -2853,9 +2853,10 @@
       [0.72, { lean: 0.38, lA: 0.75, lB: 0.8, rA: -0.55, rB: 0.85, lS: 0.36, rS: 0.3 }], [1, { lean: 0.3, lA: 0.5, lB: 0.5, rA: -0.2, rB: 0.6, lS: 0.2, rS: 0.15 }]],
     behind: [[0, { lean: 0.28, lA: 0.5, lB: 0.5, rA: -0.3, rB: 0.7, lS: 0.08, rS: 0.08 }], [0.5, { lean: 0.33, lA: -0.25, lB: 0.85, rA: 0.6, rB: 0.45, lS: 0.2, rS: 0.25 }],
       [1, { lean: 0.28, lA: 0.55, lB: 0.5, rA: -0.35, rB: 0.8, lS: 0.3, rS: 0.08 }]],
-    hesi: [[0, { lean: 0.25, lA: 0.4, lB: 0.6, rA: -0.2, rB: 0.6 }], [0.3, { lean: -0.05, lA: 0.12, lB: 0.18, rA: 0.08, rB: 0.22, lS: 0.12, rS: 0.12, aLp: 0.6, aLq: 0.55, aLe: 0.4 }],
-      [0.6, { lean: -0.03, lA: 0.1, lB: 0.2, rA: 0.12, rB: 0.22, lS: 0.12, rS: 0.12, aLp: 0.6, aLq: 0.55, aLe: 0.4 }], [0.8, { lean: 0.52, lA: 0.8, lB: 1.15, rA: -0.5, rB: 0.7, lS: 0.15, rS: 0.1 }],
-      [1, { lean: 0.36, lA: 0.6, lB: 0.6, rA: -0.5, rB: 0.9 }]],
+    hesi: [[0, { lean: 0.2, lA: 0.35, lB: 0.65, rA: 0.1, rB: 0.55, aLp: 0.65, aLq: 0.45, aLe: 0.65, aRp: 0.65, aRq: 0.45, aRe: 0.65 }],
+      [0.36, { lean: -0.08, lA: 0.12, lB: 0.2, rA: 0.24, rB: 0.35, lS: 0.16, rS: 0.18, aLp: 2.15, aLq: 0.24, aLe: 0.48, aRp: 2.15, aRq: 0.24, aRe: 0.48 }],
+      [0.6, { lean: -0.08, lA: 0.12, lB: 0.2, rA: 0.24, rB: 0.35, lS: 0.16, rS: 0.18, aLp: 2.15, aLq: 0.24, aLe: 0.48, aRp: 2.15, aRq: 0.24, aRe: 0.48 }],
+      [1, { lean: 0.24, lA: 0.28, lB: 0.58, rA: 0.2, rB: 0.55, aLp: 0.65, aLq: 0.45, aLe: 0.65, aRp: 0.65, aRq: 0.45, aRe: 0.65 }]],
     inout: [[0, { lean: 0.25, lA: 0.3, lB: 0.5, rA: 0.1, rB: 0.5 }], [0.4, { lean: 0.32, lA: 0.15, lB: 0.65, rA: 0.45, rB: 0.85, lS: 0.5, rS: 0.05, aLp: 0.7, aLq: 0.7 }],
       [0.7, { lean: 0.36, lA: -0.25, lB: 0.7, rA: 0.65, rB: 0.6, rS: 0.38, lS: 0.1 }], [1, { lean: 0.28, lA: 0.5, lB: 0.5, rA: -0.3, rB: 0.7 }]],
     stepback: [[0, { lean: 0.3, lA: 0.8, lB: 0.5, rA: -0.3, rB: 0.6, lS: 0.1, rS: 0.1 }], [0.22, { lean: 0.38, lA: 0.9, lB: 0.8, rA: -0.2, rB: 0.85, aLp: 0.8, aLq: 0.6 }],
@@ -2881,7 +2882,7 @@
       case 'cross': return [lerp(h0 * 0.36, h1 * 0.36, s), 0.38, 0.1 + 0.68 * ab(cs(PI * u))];
       case 'legs': return [lerp(h0 * 0.34, h1 * 0.34, s), 0.06 + 0.3 * ab(2 * u - 1), 0.1 + 0.62 * ab(cs(PI * u))];
       case 'behind': return [lerp(h0 * 0.34, h1 * 0.34, s), 0.25 - 0.58 * Math.sin(PI * u), 0.12 + 0.62 * ab(cs(PI * u))];
-      case 'hesi': return [h0 * 0.38, 0.34, 0.12 + 0.95 * ab(cs(PI * 2 * u))];
+      case 'hesi': { const w = sm(Math.min(u / 0.36, (1 - u) / 0.4, 1)); return [h0 * lerp(0.34, 0.25, w), lerp(0.34, 0.29, w), lerp(0.83, 1.57, w)]; }
       case 'inout': { const o = Math.sin(PI * Math.min(1, u / 0.7)); return [h0 * (0.36 - 0.34 * o), 0.34 + 0.12 * o, 0.12 + 0.66 * ab(cs(PI * 1.5 * u))]; }
       case 'stepback': {
         if (u < 0.45) return [h0 * 0.34, 0.42, 0.1 + 0.68 * ab(cs(PI * u / 0.45))];
@@ -3026,7 +3027,11 @@
     else {
       dx /= l; dy /= l;
       const ls = q.lat >= 0 ? 1 : -1, tight = dd < 1.7 && front > 0.4;
-      if (force === 'postspin' || pl.post) { kind = 'postspin'; const s = Math.abs(q.lat) > 0.3 ? ls : openS; dx = -hy * s * 0.75 + hx * 0.66; dy = hx * s * 0.75 + hy * 0.66; pl.hand = s > 0 ? -1 : 1; }
+      if (force === 'cross' || force === 'stepback' || force === 'inout') {
+        kind = force;
+        if (kind === 'cross') pl.hand = -h0;
+        if (kind === 'inout' && q.fwd < 0.45) { const s = Math.sign(q.lat); dx = hx * 0.72 - hy * s * 0.69; dy = hy * 0.72 + hx * s * 0.69; }
+      } else if (force === 'postspin' || pl.post) { kind = 'postspin'; const s = Math.abs(q.lat) > 0.3 ? ls : openS; dx = -hy * s * 0.75 + hx * 0.66; dy = hx * s * 0.75 + hy * 0.66; pl.hand = s > 0 ? -1 : 1; }
       else {
         // 方向 → 槽位 → 这个人的运球包里这个槽位是什么招
         const latSlot = pl.speed < 1.6 ? 'Ss' : (dd < 1.35 && front > 0.3) ? 'St' : 'S';
@@ -3071,7 +3076,8 @@
     let spH0 = mvx === 'tbb' ? pl.hand : h0; if (kind === 'spin') { const sL = hx * dy - hy * dx; if (Math.abs(sL) > 0.05) pl.hand = sL > 0 ? -1 : 1; spH0 = -pl.hand; }
     pl.action = { type: 'move', kind: kind, cb: cb, t: 0, T: MT, cw: clamp(0.95 - 0.55 * hnd, 0.4, 0.9), dx: dx, dy: dy, sp: sp * (CBk ? CBk.sp : 1), name: CBk ? CBk.name : M.name, mv: mvx, bp: X ? X.bp : null, f0: pl.face, sd: pl.hand, hx: hx, hy: hy, os: openS, h0: spH0, h1: pl.hand, v0x: pl.vx, v0y: pl.vy };
     pl.stam = Math.max(0, pl.stam - CFG.moveCost * M.cost * (CBk ? 1.3 : 1) * (1 + 0.3 * (pl.combo - 1)) * (1 + K.cbCost * pl.dcn) * bk(pl, 'tight', K.bgTightSt) * (tkIs(pl, 'hnd') ? 0.4 : 1) * stamK(pl)); pl.animT = 0; pl.cd = MT + lerp(0.2, 0.02, clamp((hnd - 0.4) / 0.55, 0, 1)); pl.boost = kind === 'hesi' ? MT + 0.7 : 0.75;
-    pl.lastMove = kind; pl.lastMv = mvx || kind; pl.lastMoveT = G.time; pl.post = false; pl.postK = false;
+    pl.lastMove = kind; pl.lastMv = mvx || kind; pl.lastMoveT = G.time; pl.post = false;
+    if (force === 'inout') { pl.action.hesiDrive = true; pl.action.name = '同侧突破'; }
     sfx('squeak');
     if (kind === 'stepback' && skOf(pl, 'luka') && !df.off && dd < 2.4) pl.sk.win = G.time + M.T + 1.0;
     if (kySk) { fireSkill(pl); pl.sk.ky = G.time + M.T + 1.6; }
@@ -3242,6 +3248,27 @@
     if (e >= a.air + a.slide + a.rec) { pl.action = null; pl.recT = G.time + 0.18; pl.landT = G.time; }
   }
 
+  function startHesitation(pl, inp) {
+    startMove(pl, inp, 'hesi');
+    const key = inp.hesi ? 'hesi' : inp.dribble != null ? 'dribble' : 'a3';
+    if (pl.ctrl !== 'cpu' && inp[key]) pl.action.hesiHold = key;
+  }
+  function updateHesitation(pl, a, inp) {
+    if (!a.hesiHold) return false;
+    if (!a.hesiExit && inp[a.hesiHold]) { a.t = Math.min(a.t, a.T * 0.55); return false; }
+    // 提前松手也先读准这一帧左摇杆的方向，再让举球前摇播到峰值。
+    if (!a.hesiExit) a.hesiExit = inDir(pl, inp);
+    if (a.t < a.T * 0.36) return false;
+    a.hesiHold = null;
+    const q = a.hesiExit;
+    if (q.l < 0.3 || pl.stam <= ST.act || inp.post) return false;
+    const kind = q.fwd < -0.45 ? 'stepback' : q.lat * a.h0 > 0.25 ? 'cross' : 'inout';
+    pl.lastMoveT = G.time;
+    startMove(pl, { mx: q.x, my: q.y }, kind);
+    const b = G.ball;
+    b.cT = 0.1; b.cx = b.x; b.cy = b.y; b.cz = b.z;
+    return true;
+  }
   function updateAction(pl, inp, dt) {
     const a = pl.action, df = OP(pl);
     a.t += dt; a.vt = (a.vt || 0) + dt; // vt：执行后真实经过的时间（5V5 接球即投的 cs 加成只加在 a.t 上）
@@ -3348,6 +3375,7 @@
       } else if (a.hang && a.t - a.doneT < a.hang) { pl.z = a.hz + (a.ikz || 0); if (a.hx != null) { pl.x = a.hx + (a.ikx || 0); pl.y = a.hy + (a.iky || 0); } pl.vz = 0; pl.vx = pl.vy = 0; }
       else if (pl.z <= 0) pl.action = null;
     } else if (a.type === 'move') {
+      if (a.kind === 'hesi' && updateHesitation(pl, a, inp)) return;
       const u = clamp(a.t / a.T, 0, 1), kd = a.kind, sp = a.sp;
       let vx, vy;
       if (kd === 'cross' || kd === 'legs' || kd === 'behind') {
@@ -3356,6 +3384,9 @@
         else { const s = (1 - (u - p0) * 0.5) * (kd === 'legs' ? 0.85 : 1); vx = a.dx * sp * s; vy = a.dy * sp * s; }
       } else if (kd === 'hesi') {
         vx = vy = 0;
+      } else if (a.hesiDrive) {
+        const s = sp * (1 - u * 0.4);
+        vx = a.dx * s; vy = a.dy * s;
       } else if (kd === 'inout') {
         const s = u < 0.45 ? 0.8 : -0.4, m = 1 - u * 0.4;
         vx = (a.dx - a.hy * a.os * s) * sp * m; vy = (a.dy + a.hx * a.os * s) * sp * m;
@@ -3515,6 +3546,7 @@
     { if (pl.knock) { pl.knockT += dt; if (pl.knockT >= pl.knockD) { pl.knock = null; pl.knockT = 0; pl.knockD = 0; pl.knockUp = 0; } } const s0 = pl.stun; pl.stun = Math.max(0, pl.stun - dt); if (s0 > 0 && pl.stun <= 0) pl.recT = G.time + lerp(K.akRecLo, K.akRecHi, agil(pl)) + K.akRecHv * heavy(pl); }
     pl.cd = Math.max(0, pl.cd - dt); pl.boost = Math.max(0, pl.boost - dt); pl.flash = Math.max(0, pl.flash - dt);
     const IB = ibOn(pl), raw = inp;
+    if (pl.action && pl.action.hesiHold && (!pl.hasBall || G.phase !== 'live' || G.ball.dead || pl.stun > 0)) pl.action = null;
     if (frozen || pl.stun > 0) inp = { mx: 0, my: 0, sprint: false, a1: frozen ? false : inp.a1, a2: false, a3: false, post: false, dx: 0, dy: 0 };
     // 开了输入缓冲：边沿按原始按键算（硬直中按的键交给缓冲；一直按住穿过硬直不会在结束时凭空多出一次）
     const src = IB && !frozen ? raw : inp;
@@ -3544,26 +3576,22 @@
       }
     } else if (pr.a1 && !pl.hasBall) pl.jbuf = G.time;
     if (pl.hasBall) { const q0 = inDir(pl, inp, true), tok = q0.l < 0.35 ? 'N' : (q0.fwd > 0.4 ? 'F' : q0.fwd < -0.4 ? 'B' : '') + (q0.lat > 0.4 ? 'L' : q0.lat < -0.4 ? 'R' : ''); const H = pl.dh || (pl.dh = []); if (!H.length || H[H.length - 1][0] !== tok) { H.push([tok, G.time]); if (H.length > 10) H.shift(); } }
-    // 运球动作 / 背打（同一个键：带方向=运球动作，轻点=犹豫步，按住=背打）
+    // 运球键起手不推方向时进入犹豫步；背打由独立按键控制。
     if (pl.hasBall && !pl.action && !frozen && pl.stun <= 0 && G.phase === 'live') {
       const q = inDir(pl, inp, true), can = pl.cd <= 0 && pl.stam > ST.act;
       if (pr.a3 && pl.cd <= 0 && pl.stam <= ST.act && !pl.post) noGas(pl, '没体力');
       if (pr.a3) {
-        if (pl.post) { if (q.l > 0.3 && can) startMove(pl, inp, 'postspin'); }
-        else if (q.l > 0.3) { const P = finPlan(pl); if (inp.sprint && P.dunk && P.fv > 2) { const st = q.fwd > 0.55 ? 'two' : q.fwd < -0.2 ? 'flashy' : 'side'; startDunk(pl, P, 'a3', st, q.lat >= 0 ? 1 : -1); } else if ((P.inside || P.back) && P.fv > 2 && (P.lay || P.flo) && startFinish(pl, inp, 'stick', 'a3')) { } else if (can) startMove(pl, inp); }
-        else pl.a3W = 0.0001;
-      } else if (pl.a3W > 0) {
-        if (!inp.a3) { pl.a3W = 0; if (can) startMove(pl, inp, 'hesi'); }
-        else { pl.a3W += dt; if (q.l > 0.3 && pl.a3W < 0.2) { pl.a3W = 0; if (can) startMove(pl, inp); } else if (pl.a3W >= 0.2) { pl.a3W = 0; pl.postK = true; } }
+        if (pl.post || inp.post) { if (q.l > 0.3 && can && !inp.hesi) startMove(pl, inp, 'postspin'); }
+        else if (inp.hesi || q.l <= 0.3) { if (can && pl.z <= 0.05) startHesitation(pl, inp); }
+        else { const P = finPlan(pl); if (inp.sprint && P.dunk && P.fv > 2) { const st = q.fwd > 0.55 ? 'two' : q.fwd < -0.2 ? 'flashy' : 'side'; startDunk(pl, P, 'a3', st, q.lat >= 0 ? 1 : -1); } else if ((P.inside || P.back) && P.fv > 2 && (P.lay || P.flo) && startFinish(pl, inp, 'stick', 'a3')) { } else if (can) startMove(pl, inp); }
       }
       if (!pl.action) {
         const was = pl.post;
-        if (!inp.a3) pl.postK = false;
-        pl.post = !!(inp.post || (pl.postK && inp.a3));
+        pl.post = !!inp.post;
         if (pl.post && !was) { float('背打', pl, '#f6efe0'); }
         if (was && !pl.post && q.l > 0.3 && Math.abs(q.lat) > 0.5 && can) startMove(pl, inp, 'postspin');
       }
-    } else if (!pl.hasBall || frozen || pl.stun > 0) { pl.post = false; pl.a3W = 0; pl.postK = false; }
+    } else if (!pl.hasBall || frozen || pl.stun > 0) { pl.post = false; }
     // 输入缓存：运球动作进行中按的键记住 0.35 秒；动作过半就能直接接下一招（连招 / 运球接投篮）
     // 只缓存"动作进行中"新按的键（刚由这一下触发的动作不再重复缓存），并记住按下那一刻的方向，接招时按当时推的方向出，不会变成别的动作
     if (pl.hasBall && pl.action && pl.action.type === 'move' && pl.action.t > 0 && (pr.a1 || pr.a2 || pr.a3)) { const q0 = inDir(pl, inp, true); pl.buf = { a1: pr.a1, a2: pr.a2, a3: pr.a3, t: G.time, x: q0.x, y: q0.y, l: q0.l }; }
@@ -3700,7 +3728,7 @@
     const gs = pl.ghosts || (pl.ghosts = []);
     for (const g of gs) g.t += dt; while (gs.length && gs[0].t > 0.22) gs.shift();
     pl.ghT = (pl.ghT || 0) - dt;
-    const gh = a && (a.type === 'move' || a.inSteps || (a.type === 'dunk' && !a.done) || (a.type === 'layup' && (a.v === 'euro' || a.v === 'reverse') && pl.z > 0));
+    const gh = a && ((a.type === 'move' && a.kind !== 'hesi') || a.inSteps || (a.type === 'dunk' && !a.done) || (a.type === 'layup' && (a.v === 'euro' || a.v === 'reverse') && pl.z > 0));
     if (gh && pl.ghT <= 0) { pl.ghT = 0.045; gs.push({ x: pl.x, y: pl.y, z: pl.z, face: pl.face, pose: Object.assign({}, P), t: 0 }); if (gs.length > 5) gs.shift(); }
     // 终结提示
     pl.cue = null;
@@ -4019,7 +4047,7 @@
         if (a) {
           const bp = movePath(a, clamp(a.t / a.T, 0, 1)), lx = bp[0] * Hh, ly = bp[1] * Hh;
           b.x = pl.x + fy * lx + fx * ly; b.y = pl.y - fx * lx + fy * ly; b.z = Math.max(0.13, bp[2] * Hh + (a.kind === 'stepback' && a.t / a.T > 0.45 ? pl.z : 0));
-          const ph = Math.cos(Math.PI * (a.kind === 'hesi' ? 2 : a.kind === 'inout' ? 1.5 : 1) * a.t / a.T); if (a.lastPh != null && a.lastPh * ph < 0 && b.z < 0.4) sfx('bounce'); a.lastPh = ph;
+          const ph = Math.cos(Math.PI * (a.kind === 'inout' ? 1.5 : 1) * a.t / a.T); if (a.lastPh != null && a.lastPh * ph < 0 && b.z < 0.4) sfx('bounce'); a.lastPh = ph;
         } else {
           // 原地 / 跑动运球：球的水平位置跟着运球那只手（骨骼手的位置），换手时在两手之间过渡；被身体挡住就挡住
           const k = PH.rig(pl), w = clamp((pl.handX / 0.33 + 1) / 2, 0, 1), fw = pl.post ? 0.02 : 0.06;
@@ -4177,7 +4205,7 @@
     inout: { a0: 'kyrie', y: 5.0, gap: 2.1, T: 2.2, s0: SEQ([TAP(0.5, { m: 'F' }), [0.56, 2.2, { m: 'F', sp: 1 }]]) },
     spin: { a0: 'kyrie', y: 5.4, gap: 1.1, T: 2.2, s0: SEQ([TAP(0.5, { m: 'F' }), [0.56, 2.2, { m: 'F', sp: 1 }]]) },
     stepback: { a0: 'luka', y: 5.8, gap: 1.2, T: 2.6, mk: 1, s0: SEQ([TAP(0.5, { m: 'B' }), [1.0, 2.6, PF()]]) },
-    hesi: { a0: 'kyrie', y: 5.2, gap: 1.6, T: 2.4, s0: SEQ([[0.5, 0.55, { a3: true }], [1.0, 2.4, { m: 'F', sp: 1 }]]) },
+    hesi: { a0: 'kyrie', y: 5.2, gap: 1.6, T: 2.4, s0: SEQ([[0.5, 1.02, { a3: true }], [0.8, 2.4, { m: 'FL' }]]) },
     dbl: { a0: 'kyrie', y: 5.4, gap: 1.5, T: 2.6, s0: SEQ([[0.4, 0.5, { m: 'R' }], [0.5, 0.6, { m: 'L' }], TAP(0.6, { m: 'R' }), [0.66, 2.6, { m: 'FR', sp: 1 }]]) },
     sham: { a0: 'kyrie', y: 5.4, gap: 1.5, T: 2.6, s0: SEQ([[0.4, 0.5, { m: 'R' }], [0.5, 0.6, { m: 'L' }], TAP(0.6, { m: 'F' }), [0.66, 2.6, { m: 'FL', sp: 1 }]]) },
     snatch: { a0: 'luka', y: 5.6, gap: 1.3, T: 2.8, mk: 1, s0: SEQ([[0.4, 0.5, { m: 'R' }], [0.5, 0.6, { m: 'L' }], TAP(0.6, { m: 'BL' }), [1.2, 2.8, PF()]]) },
@@ -4194,9 +4222,9 @@
     hop: { a0: 'giannis', x: 0.5, y: 6.0, dm: 'none', T: 3.0, mk: 1, s0: SEQ([[0.1, 3, { m: 'F' }], [0.1, 3, (t, pl, o, S) => S.go || (distHoop(pl) < 4.8 && (S.go = 1)) ? Object.assign({ d: 'L' }, PF('a3')(t, pl)) : {}]]) },
     euro: { a0: 'giannis', x: -0.5, y: 6.0, dm: 'none', T: 3.0, mk: 1, s0: SEQ([[0.1, 3, { m: 'F' }], [0.1, 3, (t, pl, o, S) => S.go || (distHoop(pl) < 4.8 && (S.go = 1)) ? Object.assign({ d: 'BR' }, PF('a3')(t, pl)) : {}]]) },
     floater: { a0: 'maxey', y: 6.4, dm: 'none', T: 3.0, mk: 1, s0: SEQ([[0.1, 3, { m: 'F', sp: 1 }], [0.1, 3, (t, pl, o, S) => S.go || (distHoop(pl) < 4.8 && (S.go = 1)) ? Object.assign({ d: 'B' }, PF('a3')(t, pl)) : {}]]) },
-    post: { a0: 'shaq', x: 1.2, y: 8.6, gap: 0.9, T: 3.0, s0: SEQ([[0.3, 3, { a3: true }], [0.62, 3, { m: 'F' }]]) },
-    hook: { a0: 'sengun', x: 1.2, y: 8.6, gap: 0.9, T: 3.2, mk: 1, s0: SEQ([[0.3, 3.2, { a3: true }], [0.62, 1.7, { m: 'F' }], [1.75, 3.2, PF()]]) },
-    postfade: { a0: 'kobe', x: 2.0, y: 8.8, gap: 0.7, T: 3.0, mk: 1, s0: SEQ([[0.3, 3.0, { a3: true }], [0.62, 0.9, { m: 'F', ms: 0.6 }], [1.0, 3.0, { m: 'B' }], [1.0, 3.0, PF()]]) },
+    post: { a0: 'shaq', x: 1.2, y: 8.6, gap: 0.9, T: 3.0, s0: SEQ([[0.3, 3, { post: true }], [0.62, 3, { m: 'F' }]]) },
+    hook: { a0: 'sengun', x: 1.2, y: 8.6, gap: 0.9, T: 3.2, mk: 1, s0: SEQ([[0.3, 3.2, { post: true }], [0.62, 1.7, { m: 'F' }], [1.75, 3.2, PF()]]) },
+    postfade: { a0: 'kobe', x: 2.0, y: 8.8, gap: 0.7, T: 3.0, mk: 1, s0: SEQ([[0.3, 3.0, { post: true }], [0.62, 0.9, { m: 'F', ms: 0.6 }], [1.0, 3.0, { m: 'B' }], [1.0, 3.0, PF()]]) },
     'sk-curry': { a0: 'curry', y: 3.8, gap: 1.0, dm: 'hands', T: 4.2, mk: 1, init: (pl) => { pl.sk.ready = true; }, s0: SEQ([[0.4, 4.2, PF()]]) },
     'sk-kyrie': { a0: 'kyrie', y: 5.4, gap: 1.4, T: 4.4, mk: 1, s0: SEQ([TAP(0.4, { m: 'R' }), TAP(0.85, { m: 'L' }), TAP(0.95, { m: 'L' }), [1.05, 1.75, { m: 'FL', sp: 1 }], [1.75, 1.85, { a1: true }]]) },
     'sk-kobe': { a0: 'kobe', x: 1.5, y: 7.8, gap: 0.8, dm: 'hands', T: 4.2, mk: 1, s0: SEQ([[0.4, 4.2, { m: 'B' }], [0.4, 4.2, PF()]]) },
@@ -4205,7 +4233,7 @@
       s0: SEQ([[0.1, 4.4, (t, pl, o) => ({ to: [o.x + 0.75, o.y + 0.3], sp: 1 })], [0.1, 4.4, (t, pl, o, S) => S.j || (o.action && o.action.type === 'layup' && !o.action.inSteps && o.action.t >= (o.action.ideal || 0) - 0.22 && (S.j = 1)) ? { a1: true } : {}]]),
       s1: SEQ([[0.1, 4.4, { m: 'F', sp: 1 }], [0.1, 4.4, (t, pl, o, S) => S.g1 || (distHoop(pl) < 4.4 && (S.g1 = 1)) ? PF()(t, pl) : {}]]) },
     'sk-giannis': { a0: 'giannis', y: 4.2, T: 4.4, mk: 1, dm: 'stand', p1: [0.4, 10.9], s0: SEQ([[0.1, 4.4, { m: 'F', sp: 1 }], [0.1, 4.4, (t, pl, o, S) => S.go || (distHoop(pl) < 7.4 && (S.go = 1)) ? { a1: true } : {}]]) },
-    'sk-shaq': { a0: 'shaq', x: 1.0, y: 8.4, gap: 0.9, T: 4.8, mk: 1, s0: SEQ([[0.3, 4.8, (t, pl, o, S) => S.k ? { a2: true, a3: true } : (pl.sk.postT >= 0.65 && distHoop(pl) < 3.8 ? ((S.k = 1), { a2: true, a3: true }) : { a3: true, m: t > 0.62 ? 'F' : '' })]]) },
+    'sk-shaq': { a0: 'shaq', x: 1.0, y: 8.4, gap: 0.9, T: 4.8, mk: 1, s0: SEQ([[0.3, 4.8, (t, pl, o, S) => S.k ? { a2: true, post: true } : (pl.sk.postT >= 0.65 && distHoop(pl) < 3.8 ? ((S.k = 1), { a2: true, post: true }) : { post: true, m: t > 0.62 ? 'F' : '' })]]) },
   };
   // 新招的演示：按这个球员运球包里该招所在的槽位自动生成按键序列
   function mvTip(id, slot, a0) {

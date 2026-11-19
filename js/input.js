@@ -3,11 +3,11 @@
   const PH = (window.PH = window.PH || {});
   const keys = {}, latch = {};
   const MAPS = [
-    { up: ['KeyW'], down: ['KeyS'], left: ['KeyA'], right: ['KeyD'], sprint: ['ShiftLeft'], a1: ['KeyJ', 'Space'], a2: ['KeyK'], a3: ['KeyL'] },
-    { up: ['ArrowUp'], down: ['ArrowDown'], left: ['ArrowLeft'], right: ['ArrowRight'], sprint: ['Numpad0', 'ShiftRight'], a1: ['Numpad1', 'Comma'], a2: ['Numpad2', 'Period'], a3: ['Numpad3', 'Slash'] },
+    { up: ['KeyW'], down: ['KeyS'], left: ['KeyA'], right: ['KeyD'], sprint: ['ShiftLeft'], a1: ['KeyJ', 'Space'], a2: ['KeyK'], a3: ['KeyL'], post: ['KeyQ'] },
+    { up: ['ArrowUp'], down: ['ArrowDown'], left: ['ArrowLeft'], right: ['ArrowRight'], sprint: ['Numpad0', 'ShiftRight'], a1: ['Numpad1', 'Comma'], a2: ['Numpad2', 'Period'], a3: ['Numpad3', 'Slash'], post: ['KeyO'] },
   ];
   const SOLO_EXTRA = { up: ['ArrowUp'], down: ['ArrowDown'], left: ['ArrowLeft'], right: ['ArrowRight'] };
-  const touch = { mx: 0, my: 0, a1: false, a2: false, a3: false, sprint: false, on: false };
+  const touch = { mx: 0, my: 0, a1: false, a2: false, a3: false, alt: false, sprint: false, on: false };
   const sys = {};
 
   window.addEventListener('keydown', (e) => {
@@ -35,7 +35,8 @@
     if (held(m.right) || (solo && held(SOLO_EXTRA.right))) mx += 1;
     if (held(m.up) || (solo && held(SOLO_EXTRA.up))) my += 1;
     if (held(m.down) || (solo && held(SOLO_EXTRA.down))) my -= 1;
-    const o = { mx: mx, my: my, sprint: held(m.sprint), a1: held(m.a1), a2: held(m.a2), a3: held(m.a3), post: false, dx: 0, dy: 0 };
+    const a3 = held(m.a3);
+    const o = { mx: mx, my: my, sprint: held(m.sprint), a1: held(m.a1), a2: held(m.a2), a3: a3, dribble: a3, post: onOffense && held(m.post), dx: 0, dy: 0 };
     const gp = lock.on ? null : pads()[slot];
     if (gp) {
       const ax = gp.axes[0] || 0, ay = gp.axes[1] || 0;
@@ -43,7 +44,7 @@
       const B = (i) => !!(gp.buttons[i] && (gp.buttons[i].pressed || ((i === 6 || i === 7) && gp.buttons[i].value > 0.3)));
       if (B(14)) o.mx = -1; if (B(15)) o.mx = 1; if (B(12)) o.my = 1; if (B(13)) o.my = -1;
       if (B(7) || B(5)) o.sprint = true;
-      if (onOffense) { if (B(2)) o.a1 = true; if (B(3)) o.a2 = true; if (B(0) || B(1)) o.a3 = true; if (B(6) || B(4)) o.post = true; }
+      if (onOffense) { if (B(2)) o.a1 = true; if (B(3)) o.a2 = true; if (B(0) || B(1)) o.a3 = o.dribble = true; if (B(6) || B(4)) o.post = true; }
       else { if (B(3)) o.a1 = true; if (B(2)) o.a2 = true; if (B(6) || B(4) || B(0)) o.a3 = true; }
       const rx = gp.axes[2] || 0, ry = gp.axes[3] || 0;
       if (onOffense && Math.hypot(rx, ry) > 0.6) { o.a3 = true; o.dx = rx; o.dy = -ry; }
@@ -51,6 +52,7 @@
     if (slot === 0 && touch.on) {
       if (Math.hypot(touch.mx, touch.my) > 0.2) { o.mx = touch.mx; o.my = touch.my; }
       o.a1 = o.a1 || touch.a1; o.a2 = o.a2 || touch.a2; o.a3 = o.a3 || touch.a3; o.sprint = o.sprint || touch.sprint;
+      if (onOffense) { o.dribble = o.dribble || touch.a3; o.post = o.post || touch.alt; }
     }
     const l = Math.hypot(o.mx, o.my); if (l > 1) { o.mx /= l; o.my /= l; }
     return o;
@@ -58,7 +60,7 @@
   // V3.9 5V5：原始按键（Xbox 默认布局，完全对照 2K）。键盘镜像：WASD=左摇杆 方向键=右摇杆 J/空格=X K=A L=B I=Y Q=LT E=RB R=LB 左Shift=RT
   const K5 = { X: ['KeyJ', 'Space'], A: ['KeyK'], B: ['KeyL'], Y: ['KeyI'], LT: ['KeyQ'], RB: ['KeyE'], LB: ['KeyR'], RT: ['ShiftLeft'] };
   function read5() {
-    const o = { lx: 0, ly: 0, rx: 0, ry: 0, A: false, B: false, X: false, Y: false, LB: false, RB: false, LT: false, RT: false, menu: false, view: false, dU: false, dD: false, dL: false, dR: false, pad: false };
+    const o = { lx: 0, ly: 0, rx: 0, ry: 0, A: false, B: false, X: false, Y: false, LB: false, RB: false, LT: false, RT: false, hesi: held(['KeyH']), menu: false, view: false, dU: false, dD: false, dL: false, dR: false, pad: false };
     if (held(['KeyA'])) o.lx -= 1; if (held(['KeyD'])) o.lx += 1; if (held(['KeyW'])) o.ly += 1; if (held(['KeyS'])) o.ly -= 1;
     if (held(['ArrowLeft'])) o.rx -= 1; if (held(['ArrowRight'])) o.rx += 1; if (held(['ArrowUp'])) o.ry += 1; if (held(['ArrowDown'])) o.ry -= 1;
     for (const k in K5) if (held(K5[k])) o[k] = true;
@@ -71,11 +73,13 @@
       if (Math.hypot(rx, ry) > 0.35) { o.rx = rx; o.ry = -ry; }
       const N = ['A', 'B', 'X', 'Y', 'LB', 'RB', 'LT', 'RT', 'view', 'menu'];
       for (let i = 0; i < N.length; i++) if (B(i)) o[N[i]] = true;
+      o.hesi = o.hesi || B(11);
       o.dU = B(12); o.dD = B(13); o.dL = B(14); o.dR = B(15);
     }
     if (touch.on) {
       if (Math.hypot(touch.mx, touch.my) > 0.2) { o.lx = touch.mx; o.ly = touch.my; }
       if (touch.a1) o.X = true; if (touch.a2) o.A = true; if (touch.a3) o.LT = true; if (touch.sprint) o.RT = true;
+      o.hesi = o.hesi || touch.alt;
     }
     const l = Math.hypot(o.lx, o.ly); if (l > 1) { o.lx /= l; o.ly /= l; }
     return o;
