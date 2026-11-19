@@ -1949,6 +1949,7 @@
       a.released = true; a.done = true; a.doneT = a.t;
       if (a.meter) { a.meter.done = true; a.meter.color = '#ff5a4a'; }
       blkReact(df, sh, kind); cold(sh.id);
+      if (G.lastShot === info && info.hc0 != null) sh.hc = Math.max(-3, Math.min(0, info.hc0) - 1);   // 已按命中记过手感的出手被盖：改记为不中
       Object.assign(info, { blocked: true, made: false, tl: '—', reason: '被盖帽：防守手接触到球' });
       if (G.lastShot !== info) publishShot(info); else trainLog(info);
       return true;
@@ -1977,7 +1978,7 @@
     b.state = 'loose'; b.holder = -1; b.x = from.x; b.y = from.y; b.z = from.z; b.vx = vx; b.vy = vy; b.vz = vz; b.noPick = 0.22; b.dead = false; b.shot = null; b.lastTouch = last; b.under = false; b.trail = null; b.lk = null; b.pin = null; b.slam = null;
   }
   let shotSeq = 0;
-  function publishShot(info) { info.id = ++shotSeq; info.time = G.time; G.lastShot = info; trainLog(info); const p = G.players[info.who]; if (p) { p.hc = info.made ? Math.min(3, Math.max(0, p.hc || 0) + 1) : Math.max(-3, Math.min(0, p.hc || 0) - 1); playResult(p, info); scoutRec(p, methodOf(p, info), info.made ? 1 : -0.8); } }
+  function publishShot(info) { info.id = ++shotSeq; info.time = G.time; G.lastShot = info; trainLog(info); const p = G.players[info.who]; if (p) { info.hc0 = p.hc || 0; p.hc = info.made ? Math.min(3, Math.max(0, p.hc || 0) + 1) : Math.max(-3, Math.min(0, p.hc || 0) - 1); playResult(p, info); scoutRec(p, methodOf(p, info), info.made ? 1 : -0.8); } }
   // ---------- 球探：电脑记住你最近几回合靠什么得分，下回合提前针对（猜错了反而更好打）----------
   function methodOf(p, info) {
     const mv = G.time - (p.lastMoveT || -9) < 2.2 ? p.lastMove : '', a = p.action;
