@@ -1074,7 +1074,8 @@
   function rig(pl, P = pl.pose, grip = true, body) {
     // 卡通化体型：身高差放大 1.7 倍，宽度/臂展按球员体型
     const C = pl.col || {}, bw = C.bw || 1, wg = C.wing || 1;
-    const Hh = body ? 1 + (body.height / 1.95 - 1) * 1.55 : 1 + (pl.h / 1.95 - 1) * 1.7;
+    const height = body && pl.h === body.baseHeight ? body.height : pl.h;
+    const Hh = 1 + (height / 1.95 - 1) * (body ? 1.55 : 1.7);
     // 像素风头身比（约 1:4.5）：大头、短躯干、短腿
     const legs = body ? body.legs : 1, armLength = body ? body.arm : wg, fb = Math.max(0.6, 1 + 1.5 * (bw - 1));
     const th = 0.41 * Hh * legs, sh = th, to = 0.48 * Hh - 0.82 * Hh * (legs - 1), ua0 = 0.28 * Hh * armLength, fa0 = 0.26 * Hh * armLength;

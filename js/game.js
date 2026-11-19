@@ -1385,7 +1385,7 @@
       const [inches, pounds, span, hand] = m, height = inches * 0.0254;
       const build = clamp((pounds * 0.45359237 / (height * height) - 25.4) * 0.091 + (sig.build || 0), -0.36, 0.55);
       const shoulder = (1 + 0.43 * build) * (sig.shoulder || 1);
-      look.body = { height, shoulder, chest: 1 + 0.76 * build, waist: 1 + 0.65 * build, hip: 1 + 0.32 * build,
+      look.body = { height, baseHeight: a.h, shoulder, chest: 1 + 0.76 * build, waist: 1 + 0.65 * build, hip: 1 + 0.32 * build,
         arm: span ? clamp(1 + 1.65 * (span / inches - 1.047) - 0.2 * (shoulder - 1), 0.87, 1.17) : look.wing,
         legs: sig.legs || clamp(1 + (inches - 78) * 0.002 - build * 0.06, 0.96, 1.04),
         limb: 1 + 0.84 * build, hand: hand ? clamp(hand / (0.11 * inches), 0.84, 1.18) : 1 };

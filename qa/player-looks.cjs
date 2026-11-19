@@ -48,6 +48,22 @@ assert(look('kawhi').body.hand > curry.body.hand);
 assert(look('harden').beard === 'long' && look('kawhi').style === 'braids');
 console.log('PASS every rostered player renders; 302 measured-height profiles, signature looks, original gameplay rig and held-ball wrist anchors');
 
+game.newGame({ mode: 'train', arch0: 'luka', arch1: 'curry' });
+for (const p of game.G.players) {
+  const base = p.h, listed = p.col.body.height;
+  assert.notEqual(base, listed);
+  const heightScale = h => 1 + (h / 1.95 - 1) * 1.55;
+  const headZ = () => render.drawPlayer(p).k.head[2];
+  const initial = headZ();
+  for (const h of [1.7, 2.25]) {
+    p.h = h;
+    assert(Math.abs(headZ() / initial - heightScale(h) / heightScale(listed)) < 1e-9, p.arch.key);
+  }
+  p.h = base;
+  assert.equal(headZ(), initial, p.arch.key);
+}
+console.log('PASS training player and dummy resize with height overrides and restore their listed visuals at default');
+
 T5.start({ home: 'LAL', away: 'GSW', human: -1 });
 assert.equal(game.G.players.length, 10);
 for (const p of game.G.players) {
