@@ -1138,7 +1138,7 @@
     lebron: A({ key: 'lebron', tier: 'star', name: '詹姆斯', full: '勒布朗·詹姆斯', pos: '小前锋', num: 23, desc: '全能怪兽，冲击篮筐与追身大帽', h: 2.06, bw: 1.38, wing: 1.04,
       three: 0.76, mid: 0.78, lay: 0.96, dunk: 0.95, spd: 0.9, acc: 0.86, hnd: 0.85, str: 0.97, def: 0.82, blk: 0.78, stl: 0.72, vert: 0.88, sta: 0.88,
       badges: ['bully', 'poster', 'clamps', 'motor'], skin: '#7a4a2e', hair: '#120c08', style: 'buzz', beard: 'full', band: '#f4f0e0',
-      skill: { id: 'lebron', name: '追身大帽', en: 'THE BLOCK', cond: '防守时对手起步上篮/扣篮那一刻你在他身后 ≥1.8 米，追上去（自动提速）并起跳封盖', eff: '必定盖帽，把球钉在篮板上' } }),
+      skill: { id: 'lebron', name: '追身大帽', en: 'THE BLOCK', cond: '防守时对手起步上篮/扣篮那一刻你在他身后 ≥1.8 米，追上去（自动提速）并起跳封盖', eff: '手碰到球即必定盖帽，把球钉在篮板上' } }),
     giannis: A({ key: 'giannis', tier: 'star', name: '字母哥', full: '扬尼斯·阿德托昆博', pos: '大前锋', num: 7, desc: '希腊怪兽，两步从三分线冲到篮下', h: 2.11, bw: 0.96, wing: 1.16,
       three: 0.5, mid: 0.62, lay: 0.93, dunk: 0.99, spd: 0.88, acc: 0.8, hnd: 0.7, str: 0.93, def: 0.85, blk: 0.88, stl: 0.65, vert: 0.9, sta: 0.85,
       badges: ['poster', 'launch', 'acrobat', 'rim'], skin: '#5e3c2a', hair: '#0f0b08', style: 'short', beard: 'stubble',

@@ -175,6 +175,20 @@ for (const kind of ['dunk', 'lay']) {
 }
 console.log('PASS block multipliers: dunk double tap has no effect; double-coverage layup boost retained');
 
+{
+  const ctx = load();
+  const source = fs.readFileSync(path.join(root, 'js/main.js'), 'utf8');
+  new vm.Script(source, { filename: 'main.js' });
+  ctx.GM = ctx.PH.game;
+  ctx.IC = { svg: () => '', has: () => false };
+  const help = source.slice(source.indexOf('  const K = (t, c)'), source.indexOf('  let helpTab ='));
+  vm.runInContext(help + '\nwindow.helpHTML = helpBody("moves");', ctx);
+  for (const text of ['投篮键（三分线内外）', '盖帽判定', '身体对抗与体力', '灵活度', '进攻节奏博弈']) assert(ctx.helpHTML.includes(text), `missing help group: ${text}`);
+  for (const key of ['lebron', 'gobert', 'wemby', 'ad']) assert(ctx.GM.ARCH[key].skill.eff.startsWith('手碰到球即必定盖帽'));
+  assert(ctx.GM.ARCH.lebron.skill.eff.endsWith('，把球钉在篮板上'));
+  console.log('PASS help: main.js parses, moves help builds with early/middle/final groups; four skill descriptions require hand-ball contact');
+}
+
 function cpuRuns(baseline) {
   const ctx = load(baseline), gm = ctx.PH.game;
   let blocks = 0, attempts = 0;
