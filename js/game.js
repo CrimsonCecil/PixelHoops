@@ -1760,11 +1760,19 @@
   // 灵活度 / 吨位：被晃、被过之后转身快慢、滑出多远、多久能重新起步
   const agil = (p) => clamp(0.5 * p.r.acc + 0.3 * p.r.spd + 0.2 * p.r.def, 0, 1);
   const heavy = (p) => clamp(((p.r.bw || 1) - 0.85) / 0.95, 0, 1);
-  function tryBlock(sh, df, kind, mul, chM) {
-    if (df.off || !(df.action && df.action.type === 'block' && df.z > 0.18)) return false;
+  function blockContact(df, ballPos) {
+    const k = PH.rig(df), allowance = PH.render.BALL_R + 0.12;
+    return [k.handL, k.handR].some((h) => Math.hypot(h[0] - ballPos.x, h[1] - ballPos.y, h[2] - ballPos.z) <= allowance);
+  }
+  function tryBlock(sh, df, kind, mul, chM, ballPos, attempt, edge) {
+    if (df.off || df.stun > 0 || !(df.action && df.action.type === 'block' && df.z > 0.18)) return false;
+    if (!blockContact(df, ballPos)) return false;
+    const rolls = attempt.blockRolls || (attempt.blockRolls = {});
+    if (rolls[df.id]) return false;
+    rolls[df.id] = true;
     const dx = df.x - sh.x, dy = df.y - sh.y, dd = Math.hypot(dx, dy);
     // V4.3 封堵对抗：追身 / 技能封盖也按对抗差值打折（chM）
-    if (df.action.chase && dd < K.bChase) { if (chM != null && !df.action.rimB && rnd() >= chM) return false; if (!blkReach(sh, df, K.bChaseLim)) return false; df.action.chaseHit = true; return true; }
+    if (df.action.chase && dd < K.bChase) return chM == null || df.action.rimB || rnd() < chM;
     if (dd > K.bRange) return false;
     const h = hoopDir(sh);
     if (dd > 0.3 && (dx * h.x + dy * h.y) / dd < K.bFront) return false;
@@ -1779,31 +1787,57 @@
     if (df.seal > G.time) pk *= K.bkSeal;
     if (tkIs(sh, 'finish') && kind !== 'shot') pk *= K.bkTkFin;
     if (tkIs(df, 'def')) pk *= K.bkTkDef;
-    return rnd() < ch * pk && blkReach(sh, df, K.bLim);
-  }
-  // V3.6：盖帽必须手碰到球。算盖帽人离球最近的那只手：差得太远（隔空）就盖不到；差一点就把人“吸”过去让手正好拍在球上
-  function blkReach(sh, df, lim) {
-    const hp = handPos(sh), near = () => { const k = PH.rig(df); let best = null, bd = 1e9; for (const h of [k.handL, k.handR]) { const d = Math.hypot(h[0] - hp.x, h[1] - hp.y, h[2] - hp.z); if (d < bd) { bd = d; best = h; } } return [best, bd]; };
-    let [best, bd] = near();
-    if (bd > lim) return false;
-    // 先把手臂直接摆到球的位置（插屏定格时也能看到手拍在球上），够不到的部分再把人吸过去
-    reachTo(df, hp, K.bkArmR, K.bkArmT);
-    [best, bd] = near();
-    if (bd > K.bkSnap) {
-      let mx = hp.x - best[0], my = hp.y - best[1]; const ml = Math.hypot(mx, my), cap = K.bkSnapCap; if (ml > cap) { mx *= cap / ml; my *= cap / ml; }
-      // V3.9r 高度对齐：允许把起跳抬到本次起跳的最高点（+0.1），手到不了球的高度就不算盖到
-      const zTop = Math.max(df.z + K.bLift, (df.action.zmax || 0) + K.bPeak), x0 = df.x, y0 = df.y, z0 = df.z;
-      df.x += mx; df.y += my; df.z = clamp(df.z + hp.z - best[2], Math.max(0.05, df.z - K.bkSnapDn), zTop);
-      [best, bd] = near();
-      if (best[2] < hp.z - K.bTol) { df.x = x0; df.y = y0; df.z = z0; return false; }
-      if (df.z > z0 + 0.05 && df.vz < 0) df.vz = 0;
+    const chance = clamp(ch * pk, 0, 1), roll = rnd();
+    const escape = kind !== 'shot' && edge > 0 ? Math.min(K.ctEscMax, edge * K.ctEsc) : 0;
+    if (roll < chance && roll >= chance * (1 - escape)) {
+      if (kind === 'dunk') attempt.esc = true;
+      else attempt.blockEscape = sh.r.hnd >= sh.r.str || hasB(sh, 'acrobat') ? 'switch' : 'bump';
+      return false;
     }
-    // 不能贴地盖帽：判定时还没跳起来就把起跳对齐到至少 60% 高度（插屏定格内完成），手臂继续指向球
-    if (df.action.zmax && df.z < K.bMinZ * df.action.zmax) { df.z = K.bMinZ * df.action.zmax; if (df.vz < 0) df.vz = 0; reachTo(df, hp, K.bkArmR, K.bkArmT); }
-    df.action.ikB = { x: hp.x, y: hp.y, z: hp.z, t: G.time };
-    return true;
+    return roll < chance * (1 - escape);
   }
-  function handPos(pl) { const k = PH.rig(pl), a = pl.action, hd = a && ((lHand(a) < 0 && (a.type === 'layup' || a.type === 'dunk' || (a.type === 'shot' && a.V && a.V.hook))) || (a.type === 'shot' && a.lefty)) ? k.handL : k.handR; return { x: hd[0], y: hd[1], z: hd[2] + 0.1 }; }
+  function contactBlock(sh, a, hp, kind, info) {
+    if (a.skill || a.sk || a.blocked) return false;
+    for (const df of G.players) {
+      if (df === sh || TM(df) === TM(sh)) continue;
+      const inside = kind !== 'shot', edge = inside ? finEdge(sh, df, a, kind === 'dunk', true) : 0;
+      const c = contestInfo(sh, df, inside ? 'in' : 'shot').c;
+      const bm = inside ? K.ctBlkS * clamp(1 - K.ctBlkE * edge, K.ctBlkLo, K.ctBlkHi) * (kind === 'lay' && c >= 0.5 ? K.ctBlkH : 1) * (a.dbl ? K.ctBlkD : 1) : 1;
+      const mul = bm * (a.V ? a.V.blk : 1) * (kind === 'shot' && a.F && !a.V.hook ? a.F.blk : 1);
+      if (!tryBlock(sh, df, kind, mul, inside ? Math.min(1, bm * K.ctChase) : null, hp, a, edge)) continue;
+      a.blocked = true;
+      df.action.contactPose = Object.assign({}, df.pose);
+      G.ball.x = hp.x; G.ball.y = hp.y; G.ball.z = hp.z;
+      if (df.action.chase) fireSkill(df);
+      if (!info) {
+        G.stats[sh.id].fga++; G.stats[sh.id].ina++;
+        info = { who: sh.id, name: a.name || a.V.name, pts: 2, dist: distHoop(sh), contest: c, zone: 'lay', green: false, prob: 0 };
+      }
+      blockBall(df, sh, hp, blockFx(df, hp, sh, kind));
+      sh.hasBall = false;
+      a.released = true; a.done = true; a.doneT = a.t;
+      if (a.meter) { a.meter.done = true; a.meter.color = '#ff5a4a'; }
+      blkReact(df, sh, kind); cold(sh.id);
+      Object.assign(info, { blocked: true, made: false, tl: '—', reason: '被盖帽：防守手接触到球' });
+      if (G.lastShot !== info) publishShot(info);
+      return true;
+    }
+    return false;
+  }
+  function heldShotPos(pl) {
+    const k = PH.rig(pl), a = pl.action;
+    const mid = k.handR.map((v, i) => (v + k.handL[i]) / 2);
+    let hd;
+    if ((a.type === 'shot' && !a.V.hook) || a.type === 'fake') {
+      const h = a.lefty || (a.type === 'fake' && pl.arch.lefty) ? k.handL : k.handR;
+      hd = mid.map((v, i) => lerp(v, h[i], 0.72)); hd[2] += 0.02;
+    } else if ((a.type === 'dunk' && a.v === 'two') || (a.type === 'layup' && a.v === 'power') || a.type === 'dive' || a.inSteps) hd = mid;
+    else if (a.type === 'shot' && a.V.hook && a.t < K.shotJump * 1.2) {
+      const h = a.hand < 0 ? k.handL : k.handR, w = sm(clamp(a.t / (K.shotJump * 1.2), 0, 1));
+      hd = mid.map((v, i) => lerp(v, h[i], w));
+    } else hd = lHand(a) < 0 ? k.handL : k.handR;
+    return { x: hd[0], y: hd[1], z: hd[2] + 0.1 };
+  }
 
   function looseBall(from, vx, vy, vz, last) {
     const b = G.ball;
@@ -1992,24 +2026,6 @@
     if (B.mT > 0 && e < B.mT) { const v = 2 * B.d / B.mT * (1 - e / B.mT); pl.vx = B.dx * v; pl.vy = B.dy * v; B.mv = 1; }
     else if (B.mv) { B.mv = 0; pl.vx = 0; pl.vy = 0; }
   }
-  function chaseFx(df) {
-    fireSkill(df);
-    const S = df.arch.skill, gen = S && S.type === 'block', nm = gen ? S.name : '追身大帽';
-    G.stats[df.id].blk++; float(nm, df, '#ffd24a', 1); sfx('block'); vo(df, 'pin', 'pri'); vic(OP(df), 'rejected');
-    hype(3, df, { x: df.x, y: df.y, z: df.z + df.h, col: '#ffd24a', cols: ['#ffffff', '#ffd24a', '#ff6b5e'], led: gen ? S.en + '  ' + S.name : 'CHASE DOWN BLOCK  追身大帽  钉板', sfx: 'bigblock', hero: [nm, df.arch.name + ' · ' + (gen ? S.en : 'CHASE DOWN')] });
-    const sh = OP(df), hp = handPos(sh);
-    for (const p of G.players) if (p !== df) { p.action = null; p.hasBall = false; }
-    // V3.9r 追身钉板：在出手点（球的位置）拍到球；球够高就砸板（pinBall），不够高就从接触点往外扇出；技能盖帽同样从接触点飞出
-    if (!gen && hp.z > HOOP.z + K.pinChZ && distHoop(sh) < K.pinChD && pinBall(df, sh, hp)) { /* 钉板 */ }
-    else {
-      const p0 = { x: hp.x, y: hp.y, z: Math.max(1.2, hp.z) };
-      const ox = df.x - HOOP.x, oy = Math.min(df.y - HOOP.y, -1.2), ol = Math.hypot(ox, oy) || 1, D = rr(1.1, 1.9), tx = clamp(df.x + ox / ol * D + rr(-0.5, 0.5), -7, 7), ty = clamp(df.y + oy / ol * D, 1, 12);
-      const vz = rr(1.4, 2.2), t = (vz + Math.sqrt(vz * vz + 2 * GB * p0.z)) / GB;
-      looseBall(p0, (tx - p0.x) / t, (ty - p0.y) / t, vz, df.id);
-      G.ball.lk = { id: sh.id, t: G.time + 1.0, id2: df.id, t2: G.time + 0.15 };
-    }
-    if (!(sh.stun > 0.55)) { sh.stun = 0.55; sh.stunK = 'daze'; sh.stunT0 = 0.55; }
-  }
   function releaseShot(pl, e, kind) {
     const df = OP(pl), b = G.ball, a = pl.action, V = a.V;
     const sk = shotKind(a), inCls = sk === 'lay' || sk === 'float' || sk === 'hook' || a.v === 'postfade' ? 'in' : 'shot';
@@ -2019,7 +2035,7 @@
     else { if (a.F && !V.hook) cm *= a.F.ct; cm *= bk(pl, 'deadeye', K.bgDeadC); if (hasB(pl, 'fade') && (a.v === 'fade' || a.v === 'postfade' || a.v === 'turn')) cm *= bk(pl, 'fade', K.bgFadeC); if (hasB(pl, 'stepper') && a.v === 'stepback') cm *= bk(pl, 'stepper', K.bgStepC); }
     const c = SK ? 0 : clamp(ci.c * V.c * cm * (a.ky ? K.smKy : 1) + (kind === 'lay' && a.bump ? a.bump * K.smBump : 0), 0, 1);
     const st = G.stats[pl.id]; st.fga++; if (three) st.tpa++; if (kind === 'lay') st.ina++;
-    const hp = handPos(pl);
+    const hp = heldShotPos(pl);
     a.released = true; pl.hasBall = false;
     if (SK) { pl.sk.cd = 0; fireSkill(pl); }
     if (!SK) {
@@ -2037,15 +2053,7 @@
     const info = { who: pl.id, name: V.name, pts: a.pts, dist: d, contest: c, src: c > 0.04 ? ci.src : '', e: e, zone: zone, stamLow: pl.stam < ST.low, green: false, made: false, blocked: false, prob: 0, tl: '', reason: '' };
     // V4.3 封堵对抗（上篮 / 抛投）：差值 edge 决定被盖率和命中惩罚；本来要被盖时，差值占优有机会化解（拉杆躲开 / 硬挤出手）
     const LAYC = kind === 'lay' && !SK && !df.off, edge = LAYC ? finEdge(pl, df, a, false) : 0, ek = clamp(1 - K.ctLayE * edge, K.ctLo, K.ctHi);
-    const bMul = LAYC ? K.ctBlkS * clamp(1 - K.ctBlkE * edge, K.ctBlkLo, K.ctBlkHi) * (c >= 0.5 ? K.ctBlkH : 1) * (a.dbl ? K.ctBlkD : 1) : 1;
-    let esc = '';
-    if (!SK && tryBlock(pl, df, kind, V.blk * bMul * (kind === 'shot' && a.F && !V.hook ? a.F.blk : 1), LAYC ? Math.min(1, bMul * K.ctChase) : null) && !(LAYC && !df.action.chaseHit && edge > 0 && rnd() < Math.min(K.ctEscMax, edge * K.ctEsc) && (esc = pl.r.hnd >= pl.r.str || hasB(pl, 'acrobat') ? 'switch' : 'bump'))) {
-      if (df.action.chaseHit) { chaseFx(df); blkReact(df, pl, 'chase'); publishShot(Object.assign(info, { blocked: true, tl: '—', reason: '被' + (df.arch.skill && df.arch.skill.type === 'block' ? df.arch.skill.name : '追身大帽') })); cold(pl.id); return; }
-      blockBall(df, pl, hp, blockFx(df, hp, pl, kind)); blkReact(df, pl, kind);
-      if (a.meter) { a.meter.done = true; a.meter.color = '#ff5a4a'; }
-      info.blocked = true; info.tl = '—'; info.reason = '被盖帽：对手起跳时机对上了，试试假动作或后仰、抛投'; cold(pl.id); publishShot(info);
-      return;
-    }
+    if (contactBlock(pl, a, hp, kind, info)) return;
     const r = ratingOf(pl, a), gw = greenWidth(pl, r, c, sk, a) * V.g * (SK ? K.gwSkill : 1), ae = Math.abs(e);
     let base;
     // 参考 2K：空位上篮主要看能力和干扰，时机只是加成（时机差最多扣 18%，抛投 35%）
@@ -2072,7 +2080,7 @@
     let prob = green ? (SK ? 1 : kind === 'lay' || V.hook ? Math.max(ng, clamp(1 - K.smGInK * Math.max(0, cE - K.smGIn), K.smGInLo, 1)) : 1 - (1 - CFG.greenHeavy) * 2 * Math.max(0, c - 0.5)) : ng;
     if (SK && !green) prob = Math.max(prob, Math.min(K.smSkMax, base * K.smSkK * timingF));
     if (LAYC && c >= (K.ctOwn > 0 ? 0.12 : 0.2)) { const gk = green ? K.ctGreen : 1; let f = 1 - c * K.ctLayP * ek * gk; if (c >= 0.5) f *= 1 - K.ctHvy * ek * gk; if (a.dbl) f *= 1 - K.ctDbl * ek * gk; prob *= clamp(f, 0.08, 1); }
-    if (esc) { prob *= K.smEsc; if (!a.cv) { a.cv = esc; a.cvT = a.t; a.cvR = a.t; if (esc === 'switch') a.cvSw = a.t; } float(esc === 'switch' ? '拉杆躲帽' : '硬挤出手', pl, '#ffd24a', 1); }
+    if (a.blockEscape) { const esc = a.blockEscape; prob *= K.smEsc; if (!a.cv) { a.cv = esc; a.cvT = a.t; a.cvR = a.t; if (esc === 'switch') a.cvSw = a.t; } float(esc === 'switch' ? '拉杆躲帽' : '硬挤出手', pl, '#ffd24a', 1); }
     if (a.thru && kind === 'lay' && !SK) prob = a.thru === 'fall' ? Math.max(prob, K.ctThruLay) : prob * (1 - K.ctThruPen);   // V4.5 顶翻
     prob = clamp(prob, K.smMin, 1);
     const made = G.tips && G.tips.mk && pl.id === 0 ? true : rnd() < prob;
@@ -2110,7 +2118,7 @@
     b.vx = (tx - hp.x) / T; b.vy = (ty - hp.y) / T; b.vz = (tz - hp.z + 0.5 * GB * T * T) / T;
     b.trail = SK ? '#ffd24a' : green ? '#7dff8a' : G.streak[pl.id] >= K.hcHotN ? '#ff8a2a' : null;
     const win = made && winsWith(pl.id, a.pts);
-    b.shot = { t: 0, T: T, d: d, made: made, pts: a.pts, shooter: pl.id, kind: kind, air: air, win: win, name: SK ? pl.arch.skill.name : V.name, sk: SK, mk: MK || MS };
+    b.shot = { t: 0, T: T, d: d, made: made, pts: a.pts, shooter: pl.id, kind: kind, air: air, win: win, name: SK ? pl.arch.skill.name : V.name, sk: SK, mk: MK || MS, attempt: a, info: info };
     if (SK) info.reason = (made ? '' : '未命中：') + pl.arch.skill.name + (green ? '（完美出手）' : '（未完美出手）');
     info.skill = SK || null;
     publishShot(info);
@@ -3085,6 +3093,7 @@
     const chase = rimB || !!((skOf(pl, 'lebron') || (GB_ && GB_.trig === 'chase')) && oa && (oa.type === 'layup' || oa.type === 'dunk') && !oa.released && !oa.done && oa.chaseD >= 1.8 && Math.hypot(o.x - pl.x, o.y - pl.y) < 2.8);
     const vz = (K.bkVz0 + K.bkVzJ * pl.r.vert + (chase ? K.bkVzCh : 0)) * (1 - K.bkVzFat * fat(pl));
     pl.action = { type: 'block', t: 0, chase: chase, rimB: rimB, reb: reb, zmax: vz * vz / (2 * GP), rel: relPos(pl, o) }; pl.vz = vz; pl.z = 0.01; pl.stam = Math.max(0, pl.stam - K.bkCost * ST.cost); pl.animT = 0; sfx('jump');
+    pl.armS = null; pl.armSv = null; pl.pose.reachL = pl.pose.reachR = 1;
     if (!chase || rimB) {
       const A = blockAim(pl, reb), mx = inp ? inp.mx : 0, my = inp ? inp.my : 0;
       let vx = A.vx + mx * K.bkAimM + pl.vx * K.bkAimV, vy = A.vy + my * K.bkAimM + pl.vy * K.bkAimV; const l = Math.hypot(vx, vy); if (l > K.bkAimMax) { vx *= K.bkAimMax / l; vy *= K.bkAimMax / l; }
@@ -3207,6 +3216,7 @@
         else { pl.x = lerp(a.sx, tx, e) + (a.ikx || 0); pl.y = lerp(a.sy, ty, e) + (a.iky || 0); }
         pl.z = (1.68 + (2.08 - pl.h) * 0.6 + (a.long ? 0.08 : 0)) * Math.sin(u * Math.PI / 2) + (a.ikz || 0); pl.vz = 0; pl.vx = pl.vy = 0;
         if (u >= 1) {
+          if (contactBlock(pl, a, heldShotPos(pl), 'dunk')) return;
           a.done = true; a.doneT = a.t; pl.hasBall = false;
           const st = G.stats[pl.id]; st.fga++; st.ina++;
           const ci = contestInfo(pl, df, 'in'), SK = a.skill, c = SK ? 0 : ci.c, hp = { x: HOOP.x, y: HOOP.y - 0.1, z: HOOP.z + 0.15 };
@@ -3219,9 +3229,7 @@
           const prob = SK || !a.thru ? prob0 : a.thru === 'fall' ? Math.max(prob0, K.ctThruDk) : prob0 * (1 - K.ctThruPen);   // V4.5 顶翻
           a.edge = edge; if (a.v === 'poster') bpop(pl, 'poster');
           const info = { who: pl.id, name: a.name, pts: 2, dist: distHoop(pl), contest: c, src: c > 0.04 ? ci.src : '', e: null, zone: 'lay', stamLow: pl.stam < ST.layLow, green: false, made: false, blocked: false, prob: prob, tl: '—', cl: c < 0.2 ? '空位' : c < 0.5 ? '轻微干扰' : '严重干扰', reason: '' };
-          if (!SK && df.action && df.action.chase && tryBlock(pl, df, 'dunk', 1, df.off ? null : Math.min(1, K.ctChase * K.ctBlkS * clamp(1 - K.ctBlkE * edge, K.ctBlkLo, K.ctBlkHi)))) { chaseFx(df); blkReact(df, pl, 'dunk'); info.blocked = true; info.reason = '被追身大帽'; cold(pl.id); }
-          else if (!SK && tryBlock(pl, df, 'dunk', df.off ? 1 : K.ctBlkS * clamp(1 - K.ctBlkE * edge, K.ctBlkLo, K.ctBlkHi)) && !(edge > 0 && rnd() < Math.min(K.ctEscMax, edge * K.ctEsc) && (a.esc = true))) { blockBall(df, pl, hp, blockFx(df, hp, pl, 'dunk')); blkReact(df, pl, 'dunk'); info.blocked = true; info.reason = '被盖帽：对手提前起跳守在篮下'; cold(pl.id); }
-          else if ((a.esc && rnd() < 0.85) || rnd() < prob) {   // V4.3 本来要被盖、对抗占优化解 = 硬扣成功（正面就是隔扣）
+          if ((a.esc && rnd() < 0.85) || rnd() < prob) {
             if (a.esc && !df.off && relPos(df, pl) > 0.2 && (a.v === 'one' || a.v === 'two' || a.v === 'tomahawk')) { a.v = 'poster'; a.name = DK.poster || a.name; }
             looseBall({ x: HOOP.x, y: HOOP.y, z: HOOP.z - 0.2 }, 0, -0.4, -5, pl.id); G.ball.under = true;
             if (a.v === 'two' || a.v === 'cock' || a.v === 'poster' || a.v === 'rimpull' || a.v === 'shaq' || SK) { a.hang = SK ? 0.5 : a.v === 'shaq' ? 0.7 : a.v === 'rimpull' ? 0.55 : 0.36; a.hz = pl.z - (a.ikz || 0); a.hx = pl.x - (a.ikx || 0); a.hy = pl.y - (a.iky || 0); if (a.v === 'shaq' || a.v === 'rimpull') { G.fx.board = Math.max(G.fx.board, a.v === 'shaq' ? 1.1 : 0.6); shake(a.v === 'shaq' ? 9 : 5); } }
@@ -3240,7 +3248,8 @@
           } else if (!df.off && c > 0.4 && edge < 0 && Math.hypot(df.x - pl.x, df.y - pl.y) < 1.5 && rnd() < 0.65) {
             // 被内线大闸正面挡住：球被打掉，扣篮的人被弹开
             const l = Math.hypot(pl.x - df.x, pl.y - df.y) || 1;
-            { const st = blockFx(df, hp, pl, 'lay'); if (st === 'catch' || st === 'facial') blockBall(df, pl, hp, st); else blkFly(df, pl, hp, false); blkReact(df, pl, 'lay'); } info.blocked = true; info.reason = '被正面封死（内线防守压制）'; cold(pl.id);
+            G.ball.wasShot = true; looseBall(hp, rr(-1.4, 1.4), -rr(0.8, 2.2), rr(2, 3.2), pl.id);
+            float('干扰扣篮不进', pl, '#ff6b5e'); sfx('rim'); info.reason = '内线防守干扰，扣篮不进'; cold(pl.id);
             pl.vx += (pl.x - df.x) / l * 2.2; pl.vy += (pl.y - df.y) / l * 2.2; impactFx(df.x, df.y, powOf(df) > 1.3, 1.6);
           } else { G.ball.wasShot = true; looseBall(hp, rr(-1.4, 1.4), -rr(0.8, 2.2), rr(2, 3.2), pl.id); float('扣篮不进', pl, '#ff6b5e'); sfx('rim'); shake(3); G.fx.board = 0.3; cold(pl.id); info.reason = c > 0.3 ? '防守干扰大（' + ci.src + '）' : pl.stam < ST.layLow ? '体力不足' : '运气不佳（本次命中率 ' + Math.round(prob * 100) + '%）'; }
           publishShot(info);
@@ -3591,6 +3600,7 @@
     }
     pl.handX = lerp(pl.handX, pl.hand * 0.33, Math.min(1, dt * 16));
     const T = poseTarget(pl), P = pl.pose, kq = Math.min(1, dt * 22);
+    if (a && a.type === 'block') { pl.armS = null; T.reachL = T.reachR = P.reachL = P.reachR = 1; }
     // 肩部转角按最短路径插值（风车扣篮手臂转一整圈后，不会再倒着从最下面绕回去）
     for (const n in T) { if ((n === 'aLp' || n === 'aRp') && Math.abs(T[n] - P[n]) > Math.PI) P[n] += Math.round((T[n] - P[n]) / (2 * Math.PI)) * 2 * Math.PI; P[n] = lerp(P[n], T[n], kq); }
     dunkIK(pl);
@@ -3650,6 +3660,7 @@
   function poseTarget(pl) {
     const T = { tilt: 0, lean: 0.06, lA: 0.12, lB: 0.25, lS: 0.06, rA: 0.12, rB: 0.25, rS: 0.06, aLp: 0.15, aLq: 0.14, aLe: 0.35, aRp: 0.15, aRq: 0.14, aRe: 0.35 };
     const an = pl.anim, t = pl.animT, ph = pl.runPh, k = Math.min(1, pl.speed / 5.5), a = pl.action;
+    if (a && a.type === 'block' && a.contactPose && a.t - a.hitT < 0.06) return a.contactPose;
     const set = (o) => { for (const n in o) T[n] = o[n]; };
     if (an === 'run' && PH.gait) PH.gait.run(pl, T);
     else if (an === 'run') {
@@ -3725,7 +3736,7 @@
         else if (S === 'chin' || S === 'rip') set(Object.assign(lg, { lean: 0.1, aRp: 2.7 - 1.4 * e, aRe: 0.3 + 1.9 * e, aRq: 0.2 + 1.2 * e, aLp: 2.7 - 1.4 * e, aLe: 0.3 + 1.9 * e, aLq: 0.2 + 1.2 * e, lA: 0.35, lB: 0.7, rA: 0.35, rB: 0.7 }));
         else set(Object.assign(lg, { lean: 0, aRp: 2.9 - 1.2 * e, aRe: 0.15 + 0.9 * e, aRq: 0.1, aLp: 2.9 - 1.2 * e, aLe: 0.15 + 0.9 * e, aLq: 0.1 })); }
       else if (ba && ba.reb) set(Object.assign(lg, { lean: 0, aRp: 2.9, aRe: 0.15, aRq: 0.1, aLp: 2.9, aLe: 0.15, aLq: 0.1 }));
-      else set(Object.assign(lg, { lean: 0, aRp: 3.0, aRe: 0.05, aRq: 0.05, aLp: 2.6, aLe: 0.2, aLq: 0.15 }));
+      else { const rise = clamp((ba ? ba.t : t) / 0.12, 0, 1); set(Object.assign(lg, { lean: 0, aRp: lerp(1.2, 3.0, rise), aRe: lerp(0.8, 0.05, rise), aRq: 0.05, aLp: lerp(1.2, 2.6, rise), aLe: lerp(0.8, 0.2, rise), aLq: 0.15 })); }
       // 盖帽 / 抢板：手伸向球（IK），离球越近越贴
       const bb = G.ball;
       if (ba && !pl.hasBall && (bb.state === 'loose' || bb.state === 'shot') && !(st === 'swat' && ht > 0.12) && !(st === 'facial' && ht > 0.15)) ikBall(pl, T, ba.reb || st === 'catch' || (!st && bb.state === 'loose') ? 2 : 1);
@@ -3910,15 +3921,7 @@
     if (b.state === 'held') {
       const pl = G.players[b.holder], a = pl.action;
       if (a && a.type !== 'move') {
-        const k = PH.rig(pl);
-        if ((a.type === 'shot' && !a.V.hook) || a.type === 'fake') {
-          // V3.5：跳投球托在投篮手上（另一只手在侧面扶球），左手球员在左边
-          const hd = a.lefty || (a.type === 'fake' && pl.arch.lefty) ? k.handL : k.handR, mx = (k.handR[0] + k.handL[0]) / 2, my = (k.handR[1] + k.handL[1]) / 2, mz = (k.handR[2] + k.handL[2]) / 2, w = 0.72;
-          b.x = lerp(mx, hd[0], w); b.y = lerp(my, hd[1], w); b.z = lerp(mz, hd[2], w) + 0.12;
-        }
-        else if ((a.type === 'dunk' && a.v === 'two') || (a.type === 'layup' && a.v === 'power') || a.type === 'dive' || a.inSteps) { b.x = (k.handR[0] + k.handL[0]) / 2; b.y = (k.handR[1] + k.handL[1]) / 2; b.z = (k.handR[2] + k.handL[2]) / 2 + 0.1; }
-        else if (a.type === 'shot' && a.V.hook && a.t < K.shotJump * 1.2) { const hd = a.hand < 0 ? k.handL : k.handR, w = sm(clamp(a.t / (K.shotJump * 1.2), 0, 1)); b.x = lerp((k.handR[0] + k.handL[0]) / 2, hd[0], w); b.y = lerp((k.handR[1] + k.handL[1]) / 2, hd[1], w); b.z = lerp((k.handR[2] + k.handL[2]) / 2, hd[2], w) + 0.1; }
-        else { const hd = lHand(a) < 0 ? k.handL : k.handR; b.x = hd[0]; b.y = hd[1]; b.z = hd[2] + 0.1; }
+        const hp = heldShotPos(pl); b.x = hp.x; b.y = hp.y; b.z = hp.z;
       } else {
         const fx = Math.cos(pl.face), fy = Math.sin(pl.face), Hh = pl.h / 1.95;
         if (a) {
@@ -3933,6 +3936,9 @@
         }
       }
       if (b.cT > 0) { const w = 1 - b.cT / 0.1; b.x = lerp(b.cx, b.x, w); b.y = lerp(b.cy, b.y, w); b.z = lerp(b.cz, b.z, w); b.cT = Math.max(0, b.cT - dt); }
+      if (a && !a.inSteps && !a.done && !a.released && (a.type === 'dunk' || a.type === 'layup')) {
+        if (contactBlock(pl, a, { x: b.x, y: b.y, z: b.z }, a.type === 'dunk' ? 'dunk' : 'lay')) return;
+      }
       b.spin += dt * (4 + pl.speed);
       if (G.streak[pl.id] >= K.hcHotN && rnd() < 0.5) part(b.x, b.y, b.z, rr(-0.4, 0.4), rr(-0.4, 0.4), rr(0.8, 1.8), rnd() < 0.5 ? '#ff8a2a' : '#ffd24a', 0.3, -1);
       return;
@@ -3940,9 +3946,11 @@
     b.spin += dt * 9;
     if (b.state === 'shot') {
       const s = b.shot, bank = s.mk && s.mk.ty === 'bank';
+      if (b.vz > 0 && s.attempt && contactBlock(G.players[s.shooter], s.attempt, { x: b.x, y: b.y, z: b.z }, s.kind, s.info)) return;
       const flight = bank ? Math.min(dt, Math.max(0, s.T - s.t)) : dt;
       s.t += dt;
       b.x += b.vx * flight; b.y += b.vy * flight; b.z += b.vz * flight - (bank ? 0.5 * GB * flight * flight : 0); b.vz -= GB * flight;
+      if (b.vz > 0 && s.attempt && contactBlock(G.players[s.shooter], s.attempt, { x: b.x, y: b.y, z: b.z }, s.kind, s.info)) return;
       if (b.trail) part(b.x, b.y, b.z, rr(-0.2, 0.2), rr(-0.2, 0.2), rr(-0.2, 0.4), b.trail, 0.28, 0);
       if (s.win && !s.slowed && s.T - s.t < K.fxWinSlowT) { s.slowed = true; G.fx.slow = K.fxWinSlow; }
       if (s.t >= s.T) {
