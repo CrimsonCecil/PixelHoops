@@ -49,7 +49,7 @@
     [/^(smTLay|smTFlo|layTi|floTi|smLay0|smLayR|smFlo0|smFloR|smIn|smGIn)/, 'fin', '上篮'],
     [/^(smLayC|smCLay|smCShot|smCR|contestShot|contestLay|greenContest)/, 'shot', '干扰'],
     [/^(bdStam|dvCost)$/, 'stam', '消耗'], [/^(smFat|mvFat|cbFat|stFat0|stLow)$/, 'stam', '疲劳影响'],
-    [/^(stLay|stDunk|stAct|stJump)$/, 'stam', '体力门槛'], [/^(stRg|stamRegen)/, 'stam', '恢复'], [/^(stCost|sprintDrain|moveCost)$/, 'stam', '消耗'],
+    [/^(stLay|stDunk|stAct|stJump)$/, 'stam', '体力门槛'], [/^(stRg|stamRegen)/, 'stam', '恢复'], [/^(stCost|stShotCost|sprintDrain|moveCost)$/, 'stam', '消耗'],
     [/^(shotJump|clutchTi|shotIdeal|lateSlope|smT)/, 'shot', '出手时机'],
     [/^(brClutch|gwSkill|smSk)/, 'shot', '主宰'], [/^gwBadge$/, 'shot', '徽章'],
     [/^(gw|green)/, 'shot', '绿区'], [/^fk(?!Cpu)/, 'shot', '假投'], [/^hz/, 'shot', '热区与手感'],
