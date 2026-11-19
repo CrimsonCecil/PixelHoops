@@ -535,23 +535,65 @@
   $('tr-exit').addEventListener('click', toMenu);
   $('tr-reset-pos').addEventListener('click', () => GM.trainReset());
   // ---------- 球员信息卡 ----------
-  const PC_OFF = [['three', '三分'], ['mid', '中投'], ['lay', '上篮'], ['dunk', '扣篮'], ['hnd', '控球'], ['post', '背打']];
-  const PC_DEF = [['def', '外防'], ['intD', '内防'], ['stl', '抢断'], ['blk', '盖帽'], ['dreb', '篮板'], ['str', '力量']];
-  // 信息卡内容（1V1 和 5V5 共用）：st = { pts, fg, fga, reb, blk, stl } 或 null
-  function cardHTML(pl, isOff, st) {
-    const a = pl.arch, r = pl.r, tkOn = pl.tkOn > 0;
-    const keys = isOff ? PC_OFF : PC_DEF;
-    // V4.2 5V5 能力卡：六大类均值（外线 / 内线 / 组织 / 运动 / 防守 / 篮板），主宰时和基础值比较标箭头
-    const G5 = st && st.t5 ? attrGroups(a, r, pl) : null, G5b = G5 && tkOn && pl.rBase ? attrGroups(a, pl.rBase, pl) : null;
-    const hc = Math.round(GM.hcMod(pl) * 99), cells = G5 ? G5.map((g, gi) => { const v = g[2], d = G5b ? v - G5b[gi][2] : 0; return '<span>' + g[1] + '<i class="' + vcl(v) + (d > 0 ? ' up' : d < 0 ? ' dn' : '') + '">' + v + (d > 0 ? '<sup>↑' + d + '</sup>' : d < 0 ? '<sup>↓' + (-d) + '</sup>' : '') + '</i></span>'; }).join('') : keys.map((k) => {
-      // 5V5：背打 → 传球（传球准确、传球意识平均），力量 → 预判（传球预判），取自 2K 的 5V5 专用能力
-      const R5k = st && st.t5 && pl.r5 && pl.r5.raw ? (k[0] === 'post' ? ['传球', ['pac', 'piq']] : k[0] === 'str' ? ['预判', ['ppc']] : null) : null;
-      if (R5k) { const v = Math.round(R5k[1].reduce((t, f) => t + (pl.r5.raw[f] || 0), 0) / R5k[1].length); return '<span>' + R5k[0] + '<i class="' + vcl(v) + '">' + v + '</i></span>'; } const sh = k[0] === 'three' || k[0] === 'mid', base = tkOn && pl.rBase ? Math.round((pl.rBase[k[0]] || 0) * 99) : null; let v = Math.round((r[k[0]] || 0) * 99); if (sh && hc) v = Math.max(1, Math.min(99, v + hc)); const d = base != null ? v - base : sh ? hc : 0; return '<span>' + k[1] + '<i class="' + vcl(v) + (d > 0 ? ' up' : d < 0 ? ' dn' : '') + '">' + v + (d > 0 ? '<sup>↑' + d + '</sup>' : d < 0 ? '<sup>↓' + (-d) + '</sup>' : '') + '</i></span>'; }).join('');
+  const PC_WEIGHTS = {
+    shooting: { three: 45, mid: 30, close: 15, fade: 10 },
+    finishing: { lay: 45, dunk: 20, flo: 15, post: 10, sdunk: 5, hook: 5 },
+    athleticism: { spd: 30, acc: 25, vert: 20, str: 15, sta: 10 },
+    defense: { def: 35, intD: 30, blk: 20, stl: 15 },
+    rebounding: { dreb: 60, oreb: 40 },
+  };
+  const PC_WEIGHTS_5 = {
+    ...PC_WEIGHTS,
+    shooting: { three: 40, mid: 25, close: 15, fade: 10, siq: 10 },
+    playmaking: { hnd: 30, pac: 25, piq: 15, vis: 15, hands: 10, iq: 5 },
+    defense: { def: 30, intD: 25, stl: 15, blk: 15, hlp: 10, ppc: 5 },
+  };
+  const PC_SHOOT = ['shooting', '投篮'], PC_FINISH = ['finishing', '终结'], PC_ATH = ['athleticism', '运动'];
+  const PC_GUARD = ['defense', '防守'], PC_REB = ['rebounding', '篮板'];
+  const PC_STEAL = ['stl', '抢断'], PC_BLOCK = ['blk', '盖帽'];
+  const PC_OFF = [PC_SHOOT, PC_FINISH, ['hnd', '控球'], PC_ATH];
+  const PC_DEF = [PC_GUARD, PC_REB, ['def', '外防'], ['intD', '内防'], PC_STEAL, PC_BLOCK];
+  const PC_OFF_5 = [PC_SHOOT, PC_FINISH, ['playmaking', '组织'], PC_ATH];
+  function pcRating(key, r, raw, weights, heat) {
+    const value = (k) => {
+      const v = Number.isFinite(r[k]) ? A99(r[k]) : raw && raw[k];
+      if (!Number.isFinite(v)) return null;
+      return Math.min(99, Math.max(0, Math.round(v) + (k === 'three' || k === 'mid' ? heat : 0)));
+    };
+    if (!weights[key]) return value(key);
+    let total = 0, used = 0;
+    for (const [k, weight] of Object.entries(weights[key])) {
+      const v = value(k);
+      if (v != null) { total += v * weight; used += weight; }
+    }
+    return used ? Math.round(total / used) : null;
+  }
+  function pcCell(name, v, d, klass = '') {
+    const change = d > 0 ? '<sup>↑' + d + '</sup>' : d < 0 ? '<sup>↓' + (-d) + '</sup>' : '';
+    return '<span' + (klass ? ' class="' + klass + '"' : '') + '>' + name + '<i class="' + vcl(v) + (d > 0 ? ' up' : d < 0 ? ' dn' : '') + '">' + (v == null ? '—' : v) + change + '</i></span>';
+  }
+  function pcRatings(pl, isOff, is5) {
+    const weights = is5 ? PC_WEIGHTS_5 : PC_WEIGHTS;
+    const base = pl.rBase || pl.r, raw = is5 ? r5Raw(pl.arch, pl) : null;
+    const heat = is5 ? 0 : Math.round(GM.hcMod(pl) * 99);
+    const keys = is5
+      ? (isOff ? PC_OFF_5 : [PC_GUARD, PC_REB, PC_ATH, A99(base.stl) >= A99(base.blk) ? PC_STEAL : PC_BLOCK])
+      : (isOff ? PC_OFF : PC_DEF);
+    const speed = is5 ? '' : pcCell('速度', pcRating('spd', base, null, weights, 0), 0, 'pc-speed');
+    return speed + keys.map(([k, name]) => {
+      const v = pcRating(k, pl.r, raw, weights, heat);
+      const original = base !== pl.r || heat ? pcRating(k, base, raw, weights, 0) : v;
+      return pcCell(name, v, v != null && original != null ? v - original : 0);
+    }).join('');
+  }
+  function cardHTML(pl, isOff, st, is5 = false) {
+    const a = pl.arch, tkOn = pl.tkOn > 0;
+    const cells = pcRatings(pl, isOff, is5);
     const TD = tkOn && pl.tkT ? GM.TKD[pl.tkT] : null;
     const tkl = TD ? '<div class="pctki"><div class="tkh"><b>主宰 · ' + TD.n + '</b><span>' + Math.ceil(pl.tkOn) + '秒</span></div><div class="tkg">' + ['全属性 +5', TD.n + '类 +20'].concat(TD.ab, ['体力消耗 -30%']).map((x) => '<i>' + x + '</i>').join('') + '</div></div>' : '';
-    const sl = st && st.t5 ? '<div class="pcs pcs5">' + [[st.pts, '分'], [st.fg + '/' + st.fga, '投'], [st.reb, '板'], [st.ast, '助'], [st.stl, '断'], [st.blk, '帽'], [st.tov, '误']].map((x) => '<b' + (x[0] === 0 ? ' class="z"' : '') + '>' + x[0] + '</b>' + x[1]).join('') + '</div>' : st ? '<div class="pcs"><b>' + st.pts + '</b>分<b>' + st.fg + '/' + st.fga + '</b>投<b>' + st.reb + '</b>板<b>' + st.blk + '</b>帽<b>' + st.stl + '</b>断</div>' : '';
+    const sl = st && is5 ? '<div class="pcs pcs5">' + [[st.pts, '分'], [st.fg + '/' + st.fga, '投'], [st.reb, '板'], [st.ast, '助'], [st.stl, '断'], [st.blk, '帽'], [st.tov, '误']].map((x) => '<b' + (x[0] === 0 ? ' class="z"' : '') + '>' + x[0] + '</b>' + x[1]).join('') + '</div>' : st ? '<div class="pcs"><b>' + st.pts + '</b>分<b>' + st.fg + '/' + st.fga + '</b>投<b>' + st.reb + '</b>板<b>' + st.blk + '</b>帽<b>' + st.stl + '</b>断</div>' : '';
     // V4.5 信息卡徽章行（1V1 / 5V5 同一套）：档位配色的六边形图标，正在触发的徽章高亮
-    const bl = bList(pl, !!(st && st.t5)), hot = new Set((G.bpops || []).filter((x) => G.time - x.t0 < 1.8 && G.time >= x.t0 && G.players[x.pid] === pl).map((x) => x.key));
+    const bl = bList(pl, is5), hot = new Set((G.bpops || []).filter((x) => G.time - x.t0 < 1.8 && G.time >= x.t0 && G.players[x.pid] === pl).map((x) => x.key));
     const brow = bl.length ? '<div class="pcb" data-testid="pc-badges">' + bl.map((x) => '<span class="tr' + x[1] + (hot.has(x[0]) ? ' hot' : '') + '" title="' + GM.BADGES[x[0]].name + '">' + bHex(x[0], x[1]) + '</span>').join('') + '</div>' : '';
     return '<div class="pch"><b>' + a.name + '</b><u class="' + (isOff ? 'ro' : 'rd') + '">' + (isOff ? '进攻' : '防守') + '</u><em class="t' + TT[a.tier] + '">' + a.ovr + '</em></div>' + sl + '<div class="pcg">' + cells + '</div>' + brow + tkl + '<div class="pctk' + (tkOn ? ' on' : '') + '"><span>主宰</span><s><b style="width:' + Math.round(pl.tk) + '%"></b></s></div>';
   }
@@ -577,7 +619,7 @@
   // 5V5 数据 = rk.st（换下场时已结算的部分）+ G.stats（这次在场还没结算的部分），和数据面板 PH.T5.box() 同一算法
   function st5(pl) {
     const r = pl.rk && pl.rk.st, g = G.stats && G.stats[pl.id]; if (!r) return null;
-    return { pts: r.pts, fg: r.fgm + (g ? g.fg : 0), fga: r.fga + (g ? g.fga : 0), reb: r.reb + (g ? g.reb : 0), blk: r.blk + (g ? g.blk : 0), stl: r.stl + (g ? g.stl : 0), ast: r.ast, tov: r.tov + (g ? g.tov : 0), t5: true };
+    return { pts: r.pts, fg: r.fgm + (g ? g.fg : 0), fga: r.fga + (g ? g.fga : 0), reb: r.reb + (g ? g.reb : 0), blk: r.blk + (g ? g.blk : 0), stl: r.stl + (g ? g.stl : 0), ast: r.ast, tov: r.tov + (g ? g.tov : 0) };
   }
   function pcards5() {
     const T = screen === 'play5' && PH.T5 ? PH.T5.T : null, K = PH.render5 && PH.render5.k2;
@@ -590,7 +632,7 @@
       const el = $('pc5' + i), pl = ps[i], show1 = !!pl;
       el.classList.toggle('hidden', !show1); if (!show1) continue;
       // V3.9h：信息卡底部加体力条（和场上脚下金色体力条同一套体力值、同样配色，25 以下变红）
-      const sv = Math.round(Math.max(0, Math.min(100, pl.stam))), fv = Math.round(Math.max(0, Math.min(60, (pl.rk && pl.rk.fat) || 0))), html = cardHTML(pl, pl.tm === T.off, st5(pl)) + '<div class="pcst' + (sv > 25 ? '' : ' lo') + '" data-testid="pcst-' + i + '"><span>体力</span><s><b style="width:' + sv + '%"></b>' + (fv ? '<u style="width:' + fv + '%"></u>' : '') + '</s><i>' + sv + '</i></div>';
+      const sv = Math.round(Math.max(0, Math.min(100, pl.stam))), fv = Math.round(Math.max(0, Math.min(60, (pl.rk && pl.rk.fat) || 0))), html = cardHTML(pl, pl.tm === T.off, st5(pl), true) + '<div class="pcst' + (sv > 25 ? '' : ' lo') + '" data-testid="pcst-' + i + '"><span>体力</span><s><b style="width:' + sv + '%"></b>' + (fv ? '<u style="width:' + fv + '%"></u>' : '') + '</s><i>' + sv + '</i></div>';
       el.classList.toggle('tk', pl.tkOn > 0);
       const c = T.tm[pl.tm].col.ui; if (el._c !== c) { el._c = c; el.style.setProperty(i ? 'border-right-color' : 'border-left-color', c); }
       if (el._h !== html) { el._h = html; el.innerHTML = html; }
