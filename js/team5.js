@@ -428,6 +428,7 @@
       p.post = false; p.f5.cut = null;
     }
     const b = G.ball; neg(b, ['x', 'y', 'vx', 'vy', 'cx', 'cy']);
+    if (b.slam) neg(b.slam, ['x', 'y', 'rimY']);
     for (const q of G.fx.parts) neg(q, ['x', 'y', 'vx', 'vy']);
     for (const r of G.fx.rings) neg(r, ['x', 'y']);
     for (const f of G.floats) neg(f, ['x', 'y']);

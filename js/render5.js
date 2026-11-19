@@ -210,10 +210,11 @@
   // V3.9e 篮架等场馆物件用世界坐标画：转播镜头 PJ = R.proj；2K 镜头先把世界坐标转到镜头坐标再投影。HV = 镜头前方（世界坐标），用来分篮筐前后半圈
   let PJ = null, HV = [0, 1], K2 = false;
   function G5() { return PH.game.G; }
-  function dOf(T) { return T.dir[G5().off]; }
+  function dOf(T) { return RPL.on && RPL.view ? RPL.view.dir : T.dir[G5().off]; }
   // 逻辑坐标 → 世界坐标的代理对象（转播镜头用）
   function wp(p, d) {
     const q = Object.create(p); q.x = d * p.y; q.y = -d * p.x; q.vx = d * (p.vy || 0); q.vy = -d * (p.vx || 0); q.face = p.face - d * PI2;
+    if (p.grip && p.grip.rim) { q.gripRimX = d * HX; q.gripRimY = 0; }
     if (p.ghosts) q.ghosts = p.ghosts.map((g) => Object.assign({}, g, { x: d * g.y, y: -d * g.x, face: g.face - d * PI2 }));
     return q;
   }
@@ -226,7 +227,7 @@
     if (hd) tx = d * (hd.y + 2.2 + (hd.vy || 0) * 0.45);
     else if (b.state === 'shot') tx = d * (b.y * 0.6 + 12.425 * 0.4);
     const hw = halfW(), lim = Math.max(0, CL + 3.4 - hw);
-    const rc = RPL.on && RPL.view ? RPL.cam : null; if (rc) tx = d * rc.y;   // V4.4 回放：对准接触点
+    const rc = RPL.on && RPL.view ? RPL.cam : null; if (rc) tx = rc.x;   // V4.4 回放：对准接触点
     tx = Math.max(-lim, Math.min(lim, tx));
     camX += (tx - camX) * Math.min(1, (dt || 1 / 60) * 2.4); if (!(dt > 0)) camX = tx;
     applyCam(camX); T.camX = camX; if (rc) cam.F *= 1 + 0.3 * rc.w;
@@ -395,6 +396,7 @@
     const fa = PI2 - d * PI2 - ph;   // 朝向角：逻辑 → 镜头
     const wpk = (p) => {
       const q = Object.create(p); q.x = U(p.x, p.y); q.y = V(p.x, p.y); q.vx = U(p.vx || 0, p.vy || 0); q.vy = V(p.vx || 0, p.vy || 0); q.face = p.face + fa;
+      if (p.grip && p.grip.rim) { q.gripRimX = U(0, HX); q.gripRimY = V(0, HX); }
       if (p.ghosts) q.ghosts = p.ghosts.map((g) => Object.assign({}, g, { x: U(g.x, g.y), y: V(g.x, g.y), face: g.face + fa }));
       return q;
     };
@@ -417,8 +419,8 @@
       fitInb(f, ipts, (x, y) => [U0(x, y), V0(x, y)]);
       TX = f.v * c0 + f.u * s0; TY = f.v * s0 - f.u * c0; tB = f.back;
     }
-    { const rc = RPL.on && RPL.view ? RPL.cam : null;   // V4.4 回放：焦点移到接触点（逻辑 (x, y) → 世界 (d·y, −d·x)），越近接触越推近
-      if (rc) { TX = d * rc.y; TY = -d * rc.x; tB = S.back * (1 - 0.3 * rc.w); tZ = Math.max(1.6, S.cz * (1 - 0.25 * rc.w)); } }
+    { const rc = RPL.on && RPL.view ? RPL.cam : null;   // V4.4 回放：焦点移到接触点，越近接触越推近
+      if (rc) { TX = rc.x; TY = rc.y; tB = S.back * (1 - 0.3 * rc.w); tZ = Math.max(1.6, S.cz * (1 - 0.25 * rc.w)); } }
     const k = dt > 0 ? Math.min(1, dt * (T.phase === 'inb' || T.phase === 'dead' ? 4 : 3)) : 1;
     if (T.camSnap) { T.camSnap = false; C2.init = false; }
     if (!C2.init || !(dt > 0)) { C2.X = TX; C2.Y = TY; C2.back = tB; C2.cz = tZ; C2.init = true; }
@@ -696,16 +698,20 @@
   const RPL = (function () {
     // 只在真的在画 5V5 时播（rT = 最近一次 render 的比赛时间）；无画面的批量模拟（t5sim 等）不进回放
     const S = { rT: null, on: false, view: null, buf: [], mk: null, seen: null, rt: 0, age: 0, i: 0, cam: null, prev: null };
-    const KP = ['x', 'y', 'z', 'vx', 'vy', 'face', 'stun', 'stunK', 'knock', 'knockT', 'knockD', 'knockUp', 'knockDx', 'knockDy', 'hasBall', 'flash', 'off', 'speed', 'anim'];
+    const KP = ['x', 'y', 'z', 'vx', 'vy', 'face', 'stun', 'stunK', 'knock', 'knockT', 'knockD', 'knockUp', 'knockDx', 'knockDy', 'hasBall', 'flash', 'off', 'speed', 'anim', 'sq', 'armS', 'brPh', 'stam', 'exr', 'grip'];
     const KB = ['x', 'y', 'z', 'state', 'holder', 'spin', 'under'];
     function rec() {
       const Gm = G5(), T5 = PH.T5 && PH.T5.T; if (!T5 || !T5.on || Gm.mode !== 't5') { S.buf.length = 0; return; }
       const R0 = S.buf, last = R0[R0.length - 1]; if (last && Gm.time < last.t) R0.length = 0;
       const F = Gm.fx, dense = !last || (R0.length & 1);
-      R0.push({ t: Gm.time, p: Gm.players.map((p) => { const o = { pose: Object.assign({}, p.pose) }; for (const k of KP) o[k] = p[k]; return o; }), b: (() => { const o = {}; for (const k of KB) o[k] = Gm.ball[k]; return o; })(),
+      R0.push({ t: Gm.time, dir: T5.dir[Gm.off], p: Gm.players.map((p) => { const o = { pose: Object.assign({}, p.pose) }; for (const k of KP) o[k] = p[k]; if (p.armS) o.armS = p.armS.slice(); return o; }), b: (() => { const o = {}; for (const k of KB) o[k] = Gm.ball[k]; return o; })(),
         parts: dense ? F.parts.map((q) => Object.assign({}, q)) : last.parts, rings: F.rings ? F.rings.map((q) => Object.assign({}, q)) : [] });
       while (R0.length && R0[0].t < Gm.time - 6) R0.shift();
-      const mk = Gm.thruMk; if (mk && mk !== S.seen && Gm.time - mk.t < 0.5) { S.seen = mk; S.mk = mk; }
+      const mk = Gm.thruMk;
+      if (mk && mk !== S.seen && Gm.time - mk.t < 0.5) {
+        S.seen = mk;
+        const dir = T5.dir[mk.off]; S.mk = Object.assign({}, mk, { x: dir * mk.y, y: -dir * mk.x });
+      }
       if (S.mk && Gm.time - S.mk.t > 5) S.mk = null;
       if (S.mk && Gm.time - S.mk.t > 1.0 && S.rT != null && Math.abs(Gm.time - S.rT) < 0.5 && (T5.phase === 'dead' || T5.phase === 'inb') && !(PH.game.G.vopt && PH.game.G.vopt.replay === false)) start();
     }
@@ -726,7 +732,7 @@
       while (S.i < S.fr.length - 1 && S.fr[S.i + 1].t <= S.rt) S.i++;
       const f = S.fr[S.i], a = f.p[S.q.pid], d = f.p[S.q.did], w = Math.max(0, 1 - Math.max(0, ae - 0.2) / 1.0), k = Math.min(1, dt * 4);
       // 取景：进攻人和防守人的中点，接触前后往接触点收
-      const gx = a && d ? (a.x + d.x) / 2 : S.q.x, gy = a && d ? (a.y + d.y) / 2 : S.q.y;
+      const gx = a && d ? f.dir * (a.y + d.y) / 2 : S.q.x, gy = a && d ? -f.dir * (a.x + d.x) / 2 : S.q.y;
       S.cam.x += (gx + (S.q.x - gx) * 0.4 * w - S.cam.x) * k; S.cam.y += (gy + (S.q.y - gy) * 0.4 * w - S.cam.y) * k; S.cam.w += (w - S.cam.w) * k;
       S.view = f;
     }
