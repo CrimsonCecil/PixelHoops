@@ -47,10 +47,26 @@ assert(look('zion').body.chest > look('wemby').body.chest);
 assert(look('kawhi').body.hand > curry.body.hand);
 assert(look('harden').beard === 'long' && look('kawhi').style === 'braids');
 assert.equal(curry.style, 'curlfade');
+assert.equal(curry.face, 'youthful');
+assert.equal(curry.beard, '');
 assert.equal(curry.eyes, 'open');
 assert.equal(look('kyrie').style, 'curlfade');
 assert.equal(look('kyrie').beard, 'trimmed');
 assert.equal(look('wemby').style, 'bald');
+assert.equal(look('cade').style, 'curlfade');
+assert.equal(look('cade').skin[1], '#a67453');
+const calibrated = ['cade', 'giannis', 'kawhi', 'tatum', 'ad', 'brunson', 'booker'];
+assert.equal(new Set(calibrated.map(key => look(key).skin[1])).size, calibrated.length);
+for (const key of calibrated) {
+  assert.notEqual(look(key).skin[1], game.ARCH[key].skin, key);
+}
+const expectedTones = {
+  wemby: '#4e3324', embiid: '#4e3324', giannis: '#6a4430', edwards: '#5e3c2a',
+  curry: '#be8b66', kawhi: '#88543f', tatum: '#a16e50', ad: '#9c6749', brunson: '#a97759', booker: '#d29a76'
+};
+for (const [key, tone] of Object.entries(expectedTones)) {
+  assert.equal(look(key).skin[1], tone, key);
+}
 for (const key of ['shaq', 'jokic']) {
   const { bw, body } = look(key);
   const legacyWidth = 1 + 1.5 * (bw - 1);
@@ -63,7 +79,42 @@ for (const key of ['curry', 'kyrie', 'wemby', 'durant', 'sga']) {
 for (const key of ['cade', 'giannis', 'embiid', 'lebron']) {
   assert(look(key).body.shoulder > 1.1 && look(key).body.limb > 1.1, key);
 }
+for (const key of ['lebron', 'giannis', 'zion', 'embiid', 'edwards']) {
+  const { chest, waist, limb, armThickness } = look(key).body;
+  assert(chest > waist * 1.07 && armThickness > limb * 1.1, key);
+}
+assert(lebron.body.chest > lebron.body.waist * 1.3);
+assert(lebron.body.armThickness > lebron.body.limb * 1.3);
+assert(look('clingan').body.chest > look('kobe').body.chest * 1.3);
+for (const key of ['curry', 'cade', 'shaq', 'jokic', 'morant', 'butler', 'kawhi']) {
+  const { limb, armThickness } = look(key).body;
+  assert.equal(armThickness, limb, key);
+}
 console.log('PASS every rostered player renders; 302 measured-height profiles, signature looks, original gameplay rig and held-ball wrist anchors');
+
+const gameCanvas = canvas();
+let spriteContext;
+gameCanvas.getContext().drawImage = (image) => { spriteContext = image.getContext('2d'); };
+render.init(gameCanvas);
+render.drawPlayer(game.t5.makePlayer(0, 'zion', 'cpu'));
+assert(spriteContext);
+for (const key of game.ROSTER) {
+  const p = game.t5.makePlayer(0, key, 'cpu');
+  const jerseyRows = [], headRows = [];
+  spriteContext.fillRect = (_x, y) => { if (p.col.jersey.includes(spriteContext.fillStyle)) jerseyRows.push(y); };
+  spriteContext.rect = (_x, y) => headRows.push(y);
+  for (const [face, tilt, lean] of [[-Math.PI / 2, 0, 0], [-Math.PI / 4, 0.48, 0.38]]) {
+    Object.assign(p, { face });
+    Object.assign(p.pose, { tilt, lean });
+    jerseyRows.length = headRows.length = 0;
+    render.drawPlayer(p);
+    assert(headRows.length && jerseyRows.length, key);
+    const jaw = Math.min(...headRows) + Math.floor(headRows.length * 0.75);
+    assert(Math.min(...jerseyRows) >= jaw, `${key}: shoulders overlap the upper face`);
+  }
+}
+spriteContext.fillRect = spriteContext.rect = noop;
+console.log('PASS shoulders stay below the upper face for all 302 players in front and tilted poses');
 
 game.newGame({ mode: 'train', arch0: 'luka', arch1: 'curry' });
 for (const p of game.G.players) {

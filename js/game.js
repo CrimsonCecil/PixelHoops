@@ -1341,28 +1341,28 @@
   const FACE = { curry: 'oval', kyrie: 'long', kobe: 'long', luka: 'round', lebron: 'square', giannis: 'long', shaq: 'wide', maxey: 'round', sengun: 'wide', white: 'oval', bridges: 'long', herb: 'long', kessler: 'round',
     gafford: 'long', joe: 'oval', dosunmu: 'oval', dybantsa: 'long', peterson: 'oval', boozer: 'square', flemings: 'oval', mara: 'long', peat: 'wide', karaban: 'square', delarrea: 'oval' };
   const SIGNATURE_LOOK = {
-    curry: { style: 'curlfade', face: 'tapered', skin: '#be8b66', beard: 'trimmed', eyes: 'open', mouthguard: true, build: -0.2, shoulder: 0.94 },
-    lebron: { style: 'receding', beard: 'boxed', brow: 'heavy', build: 0.22, shoulder: 1.13, sleeve: 'L' },
+    curry: { style: 'curlfade', face: 'youthful', skin: '#be8b66', beard: '', eyes: 'open', mouthguard: true, build: -0.2, shoulder: 0.94 },
+    lebron: { style: 'receding', beard: 'boxed', brow: 'heavy', build: 0.22, muscle: 0.65, shoulder: 1.13, sleeve: 'L' },
     luka: { style: 'swept', beard: 'stubble', brow: 'soft', build: 0.04 },
-    giannis: { style: 'curlfade', face: 'long', build: 0.26, shoulder: 1.16, legs: 1.07 },
+    giannis: { style: 'curlfade', face: 'long', skin: '#6a4430', build: 0.26, muscle: 0.48, shoulder: 1.16, legs: 1.07 },
     durant: { style: 'receding', face: 'long', beard: 'goatee', build: -0.28, shoulder: 0.94, legs: 1.08 },
     wemby: { style: 'bald', face: 'oval', beard: 'goatee', build: -0.14, shoulder: 0.96, legs: 1.09 },
     chet: { style: 'swept', face: 'long', beard: 'goatee', build: -0.14, legs: 1.08 },
-    zion: { style: 'fade', face: 'wide', brow: 'heavy', build: 0.16, shoulder: 1.09, legs: 0.95 },
+    zion: { style: 'fade', face: 'wide', brow: 'heavy', build: 0.16, muscle: 0.36, shoulder: 1.09, legs: 0.95 },
     jokic: { style: 'buzz', face: 'wide', beard: 'stubble', brow: 'soft', build: 0.13, waist: 0.25, shoulder: 1.05, legs: 0.96 },
     shaq: { build: 0.18, waist: 0.18, shoulder: 1.16, brow: 'heavy', legs: 0.95 },
     kobe: { style: 'buzz', beard: 'goatee', brow: 'heavy', sleeve: 'R' },
     kyrie: { style: 'curlfade', face: 'tapered', beard: 'trimmed', band: '', brow: 'soft', build: -0.27 },
     harden: { style: 'braids', beard: 'long', face: 'oval' },
-    kawhi: { style: 'braids', beard: 'goatee', face: 'long', brow: 'soft' },
+    kawhi: { style: 'braids', beard: 'goatee', face: 'long', skin: '#88543f', brow: 'soft' },
     sga: { style: 'braids', face: 'long', band: '#f4f0e0', build: -0.11, legs: 1.06 },
-    tatum: { style: 'fade', beard: 'boxed', sleeve: 'L' },
-    ad: { style: 'crop', brow: 'joined', beard: 'boxed' },
-    embiid: { style: 'locks', face: 'wide', beard: 'boxed', build: 0.24, shoulder: 1.10 },
+    tatum: { style: 'fade', skin: '#a16e50', beard: 'boxed', sleeve: 'L' },
+    ad: { style: 'crop', skin: '#9c6749', brow: 'joined', beard: 'boxed' },
+    embiid: { style: 'locks', face: 'wide', beard: 'boxed', build: 0.24, muscle: 0.43, shoulder: 1.10 },
     morant: { style: 'locks', face: 'oval', build: -0.12 },
-    edwards: { style: 'fade', face: 'wide', brow: 'heavy', build: 0.11, shoulder: 1.08 },
+    edwards: { style: 'fade', face: 'wide', brow: 'heavy', build: 0.11, muscle: 0.4, shoulder: 1.08 },
     trae: { style: 'wispy', beard: 'goatee', face: 'oval' },
-    brunson: { style: 'braids', face: 'round', beard: 'boxed', shoulder: 1.05 },
+    brunson: { style: 'braids', face: 'round', skin: '#a97759', beard: 'boxed', shoulder: 1.05 },
     haliburton: { style: 'crop', face: 'oval', beard: 'goatee', legs: 1.05 },
     maxey: { style: 'locks', face: 'round', beard: '' },
     bane: { style: 'fade', face: 'square', build: 0.12, shoulder: 1.12 },
@@ -1371,10 +1371,10 @@
     sengun: { style: 'swept', face: 'wide', beard: 'boxed' },
     gobert: { style: 'fade', face: 'long', beard: 'goatee', legs: 1.05 },
     lamelo: { style: 'curly', face: 'oval', legs: 1.05, sleeve: 'R' },
-    booker: { style: 'fade', face: 'oval', beard: 'stubble', brow: 'heavy' },
+    booker: { style: 'fade', face: 'oval', skin: '#d29a76', beard: 'stubble', brow: 'heavy' },
     draymond: { style: 'crop', face: 'wide', beard: 'boxed', shoulder: 1.07 },
     mitchell: { style: 'fade', face: 'round', beard: 'goatee' },
-    cade: { style: 'afro', face: 'oval', beard: 'trimmed', build: 0.16, shoulder: 1.06 },
+    cade: { style: 'curlfade', face: 'oval', skin: '#a67453', beard: 'trimmed', build: 0.16, shoulder: 1.06 },
     banchero: { style: 'braids', face: 'wide', beard: 'goatee', shoulder: 1.06 },
     jbrown: { style: 'braids', beard: 'boxed', face: 'square' },
     sabonis: { style: 'swept', face: 'square', beard: 'boxed' },
@@ -1388,15 +1388,19 @@
       bw: a.bw || 1, wing: a.wing || 1, face: sig.face || FACE[a.key] || 'square', brow: sig.brow, eyes: sig.eyes, mouthguard: sig.mouthguard, sleeve: sig.sleeve };
     if (m) {
       const [inches, pounds, span, hand] = m, height = inches * 0.0254;
-      const bmi = pounds * 0.45359237 / (height * height), density = (bmi - 24.5) / 5.25;
-      const build = clamp(Math.sign(density) * Math.abs(density) ** 1.35 + (sig.build || 0), -0.42, 2.05);
+      const bmi = pounds * 0.45359237 / (height * height);
+      const aboveAverage = bmi - 24.5, density = aboveAverage / 5.25;
+      // 从名单平均值起放大中上体型，接近最厚重的球员时回到原曲线。
+      const midrange = Math.max(0, Math.min(aboveAverage / 2.25, (28.9 - bmi) / 2.15));
+      const build = clamp(Math.sign(density) * Math.abs(density) ** 1.35 + 0.2 * midrange + (sig.build || 0), -0.42, 2.05);
       // 骨架比例保留测量值，胸腰与四肢粗细单独放大。
       const frame = clamp((bmi - 25.4) * 0.091, -0.36, 0.55);
-      const shoulder = (1 + 0.32 * build) * (sig.shoulder || 1);
-      look.body = { height, baseHeight: a.h, shoulder, chest: 1 + 0.7 * build, waist: 1 + 0.76 * build + (sig.waist || 0), hip: 1 + 0.4 * build,
+      const muscle = sig.muscle || 0, limb = 1 + 0.59 * build;
+      const shoulder = (1 + 0.32 * build) * (sig.shoulder || 1) + 0.48 * muscle;
+      look.body = { height, baseHeight: a.h, shoulder, chest: 1 + 0.7 * build + 0.9 * muscle, waist: 1 + 0.76 * build + (sig.waist || 0), hip: 1 + 0.4 * build,
         arm: span ? clamp(1 + 1.65 * (span / inches - 1.047) - 0.086 * frame, 0.87, 1.17) : look.wing,
         legs: sig.legs || clamp(1 + (inches - 78) * 0.002 - frame * 0.06, 0.96, 1.04),
-        limb: 1 + 0.59 * build, hand: hand ? clamp(hand / (0.11 * inches), 0.84, 1.18) : 1 };
+        limb, armThickness: limb + 0.82 * muscle, hand: hand ? clamp(hand / (0.11 * inches), 0.84, 1.18) : 1 };
     }
     return look;
   }
