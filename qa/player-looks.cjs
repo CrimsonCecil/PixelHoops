@@ -73,9 +73,15 @@ for (const key of ['shaq', 'jokic']) {
   assert(0.29 * body.waist >= 0.31 * (0.2 + 0.8 * legacyWidth) * 1.06, key);
   assert(body.limb >= (0.5 + 0.5 * legacyWidth) * 1.12, key);
 }
-for (const key of ['curry', 'kyrie', 'wemby', 'durant', 'sga']) {
+for (const key of ['curry', 'wemby', 'sga']) {
   assert(look(key).body.limb < 0.9, key);
 }
+const relativeLimb = key => {
+  const { height, limb } = look(key).body;
+  return limb / (1 + (height / 1.95 - 1) * 1.55);
+};
+assert(relativeLimb('kyrie') < relativeLimb('fvv'));
+assert(relativeLimb('durant') < relativeLimb('tatum'));
 for (const key of ['cade', 'giannis', 'embiid', 'lebron']) {
   assert(look(key).body.shoulder > 1.1 && look(key).body.limb > 1.1, key);
 }
@@ -91,6 +97,27 @@ for (const key of ['curry', 'cade', 'shaq', 'jokic', 'morant', 'butler', 'kawhi'
   assert.equal(armThickness, limb, key);
 }
 console.log('PASS every rostered player renders; 302 measured-height profiles, signature looks, original gameplay rig and held-ball wrist anchors');
+
+const bmi = key => {
+  const [inches, pounds] = measurements[key];
+  return pounds * 0.45359237 / (inches * 0.0254) ** 2;
+};
+const averageBmi = game.ROSTER.reduce((total, key) => total + bmi(key), 0) / game.ROSTER.length;
+for (const key of game.ROSTER) {
+  if (bmi(key) < averageBmi) continue;
+  const { height, shoulder, chest, waist } = look(key).body;
+  const scale = 1 + (height / 1.95 - 1) * 1.55;
+  assert(shoulder >= 1.045 && chest / scale >= 1.035 && waist / scale >= 1.035 && relativeLimb(key) >= 1.01, key);
+}
+assert(relativeLimb('queta') > relativeLimb('tatum') * 1.1);
+assert(relativeLimb('queta') > relativeLimb('wemby') * 1.5);
+const queta = game.t5.makePlayer(0, 'queta', 'cpu');
+const { height, arm, legs } = queta.col.body, scale = 1 + (height / 1.95 - 1) * 1.55;
+const { k: visual } = render.drawPlayer(queta);
+const dist = (a, b) => Math.hypot(...a.map((v, i) => v - b[i]));
+assert(dist(visual.shL, visual.elL) < 0.96 * 0.28 * scale * arm);
+assert(dist(visual.hipL, visual.kneeL) < 0.97 * 0.41 * scale * legs);
+console.log('PASS above-average BMI profiles have solid height-relative widths; Queta has shorter visual limbs and a fuller frame');
 
 const gameCanvas = canvas();
 let spriteContext;

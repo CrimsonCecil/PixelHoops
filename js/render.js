@@ -195,14 +195,19 @@
   }
 
   // ---------- 像素图元 ----------
-  function brush(c, x0, y0, x1, y1, w, dark, light, top = -Infinity) {
+  function brush(c, x0, y0, x1, y1, w, dark, light, top = -Infinity, rounded = false) {
     w = Math.max(1, Math.round(w));
     const dx = x1 - x0, dy = y1 - y0, n = Math.max(1, Math.ceil(Math.max(Math.abs(dx), Math.abs(dy)))), h = w / 2;
     const paint = (col, size) => {
       c.fillStyle = col;
+      const corner = rounded ? Math.floor(size * 0.17) : 0;
       for (let i = 0; i <= n; i++) {
-        const t = i / n, y = Math.round(y0 + dy * t - h), start = Math.max(y, top);
-        if (start < y + size) c.fillRect(Math.round(x0 + dx * t - h), start, size, y + size - start);
+        const t = i / n, x = Math.round(x0 + dx * t - h), y = Math.round(y0 + dy * t - h), start = Math.max(y, top);
+        if (start < y + size) {
+          c.fillRect(x + corner, start, size - 2 * corner, y + size - start);
+          const middle = Math.max(start, y + corner);
+          if (corner && middle < y + size - corner) c.fillRect(x, middle, size, y + size - corner - middle);
+        }
       }
     };
     paint(dark, w);
@@ -1079,7 +1084,7 @@
     const height = body ? body.height * (pl.h / body.baseHeight) : pl.h;
     const Hh = 1 + (height / 1.95 - 1) * (body ? 1.55 : 1.7);
     // 像素风头身比（约 1:4.5）：大头、短躯干、短腿
-    const legs = body ? body.legs : 1, armLength = body ? body.arm : wg, fb = Math.max(0.6, 1 + 1.5 * (bw - 1));
+    const legs = body ? 0.95 * body.legs : 1, armLength = body ? 0.94 * body.arm : wg, fb = Math.max(0.6, 1 + 1.5 * (bw - 1));
     const th = 0.41 * Hh * legs, sh = th, to = 0.48 * Hh - 0.82 * Hh * (legs - 1), ua0 = 0.28 * Hh * armLength, fa0 = 0.26 * Hh * armLength;
     const hw = 0.12 * Hh * (body ? body.hip : 0.5 + 0.5 * fb), sw = 0.21 * Hh * (body ? body.shoulder : 0.55 + 0.45 * fb);
     function leg(side, a, b, s) {
@@ -1277,26 +1282,32 @@
     const bw = C.bw || 1, fb = Math.max(0.6, 1 + 1.5 * (bw - 1)), B = C.body;
     const lw = B ? B.limb : (0.5 + 0.5 * fb) * 1.12, tw = B ? B.chest : (0.2 + 0.8 * fb) * 1.06;
     const armWidth = B ? B.armThickness : lw;
-    const headSize = 0.38 * s * (0.92 + 0.08 * Math.min(1.4, tw));
+    const headSize = 0.38 * s * (B ? B.headScale : 0.92 + 0.08 * Math.min(1.4, tw));
     const shoulderTop = Math.ceil(J.head.y + 0.25 * headHeight(C.face, headSize));
-    seg('hipL', 'kneeL', 0.17 * lw, C.shorts); seg('hipR', 'kneeR', 0.17 * lw, C.shorts);
-    seg('kneeL', 'footL', 0.11 * lw, C.skin); seg('kneeR', 'footR', 0.11 * lw, C.skin);
+    for (const side of ['L', 'R']) {
+      const hip = J['hip' + side], knee = J['knee' + side], hem = 'hem' + side;
+      if (B) J[hem] = { x: lerpN(hip.x, knee.x, 0.82), y: lerpN(hip.y, knee.y, 0.82), d: lerpN(hip.d, knee.d, 0.82) };
+      const shortsEnd = B ? hem : 'knee' + side;
+      seg('hip' + side, shortsEnd, (B ? 0.21 : 0.17) * lw, C.shorts);
+      if (B) seg(hem, 'knee' + side, 0.135 * lw, C.skin);
+      seg('knee' + side, 'foot' + side, (B ? 0.12 : 0.11) * lw, C.skin);
+    }
     seg('footL', 'toeL', 0.12, C.shoe, -0.01); seg('footR', 'toeR', 0.12, C.shoe, -0.01);
-    seg('hipL', 'hipR', 0.2 * lw, C.shorts);
+    seg('hipL', 'hipR', (B ? 0.23 : 0.2) * lw, C.shorts);
     if (B) {
       const P = J.pelvis, Q = J.chest;
       J.mid = { x: (P.x + Q.x) / 2, y: (P.y + Q.y) / 2, d: (P.d + Q.d) / 2 };
       J.neck = { x: lerpN(Q.x, J.head.x, 0.55), y: lerpN(Q.y, J.head.y, 0.55), d: Q.d };
-      seg('pelvis', 'mid', 0.29 * B.waist, C.jersey, 0, shoulderTop);
-      seg('mid', 'chest', 0.34 * tw, C.jersey, 0, shoulderTop);
+      seg('pelvis', 'mid', 0.32 * B.waist, C.jersey, 0, shoulderTop);
+      seg('mid', 'chest', 0.375 * tw, C.jersey, 0, shoulderTop);
       seg('chest', 'neck', 0.13 * lw, C.skin, 0.02);
     } else seg('pelvis', 'chest', 0.31 * tw, C.jersey, 0, shoulderTop);
     seg('shL', 'shR', 0.12 * (B ? B.chest : 0.6 + 0.4 * fb), C.jersey, 0, shoulderTop);
     for (const side of ['L', 'R']) {
       const sleeve = C.sleeve === side ? [C.shorts[0], C.trim] : C.skin;
-      const upper = 0.11 * armWidth, elbowTop = Math.round(J['el' + side].y - Math.max(1, Math.round(upper * s)) / 2);
+      const upper = (B ? 0.122 : 0.11) * armWidth, elbowTop = Math.round(J['el' + side].y - Math.max(1, Math.round(upper * s)) / 2);
       seg('sh' + side, 'el' + side, upper, sleeve, 0, Math.min(shoulderTop, elbowTop));
-      seg('el' + side, 'hand' + side, 0.095 * armWidth, sleeve);
+      seg('el' + side, 'hand' + side, (B ? 0.106 : 0.095) * armWidth, sleeve);
       if (B || (pl.pose['fl' + side] || 0) > 0.15) seg('hand' + side, 'fg' + side, 0.075 * lw, C.skin);
     }
     segs.push({ head: true, d: J.head.d - 0.02 });
@@ -1305,7 +1316,7 @@
     for (const g of segs) {
       if (g.head) {
         drawHead(sctx, C, J.head.x, J.head.y, headSize, facing);
-      } else brush(sctx, g.a.x, g.a.y, g.b.x, g.b.y, g.w, g.c[0], g.c[1], g.top);
+      } else brush(sctx, g.a.x, g.a.y, g.b.x, g.b.y, g.w, g.c[0], g.c[1], g.top, !!B && (g.c === C.jersey || g.c === C.shorts));
     }
     // 球衣号码色块
     if (s > 20 && Math.abs(away) > 0.3) {
