@@ -1813,7 +1813,7 @@
     if (!inside) g *= K.gwOut; // V3.9q 外线跳投（中投 / 三分 / 背身后仰）绿区再按比例放宽 13.5%；上篮扣篮不变
     if (kind === 'three') g *= clamp(1 - deepExcess(pl) * K.smDeepGW, K.smDeepGWLo, 1);
     g *= 1 + clamp(pl.hc || 0, -3, 3) * (0.015 + 0.06 * (1 - (pl.r.ocon || 0.65)));   // V4.6 进攻稳定性：连中 / 连铁的手感波动
-    if (kind === 'three') { if (ptIs(pl, 'sniper') && G.time - (pl.gotT == null ? -9 : pl.gotT) < 0.6) g *= 1.08; if (ptIs(pl, 'stretch')) g *= 1.05; if (ptIs(pl, 'threeD') && Math.abs(pl.x) > 6) g *= 1.05; }
+    if (kind === 'three') { if (ptIs(pl, 'sniper')) { const cs = G.time - (pl.gotT == null ? -9 : pl.gotT) < 0.6, on = a ? (a.csn == null ? (a.csn = cs) : a.csn) : cs; if (on) g *= 1.08; } if (ptIs(pl, 'stretch')) g *= 1.05; if (ptIs(pl, 'threeD') && Math.abs(pl.x) > 6) g *= 1.05; }
     if (kind === 'mid' && ptIs(pl, 'pointC')) { const dh = distHoop(pl); if (dh > 4 && dh < 7) g *= 1.05; }
     // 徽章加成叠乘但封顶 1.45 倍，避免高能力球员绿区大到"怎么投都进"
     let bm = 1;
