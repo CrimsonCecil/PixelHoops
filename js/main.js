@@ -176,7 +176,7 @@
     const tm = a.team && GM.NBA[a.team], tmS = tm ? (a.team === 'LEG' ? '传奇' : tm.city + tm.name) + ' · ' : a.tier === 'rook' ? '新秀 · ' : '';
     let h = '<div class="pkd-h"><canvas class="pkf big" width="64" height="64"></canvas><div><b>' + a.full + '</b><span>' + tmS + a.pos + ' · ' + a.h.toFixed(2) + ' 米 · ' + a.num + ' 号</span><span class="pkd-desc">' + a.desc + '</span></div><em class="t' + TT[a.tier] + '">' + a.ovr + '<small>' + GM.TIERS[a.tier] + '</small></em></div>';
     const pt = PH.PT.of(a);
-    h += '<p class="pkform" data-testid="ptype"><canvas width="' + PH.PT.SIZE + '" height="' + PH.PT.SIZE + '" data-ptype="' + pt.id + '" style="width:22px;height:22px;image-rendering:pixelated;vertical-align:middle"></canvas> ' + pt.name + '</p>';
+    h += '<p class="pkform" data-testid="ptype"><canvas width="' + PH.PT.SIZE + '" height="' + PH.PT.SIZE + '" data-ptype="' + pt.id + '" style="width:26px;height:26px;image-rendering:pixelated;vertical-align:middle"></canvas> ' + pt.name + '</p>';
     h += '<div class="pkd-tabs" data-testid="pk-tabs">' + PK_TABS.map((t) => '<button data-nonav="1" data-pkt="' + t[0] + '" class="' + (t[0] === pkTab ? 'on' : '') + '" data-testid="pkt-tab-' + t[0] + '">' + t[1] + '</button>').join('') + '<span class="pkd-lr">LB</span><span class="pkd-lr r">RB</span></div>';
     const bar = (n, v, tip) => { const cl = vcl(v); return '<div class="pkr"' + (tip ? ' title="' + tip + '"' : '') + '><span>' + n + '</span><i><s class="' + cl + '" style="width:' + v + '%"></s></i><b>' + v + '</b></div>'; };
     const AT = {}; GM.ATTRS.forEach((t) => { AT[t[0]] = t[2]; }); Object.assign(AT, R5TIP);
@@ -205,7 +205,7 @@
     }
     el.innerHTML = h; el.scrollTop = sc;
     const ptCanvas = el.querySelector('[data-ptype]');
-    if (ptCanvas) PH.PT.draw(ptCanvas.getContext('2d'), pt.id, 0, 0, getComputedStyle(el.querySelector('.pkd-h b')).color);
+    if (ptCanvas) PH.PT.draw(ptCanvas.getContext('2d'), pt.id, 0, 0);
     const fc = el.querySelector('canvas'); if (fc) portrait(fc, a, GM.TEAMS[pkSide]);
   }
   function pkMark() { $('pk-grid').querySelectorAll('.pkc').forEach((b) => b.classList.toggle('on', b.getAttribute('data-pk') === pkSel)); }
@@ -320,7 +320,6 @@
     $('set-title').textContent = v === 'sound' ? '声音' : v === 'disp' ? '显示' : v === 'cam5' ? '镜头' : '设置'; setLabels(); if (v === 'cam5') cam5Labels(); clearPf();
   }
   function setLabels() {
-    $('btn-ptype').textContent = '类型图标样式 ' + PH.PT.style + ' · ' + PH.PT.styles[PH.PT.style - 1];
     $('btn-music').textContent = '音乐 ' + (PH.audio.musicOn ? '开' : '关');
     $('btn-sfx').textContent = '音效 ' + (PH.audio.sfxOn ? '开' : '关');
     $('btn-info').textContent = '球员信息 ' + (opts.info === 'show' ? '显示' : '隐藏');
@@ -545,7 +544,6 @@
     $('mixer').addEventListener('change', (e) => { const k = e.target.getAttribute('data-mx'); PH.audio.play(k === 'vo' ? 'ui' : k === 'music' ? 'ui' : 'swish'); if (k === 'vo' && G.players[0]) PH.audio.vo(G.players[0].arch.key, 'three', 'pri'); });
     sync(); }
   $('btn-info').addEventListener('click', () => { toggleInfo(); setLabels(); });
-  $('btn-ptype').addEventListener('click', () => { PH.PT.setStyle(PH.PT.style % PH.PT.styles.length + 1); setLabels(); });
   const saveV = () => setLabels();
   $('btn-replay').addEventListener('click', () => { G.vopt.replay = !G.vopt.replay; saveV(); });
   $('btn-close').addEventListener('click', () => { G.vopt.close = !G.vopt.close; saveV(); });

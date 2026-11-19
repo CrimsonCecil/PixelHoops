@@ -1,26 +1,15 @@
 window.PH = window.PH || {};
 (function () {
   const types = {
-    allstar: { name: '全能明星', pixels: ['..#..', '#####', '.###.', '.###.', '#...#'] },
-    sniper: { name: '三分射手', pixels: ['####.', '....#', '..##.', '....#', '####.'] },
-    slasher: { name: '突破手', pixels: ['..##.', '.##..', '#####', '..##.', '.##..'] },
-    playmaker: { name: '组织大师', pixels: ['..#..', '...#.', '#####', '...#.', '..#..'] },
-    post: { name: '内线支柱', pixels: ['#...#', '#####', '.#.#.', '.###.', '..#..'] },
-    rim: { name: '护框者', pixels: ['#####', '#...#', '#...#', '.#.#.', '..#..'] },
-    lockdown: { name: '防守大闸', pixels: ['.###.', '.#.#.', '#####', '##.##', '#####'] }
+    allstar: { name: '全能明星', pixels: ['...#...', '..###..', '#######', '.#####.', '..###..', '.##.##.', '.#...#.'] },
+    sniper: { name: '三分射手', pixels: ['.#####.', '.....##', '.....##', '..####.', '.....##', '.....##', '.#####.'] },
+    slasher: { name: '突破手', pixels: ['...###.', '..###..', '.###...', '#######', '...###.', '..###..', '.###...'] },
+    playmaker: { name: '组织大师', pixels: ['...#...', '...##..', '...###.', '#######', '...###.', '...##..', '...#...'] },
+    post: { name: '内线支柱', pixels: ['.#.#.#.', '.#####.', '.#####.', '######.', '#######', '.#####.', '..###..'] },
+    rim: { name: '护框者', pixels: ['.#####.', '##...##', '#.....#', '#.....#', '.#...#.', '..#.#..', '...#...'] },
+    lockdown: { name: '防守大闸', pixels: ['..###..', '.##.##.', '.#...#.', '.#####.', '.##.##.', '.##.##.', '.#####.'] }
   };
-  const styles = ['白环圆章', '奶油同色', '队色圆章', '银框六角', '极简描边', '浅底反色'];
-  const valid = (v) => Number.isInteger(+v) && +v >= 1 && +v <= styles.length;
-  let style = 1;
-  function setStyle(v) {
-    if (!valid(v)) return false;
-    style = +v;
-    try { localStorage.setItem('ptype-style', String(style)); } catch (_) {}
-    return true;
-  }
-  try { const saved = localStorage.getItem('ptype-style'); if (valid(saved)) style = +saved; } catch (_) {}
-  const requested = new URLSearchParams(window.location.search).get('pt');
-  if (valid(requested)) setStyle(requested);
+  const SIZE = 13;
   function of(a) {
     if (!a || typeof a !== 'object') return null;
     if (Object.prototype.hasOwnProperty.call(a, 'ptype')) return a.ptype;
@@ -44,28 +33,20 @@ window.PH = window.PH || {};
     a.ptype = { id: id, name: t.name, col: '#fff9e8' };
     return a.ptype;
   }
-  function draw(ctx, id, x, y, nameCol) {
+  function draw(ctx, id, x, y) {
     const t = types[id]; if (!t) return 0;
     x = Math.round(x); y = Math.round(y);
     ctx.save();
-    const ink = '#15101f', light = '#fff9e8';
-    const accent = style === 2 ? '#e9d9ad' : style === 3 || style === 5 ? nameCol || light : style === 4 ? '#b9c4d0' : light;
-    if (style !== 5) for (let r = 0; r < 11; r++) for (let c = 0; c < 11; c++) {
-      const d = (c - 5) * (c - 5) + (r - 5) * (r - 5);
-      const hex = Math.max(Math.abs(c - 5), Math.abs(r - 5) + Math.abs(c - 5) * 0.5);
-      const edge = style === 4 ? hex > 4 ? 2 : hex > 3 ? 1 : 0 : d > 21 ? 2 : d > 13 ? 1 : 0;
-      if (style === 4 ? hex > 5 : d > 30) continue;
-      ctx.fillStyle = edge === 2 ? ink : style === 6 ? light : edge === 1 ? accent : '#202334';
+    for (let r = 0; r < SIZE; r++) for (let c = 0; c < SIZE; c++) {
+      const hex = Math.max(Math.abs(c - 6), Math.abs(r - 6) + Math.abs(c - 6) * 0.5);
+      if (hex > 6) continue;
+      ctx.fillStyle = hex > 5 ? '#15101f' : hex > 4 ? '#b9c4d0' : '#202334';
       ctx.fillRect(x + c, y + r, 1, 1);
     }
-    if (style === 5) {
-      ctx.fillStyle = ink;
-      t.pixels.forEach((row, r) => { for (let c = 0; c < row.length; c++) if (row[c] === '#') ctx.fillRect(x + c + 2, y + r + 2, 3, 3); });
-    }
-    ctx.fillStyle = style === 6 ? ink : style === 2 || style === 3 || style === 5 ? accent : light;
+    ctx.fillStyle = '#fff9e8';
     t.pixels.forEach((row, r) => { for (let c = 0; c < row.length; c++) if (row[c] === '#') ctx.fillRect(x + c + 3, y + r + 3, 1, 1); });
     ctx.restore();
-    return 11;
+    return SIZE;
   }
-  PH.PT = { of: of, draw: draw, SIZE: 11, styles: styles, setStyle: setStyle, get style() { return style; } };
+  PH.PT = { of: of, draw: draw, SIZE: SIZE };
 })();
