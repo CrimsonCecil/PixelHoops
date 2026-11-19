@@ -547,8 +547,8 @@
     for (const p of Gm.players) { if (p.tm === T.hum || p.tm == null || p.off) continue; if (p.mark === c || p.opp === c) return p; const d = Math.hypot(p.x - c.x, p.y - c.y); if (d < bd) { bd = d; m = p; } }
     return m;
   }
-  // 名字标签：白字深色描边；用户控制的人名字前有星形
-  const STAR = ['....#....', '...###...', '#########', '.#######.', '..#####..', '.###.###.', '##.....##'];
+  // 名字标签：白字深色描边；用户控制的人名字前有箭头
+  const POINTER = ['#........', '###......', '######...', '#########', '######...', '###......', '#........'];
   function nameTag(a, cx, y, star, alpha, col) {
     const t = a.name, pt = PH.PT.of(a), oldAlpha = ctx.globalAlpha;
     ctx.font = FONT; ctx.textBaseline = 'top';
@@ -558,8 +558,8 @@
     for (const [dx, dy] of [[-1, 0], [1, 0], [0, -1], [0, 1], [-1, -1], [1, -1], [-1, 1], [1, 1]]) ctx.fillText(t, x0 + sw + dx, yy + dy);
     if (star) {
       const sy = yy + 2;
-      ctx.fillStyle = '#15101f'; for (let r = 0; r < STAR.length; r++) for (let c = 0; c < 9; c++) if (STAR[r][c] === '#') ctx.fillRect(x0 + c - 1, sy + r - 1, 3, 3);
-      ctx.fillStyle = '#ffffff'; for (let r = 0; r < STAR.length; r++) for (let c = 0; c < 9; c++) if (STAR[r][c] === '#') ctx.fillRect(x0 + c, sy + r, 1, 1);
+      ctx.fillStyle = '#15101f'; for (let r = 0; r < POINTER.length; r++) for (let c = 0; c < 9; c++) if (POINTER[r][c] === '#') ctx.fillRect(x0 + c, sy + r - 1, 3, 3);
+      ctx.fillStyle = '#ffffff'; for (let r = 0; r < POINTER.length; r++) for (let c = 0; c < 9; c++) if (POINTER[r][c] === '#') ctx.fillRect(x0 + c + 1, sy + r, 1, 1);
     }
     ctx.fillStyle = col ? (R.curCol ? R.curCol(col) : col) : '#ffffff'; ctx.fillText(t, x0 + sw, yy);
     PH.PT.draw(ctx, pt.id, x0 + sw + tw + 3, yy - 1);
@@ -600,7 +600,7 @@
       if (nm) uiAv.push({ x0: 4, x1: 8 + Math.ceil(ctx.measureText(nm).width) + 12, y0: H - 28, y1: H - 8 });
       if (T.bar) uiAv.push({ x0: W / 2 - 150, x1: W / 2 + 150, y0: H - 46, y1: H - 20 });
     }
-    // 控制球员：脚下体力条 + 带星名字；对方/队友持球人只显示名字
+    // 控制球员：脚下体力条 + 带箭头名字；对方/队友持球人只显示名字
     if (hum && ctl && T.phase !== 'over' && !(PH.render5.k2 && PH.render5.k2.tip && PH.render5.k2.tipE < 0.5)) {
       const h = PH.T5.holder && PH.T5.holder();
       const mine = ctlTag(ctl, P[ctl.id], pr, true);
