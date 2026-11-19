@@ -762,6 +762,10 @@
     ['aiSuQ', 'ai', '电脑持球 快攻回合概率', 0.1, 0, 1, 0.01, '概率：这一回合组织时间只取 30%'],
     ['aiSuOpR', 'ai', '电脑持球 组织中空位出手 投射门槛', 0.8, 0, 1.2, 0.01, '能力：投射 ≥ 这个的人组织中遇到空位可以直接投'],
     ['aiSuOpT', 'ai', '电脑持球 组织中空位出手 最早', 0.6, 0, 5, 0.05, '秒：拿球后至少这么久'],
+    ['aiSuOpN', 'ai', '电脑持球 空位前运球招数', 2, 0, 5, 1, '招：1V1 非背打球员组织时先做招再投；控球强、连续过人型增加招数', 'int'],
+    ['aiSuFar', 'ai', '电脑持球 真空位距离', 3.2, 2.5, 5, 0.1, '米：1V1 防守人离这么远或被晃倒时可提前出手'],
+    ['aiSuMin', 'ai', '电脑持球 组织最低招数', 2, 1, 5, 1, '招：1V1 非背打组织招数下限；按个性增加，保留左右来回试探', 'int'],
+    ['aiDrvSet', 'ai', '电脑持球 正面受阻距离', 1.6, 1, 2, 0.05, '米：1V1 防守人正面站稳时不硬冲，先变向或退一步重新单打'],
     ['aiSuOpP', 'ai', '电脑持球 组织中空位出手 频率', 2.5, 0, 20, 0.1, '次/秒'],
     ['aiSuMv', 'ai', '电脑持球 组织中试探招式频率', 0.25, 0, 5, 0.05, '次/秒：× (0.5 + 控球)；试探步 / 犹豫 / 变向'],
     ['aiSuStun', 'ai', '电脑持球 组织中晃开门槛', 0.5, 0, 3, 0.05, '秒：防守人硬直超过这个（被晃开 / 晃倒）就结束组织直接进攻'],
@@ -4193,6 +4197,8 @@
     if (G.phase === 'dead') { go(pl.x * 0.7, 6.5, 0.5); return o; }
     if (pl.hasBall) {
       const d = distHoop(pl), a = pl.action;
+      const duel = G.mode !== 't5' && (G.mode === 'cpu' || G.mode === 'train') && styOf(pl) !== 'post';
+      if (duel && ai.su && a && a.type === 'move' && ai.su.moveFor !== a) { ai.su.moveFor = a; ai.su.nm = (ai.su.nm || 0) + 1; }
       if (a && (a.type === 'shot' || a.type === 'layup')) {
         if (ai.relFor !== a) {
           ai.relFor = a; const lay = a.type === 'layup', c0 = contestOf(pl, opp, lay ? 'in' : 'shot');
@@ -4269,7 +4275,11 @@
         const st = styOf(pl), tk = styK(pl, 'Su');   // V4.8 组织时长按个性
         const fresh = G.phase === 'live' && G.time - (pl.orebT || -9) < 1.4;   // 刚抢到进攻篮板：补篮 / 假投 / 运出走原逻辑
         ai.su = { t0: G.time, end: fresh ? 0 : G.time + rr(K.aiSu0, K.aiSu1) * tk * (rnd() < K.aiSuQ ? 0.3 : 1), st: st };
+        if (duel) { ai.su.min = fresh ? 0 : Math.max(K.aiSuMin, Math.ceil(K.aiSuOpN * clamp(styK(pl, 'Len'), 1, 1.5) + Math.max(0, pl.r.hnd - 0.9))); }
       }
+      const setDef = duel && !opp.off && front > 0.5 && dd < K.aiDrvSet && (CFG.shotClock <= 0 || G.shotClock > K.aiSuClk);
+      const building = duel && ai.su && (ai.su.nm || 0) < ai.su.min && !opp.off && dd < K.aiSuFar && opp.stun <= 0.6 && G.time - ai.su.t0 < 6 && (CFG.shotClock <= 0 || G.shotClock > K.aiSuClk);
+      if (building) { ai.su.end = Math.max(ai.su.end, G.time + dt * 2); ai.plan = 'iso'; }
       // V4.8 组织阶段不是干运球：按个性真打——单打招式串 / 连招读防守人站位和重心、假投骗起跳；背打型先去低位要位背身；一有空档立刻投
       let SU = false;
       if (ai.su && G.time < ai.su.end) {
@@ -4278,15 +4288,16 @@
         suBeat(pl, opp);
         if (opp.off || d < 3 || (CFG.shotClock > 0 && G.shotClock < K.aiSuClk)) U.end = 0;
         else if (U.bt && U.bc === 'keep') { /* 继续晃 */ }
-        else if (U.bt && U.bc === 'drive') { U.end = 0; ai.plan = 'drive'; ai.t = Math.max(ai.t, 0.6); const lat = (opp.x - pl.x) * -hy + (opp.y - pl.y) * hx; ai.side = lat > 0 ? -1 : 1; }
-        else if (rS0 >= K.aiSuOpR && G.time - U.t0 >= K.aiSuOpT && c < styK(pl, 'Open') && (opp.stun > 0.15 || ddO > 1.5 + 0.5 * opp.r.spd) && !(pl.cd > 0.2)) { U.end = 0; G.aiSty = G.aiSty || {}; G.aiSty.open = (G.aiSty.open || 0) + 1; shootNow(); return o; }
+        else if (U.bt && U.bc === 'drive' && !building && !setDef) { U.end = 0; ai.plan = 'drive'; ai.t = Math.max(ai.t, 0.6); const lat = (opp.x - pl.x) * -hy + (opp.y - pl.y) * hx; ai.side = lat > 0 ? -1 : 1; }
+        else if (rS0 >= K.aiSuOpR && G.time - U.t0 >= K.aiSuOpT && c < styK(pl, 'Open') && (opp.stun > 0.15 || ddO > 1.5 + 0.5 * opp.r.spd) && !(pl.cd > 0.2) && (!duel || (!setDef && ((U.nm || 0) >= U.min || ddO >= K.aiSuFar || ((U.nm || 0) > 0 && opp.stun > 0.6))))) { U.end = 0; G.aiSty = G.aiSty || {}; G.aiSty.open = (G.aiSty.open || 0) + 1; shootNow(); return o; }
         else if (opp.stun > 0.6) U.end = 0;   // 晃倒 / 顶翻：直接打
         if (G.time < U.end) {
           SU = true; ai.t = Math.max(ai.t, 0.2);
           // 先读防守人：左右晃肩、试探步，看站位和重心再出招
           // 连招长度按个性：招式数到了就不再组织，交给正常决策（突 / 投 / 急停）；继续晃的那次多给两招
-          if ((pl.lastMoveT || -9) > (U.lm == null ? U.t0 : U.lm)) { U.lm = pl.lastMoveT; U.nm = (U.nm || 0) + 1; }
+          if (!duel && (pl.lastMoveT || -9) > (U.lm == null ? U.t0 : U.lm)) { U.lm = pl.lastMoveT; U.nm = (U.nm || 0) + 1; }
           if (U.mx == null) U.mx = Math.max(1, Math.round(rr(K.aiStyMv0, K.aiStyMv1) * styK(pl, 'Len')));
+          if (duel) U.mx = Math.max(U.mx, U.min);
           if ((U.nm || 0) >= U.mx + 2 * (U.nk || 0) && !(pl.action && pl.action.type === 'move') && !(U.bt && U.bc === 'keep' && opp.stun > 0)) { U.end = 0; SU = false; ai.iso = null; const fn = 0.55 * pl.r.lay + 0.45 * Math.max(pl.r.dunk, 0.35), wd = styK(pl, 'Drv') * fn * fn, wp = styK(pl, 'Pull') * rS0 * rS0; ai.plan = rnd() < wd / (wd + wp) ? 'drive' : 'shoot'; ai.t = K.aiStyCommit; G.aiSty = G.aiSty || {}; G.aiSty['end_' + ai.plan] = (G.aiSty['end_' + ai.plan] || 0) + 1; }   // 招式出完就定：突或投（按个性的突 / 急停倾向）
           else {
           if (U.rd == null) U.rd = U.t0 + rr(K.aiStyRd0, K.aiStyRd1) * styK(pl, 'Su');
@@ -4374,6 +4385,16 @@
         if (ai.pb === 'out') { ai.plan = 'iso'; ai.iso = null; ai.resetT = G.time + 1.0; }
       }
       if (ai.resetT && G.time < ai.resetT) { go(HOOP.x - hx * 5, HOOP.y - hy * 5, 0.9); return o; }
+      if (setDef) {
+        ai.plan = 'iso'; ai.iso = null; ai.cb = null; ai.stuck = 0;
+        if (opp.stun > 0.05) { o.mx = px; o.my = py; }
+        else if ((FP.inside || FP.back) && FP.fv > 2) { o.mx = -hx; o.my = -hy; }
+        else if (pl.cd <= 0 && pl.stam > 12 && !pl.prev.a3) {
+          ai.side = -ai.side; o.a3 = true;
+          o.dx = -hy * ai.side * 0.8 - hx * 0.6; o.dy = hx * ai.side * 0.8 - hy * 0.6;
+        } else { o.mx = -hx * 0.65; o.my = -hy * 0.65; }
+        return o;
+      }
       const attack = !SU && FP.inside && FP.fv > 3 && (FP.dunk ? FP.tko > 0.6 * FP.reach || d < 3.4 : FP.tko < 1.6 + 0.8 * rnd());
       // 对面是护框大闸、自己又有投篮：杀到中距离先看一眼，防守人退着守就急停跳投，不往他身上撞
       { const rkA = ai.rimK == null ? 1 : ai.rimK, jrA = isThree(pl.x, pl.y) ? pl.r.three : pl.r.mid;
@@ -4393,7 +4414,7 @@
         // 单打：对峙 → 按球员习惯打一串运球组合（变向 / 胯下 / 背后 / 犹豫 / 假投 / 后撤）→ 读防守：被晃或被甩开就立刻攻，没晃开就换节奏再来
         const I = ai.iso || (ai.iso = pickIso(pl));
         const jr = isThree(pl.x, pl.y) ? pl.r.three : pl.r.mid;
-        const beat = I.i > 0 && (opp.stun > 0.08 || dd > 2.5 || (front < 0.15 && dd < 2.6));
+        const beat = !building && I.i > 0 && (opp.stun > 0.08 || dd > 2.5 || (front < 0.15 && dd < 2.6));
         if (beat && SU && suBeat(pl, opp) === 'keep') { ai.iso = null; return o; }   // V4.8 连续过人型：晃开了接着晃
         if (beat) {
           if (SU) ai.su.end = 0;
