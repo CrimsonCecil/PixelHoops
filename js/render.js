@@ -1028,13 +1028,15 @@
     T[arm + 'e'] = lerpN(T[arm + 'e'], 0.08, w);
   }
 
-  function gripArm(k, side, end) {
+  function gripArm(k, side, end, gathering) {
     const sh = k['sh' + side], el = k['el' + side], hand = k['hand' + side];
     const diff = (a, b) => a.map((x, i) => x - b[i]), dot = (a, b) => a.reduce((s, x, i) => s + x * b[i], 0);
-    const axis = diff(end, sh), d = Math.hypot(...axis);
-    if (d < 0.001) return;
-    const v = axis.map((x) => x / d), upper = diff(el, sh);
+    const axis = diff(end, sh), d0 = Math.hypot(...axis);
+    if (d0 < 0.001) return;
+    const v = axis.map((x) => x / d0), upper = diff(el, sh);
     let ua = Math.hypot(...upper), fa = Math.hypot(...diff(hand, el));
+    const d = gathering ? Math.min(d0, (ua + fa) * 1.04) : d0;
+    if (d < d0) end = sh.map((x, i) => x + v[i] * d);
     const reach = Math.max(1, d / ((ua + fa) * 0.99)); ua *= reach; fa *= reach;
     const along = Math.max(-ua, Math.min(ua, (d * d + ua * ua - fa * fa) / (2 * d)));
     const perp = (a) => { const t = dot(a, v); return a.map((x, i) => x - t * v[i]); };
@@ -1053,12 +1055,19 @@
     const palm = g.dunk ? hand.map((x, i) => x - el[i]) : [0, 0, 1], n = Math.hypot(...palm) || 1;
     const natural = L.map((x, i) => lerpN(x, R[i], w) + 0.105 * (1 - both) * palm[i] / n);
     const rim = [pl.gripRimX ?? HOOP.x, pl.gripRimY ?? HOOP.y, HOOP.z + BALL_R + 0.045];
-    const center = natural.map((x, i) => lerpN(x, rim[i], g.rim));
+    let center = natural.map((x, i) => lerpN(x, rim[i], g.rim));
+    const a = g.gather;
+    if (a) {
+      const fx = Math.cos(pl.face), fy = Math.sin(pl.face);
+      const start = [pl.x + fx * a.fwd + fy * a.lat, pl.y + fy * a.fwd - fx * a.lat, a.z];
+      center = center.map((x, i) => lerpN(start[i], x, a.mix));
+    }
     for (const [s, hd, sign, weight] of [['L', L, -1, 1 - w], ['R', R, 1, w]]) {
       const f = Math.min(1, weight * 2) * g.fade;
-      if (f === 0 || (!g.rim && !both)) continue;
-      const end = center.map((x, i) => lerpN(hd[i], x + 0.108 * (sign * both * axis[i] - (1 - both) * palm[i] / n), f));
-      gripArm(k, s, end);
+      if (f === 0 || (!g.rim && !both && !a)) continue;
+      const wArm = a ? f * (0.4 + 0.6 * a.mix) : f;
+      const end = center.map((x, i) => lerpN(hd[i], x + 0.108 * (sign * both * axis[i] - (1 - both) * palm[i] / n), wArm));
+      gripArm(k, s, end, !!a);
     }
     k.ball = center;
   }

@@ -2836,7 +2836,7 @@
   // 让一只手伸向局部点（简易两节臂 IK）
   // 扣篮 IK：手对准篮筐前沿（参考 2K 的手部 IK），身体跟着手修正位置
   const TWOH = { two: 1, poster: 1, rimpull: 1, shaq: 1 };
-  function updateGrip(pl, a) {
+  function updateGrip(pl, a, dt) {
     if (!a || (a.type !== 'layup' && a.type !== 'dunk')) { pl.grip = null; return; }
     const dunk = a.type === 'dunk', rel = dunk ? a.doneT : a.relT;
     if (dunk ? a.done : a.released) {
@@ -2858,7 +2858,18 @@
       const u = a.inSteps ? 0 : sm(clamp((a.t - t + 0.07) / 0.14, 0, 1));
       w = lerp(1 - w, w, u);
     }
-    pl.grip = { right: lerp(w, 0.5, two), dunk, rim, fade: 1 };
+    let gather = pl.grip && pl.grip.gather;
+    const b = G.ball;
+    if (!pl.grip && b.state === 'held' && b.holder === pl.id) {
+      const dx = b.x - pl.x, dy = b.y - pl.y, fx = Math.cos(pl.face), fy = Math.sin(pl.face);
+      gather = { fwd: dx * fx + dy * fy, lat: dx * fy - dy * fx, z: b.z, t: G.time - dt,
+        T: lerp(0.10, 0.16, clamp((pl.z + pl.h * 0.7 - b.z) / pl.h, 0, 1)) };
+    }
+    if (gather) {
+      const u = clamp((G.time - gather.t) / gather.T, 0, 1);
+      gather = u >= 1 ? null : Object.assign({}, gather, { mix: sm(u) });
+    }
+    pl.grip = { right: lerp(w, 0.5, two), dunk, rim, fade: 1, gather };
   }
   function rimTgt(pl, a) { const dx = pl.x - HOOP.x, dy = pl.y - HOOP.y, d = Math.hypot(dx, dy) || 1; return { x: HOOP.x + dx / d * 0.2, y: HOOP.y + dy / d * 0.2, z: HOOP.z + (a.done ? 0.03 : 0.12) }; }
   function dunkIKw(pl, a) {
@@ -3625,7 +3636,7 @@
     for (const n in T) { if ((n === 'aLp' || n === 'aRp') && Math.abs(T[n] - P[n]) > Math.PI) P[n] += Math.round((T[n] - P[n]) / (2 * Math.PI)) * 2 * Math.PI; P[n] = lerp(P[n], T[n], kq); }
     dunkIK(pl);
     squash(pl, a, dt);
-    updateGrip(pl, a);
+    updateGrip(pl, a, dt);
     // 残影
     const gs = pl.ghosts || (pl.ghosts = []);
     for (const g of gs) g.t += dt; while (gs.length && gs[0].t > 0.22) gs.shift();
