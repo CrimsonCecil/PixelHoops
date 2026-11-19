@@ -776,7 +776,13 @@
   $('tr-body').addEventListener('input', (e) => {
     const i = e.target.getAttribute('data-c'); if (i == null) return;
     const c = ctl[+i], v = +e.target.value; c.set(v); $('o' + i).textContent = c.fmt(v);
-    if (c.rating) { const cl = vcl(A99(v)); $('o' + i).className = cl; e.target.className = cl; }
+    if (c.rating) {
+      const cl = vcl(A99(v));
+      for (const el of [$('o' + i), e.target]) {
+        for (const name of Array.from(el.classList)) if (name.startsWith('rating-')) el.classList.remove(name);
+        el.classList.add(cl);
+      }
+    }
   });
   $('tr-body').addEventListener('change', (e) => {
     const sk = e.target.getAttribute && e.target.getAttribute('data-sel'), v = e.target.value;

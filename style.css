@@ -884,9 +884,9 @@ select.pf, input.pf, .tn-row.pf, .sl.pf, .crow.pf, .mx.pf { outline: calc(var(--
 .tn-row:has(.pf), .sl:has(.pf), .crow:has(.pf), .mx:has(.pf) { background: rgba(242, 193, 78, .12); }
 
 :is(.pko1 b, .pkr b, .agrp .ag h4 b, .b5r .b5ag, .pcard .pcg i, .sl output, .pk-5 b, .rating-legend span)[class*="rating-"] { color: var(--rating); font-weight: var(--rating-weight, normal); text-shadow: var(--rating-glow, none); }
-.pkr s[class^="rating-"], .sl input[class^="rating-"] { background: var(--rating); box-shadow: var(--rating-glow, none); }
-.sl input[class^="rating-"]::-webkit-slider-thumb { background: var(--rating); }
-.sl input[class^="rating-"]::-moz-range-thumb { background: var(--rating); }
+.pkr s[class*="rating-"], .sl input[class*="rating-"] { background: var(--rating); box-shadow: var(--rating-glow, none); }
+.sl input[class*="rating-"]::-webkit-slider-thumb { background: var(--rating); }
+.sl input[class*="rating-"]::-moz-range-thumb { background: var(--rating); }
 .rating-legend { display: flex; flex-wrap: wrap; gap: calc(var(--u) * 2); align-items: center; margin-bottom: calc(var(--u) * 2); font-size: var(--fs-xs); color: var(--muted); }
 .rating-legend span { padding: 2px 4px; border: 1px solid var(--rating); background: #0c0f22; white-space: nowrap; }
 .pkr s.rating-dark-matter, .sl input.rating-dark-matter { background: var(--rating-iridescent); background-size: 200% 100%; animation: rating-shimmer 6s linear infinite; }
