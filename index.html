@@ -1,0 +1,244 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>PIXEL HOOPS 像素斗牛 · 半场 1 对 1</title>
+<meta name="description" content="16 位街机像素风的半场 1 对 1 篮球对抗游戏，2K 视角与 2K 式操作。">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 8' shape-rendering='crispEdges'%3E%3Crect width='8' height='8' fill='%2315101f'/%3E%3Crect x='2' y='1' width='4' height='6' fill='%23ee7f30'/%3E%3Crect x='1' y='2' width='6' height='4' fill='%23ee7f30'/%3E%3Crect x='1' y='4' width='6' height='1' fill='%237a3212'/%3E%3Crect x='4' y='1' width='1' height='6' fill='%237a3212'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://cdn.jsdelivr.net">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/fusion-pixel-12px-proportional-sc@5/index.css">
+<link rel="stylesheet" href="style.css">
+<script>window.__API_BASE__='__PORT_8000__';</script>
+</head>
+<body>
+<div id="stage">
+  <canvas id="game" width="480" height="270" aria-label="像素篮球游戏画面"></canvas>
+
+  <div id="hud" class="hidden">
+    <div id="scorebar">
+      <div class="team t0"><span class="tname" id="n0">蓝队</span><span class="tscore" id="s0" data-testid="score-0">0</span></div>
+      <div class="clock"><span id="clock" data-testid="shot-clock">24</span><small id="target">先到 21 分</small></div>
+      <div class="team t1"><span class="tscore" id="s1" data-testid="score-1">0</span><span class="tname" id="n1">红队</span></div>
+    </div>
+    <div id="trainbar" class="hidden"></div>
+    <div id="notice" class="hidden">先把球带出三分线</div>
+    <div id="hint"></div>
+    <div id="bpops" data-testid="badge-pops"><div class="bcol p0" id="bcol0"></div><div class="bcol p1" id="bcol1"></div></div>
+    <div id="pc0" class="pcard p0" data-testid="pcard-0"></div>
+    <div id="pc1" class="pcard p1" data-testid="pcard-1"></div>
+    <div id="topbtns">
+      <button id="btn-pause" data-testid="btn-pause" title="设置 (Esc)">设置</button>
+      <button id="btn-panel" class="hidden" data-testid="btn-panel" title="参数面板 (Tab)">参数面板</button>
+    </div>
+  </div>
+  <div id="hud5" class="hidden" data-testid="hud5">
+    <div id="sb5">
+      <div class="t5t" id="h5t0"><span class="t5n" id="h5n0"></span><span class="t5s" id="h5s0" data-testid="t5-score-0">0</span></div>
+      <div class="t5m"><span id="h5q">第1节</span><span id="h5c" data-testid="t5-clock">5:00</span><span id="h5sc" data-testid="t5-shot">24</span></div>
+      <div class="t5t r" id="h5t1"><span class="t5s" id="h5s1" data-testid="t5-score-1">0</span><span class="t5n" id="h5n1"></span></div>
+    </div>
+    <div id="pc50" class="pcard p0 hidden" data-testid="pcard5-0"></div>
+    <div id="pc51" class="pcard p1 hidden" data-testid="pcard5-1"></div>
+    <div id="subtoast" data-testid="subtoast"></div>
+    <div id="bpops5" data-testid="badge-pops5"><div class="bcol p0" id="bcol50"></div><div class="bcol p1" id="bcol51"></div></div>
+    <div id="topbtns5"><button id="btn-pause5" data-testid="btn-pause5" title="设置 (Esc)">设置</button></div>
+  </div>
+  <div id="shotcard" class="hidden" data-testid="shotcard"></div>
+  <div id="train" class="hidden" data-testid="train-panel">
+    <div class="thead"><b>训练场参数</b><button id="tr-fold" title="收起 (Tab)">收起</button></div>
+    <div class="seg tabs" id="tr-tabs"><button data-t="dummy" class="on" data-testid="tr-tab-dummy">假人</button><button data-t="player" data-testid="tr-tab-player">球员</button><button data-t="rules" data-testid="tr-tab-rules">判定</button><button data-t="stats" data-testid="tr-tab-stats">统计</button></div>
+    <div id="tr-body"></div>
+    <div class="tfoot"><button id="tr-reset-pos" data-testid="tr-reset-pos">重置站位 (R)</button><button id="tr-tune" data-testid="tr-tune">调参台</button><button id="tr-exit">返回菜单</button></div>
+  </div>
+  <div id="tune" class="hidden" data-testid="tune-panel">
+    <div class="thead"><b>调参台</b><span id="tn-st" class="tn-st" data-testid="tn-status"></span><button id="tn-close" data-testid="tn-close">关闭</button></div>
+    <div class="tn-prof"><select id="tn-sel" data-testid="tn-sel" aria-label="配置"></select><button id="tn-def" data-testid="tn-def">☆ 设为默认</button></div>
+    <div class="tn-acts"><button id="tn-save" data-testid="tn-save">保存</button><button id="tn-saveas" data-testid="tn-saveas">另存为</button><button id="tn-ren" data-testid="tn-rename">重命名</button><button id="tn-del" data-testid="tn-del">删除</button></div>
+    <div id="tn-upd" class="tn-upd" data-testid="tn-updated"></div>
+    <div id="tn-err" class="tn-err hidden" role="alert" data-testid="tn-err"></div>
+    <div class="tn-acts tn-io"><button id="tn-exp" data-testid="tn-export">导出</button><button id="tn-copy" data-testid="tn-copy">复制</button><button id="tn-imp" data-testid="tn-import">导入</button><button id="tn-pastebtn" data-testid="tn-paste">粘贴导入</button><button id="tn-histbtn" data-testid="tn-history">历史版本</button><input id="tn-file" type="file" accept=".json,application/json" class="hidden" data-testid="tn-file"></div>
+    <div id="tn-pastebox" class="tn-pastebox hidden"><textarea id="tn-pastetxt" rows="4" spellcheck="false" placeholder="JSON" data-testid="tn-pastetxt"></textarea><div class="tn-name"><button id="tn-pasteok" data-testid="tn-pasteok">导入</button><button id="tn-pastecancel" data-testid="tn-pastecancel">取消</button></div></div>
+    <div id="tn-hist" class="tn-hist hidden" data-testid="tn-hist"></div>
+    <div id="tn-msg" class="tn-msg hidden" data-testid="tn-msg"></div>
+    <div id="tn-name" class="tn-name hidden"><input id="tn-input" maxlength="30" autocomplete="off" data-testid="tn-input"><button id="tn-ok" data-testid="tn-ok">确定</button><button id="tn-cancel" data-testid="tn-cancel">取消</button></div>
+    <div class="tn-diff"><button id="tn-difft" data-testid="tn-diff"></button><div id="tn-diffl" class="hidden" data-testid="tn-diff-list"></div></div>
+    <div class="tn-tool"><input id="tn-q" type="search" placeholder="搜索" autocomplete="off" spellcheck="false" aria-label="搜索参数" data-testid="tn-search"><div class="seg tn-gm" id="tn-gm" data-testid="tn-gm"><button data-gm="all" class="on" data-testid="tn-gm-all">全部</button><button data-gm="1v1" data-testid="tn-gm-1v1">1V1</button><button data-gm="5v5" data-testid="tn-gm-5v5">5V5</button></div></div>
+    <div id="tn-pin" class="tn-pin hidden" data-testid="tn-pin"></div>
+    <div class="tn-main"><div id="tn-cats" data-testid="tn-cats"></div><div id="tn-body" data-testid="tn-body"></div></div>
+    <div id="tn-info" class="tn-info blank" data-testid="tn-info"></div>
+    <div class="tfoot"><button id="tn-greset" data-testid="tn-greset">本类重置</button><button id="tn-areset" data-testid="tn-areset">全部重置</button></div>
+  </div>
+  <div id="campanel" class="hidden" data-testid="cam-panel">
+    <div class="thead"><b>镜头</b><button id="cam-close" data-testid="cam-close">关闭</button></div>
+    <div id="cam-body"></div>
+    <div class="tfoot"><button id="cam-reset" data-testid="cam-reset">恢复默认</button><button id="cam-info" data-testid="cam-info">球员信息 显示</button></div>
+  </div>
+  <div id="floats"></div>
+  <div id="banner" class="hidden"><b></b><span></span></div>
+  <div id="hero" class="hidden" data-testid="hero"><div class="hv"></div><b></b><span></span></div>
+
+  <div id="touch" class="hidden">
+    <div id="tstick"><div id="tnub"></div></div>
+    <div id="tbtns">
+      <button data-tb="sprint" class="tb s">加速</button>
+      <button data-tb="a3" class="tb" id="tb3">运球</button>
+      <button data-tb="a2" class="tb" id="tb2">扣篮</button>
+      <button data-tb="a1" class="tb big" id="tb1">投篮</button>
+    </div>
+  </div>
+
+  <div id="menu" class="overlay">
+    <div class="panel">
+      <h1><span>PIXEL HOOPS</span><small>像素斗牛 · 半场 1 对 1</small></h1>
+      <div class="row"><label>模式</label><div class="seg" data-opt="mode"><button data-v="cpu" class="on" data-testid="mode-cpu">单人对电脑</button><button data-v="2p" data-testid="mode-2p">本地双人</button><button data-v="train" data-testid="mode-train">自由训练</button><button data-v="t5" data-testid="mode-t5">5V5 球队</button></div></div>
+      <div class="row" id="row-diff"><label>难度</label><div class="seg" data-opt="diff"><button data-v="0">简单</button><button data-v="1" class="on">普通</button><button data-v="2">困难</button></div></div>
+      <div class="row" id="row-target"><label>目标分</label><div class="seg" data-opt="target"><button data-v="11">11</button><button data-v="21" class="on">21</button><button data-v="33">33</button><button data-v="50">50</button></div></div>
+      <div class="row" id="row-glen"><label>比赛时间</label><div class="seg" data-opt="glen"><button data-v="0" class="on">不限</button><button data-v="180">3 分钟</button><button data-v="300">5 分钟</button><button data-v="600">10 分钟</button></div></div>
+      <div class="row" id="row-clock"><label>进攻时间</label><div class="seg" data-opt="clock"><button data-v="24" class="on">24 秒</button><button data-v="14">14 秒</button><button data-v="0">不限</button></div></div>
+      <div class="row hidden" id="row-qlen"><label>每节时长</label><div class="seg" data-opt="qlen"><button data-v="180" data-testid="qlen-3">3 分钟</button><button data-v="300" class="on" data-testid="qlen-5">5 分钟</button><button data-v="480" data-testid="qlen-8">8 分钟</button><button data-v="720" data-testid="qlen-12">12 分钟</button></div></div>
+      <div class="row hidden" id="row-teams"><label>对阵</label><div class="t5pair"><button class="pick t5b" id="team0" data-testid="pick-home"></button><button class="pick t5b" id="team1" data-testid="pick-away"></button></div></div>
+      <div class="row hidden" id="row-side"><label>我控制</label><div class="seg" data-opt="side"><button data-v="0" class="on" data-testid="side-home">主队</button><button data-v="1" data-testid="side-away">客队</button><button data-v="-1" data-testid="side-watch">观战</button></div></div>
+      <div class="row" id="row-p1"><label id="lab-p1">你的球员</label><button class="pick" id="pick0" data-testid="pick-p1"></button></div>
+      <div class="row" id="row-p2"><label id="lab-p2">对手</label><button class="pick" id="pick1" data-testid="pick-p2"></button></div>
+      <div class="row" id="row-info"><label>球员信息</label><div class="seg" data-opt="info"><button data-v="show" class="on" data-testid="info-show">显示</button><button data-v="hide" data-testid="info-hide">隐藏</button></div></div>
+      <div class="row" id="row-fb"><label>投篮反馈</label><div class="seg" data-opt="fb"><button data-v="simple" class="on" data-testid="fb-simple">精简</button><button data-v="detail" data-testid="fb-detail">详细</button></div></div>
+      <p class="desc" id="arch-desc"></p>
+      <div class="actions">
+        <button class="primary" id="btn-start" data-testid="btn-start">开始比赛</button>
+        <button id="btn-help" data-testid="btn-help">操作说明</button>
+        <div class="cfgpick" id="row-cfg"><select id="cfg-sel" data-testid="cfg-sel" aria-label="配置" title="配置"></select><button id="btn-tune" data-testid="btn-tune">调参台</button></div>
+      </div>
+      <p class="foot" id="menu-foot">规则：2 分 / 3 分，先到目标分获胜，失分方球权，抢到对方的球要先带出三分线。</p>
+      <p class="padtag hidden" id="padtag">已连接 Xbox 手柄：十字键选择，A 确认</p>
+    </div>
+  </div>
+
+  <div id="picker" class="overlay hidden" data-testid="picker">
+    <div class="panel pk">
+      <div class="pk-head"><h2 id="pk-title">选择你的球员</h2><span class="pk-tip">鼠标点选或十字键移动，A 确认</span></div>
+      <div class="pk-teams" id="pk-teams"></div>
+      <div class="pk-body"><div class="pk-grid" id="pk-grid"></div><div class="pk-detail" id="pk-detail"></div></div>
+      <div class="actions"><button class="primary" id="pk-ok" data-testid="pk-ok">确定</button><button id="pk-cancel" data-testid="pk-cancel">返回</button></div>
+    </div>
+  </div>
+
+  <div id="tpicker" class="overlay hidden" data-testid="tpicker">
+    <div class="panel wide">
+      <h2 id="tp-title">选择球队</h2>
+      <div class="tp-grid" id="tp-grid"></div>
+      <div class="actions"><button id="tp-cancel" data-testid="tp-cancel">返回</button></div>
+    </div>
+  </div>
+
+  <div id="cutin" class="hidden" data-testid="cutin"><div class="ci-lines"></div><div class="ci-eyes"><canvas id="ci-eyes" width="160" height="48"></canvas></div><div class="ci-flash"></div><div class="ci-band"><canvas id="ci-face" width="128" height="128"></canvas><div class="ci-txt"><span class="ci-name"></span><b class="ci-skill"></b><i class="ci-en"></i></div></div></div>
+
+  <div id="tipsbar" class="hidden" data-testid="tipsbar"><div><b id="tips-n"></b><span id="tips-d"></span></div><button id="tips-back" data-testid="tips-back">返回说明</button></div>
+  <div id="help" class="overlay hidden">
+    <div class="panel wide">
+      <h2>操作说明</h2>
+      <div class="seg tabs" id="help-tabs">
+        <button data-h="k1" class="on" data-testid="help-k1">键盘 玩家 1</button><button data-h="k2" data-testid="help-k2">键盘 玩家 2</button><button data-h="pad" data-testid="help-pad">Xbox 手柄</button><button data-h="moves" data-testid="help-moves">动作怎么出</button><button data-h="stars" data-testid="help-stars">球星与技能</button><button data-h="t5" data-testid="help-t5">5V5 球队</button><button data-h="t5a" data-testid="help-t5a">5V5 能力</button>
+      </div>
+      <div id="help-body"></div>
+      <div class="actions"><button class="primary" id="btn-help-close" data-testid="btn-help-close">知道了</button></div>
+    </div>
+  </div>
+
+  <div id="pause" class="overlay hidden">
+    <div class="panel small">
+      <h2 id="set-title">设置</h2>
+      <div class="actions col" id="set-main">
+        <button class="primary" id="btn-resume" data-testid="btn-resume">继续比赛</button>
+        <button id="btn-box5" class="hidden" data-testid="btn-box5">数据</button>
+        <button id="btn-cam" data-testid="btn-cam">镜头</button>
+        <button id="btn-sound" data-testid="btn-sound">声音</button>
+        <button id="btn-disp" data-testid="btn-disp">显示</button>
+        <button id="btn-tune2" data-testid="btn-tune2">调参台</button>
+        <button id="btn-help2" data-testid="btn-help2">操作说明</button>
+        <button id="btn-restart" data-testid="btn-restart">重新开始</button>
+        <button id="btn-quit" data-testid="btn-quit">返回主菜单</button>
+      </div>
+      <div class="actions col hidden" id="set-sound">
+        <button id="btn-music" data-testid="btn-music">音乐 开</button>
+        <button id="btn-sfx" data-testid="btn-sfx">音效 开</button>
+        <div class="mixer" id="mixer"></div>
+        <button class="primary" data-back="1" data-testid="set-back-sound">返回</button>
+      </div>
+      <div class="actions col hidden" id="set-cam5">
+        <button id="c5-preset" data-testid="c5-preset">镜头 2K 镜头</button>
+        <div class="c5row"><button id="c5-zm" data-testid="c5-zm">－</button><span id="c5-z">远近 5</span><button id="c5-zp" data-testid="c5-zp">＋</button></div>
+        <div class="c5row"><button id="c5-hm" data-testid="c5-hm">－</button><span id="c5-h">高度 10</span><button id="c5-hp" data-testid="c5-hp">＋</button></div>
+        <button id="c5-reset" data-testid="c5-reset">恢复默认</button>
+        <button class="primary" data-back="1" data-testid="set-back-cam5">返回</button>
+      </div>
+      <div class="actions col hidden" id="set-disp">
+        <button id="btn-info" data-testid="btn-info">球员信息 显示</button>
+        <button id="btn-fb" data-testid="btn-fb">投篮反馈 精简</button>
+        <button id="btn-replay" data-testid="btn-replay">精彩回放 开</button>
+        <button id="btn-close" data-testid="btn-close">特写镜头 开</button>
+        <button id="btn-hz" data-testid="btn-hz">热区显示 开</button>
+        <button id="btn-vo" data-testid="btn-vo">球员配音 开</button>
+        <button class="primary" data-back="1" data-testid="set-back-disp">返回</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="over" class="overlay hidden">
+    <div class="panel wide">
+      <h2 id="over-title">比赛结束</h2>
+      <p class="final" id="over-score"></p>
+      <div class="bx-bar" id="bx-bar">
+        <div class="bx-seg"><button data-bv="box" class="on" data-testid="bx-box">Box</button><button data-bv="9cat" data-testid="bx-9cat">9-Cat</button><button data-bv="11cat" data-testid="bx-11cat">11-Cat</button></div>
+        <div class="bx-opt"><button data-bo="adv" data-testid="bx-adv">高阶</button><button data-bo="heat" class="on" data-testid="bx-heat">高亮</button></div>
+      </div>
+      <div class="bx-wrap"><table id="over-stats" class="bx"></table></div>
+      <p class="bx-note" id="bx-note"></p>
+      <div class="actions">
+        <button class="primary" id="btn-again" data-testid="btn-again">再来一局</button>
+        <button id="btn-menu" data-testid="btn-menu">返回主菜单</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="box5" class="overlay hidden" data-testid="box5">
+    <div class="panel b5panel">
+      <div class="b5top"><div class="b5head" id="b5-head"></div><button id="b5-close" data-testid="b5-close">关闭</button></div>
+      <div class="b5tabs" id="b5-tabs"></div>
+      <div class="b5body" id="b5-body"></div>
+    </div>
+  </div>
+
+  <div id="over5" class="overlay hidden" data-testid="over5">
+    <div class="panel wide">
+      <h2 id="o5-title">比赛结束</h2>
+      <p class="final" id="o5-score"></p>
+      <p class="o5qs" id="o5-qs"></p>
+      <div class="b5tabs" id="o5-tabs"></div>
+      <div class="bx-wrap" id="o5-box"></div>
+      <div class="actions">
+        <button class="primary" id="o5-again" data-testid="o5-again">再来一局</button>
+        <button id="o5-menu" data-testid="o5-menu">返回主菜单</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="debug" class="hidden"></div>
+</div>
+<script src="js/tune.js"></script>
+<script src="js/cfgstore.js"></script>
+<script src="js/render.js"></script>
+<script src="js/input.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/icons.js"></script>
+<script src="js/roster.js"></script>
+<script src="js/r5.js"></script>
+<script src="js/game.js"></script>
+<script src="js/b5.js"></script>
+<script src="js/team5.js"></script>
+<script src="js/render5.js"></script>
+<script src="js/box5.js"></script>
+<script src="js/tuneui.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>

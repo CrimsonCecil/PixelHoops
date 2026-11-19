@@ -1,0 +1,116 @@
+#!/usr/bin/env python3
+"""PIXEL HOOPS 调参台配置存储（只用标准库）。
+数据：data/tune.db（SQLite）。表 profiles(id, name, data JSON 覆盖项, updated)；meta(k, v) 存默认配置 id。
+首次启动且库为空时，从 seed_profiles.json（发布前从线上导出）恢复；库非空时绝不覆盖。
+"""
+import json, os, sqlite3, time, re, threading
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+
+ROOT = os.path.dirname(os.path.abspath(__file__))
+DATA = os.path.join(ROOT, 'data'); os.makedirs(DATA, exist_ok=True)
+DB = os.path.join(DATA, 'tune.db')
+SEED = os.path.join(ROOT, 'seed_profiles.json')
+LOCK = threading.Lock()
+db = sqlite3.connect(DB, check_same_thread=False)
+db.execute('CREATE TABLE IF NOT EXISTS profiles (id TEXT PRIMARY KEY, name TEXT NOT NULL, data TEXT NOT NULL, updated REAL NOT NULL)')
+db.execute('CREATE TABLE IF NOT EXISTS meta (k TEXT PRIMARY KEY, v TEXT)')
+db.commit()
+
+def export():
+    rows = db.execute('SELECT id, name, data, updated FROM profiles ORDER BY updated').fetchall()
+    d = db.execute("SELECT v FROM meta WHERE k='default'").fetchone()
+    return {'profiles': [{'id': r[0], 'name': r[1], 'data': json.loads(r[2]), 'updated': r[3]} for r in rows], 'default': d[0] if d else 'official'}
+
+def seed():
+    if db.execute('SELECT COUNT(*) FROM profiles').fetchone()[0] or not os.path.exists(SEED): return
+    try: s = json.load(open(SEED, encoding='utf-8'))
+    except Exception: return
+    for p in s.get('profiles', []):
+        db.execute('INSERT OR IGNORE INTO profiles VALUES (?,?,?,?)', (p['id'], p['name'], json.dumps(p.get('data', {}), ensure_ascii=False), p.get('updated', time.time())))
+    if s.get('default'): db.execute("INSERT OR REPLACE INTO meta VALUES ('default', ?)", (s['default'],))
+    db.commit()
+seed()
+
+db.execute('CREATE TABLE IF NOT EXISTS history (id TEXT, name TEXT, data TEXT, updated REAL, op TEXT)'); db.commit()
+FROZEN = [0.0]   # 发版期间冻结写入，避免导出后新保存丢失（客户端会显示保存失败并保留未保存状态）
+def frozen(): return time.time() < FROZEN[0]
+
+ID_RE = re.compile(r'^[a-zA-Z0-9_-]{1,40}$')
+
+class H(BaseHTTPRequestHandler):
+    def _send(self, code, obj):
+        b = json.dumps(obj, ensure_ascii=False).encode('utf-8')
+        self.send_response(code)
+        self.send_header('Content-Type', 'application/json; charset=utf-8')
+        self.send_header('Cache-Control', 'no-store')
+        self.send_header('Access-Control-Allow-Origin', '*')
+        self.send_header('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
+        self.send_header('Access-Control-Allow-Headers', 'Content-Type')
+        self.send_header('Content-Length', str(len(b)))
+        self.end_headers(); self.wfile.write(b)
+    def _body(self):
+        n = int(self.headers.get('Content-Length') or 0)
+        if n > 512 * 1024: raise ValueError('too large')
+        return json.loads(self.rfile.read(n) or b'{}')
+    def _path(self):
+        p = self.path.split('?')[0]
+        i = p.find('/api/')
+        return p[i:] if i >= 0 else p
+    def log_message(self, *a): pass
+    def do_OPTIONS(self): self._send(204, {})
+    def do_GET(self):
+        p = self._path()
+        if p in ('/api/profiles', '/api/export'):
+            with LOCK: return self._send(200, export())
+        if p == '/api/health': return self._send(200, {'ok': True, 'frozen': frozen()})
+        if p == '/api/history':
+            with LOCK:
+                rows = db.execute('SELECT id, name, data, updated, op FROM history ORDER BY updated DESC LIMIT 200').fetchall()
+            return self._send(200, {'history': [{'id': r[0], 'name': r[1], 'data': json.loads(r[2]), 'updated': r[3], 'op': r[4]} for r in rows]})
+        self._send(404, {'error': 'not found'})
+    def do_PUT(self):
+        p = self._path(); m = re.match(r'^/api/profiles/([^/]+)$', p)
+        if frozen(): return self._send(503, {'error': 'frozen', 'msg': '正在发布新版本，请稍后再保存'})
+        if not m or not ID_RE.match(m.group(1)) or m.group(1) == 'official': return self._send(400, {'error': 'bad id'})
+        try: b = self._body()
+        except Exception: return self._send(400, {'error': 'bad body'})
+        name = str(b.get('name') or '未命名')[:30]; data = b.get('data') or {}
+        if not isinstance(data, dict): return self._send(400, {'error': 'bad data'})
+        data = {str(k)[:60]: v for k, v in data.items() if isinstance(v, (int, float, bool, str))}
+        with LOCK:
+            now = time.time(); js = json.dumps(data, ensure_ascii=False)
+            db.execute('INSERT OR REPLACE INTO profiles VALUES (?,?,?,?)', (m.group(1), name, js, now))
+            db.execute('INSERT INTO history VALUES (?,?,?,?,?)', (m.group(1), name, js, now, 'put')); db.commit()
+            return self._send(200, export())
+    def do_DELETE(self):
+        p = self._path(); m = re.match(r'^/api/profiles/([^/]+)$', p)
+        if not m: return self._send(404, {'error': 'not found'})
+        if frozen(): return self._send(503, {'error': 'frozen', 'msg': '正在发布新版本，请稍后再操作'})
+        with LOCK:
+            r = db.execute('SELECT id, name, data, updated FROM profiles WHERE id=?', (m.group(1),)).fetchone()
+            if r: db.execute('INSERT INTO history VALUES (?,?,?,?,?)', (r[0], r[1], r[2], time.time(), 'delete'))
+            db.execute('DELETE FROM profiles WHERE id=?', (m.group(1),))
+            d = db.execute("SELECT v FROM meta WHERE k='default'").fetchone()
+            if d and d[0] == m.group(1): db.execute("DELETE FROM meta WHERE k='default'")
+            db.commit(); return self._send(200, export())
+    def do_POST(self):
+        p = self._path()
+        if p == '/api/freeze':
+            try: b = self._body()
+            except Exception: b = {}
+            FROZEN[0] = time.time() + max(0, min(900, float(b.get('sec') or 0)))
+            return self._send(200, {'frozen': frozen(), 'until': FROZEN[0]})
+        if frozen(): return self._send(503, {'error': 'frozen', 'msg': '正在发布新版本，请稍后再操作'})
+        if p == '/api/default':
+            try: b = self._body()
+            except Exception: return self._send(400, {'error': 'bad body'})
+            i = str(b.get('id') or 'official')
+            with LOCK:
+                if i != 'official' and not db.execute('SELECT 1 FROM profiles WHERE id=?', (i,)).fetchone(): return self._send(404, {'error': 'no profile'})
+                db.execute("INSERT OR REPLACE INTO meta VALUES ('default', ?)", (i,)); db.commit()
+                return self._send(200, export())
+        self._send(404, {'error': 'not found'})
+
+if __name__ == '__main__':
+    port = int(os.environ.get('PORT', '8000'))
+    ThreadingHTTPServer(('0.0.0.0', port), H).serve_forever()
