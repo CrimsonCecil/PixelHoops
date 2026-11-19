@@ -741,25 +741,37 @@
       T.lean = lp(T.lean, 0.08 + sh, w); T.tilt = lp(T.tilt || 0, -0.16 * sd, w); T.yaw = lp(T.yaw || 0, 0.18 * sd, w);
       T.lA = lp(T.lA, 0.55, w); T.lB = lp(T.lB, 1.05, w); T.rA = lp(T.rA, 0.2, w); T.rB = lp(T.rB, 0.7, w);
     }
-    // 侧面上篮
-    function layS(pl, T, a, LT) {
+    function layReach(T, a, s, far) {
+      const I = a.ideal || 0.34, release = a.released ? (a.relT ?? I) : a.t;
+      const extend = sm((release / I - (far ? 0.2 : 0.1)) / 0.63);
+      const recover = a.released ? sm((a.t - release - 0.04) / 0.22) : 0;
+      const blend = sm(a.t / 0.08), knee = sm(release / (I * 0.55));
+      const reach = far ? { p: 2.26, q: 0.58, e: 0.12 } : { p: 2.6, q: 0.48, e: 0.2 };
+      // 球从出手侧髋前托起；另一只手先护在胸前，再向侧下方收回。
+      const o = {
+        yaw: -s * lp(lp(0.16, far ? 0.54 : 0.42, extend), 0, recover),
+        tilt: s * lp(lp(0.07, far ? 0.22 : 0.17, extend), 0, recover),
+        lean: lp(lp(0.21, 0.06, extend), 0.16, recover),
+        rA: lp(lp(0.42, 0.94, knee), 0.28, recover), rB: lp(lp(0.91, 1.22, knee), 0.54, recover), rS: lp(0.1, 0.14, recover),
+        lA: lp(lp(-0.35, -0.19, knee), 0.24, recover), lB: lp(lp(0.53, 0.68, knee), 0.51, recover), lS: lp(0.12, 0.14, recover),
+      };
+      setA(T, s, {
+        p: lp(lp(far ? 0.42 : 0.83, reach.p, extend), 0.75, recover),
+        q: lp(lp(0.06, reach.q, extend), 0.28, recover), e: lp(lp(1.08, reach.e, extend), 0.53, recover),
+      }, blend);
+      setA(T, -s, { p: lp(lp(0.84, 0.62, extend), 0.46, recover), q: lp(lp(-0.18, 0.42, extend), 0.26, recover), e: lp(lp(1.36, 0.72, extend), 0.5, recover) }, blend);
+      if (s < 0) { [o.rA, o.lA] = [o.lA, o.rA]; [o.rB, o.lB] = [o.lB, o.rB]; [o.rS, o.lS] = [o.lS, o.rS]; }
+      for (const k in o) T[k] = lp(T[k] || 0, o[k], blend);
+    }
+    function layS(pl, T, a) {
       const s = a.side > 0 ? 1 : -1, v = a.lsv || 'reach', rel = a.released, I = a.ideal || 0.34;
+      if (v === 'reach' || v === 'far') return layReach(T, a, s, v === 'far');
       const u = rel ? 1 : cl(a.t / I, 0, 1), pr = rel ? cl((a.t - (a.relAt > 0 ? a.relAt : I)) / 0.25, 0, 1) : 0;
-      const w = sm(a.t / 0.08) * (rel ? 1 - 0.6 * pr : 1), H = s > 0 ? 'aR' : 'aL', O = s > 0 ? 'aL' : 'aR', Hh = pl.h / 1.95;
+      const w = sm(a.t / 0.08) * (rel ? 1 - 0.6 * pr : 1), Hh = pl.h / 1.95;
       const o = {};
       // 护球：防守人那侧的手臂横在胸前、肘外顶；上身转开；身体往出手侧倾
       const bar = { p: 1.25, q: 0.95, e: 1.5 };
-      if (v === 'reach') {
-        // 侧身伸臂：上身转开 ~30°，出手手向外侧高处伸直
-        Object.assign(o, { yaw: -0.5 * s, tilt: 0.3 * s * u, lean: 0.12 });
-        const A = arm(T, s, s * lp(0.35, 0.72, u), lp(0.15, 0.32, u), lp(0.95, 1.32, u), Hh); A.e = lp(1.1, 0.12, u); setA(T, s, A, w);
-        setA(T, -s, bar, w);
-      } else if (v === 'far') {
-        // 远端手挑篮：身体侧对防守人，远端手从腰下低手往上挑，手心向上
-        Object.assign(o, { yaw: -0.85 * s, tilt: 0.42 * s * u, lean: 0.2 });
-        const A = { p: lp(0.55, 2.55, sm(u)), q: lp(0.45, 0.35, u), e: lp(0.25, 0.05, u) }; setA(T, s, A, w);
-        setA(T, -s, { p: 1.0, q: 1.15, e: 1.3 }, w);
-      } else if (v === 'rev') {
+      if (v === 'rev') {
         // 反手：背对防守人从篮下穿过去，手过头往后、腕子往回拨
         Object.assign(o, { yaw: -1.15 * s, tilt: 0.2 * s, lean: lp(0.1, -0.22, u) });
         const A = { p: lp(2.3, 3.35, u), q: lp(0.3, 0.55, u), e: lp(0.7, 0.2, u) + (rel ? 0.35 * pr : 0) }; setA(T, s, A, w);
@@ -776,12 +788,11 @@
       // 起跳腿：出手侧的膝抬高（同侧起跳摆腿），防守侧腿往外撑
       const kH = s > 0 ? 'rB' : 'lB', kA = s > 0 ? 'rA' : 'lA', fS = s > 0 ? 'lS' : 'rS';
       T[kA] = lp(T[kA], 1.0, w * 0.8); T[kH] = lp(T[kH], 1.2, w * 0.8); T[fS] = lp(T[fS] || 0, 0.38, w);
-      void LT; void H; void O;
     }
     function pose(pl, T, an, a) {
       if (!a) return;
       if (a.type === 'block' && an === 'block') block(pl, T, a);
-      else if (a.type === 'layup' && a.side && !a.cv && !a.inSteps && a.v !== 'floater' && a.v !== 'power' && a.v !== 'clutch') layS(pl, T, a);
+      else if (a.type === 'layup' && an === 'layup' && a.side && !a.cv && !a.inSteps && a.v !== 'floater' && a.v !== 'power' && a.v !== 'clutch') layS(pl, T, a);
     }
     return { pose: pose, arm: arm };
   })();

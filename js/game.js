@@ -2702,15 +2702,37 @@
     glass: [[0, Object.assign({ lean: 0.12 }, LEG1, CH)], [0.5, { tilt: 0.1, aRp: 2.6, aRe: 0.6, aLp: 1.6, aLe: 0.9 }], [1, { tilt: 0.2, lean: 0.06, aRp: 3.1, aRe: 0.2, aRq: 0.32, aLp: 1.0, aLe: 0.5, aLq: 0.55 }]],
     scoop: [[0, { lean: 0.05, lA: 0.2, lB: 0.6, rA: 0.9, rB: 1.4, aRp: 0.65, aRe: 0.9, aRq: 0.3, aLp: 0.8, aLe: 0.9, aLq: 0.2 }], [0.6, { lean: -0.12, tilt: -0.16, aRp: 0.95, aRe: 0.55 }], [1, { lean: -0.16, tilt: -0.18, aRp: 2.05, aRe: -0.1, aRq: 0.2, aLp: 0.7, aLq: 0.7, aLe: 0.3 }]],
     strong: [[0, Object.assign({ lean: 0.34, tilt: 0.16 }, LEG1, CH, { aLp: 1.2 })], [0.55, { lean: 0.3, aRp: 2.2, aRe: 0.8, aLp: 1.45, aLq: 0.75, aLe: 0.25 }], [1, { lean: 0.22, tilt: 0.12, aRp: 2.85, aRe: 0.2, aLp: 1.45, aLq: 0.85, aLe: 0.25 }]],
-    euro: [[0, Object.assign({ lean: 0.3, tilt: 0.12 }, LEG1, CH)], [0.5, { tilt: 0.22, aRp: 2.3, aRe: 0.7, aRq: 0.35, aLp: 1.1, aLq: 0.9, aLe: 0.2 }], [1, { tilt: 0.24, lean: 0.12, aRp: 2.85, aRq: 0.48, aRe: 0.15, aLp: 1.2, aLq: 1.05, aLe: 0.2 }]],
+    euro: [
+      [0, { lean: 0.24, tilt: 0.11, lA: -0.28, lB: 0.62, rA: 0.54, rB: 0.88, aRp: 0.8, aRq: -0.14, aRe: 1.08, aLp: 0.79, aLq: -0.52, aLe: 1.2 }],
+      [0.42, { lean: 0.15, tilt: 0.16, lA: -0.34, lB: 0.62, rA: 1.04, rB: 1.26, aRp: 1.32, aRq: 0.22, aRe: 0.7, aLp: 0.88, aLq: 0.14, aLe: 0.94 }],
+      [1, { lean: 0.05, tilt: 0.09, lA: -0.16, lB: 0.41, rA: 0.71, rB: 0.89, aRp: 2.36, aRq: 0.28, aRe: 0.12, aLp: 0.51, aLq: 0.4, aLe: 0.69 }],
+    ],
     hop: [[0, Object.assign({ lean: 0.1, lA: 0.6, lB: 1.15, rA: 0.6, rB: 1.15, lS: 0.12, rS: 0.12 }, CH)], [0.55, { aRp: 2.8, aRe: 0.3, aLp: 2.8, aLe: 0.3, aRq: 0.08, aLq: 0.08 }], [1, { lean: 0.04, aRp: 3.0, aRe: 0.08, aLp: 2.3, aLe: 0.7, aLq: 0.25 }]],
-    glide: [[0, Object.assign({ lean: 0.3 }, CH, { lA: 1.05, lB: 0.8, rA: -0.5, rB: 0.6 })], [0.5, { lean: 0.36, aRp: 1.5, aRe: 0.5, aRq: 0.2, aLp: 1.2, aLq: 0.9, aLe: 0.3 }], [1, { lean: 0.3, aRp: 2.45, aRe: 0.0, aRq: 0.05, aLp: 1.0, aLq: 1.0, aLe: 0.3, lA: 0.8, lB: 1.0, rA: 0.0, rB: 0.8 }]],
+    glide: [
+      [0, { lean: 0.28, tilt: 0.04, lA: -0.38, lB: 0.42, rA: 0.56, rB: 0.95, aRp: 0.6, aRq: -0.06, aRe: 1.1, aLp: 0.7, aLq: -0.25, aLe: 1.1 }],
+      [0.46, { lean: 0.21, tilt: 0.07, lA: -0.47, lB: 0.63, rA: 0.97, rB: 1.15, aRp: 1.22, aRq: 0.16, aRe: 0.68, aLp: 0.46, aLq: 0.35, aLe: 0.76 }],
+      [1, { lean: 0.1, tilt: 0.03, lA: -0.32, lB: 0.53, rA: 0.69, rB: 0.82, aRp: 2.23, aRq: 0.14, aRe: 0.13, aLp: 0.31, aLq: 0.42, aLe: 0.61 }],
+    ],
     high: [[0, Object.assign({ lean: 0.08 }, LEG1, CH)], [0.5, { aRp: 2.7, aRe: 0.7, aLp: 2.2, aLe: 0.6 }], [1, { lean: -0.02, aRp: 3.2, aRe: -0.1, aRq: 0.02, aLp: 1.0, aLe: 0.7, aLq: 0.4 }]],
     wrong: [[0, Object.assign({ lean: 0.12 }, { lA: 0.95, lB: 1.4, rA: 0.35, rB: 1.2, lS: 0.06, rS: 0.06 }, CH)], [0.5, { aRp: 2.4, aRe: 0.6, aLp: 1.8, aLe: 0.8, tilt: -0.08 }], [1, { lean: 0.08, tilt: -0.12, aRp: 2.95, aRe: 0.12, aRq: 0.1, aLp: 0.9, aLe: 0.7, aLq: 0.35 }]],
     reverse: [[0, Object.assign({ lean: 0.05 }, LEG1, CH)], [0.5, { lean: -0.12, aRp: 2.8, aRe: 0.6, aLp: 1.4 }], [1, { lean: -0.22, aRp: 3.4, aRe: 0.35, aRq: 0.1, aLp: 0.8, aLq: 0.6, aLe: 0.5 }]],
     back: [[0, { lean: 0.08, lA: 0.2, lB: 0.6, rA: 0.9, rB: 1.4, aRp: 0.65, aRe: 0.9, aRq: 0.3, aLp: 0.8, aLe: 0.9, aLq: 0.2 }], [0.6, { lean: -0.1, tilt: 0.18, aRp: 1.0, aRe: 0.5 }], [1, { lean: -0.14, tilt: 0.2, aRp: 2.2, aRe: -0.1, aRq: 0.25, aLp: 0.7, aLq: 0.7, aLe: 0.3 }]],
     spin: [[0, Object.assign({ lean: 0.18 }, LEG1, { aRp: 1.5, aRq: 0.75, aRe: 0.6, aLp: 0.9, aLq: 0.6, aLe: 0.7 })], [0.6, { aRp: 2.3, aRq: 0.5, aRe: 0.4 }], [1, { lean: 0.1, aRp: 2.9, aRq: 0.25, aRe: 0.12, aLp: 0.8, aLq: 0.5 }]],
   };
+  const LAY_LAND = { lean: 0.13, tilt: 0, lA: 0.2, lB: 0.48, rA: 0.28, rB: 0.54, aRp: 0.79, aRq: 0.26, aRe: 0.61, aLp: 0.44, aLq: 0.24, aLe: 0.52 };
+  function layFlow(a) {
+    const release = a.released ? (a.relT ?? a.ideal) : a.t;
+    const o = kf(LKF[a.sty], clamp(release / (a.ideal * 0.82), 0, 1));
+    if (a.released) {
+      const w = sm(clamp((a.t - release - 0.05) / 0.22, 0, 1));
+      for (const k in LAY_LAND) o[k] = lerp(o[k], LAY_LAND[k], w);
+    }
+    const plant = a.v === 'euro' && a.wp[a.wp.length - 1];
+    if (plant && (plant.lead === 'R') === (a.hand > 0)) {
+      [o.lA, o.rA] = [o.rA, o.lA]; [o.lB, o.rB] = [o.rB, o.lB];
+    }
+    return o;
+  }
   // 拉杆：先举高 → 收到腰间、屈膝滞空 → 换到另一侧出手
   const CLUTCHKF = [[0, { aRp: 2.7, aRe: 0.3, aLp: 1.6, aLe: 0.8, tilt: 0 }], [0.45, { lean: 0.12, lA: 0.75, lB: 1.4, rA: 0.95, rB: 1.5, aRp: 1.05, aRe: 1.15, aLp: 1.05, aLe: 1.15, tilt: 0.12 }], [1, { lean: 0.02, aRp: 2.75, aRe: 0.15, aRq: 0.45, aLp: 0.9, aLq: 0.6, tilt: -0.18 }]];
   // 扣篮空中关键帧（右手）：u 0=起跳 → 1=砸筐；dn=扣完后
@@ -2829,7 +2851,14 @@
     const A = lerp(-0.3 * sk, 0.95 * sk, u), B = 0.3 + 0.6 * Math.sin(Math.PI * u) + (last ? 0.35 * u : 0), tA = lerp(0.6 * sk, -0.65 * sk, u), tB = 0.55 + 0.3 * Math.sin(Math.PI * u);
     if (w.lead === 'L') Object.assign(o, { lA: A, lB: B, rA: tA, rB: tB }); else Object.assign(o, { rA: A, rB: B, lA: tA, lB: tB });
     o.lean = 0.24 + (last ? 0.1 * u : 0);
-    if (a.v === 'euro') { o.lean = 0.34; if (w.lead === 'L') o.lS = 0.42; else o.rS = 0.42; const sd = w.lead === 'L' ? -1 : 1; o.aRq = 0.22 + 0.35 * sd; o.aLq = 0.22 - 0.35 * sd; }
+    if (a.v === 'euro') {
+      const lead = w.lead === 'R' ? 1 : -1, first = a.wp[0].lead === 'R' ? 1 : -1;
+      const carry = lerp(first, a.hand, last ? sm(u) : 0), plant = Math.sin(Math.PI * u);
+      o.lean = 0.25 + 0.07 * plant; o.tilt = 0.1 * carry;
+      o[lead > 0 ? 'rS' : 'lS'] = 0.06 + 0.19 * plant;
+      o.aRp = 0.78; o.aRe = 1.14 - 0.06 * carry; o.aRq = -0.33 + 0.19 * carry;
+      o.aLp = 0.78; o.aLe = 1.14 + 0.06 * carry; o.aLq = -0.33 - 0.19 * carry;
+    }
     return o;
   }
   function latS(t) { return !t ? 0 : t.indexOf('L') >= 0 ? 1 : t.indexOf('R') >= 0 ? -1 : 0; }
@@ -3632,12 +3661,14 @@
     else if ((an === 'layup' || an === 'dunk') && a && a.inSteps) set(stepPose(a));
     else if (an === 'layup') {
       const v = a ? a.v : 'normal', rel = a && a.released, M = a && a.hand < 0 ? (o) => set(mir(o)) : set;
+      const flow = a && !a.cv && (v === 'euro' || (v === 'normal' && a.sty === 'glide'));
       if (v === 'floater') M({ lean: 0.06, lA: 0.3, lB: 0.7, rA: 0.6, rB: 0.9, aRp: rel ? 2.7 : 2.3, aRe: rel ? 0.15 : 0.8, aRq: 0.05, aLp: 0.9, aLe: 0.9 });
       else if (v === 'power') set({ lean: 0.04, lA: 0.45, lB: 0.85, rA: 0.45, rB: 0.85, lS: 0.12, rS: 0.12, aRp: rel ? 2.85 : 2.6, aRe: rel ? 0.1 : 0.4, aRq: 0.1, aLp: rel ? 2.3 : 2.5, aLe: 0.4, aLq: 0.1 });
       else if (v === 'clutch' || (!rel && a && a.t > K.layTi + 0.09)) { const fr = LKF[a.sty] || LKF.tip, o = kf(fr, 1); Object.assign(o, kf(CLUTCHKF_C, clamp((a.t - K.layTi) / (K.clutchTi - K.layTi), 0, 1))); M(o); }
+      else if (flow) M(layFlow(a));
       else { const fr = LKF[a ? a.sty : 'tip'] || LKF.tip; M(kf(fr, rel ? 1 : clamp((a ? a.t : 1) / K.layTi, 0, 1))); }
       // 出手 IK：出手那一下，持球手伸向篮筐
-      if (a && !a.inSteps && v !== 'floater' && v !== 'clutch' && v !== 'reverse') {
+      if (a && !flow && !a.inSteps && v !== 'floater' && v !== 'clutch' && v !== 'reverse') {
         const w = 0.85 * (a.t < K.layTi ? clamp((a.t - (K.layTi - 0.15)) / 0.15, 0, 1) : clamp(1 - (a.t - K.layTi) / 0.25, 0, 1));
         if (w > 0) { const Hh = pl.h / 1.95, fx = Math.cos(pl.face), fy = Math.sin(pl.face), dx = HOOP.x - pl.x, dy = HOOP.y - 0.1 - pl.y, T2 = Object.assign({}, T), sd = a.hand < 0 ? -1 : 1;
           armTo(T2, sd, (dx * fy - dy * fx) / Hh, (dx * fx + dy * fy) / Hh, (HOOP.z + 0.25 - pl.z) / Hh, Hh);
@@ -4821,4 +4852,3 @@
     _dbg: { tkStart: tkStart, tkAdd: tkAdd, startShot: startShot, releaseShot: releaseShot, greenWidth: greenWidth, startMove: startMove, startBlock: startBlock, startFinish: startFinish, startDunk: startDunk, contestOf: contestOf, contestInfo: contestInfo, finPlan: finPlan }, TIERS: TIERS, grade: grade, DIMS: DIMS, applyTrain: applyTrain, placeDummy: placeDummy, trainReset: trainReset, giveBall: giveBall, newTrainStats: newTrainStats, styOf: styOf, styK: styK, STY_NAME: STY_NAME, seed: (s) => { seed = s | 1; } };
   Object.defineProperty(PH.game, 'GW_OUT', { enumerable: true, configurable: true, get: () => K.gwOut });
 })();
-
