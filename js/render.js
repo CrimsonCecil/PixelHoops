@@ -1274,6 +1274,7 @@
     // 体型夸张化：瘦的更瘦、壮的更壮（bw 偏离 1 的部分放大 1.5 倍）
     const bw = C.bw || 1, fb = Math.max(0.6, 1 + 1.5 * (bw - 1)), B = C.body;
     const lw = B ? B.limb : (0.5 + 0.5 * fb) * 1.12, tw = B ? B.chest : (0.2 + 0.8 * fb) * 1.06;
+    const armWidth = B ? B.armThickness : lw;
     const headSize = 0.38 * s * (0.92 + 0.08 * Math.min(1.4, tw));
     const shoulderTop = Math.ceil(J.head.y + 0.25 * headHeight(C.face, headSize));
     seg('hipL', 'kneeL', 0.17 * lw, C.shorts); seg('hipR', 'kneeR', 0.17 * lw, C.shorts);
@@ -1291,9 +1292,9 @@
     seg('shL', 'shR', 0.12 * (B ? B.chest : 0.6 + 0.4 * fb), C.jersey, 0, shoulderTop);
     for (const side of ['L', 'R']) {
       const sleeve = C.sleeve === side ? [C.shorts[0], C.trim] : C.skin;
-      const upper = 0.11 * lw, elbowTop = Math.round(J['el' + side].y - Math.max(1, Math.round(upper * s)) / 2);
+      const upper = 0.11 * armWidth, elbowTop = Math.round(J['el' + side].y - Math.max(1, Math.round(upper * s)) / 2);
       seg('sh' + side, 'el' + side, upper, sleeve, 0, Math.min(shoulderTop, elbowTop));
-      seg('el' + side, 'hand' + side, 0.095 * lw, sleeve);
+      seg('el' + side, 'hand' + side, 0.095 * armWidth, sleeve);
       if (B || (pl.pose['fl' + side] || 0) > 0.15) seg('hand' + side, 'fg' + side, 0.075 * lw, C.skin);
     }
     segs.push({ head: true, d: J.head.d - 0.02 });

@@ -64,6 +64,17 @@ for (const key of ['curry', 'kyrie', 'wemby', 'durant', 'sga']) {
 for (const key of ['cade', 'giannis', 'embiid', 'lebron']) {
   assert(look(key).body.shoulder > 1.1 && look(key).body.limb > 1.1, key);
 }
+for (const key of ['lebron', 'giannis', 'zion', 'embiid', 'edwards']) {
+  const { chest, waist, limb, armThickness } = look(key).body;
+  assert(chest > waist * 1.07 && armThickness > limb * 1.1, key);
+}
+assert(lebron.body.chest > lebron.body.waist * 1.3);
+assert(lebron.body.armThickness > lebron.body.limb * 1.3);
+assert(look('clingan').body.chest > look('kobe').body.chest * 1.3);
+for (const key of ['curry', 'cade', 'shaq', 'jokic', 'morant', 'butler', 'kawhi']) {
+  const { limb, armThickness } = look(key).body;
+  assert.equal(armThickness, limb, key);
+}
 console.log('PASS every rostered player renders; 302 measured-height profiles, signature looks, original gameplay rig and held-ball wrist anchors');
 
 const gameCanvas = canvas();
