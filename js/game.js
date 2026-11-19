@@ -3572,7 +3572,7 @@
     } else if (!pl.hasBall || frozen || pl.stun > 0) { pl.post = false; pl.a3W = 0; pl.postK = false; }
     // 运球接招按取消窗口；普通投篮等动作做完，高控球/徽章可随时干拔
     // 只缓存"动作进行中"新按的键（刚由这一下触发的动作不再重复缓存），并记住按下那一刻的方向，接招时按当时推的方向出，不会变成别的动作
-    if (pl.hasBall && pl.action && pl.action.type === 'move' && (pr.a1 || pr.a2 || pr.a3)) { const q0 = inDir(pl, inp, true), a = pl.action; pl.buf = { a1: pr.a1, a2: pr.a2, a3: pr.a3, t: G.time, until: G.time + Math.max(0.45, pr.a1 ? a.T - a.t + 0.15 : 0), x: q0.x, y: q0.y, l: q0.l }; }
+    if (pl.hasBall && pl.action && pl.action.type === 'move' && (pr.a1 || (pl.action.t > 0 && (pr.a2 || pr.a3)))) { const q0 = inDir(pl, inp, true), a = pl.action; pl.buf = { a1: pr.a1, a2: a.t > 0 && pr.a2, a3: a.t > 0 && pr.a3, t: G.time, until: G.time + Math.max(0.45, pr.a1 ? a.T - a.t + 0.15 : 0), x: q0.x, y: q0.y, l: q0.l }; }
     if (pl.post) pl.postAt = G.time;
     if (pl.buf && G.time > pl.buf.until) pl.buf = null;
     if (pl.buf && pl.action && pl.action.type === 'move') {

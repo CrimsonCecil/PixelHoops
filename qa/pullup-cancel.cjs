@@ -87,3 +87,15 @@ for (const cancel of [false, true]) {
   assert.equal(gm.G.clearPing, gm.G.time);
   console.log(`PASS uncleared rebound ${cancel ? 'cancel' : 'normal'} shot: illId=${gm.G.illId}, clearPing=${gm.G.clearPing.toFixed(3)}`);
 }
+
+{
+  const { ctx, gm, pl } = fixture(0.9, [], '2p');
+  const moves = new Set();
+  for (let frame = 0; frame < 120; frame++) {
+    gm.G.time += dt;
+    ctx.PH.cancelQA.updatePlayer(pl, { mx: 0, my: 0, dx: frame === 0 ? 1 : 0, dy: 0, a1: false, a2: false, a3: frame === 0 }, dt);
+    if (pl.action && pl.action.type === 'move') moves.add(pl.action);
+  }
+  assert.equal(moves.size, 1, 'one a3 press must not replay a second move');
+  console.log(`PASS single directional a3 press: moves=${moves.size}, buffer=${pl.buf == null ? 'empty' : 'pending'}`);
+}
