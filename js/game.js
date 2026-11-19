@@ -4386,23 +4386,17 @@
       }
       if (ai.resetT && G.time < ai.resetT) { go(HOOP.x - hx * 5, HOOP.y - hy * 5, 0.9); return o; }
       if (setDef) {
-        ai.plan = 'iso'; ai.iso = null; ai.cb = null; ai.stuck = 0;
-        if (opp.stun > 0.05) { o.mx = px; o.my = py; }
-        else if ((FP.inside || FP.back) && FP.fv > 2) { o.mx = -hx; o.my = -hy; }
-        else if (pl.cd <= 0 && pl.stam > 12 && !pl.prev.a3) {
-          ai.side = -ai.side; o.a3 = true;
-          o.dx = -hy * ai.side * 0.8 - hx * 0.6; o.dy = hx * ai.side * 0.8 - hy * 0.6;
-        } else { o.mx = -hx * 0.65; o.my = -hy * 0.65; }
-        return o;
+        ai.plan = 'iso';
+        if ((FP.inside || FP.back) && FP.fv > 2) { o.mx = -hx; o.my = -hy; return o; }
       }
-      const attack = !SU && FP.inside && FP.fv > 3 && (FP.dunk ? FP.tko > 0.6 * FP.reach || d < 3.4 : FP.tko < 1.6 + 0.8 * rnd());
+      const attack = !setDef && !SU && FP.inside && FP.fv > 3 && (FP.dunk ? FP.tko > 0.6 * FP.reach || d < 3.4 : FP.tko < 1.6 + 0.8 * rnd());
       // 对面是护框大闸、自己又有投篮：杀到中距离先看一眼，防守人退着守就急停跳投，不往他身上撞
       { const rkA = ai.rimK == null ? 1 : ai.rimK, jrA = isThree(pl.x, pl.y) ? pl.r.three : pl.r.mid;
         const jpA = jPref() * styK(pl, 'Pull'); if (attack && jpA > 0.15 && d >= 3.6 && dd > 1.15 && !opp.off && opp.stun < 0.2 && G.time > (ai.puT || 0)) {
           ai.puT = G.time + 0.5;
           if (rnd() < K.aiPull0 + 0.6 * jpA) { o.mx = 0; o.my = 0; o.a1 = true; return o; }
         } }
-      if ((attack || (d < 2.6 && FP.inside)) && (c < 0.75 || G.shotClock < 5)) { shootNow(); return o; }
+      if (!setDef && (attack || (d < 2.6 && FP.inside)) && (c < 0.75 || G.shotClock < 5)) { shootNow(); return o; }
       if (ai.plan === 'shoot') {
         if (open || G.shotClock < 4) { if (G.shotClock > 4 && rnd() < (K.aiFake0 + 0.3 * S.jf) * (dd < 2.2 ? 1 : 0.3)) { ai.fakeNext = true; o.a1 = true; ai.t = 0.4; ai.plan = 'drive'; ai.fakeChk = { t: G.time + 0.55, jumped: false }; } else shootNow(); return o; }
         // 没完全空：会投的人轻度干扰也敢投；对面护框强就先运球拉开再投，而不是一头往里扎
@@ -4414,7 +4408,7 @@
         // 单打：对峙 → 按球员习惯打一串运球组合（变向 / 胯下 / 背后 / 犹豫 / 假投 / 后撤）→ 读防守：被晃或被甩开就立刻攻，没晃开就换节奏再来
         const I = ai.iso || (ai.iso = pickIso(pl));
         const jr = isThree(pl.x, pl.y) ? pl.r.three : pl.r.mid;
-        const beat = !building && I.i > 0 && (opp.stun > 0.08 || dd > 2.5 || (front < 0.15 && dd < 2.6));
+        const beat = !setDef && !building && I.i > 0 && (opp.stun > 0.08 || dd > 2.5 || (front < 0.15 && dd < 2.6));
         if (beat && SU && suBeat(pl, opp) === 'keep') { ai.iso = null; return o; }   // V4.8 连续过人型：晃开了接着晃
         if (beat) {
           if (SU) ai.su.end = 0;
@@ -4433,6 +4427,7 @@
           const sway = Math.sin(G.time * 2.2 + pl.id) * 0.6, back = dd < 1.25 ? -0.5 : dd > 2.2 ? 0.5 : 0;
           go(pl.x + px * sway + hx * back, pl.y + py * sway + hy * back, 0.45);
           if (G.time >= I.next && pl.cd <= 0 && pl.stam > 12 && G.shotClock > 3) {
+            if (setDef && I.seq[I.i] === 'P') { go(pl.x - hx, pl.y - hy, 0.65); return o; }
             const t = I.seq[I.i++];
             o.mx = 0; o.my = 0;
             if (t === 'L') { I.side = -I.side; o.a3 = true; o.dx = -hy * I.side + hx * 0.25; o.dy = hx * I.side + hy * 0.25; o.mx = o.dx; o.my = o.dy; }
