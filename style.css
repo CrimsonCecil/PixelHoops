@@ -476,13 +476,17 @@ button.pick .pk-n small { color: var(--tc, var(--gold)); }
 @keyframes nping { 0%,100% { transform: translateX(-50%) scale(1); } 20% { transform: translateX(calc(-50% - 6px)) scale(1.12); } 40% { transform: translateX(calc(-50% + 6px)) scale(1.12); } 60% { transform: translateX(calc(-50% - 3px)) scale(1.06); } }
 
 /* V2.2：属性数值按高低配色（越高越醒目），主宰加成 */
-:root { --v9: #2bff6e; --v8: #8be04e; --v7: #ffd24a; --v6: #ff9a3c; --v5: #ff5c5c; --v4: #e34b58; }
-.v9 { --rating: var(--v9); --rating-weight: bold; --rating-glow: 0 0 3px #128a3b, 0 0 8px #2bff6e; }
-.v8 { --rating: var(--v8); }
-.v7 { --rating: var(--v7); }
-.v6 { --rating: var(--v6); }
-.v5 { --rating: var(--v5); }
-.v4 { --rating: var(--v4); }
+:root { --rating-bronze: #b87333; --rating-silver: #c4ccd8; --rating-gold: #ffc93c; --rating-emerald: #2ecf6b; --rating-sapphire: #3d8bff; --rating-ruby: #ff3355; --rating-amethyst: #b06cff; --rating-diamond: #8fe9ff; --rating-pink-diamond: #ff7ad9; --rating-dark-matter: #e6a9ff; --rating-iridescent: linear-gradient(110deg, #b06cff, #8fe9ff, #ff7ad9, #b06cff); }
+.rating-bronze { --rating: var(--rating-bronze); }
+.rating-silver { --rating: var(--rating-silver); }
+.rating-gold { --rating: var(--rating-gold); }
+.rating-emerald { --rating: var(--rating-emerald); }
+.rating-sapphire { --rating: var(--rating-sapphire); }
+.rating-ruby { --rating: var(--rating-ruby); }
+.rating-amethyst { --rating: var(--rating-amethyst); --rating-weight: bold; --rating-glow: 0 0 4px #b06cff80; }
+.rating-diamond { --rating: var(--rating-diamond); --rating-weight: bold; --rating-glow: 0 0 5px #8fe9ff90; }
+.rating-pink-diamond { --rating: var(--rating-pink-diamond); --rating-weight: bold; --rating-glow: 0 0 6px #ff7ad9a0; }
+.rating-dark-matter { --rating: var(--rating-dark-matter); --rating-weight: bold; --rating-glow: 0 0 5px #b06cff90; }
 .pcard { background: rgba(8, 10, 22, 0.92); }
 .pcard .pcg i sup { font-size: 0.7em; color: #ff9a3c; margin-left: 1px; vertical-align: 0.45em; line-height: 0; }
 .pcard .pcg i.up { text-shadow: 0 0 5px #ff8a2a; }
@@ -879,12 +883,15 @@ td.b5cn { color: var(--muted); font-size: var(--fs-xs) !important; }
 select.pf, input.pf, .tn-row.pf, .sl.pf, .crow.pf, .mx.pf { outline: calc(var(--u) * 1) solid var(--gold); outline-offset: 1px; filter: brightness(1.25); }
 .tn-row:has(.pf), .sl:has(.pf), .crow:has(.pf), .mx:has(.pf) { background: rgba(242, 193, 78, .12); }
 
-:is(.pko1 b, .pkr b, .agrp .ag h4 b, .b5r .b5ag, .pcard .pcg i, .sl output, .pk-5 b, .rating-legend span):is(.v9, .v8, .v7, .v6, .v5, .v4) { color: var(--rating); font-weight: var(--rating-weight, normal); text-shadow: var(--rating-glow, none); }
-.pkr s:is(.v9, .v8, .v7, .v6, .v5, .v4) { background: var(--rating); }
-.pkr s.v9 { box-shadow: 0 0 6px var(--v9); }
-.sl input:is(.v9, .v8, .v7, .v6, .v5, .v4) { background: var(--rating); }
-.sl input.v9 { box-shadow: 0 0 6px var(--v9); }
-.sl input:is(.v9, .v8, .v7, .v6, .v5, .v4)::-webkit-slider-thumb { background: var(--rating); }
-.sl input:is(.v9, .v8, .v7, .v6, .v5, .v4)::-moz-range-thumb { background: var(--rating); }
+:is(.pko1 b, .pkr b, .agrp .ag h4 b, .b5r .b5ag, .pcard .pcg i, .sl output, .pk-5 b, .rating-legend span)[class*="rating-"] { color: var(--rating); font-weight: var(--rating-weight, normal); text-shadow: var(--rating-glow, none); }
+.pkr s[class^="rating-"], .sl input[class^="rating-"] { background: var(--rating); box-shadow: var(--rating-glow, none); }
+.sl input[class^="rating-"]::-webkit-slider-thumb { background: var(--rating); }
+.sl input[class^="rating-"]::-moz-range-thumb { background: var(--rating); }
 .rating-legend { display: flex; flex-wrap: wrap; gap: calc(var(--u) * 2); align-items: center; margin-bottom: calc(var(--u) * 2); font-size: var(--fs-xs); color: var(--muted); }
-.rating-legend span:not(:first-child) { padding: 2px 4px; border: 1px solid currentColor; background: #0c0f22; }
+.rating-legend span { padding: 2px 4px; border: 1px solid var(--rating); background: #0c0f22; white-space: nowrap; }
+.pkr s.rating-dark-matter, .sl input.rating-dark-matter { background: var(--rating-iridescent); background-size: 200% 100%; animation: rating-shimmer 6s linear infinite; }
+@supports ((background-clip: text) or (-webkit-background-clip: text)) {
+  :is(.pko1 b, .pkr b, .agrp .ag h4 b, .b5r .b5ag, .pcard .pcg i, .pk-5 b, .rating-legend span).rating-dark-matter { background: var(--rating-iridescent); background-size: 200% 100%; -webkit-background-clip: text; background-clip: text; color: transparent; animation: rating-shimmer 6s linear infinite; }
+}
+@keyframes rating-shimmer { from { background-position: 200% 0; } to { background-position: 0 0; } }
+@media (prefers-reduced-motion: reduce) { .rating-dark-matter { animation: none !important; } }
