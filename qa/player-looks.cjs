@@ -55,14 +55,18 @@ for (const p of game.G.players) {
   const heightScale = h => 1 + (h / 1.95 - 1) * 1.55;
   const headZ = () => render.drawPlayer(p).k.head[2];
   const initial = headZ();
-  for (const h of [1.7, 2.25]) {
+  let previous = -Infinity;
+  for (const h of [1.7, base - 0.01, base, base + 0.01, 2.25]) {
     p.h = h;
-    assert(Math.abs(headZ() / initial - heightScale(h) / heightScale(listed)) < 1e-9, p.arch.key);
+    const current = headZ();
+    assert(current > previous, `${p.arch.key}: sprite height should increase at ${h} m`);
+    assert(Math.abs(current / initial - heightScale(listed * (h / base)) / heightScale(listed)) < 1e-9, p.arch.key);
+    previous = current;
   }
   p.h = base;
   assert.equal(headZ(), initial, p.arch.key);
 }
-console.log('PASS training player and dummy resize with height overrides and restore their listed visuals at default');
+console.log('PASS training player and dummy resize monotonically and restore their listed visuals at default');
 
 T5.start({ home: 'LAL', away: 'GSW', human: -1 });
 assert.equal(game.G.players.length, 10);
