@@ -3578,10 +3578,12 @@
     if (pl.buf && pl.action && pl.action.type === 'move') {
       const a = pl.action, B = pl.buf, shot = B.a1 && !B.a2 && !B.a3;
       if (shot && canPullupCancel(pl, a) && pl.hasBall && !frozen && pl.stun <= 0 && G.phase === 'live') {
-        pl.buf = null; pl.cd = 0; pl.mvEndT = G.time; pl.lastMoveT = G.time;
-        pl.vx = pl.vy = pl.vz = pl.z = pl.speed = 0;
         tryStart(pl, inp, { a1: true }, a.kind === 'stepback' ? 'stepback' : 'pullup');
-        if (pl.action.type === 'shot' && a.kind !== 'stepback') float('急停干拔', pl, '#f6efe0', 1);
+        if (pl.action !== a && pl.action && pl.action.type === 'shot') {
+          pl.buf = null; pl.cd = 0; pl.mvEndT = G.time; pl.lastMoveT = G.time;
+          pl.vx = pl.vy = pl.vz = pl.z = pl.speed = 0;
+          if (a.kind !== 'stepback') float('急停干拔', pl, '#f6efe0', 1);
+        }
       } else if (a.t >= a.T * (shot ? 1 : (a.cw || 0.55))) { pl.action = null; pl.cd = 0; pl.mvEndT = G.time; }
     }
     if (pl.buf && !pl.action) {

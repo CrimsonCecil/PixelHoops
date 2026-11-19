@@ -99,3 +99,29 @@ for (const cancel of [false, true]) {
   assert.equal(moves.size, 1, 'one a3 press must not replay a second move');
   console.log(`PASS single directional a3 press: moves=${moves.size}, buffer=${pl.buf == null ? 'empty' : 'pending'}`);
 }
+
+{
+  const test = fixture(0.9, [], '2p'), control = fixture(0.9, [], '2p');
+  const neutral = { mx: 0, my: 0, dx: 0, dy: 0, a1: false, a2: false, a3: false };
+  const tick = (f, input) => { f.gm.G.time += dt; f.ctx.PH.cancelQA.updatePlayer(f.pl, input, dt); };
+  for (const f of [test, control]) {
+    f.gm.G.time = 1;
+    Object.assign(f.pl, { landT: 1, recT: 1.18 });
+    tick(f, { ...neutral, dx: 1, a3: true });
+    assert.equal(f.pl.action.type, 'move', 'a3 can start during pickup landing recovery');
+    tick(f, neutral);
+  }
+  const move = test.pl.action;
+  tick(test, { ...neutral, a1: true });
+  tick(control, neutral);
+  assert.equal(test.pl.action, move, 'rejected shot must leave move running');
+  assert(test.pl.buf && test.pl.buf.a1, 'rejected shot must retain buffered press');
+  for (const key of ['x', 'y', 'vx', 'vy', 'z', 'vz']) assert.equal(test.pl[key], control.pl[key], `rejected shot changed ${key}`);
+  const pressTime = test.gm.G.time;
+  for (let i = 0; i < 120 && test.pl.action === move; i++) tick(test, { ...neutral, a1: true });
+  if (!test.pl.action) tick(test, { ...neutral, a1: true });
+  assert.equal(test.pl.action.type, 'shot', 'buffered shot must start without a second press');
+  assert(test.gm.G.time >= test.pl.recT);
+  assert.equal(test.pl.buf, null);
+  console.log(`PASS pickup landing recovery: rejected cancel preserves buffer/position/velocity; shot starts after ${(test.gm.G.time - pressTime).toFixed(3)}s without another press`);
+}
