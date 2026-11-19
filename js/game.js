@@ -1818,7 +1818,7 @@
       if (df === sh || TM(df) === TM(sh)) continue;
       const inside = kind !== 'shot', edge = inside ? finEdge(sh, df, a, kind === 'dunk', true) : 0;
       const c = contestInfo(sh, df, inside ? 'in' : 'shot').c;
-      const bm = inside ? K.ctBlkS * clamp(1 - K.ctBlkE * edge, K.ctBlkLo, K.ctBlkHi) * (kind === 'lay' && c >= 0.5 ? K.ctBlkH : 1) * (a.dbl ? K.ctBlkD : 1) : 1;
+      const bm = inside ? K.ctBlkS * clamp(1 - K.ctBlkE * edge, K.ctBlkLo, K.ctBlkHi) * (kind === 'lay' && c >= 0.5 ? K.ctBlkH : 1) * (kind === 'lay' && a.dbl ? K.ctBlkD : 1) : 1;
       const mul = bm * (a.V ? a.V.blk : 1) * (kind === 'shot' && a.F && !a.V.hook ? a.F.blk : 1);
       if (!tryBlock(sh, df, kind, mul, inside ? Math.min(1, bm * K.ctChase) : null, hp, a, edge)) continue;
       a.blocked = true;

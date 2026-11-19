@@ -13,6 +13,7 @@ function load(baseline = false) {
   ctx.window = ctx;
   ctx.PH = { input: { endTick() {}, read: () => ({}), read5: () => ({}) } };
   ctx.credits = [];
+  ctx.blockMultipliers = [];
   ctx.credit = (df, hp) => {
     const rig = ctx.PH.rig(df), p = hp || ctx.PH.game.G.ball;
     const distance = Math.min(...[rig.handL, rig.handR].map(h => Math.hypot(h[0] - p.x, h[1] - p.y, h[2] - p.z)));
@@ -28,6 +29,7 @@ function load(baseline = false) {
       ? execFileSync('git', ['show', `${process.env.BLOCK_BASE || 'HEAD'}:js/game.js`], { cwd: root, encoding: 'utf8' })
       : fs.readFileSync(path.join(root, 'js', name + '.js'), 'utf8');
     if (name === 'game') {
+      source = source.replace('if (!tryBlock(sh, df, kind, mul,', 'window.blockMultipliers.push(mul); if (!tryBlock(sh, df, kind, mul,');
       source = source.replace('function blockFx(df, hp, sh, kind) {', 'function blockFx(df, hp, sh, kind) { window.credit(df, hp);');
       source = source.replace('function chaseFx(df) {', 'function chaseFx(df) { window.credit(df);');
       const names = baseline ? 'tryBlock, updateBall' : 'blockContact, tryBlock, contactBlock, heldShotPos, updateBall, updateAction';
@@ -158,6 +160,20 @@ for (const outcome of ['make', 'miss', 'cleared', 'no-stats']) {
   }
 }
 console.log('PASS training flight blocks: one attempt, no made credit, one block, coherent zone/timing/recent totals; cleared/missing stats safe');
+
+for (const kind of ['dunk', 'lay']) {
+  const { ctx, sh, qa } = fixture();
+  const ball = { x: sh.x, y: sh.y, z: 20 };
+  for (const dbl of [false, true]) {
+    const a = { type: kind === 'dunk' ? 'dunk' : 'layup', t: 0.3, dbl, V: { blk: 1, name: 'test' } };
+    assert.equal(qa.contactBlock(sh, a, ball, kind, {}), false);
+  }
+  assert.equal(ctx.blockMultipliers.length, 2);
+  const [single, double] = ctx.blockMultipliers;
+  if (kind === 'dunk') assert.equal(double, single);
+  else assert(double > single, 'double-coverage layup multiplier must remain');
+}
+console.log('PASS block multipliers: dunk double tap has no effect; double-coverage layup boost retained');
 
 function cpuRuns(baseline) {
   const ctx = load(baseline), gm = ctx.PH.game;
