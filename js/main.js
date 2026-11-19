@@ -176,7 +176,7 @@
     const tm = a.team && GM.NBA[a.team], tmS = tm ? (a.team === 'LEG' ? '传奇' : tm.city + tm.name) + ' · ' : a.tier === 'rook' ? '新秀 · ' : '';
     let h = '<div class="pkd-h"><canvas class="pkf big" width="64" height="64"></canvas><div><b>' + a.full + '</b><span>' + tmS + a.pos + ' · ' + a.h.toFixed(2) + ' 米 · ' + a.num + ' 号</span><span class="pkd-desc">' + a.desc + '</span></div><em class="t' + TT[a.tier] + '">' + a.ovr + '<small>' + GM.TIERS[a.tier] + '</small></em></div>';
     h += '<div class="pkd-tabs" data-testid="pk-tabs">' + PK_TABS.map((t) => '<button data-nonav="1" data-pkt="' + t[0] + '" class="' + (t[0] === pkTab ? 'on' : '') + '" data-testid="pkt-tab-' + t[0] + '">' + t[1] + '</button>').join('') + '<span class="pkd-lr">LB</span><span class="pkd-lr r">RB</span></div>';
-    const bar = (n, v, tip) => { const cl = vcl(v); return '<div class="pkr"' + (tip ? ' title="' + tip + '"' : '') + '><span>' + n + '</span><i><s class="' + cl + '" style="width:' + v + '%"></s></i><b>' + v + '</b></div>'; };
+    const bar = (n, v, tip) => { const cl = vcl(v); return '<div class="pkr"' + (tip ? ' title="' + tip + '"' : '') + '><span>' + n + '</span><i><s class="' + cl + '" style="width:' + v + '%"></s></i><b class="' + cl + '">' + v + '</b></div>'; };
     const AT = {}; GM.ATTRS.forEach((t) => { AT[t[0]] = t[2]; }); Object.assign(AT, R5TIP);
     const AG = attrGroups(a, a), bl = bList(a, true), have = {}; bl.forEach((x) => { have[x[0]] = x[1]; });
     if (pkTab === 'ov') {
