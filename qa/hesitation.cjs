@@ -3,7 +3,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
 
-function fixture(hand = 1) {
+function fixture(hand = 1, arch0 = 'luka') {
   const listeners = {};
   const pads = [];
   const ctx = vm.createContext({
@@ -19,7 +19,7 @@ function fixture(hand = 1) {
   const { game, rig } = ctx.PH;
   game.seed(7);
   Object.assign(game.G.train, { role: 'off', dummy: 'stand', gap: 1.5, infStam: false });
-  game.newGame({ mode: 'train', arch0: 'luka', arch1: 'joe' });
+  game.newGame({ mode: 'train', arch0, arch1: 'joe' });
   const [p, d] = game.G.players;
   const b = game.G.ball;
   Object.assign(game.G, { phase: 'live', needClear: false, off: 0 });
@@ -126,6 +126,15 @@ for (const [hand, dir, kind, side, nextHand] of [
   assert(p.action.kind !== 'hesi');
 }
 
+// A hesitation cannot unlock moves outside the handler's ratings.
+for (const dir of ['KeyS', 'KeyD']) {
+  const { p, key, step } = fixture(1, 'shaq');
+  key('KeyL'); step(40);
+  key(dir); key('KeyL', false); step();
+  assert.equal(p.action.kind, 'hesi');
+  assert.equal(p.action.hesiHold, null);
+}
+
 // Losing possession during the fake discards the pending branch.
 {
   const { p, d, b, key, step } = fixture();
@@ -142,18 +151,19 @@ for (const [hand, dir, kind, side, nextHand] of [
   const T = team5.T, p = T.ctl;
   Object.assign(T, { phase: 'live', off: 0 });
   Object.assign(game.G, { phase: 'live', off: 0 });
-  Object.assign(p, { x: 0, y: 6.8, hasBall: true });
+  for (const other of game.G.players) if (other !== p) Object.assign(other, { x: -6 + other.id, y: 1, stun: 3 });
+  Object.assign(p, { x: 0, y: 6.8, hand: 1, hasBall: true });
   Object.assign(game.G.ball, { state: 'held', holder: p.id, dead: false, lastTouch: p.id });
   const step = (n = 1) => { for (let i = 0; i < n; i++) team5.tick(1 / 120); };
   key('KeyW'); key('KeyH'); step(40);
   assert.equal(p.action.kind, 'hesi');
   assert.equal(p.y, 6.8);
   assert.equal(T.cnt.passes, 0);
-  key('KeyW', false); key('KeyS'); key('KeyH', false); step();
-  assert.equal(p.action.kind, 'stepback');
-  key('KeyS', false); key('KeyW'); key('KeyH'); step(75);
+  key('KeyW', false); key('KeyA'); key('KeyH', false); step();
+  assert.equal(p.action.kind, 'cross');
+  key('KeyA', false); key('KeyW'); key('KeyH'); step(75);
   assert.equal(p.action.kind, 'hesi');
   assert(p.action.hesiHold === 'hesi');
 }
 
-console.log('Hesitation: planted high fake, six release branches, input precedence, post-up, possession loss, and 5V5 passed.');
+console.log('Hesitation: high fake, release directions, buffering, move requirements, post-up, possession loss, and 5V5 passed.');

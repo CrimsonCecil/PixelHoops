@@ -3269,6 +3269,7 @@
     const q = a.hesiExit;
     if (q.l < 0.3 || pl.stam <= ST.act || inp.post) return false;
     const kind = q.fwd < -0.45 ? 'stepback' : q.lat * a.h0 > 0.25 ? 'cross' : 'inout';
+    if (!canMv(pl, kind)) return false;
     pl.lastMoveT = G.time;
     startMove(pl, { mx: q.x, my: q.y }, kind);
     const b = G.ball;
