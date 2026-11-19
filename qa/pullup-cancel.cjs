@@ -73,3 +73,17 @@ run('frame zero', 0.88, [], 'hesi', true, { at: 0 });
 run('5V5 shared path', 0.9, [], 'cross', true, { mode: 't5' });
 for (const key of ['a2', 'a3']) run(key + ' unchanged', 0.55, [], 'cross', false, { key });
 console.log('PASS pull-up cancellation, full-move buffering, frame-zero input, drift, and a2/a3 windows');
+
+for (const cancel of [false, true]) {
+  const { ctx, gm, pl } = fixture(0.9, [], '2p');
+  Object.assign(pl, { y: 8, vx: 0, vy: 0, speed: 0 });
+  gm.G.needClear = true; gm.G.illId = -1;
+  const input = { mx: 0, my: 0, dx: 0, dy: 0, a1: true, a2: false, a3: false };
+  if (cancel) gm._dbg.startMove(pl, input, 'hesi');
+  gm.G.time += dt;
+  ctx.PH.cancelQA.updatePlayer(pl, input, dt);
+  assert.equal(pl.action.type, 'shot');
+  assert.equal(gm.G.illId, pl.id, 'uncleared rebound shot must be flagged illegal');
+  assert.equal(gm.G.clearPing, gm.G.time);
+  console.log(`PASS uncleared rebound ${cancel ? 'cancel' : 'normal'} shot: illId=${gm.G.illId}, clearPing=${gm.G.clearPing.toFixed(3)}`);
+}

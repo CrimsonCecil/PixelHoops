@@ -3409,7 +3409,7 @@
     }
   }
 
-  function tryStart(pl, inp, pr) {
+  function tryStart(pl, inp, pr, cancelVariant) {
     if (G.phase !== 'live' && G.phase !== 'dead') return;
     const d = distHoop(pl);
     if (pl.hasBall) {
@@ -3417,6 +3417,7 @@
       if (pl.recT > G.time && pl.landT && G.time - pl.landT < 0.6) return;
       if (pr.a1 || pr.a2) {
         if (G.needClear) { G.clearPing = G.time; G.illId = pl.id; }
+        if (cancelVariant) { startShot(pl, inp, 'a1', cancelVariant); return; }
         const q = inDir(pl, inp), P = finPlan(pl);
         const sdz = sdZone(pl, P), sdBtn = pr.a2 || (pr.a1 && inp.sprint && !(pl.post || (backTurn(pl) && !pr.a2)));
         if (sdz && sdBtn && !shaqReady(pl) && !(pr.a2 && pl.post && OP(pl).seal > G.time)) {
@@ -3579,8 +3580,8 @@
       if (shot && canPullupCancel(pl, a) && pl.hasBall && !frozen && pl.stun <= 0 && G.phase === 'live') {
         pl.buf = null; pl.cd = 0; pl.mvEndT = G.time; pl.lastMoveT = G.time;
         pl.vx = pl.vy = pl.vz = pl.z = pl.speed = 0;
-        startShot(pl, inp, 'a1', a.kind === 'stepback' ? 'stepback' : 'pullup');
-        if (a.kind !== 'stepback') float('急停干拔', pl, '#f6efe0', 1);
+        tryStart(pl, inp, { a1: true }, a.kind === 'stepback' ? 'stepback' : 'pullup');
+        if (pl.action.type === 'shot' && a.kind !== 'stepback') float('急停干拔', pl, '#f6efe0', 1);
       } else if (a.t >= a.T * (shot ? 1 : (a.cw || 0.55))) { pl.action = null; pl.cd = 0; pl.mvEndT = G.time; }
     }
     if (pl.buf && !pl.action) {
