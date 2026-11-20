@@ -1592,25 +1592,23 @@
     ctx.restore();
   }
 
-  function drawCombos(G, project) {
+  function drawCombos(G) {
     for (const p of G.players) {
       const c = p.dribbleCombo;
       if (!c || c.shown < 2 || p.off) continue;
       const end = c.end == null ? c.last + 1.5 : c.end, fade = Math.max(0, Math.min(1, 1 - (G.time - end)));
       if (!fade) continue;
-      const q = project(p.x, p.y, p.z + p.h * 0.72);
-      if (q.d != null && q.d < 1) continue;
       const age = G.time - c.last, heat = Math.min(1, (c.shown - 2) / 6), pop = Math.max(0, 1 - age / 0.22);
-      const scale = (1 + heat * 0.45) * (1 + Math.sin(pop * Math.PI * 0.8) * 0.28), side = q.x > W * 0.65 ? -1 : 1;
+      const scale = 0.6 * (1 + heat * 0.45) * (1 + Math.sin(pop * Math.PI * 0.8) * 0.28);
       ctx.save(); ctx.globalAlpha = fade;
-      ctx.translate(Math.max(65, Math.min(W - 65, q.x + side * (Math.min(42, q.s * 0.6) + 55))), q.y - 6);
+      ctx.translate(W - 10 + pop * 8, H * 0.38);
       ctx.translate(Math.sin(age * 110) * pop * 2, Math.cos(age * 90) * pop);
-      ctx.scale(scale, scale); ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.lineJoin = 'round';
+      ctx.scale(scale, scale); ctx.textAlign = 'right'; ctx.textBaseline = 'middle'; ctx.lineJoin = 'round';
       ctx.shadowColor = '#140d29'; ctx.shadowBlur = 0; ctx.shadowOffsetX = 2; ctx.shadowOffsetY = 3;
       const line = (text, y, font, col) => { ctx.font = font; ctx.lineWidth = 3; ctx.strokeStyle = '#23102e'; ctx.strokeText(text, 0, y); ctx.fillStyle = col; ctx.fillText(text, 0, y); };
       line(String(c.shown), -14, 'italic 900 32px sans-serif', heat > 0.65 ? '#ff6342' : heat > 0.25 ? '#ffac32' : '#ffe66a');
-      line('HIT COMBO', 8, 'italic 900 11px sans-serif', '#fff5cf');
-      line(c.name, 23, "10px 'Fusion Pixel 12px Proportional SC', sans-serif", '#ffffff');
+      line('HITS', 8, 'italic 900 11px sans-serif', '#fff5cf');
+      line(c.name, 23, "13px 'Fusion Pixel 12px Proportional SC', sans-serif", '#ffffff');
       ctx.restore();
     }
   }
@@ -1707,7 +1705,7 @@
       ctx.fillStyle = r.col;
       for (let i = 0; i < n; i++) { const an = i / n * Math.PI * 2; ctx.fillRect(Math.round(c.x + Math.cos(an) * rad), Math.round(c.y + Math.sin(an) * rad * 0.62), sz, sz); }
     }
-    drawCombos(G, proj);
+    drawCombos(G);
     for (const p of G.players) if (heads[p.id]) { drawMeter(p, heads[p.id]); p.headScreen = heads[p.id]; }
     // 晃晕冒星 / 晃倒小鸟
     for (const p of G.players) if (heads[p.id] && p.stun > 0 && !p.knock && (p.stunK === 'daze' || p.stunK === 'fall' || p.stunK === 'spin')) {   // 顶翻（knock）不冒星
