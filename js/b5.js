@@ -101,25 +101,33 @@
     if (s.dcmd[d.tm] > T.time) k *= tv('t5_sk_dcR', 1.15);
     return B.dry ? 1 : k;
   }
-  function pass(p, m, kind, ps, Tt, first) {
-    if (!on5() || !ps || !m) return; const s = st(), T = T5();
-    if (ps.inb) return;
+  function passState(p, m, kind) {
+    const s = st(), T = T5();
     const d0 = dist(p, m), jp = !!p.jpNow, kick = dHoop(p) < 5, cut = !!(m.f5 && m.f5.cut) || ((m.speed || 0) > 3 && ((m.vx || 0) * -m.x + (m.vy || 0) * (HY - m.y)) > 0.6 * m.speed * dHoop(m));
-    let chM = 1, erM = 1, sp = 0; const used = [];
-    const tn = tier(p, 'needle'); if (tn) { chM *= ef('needle', 'ch', tn); used.push('needle'); }
-    const tb = tier(p, 'bailout'); if (tb && (jp || kick)) { chM *= ef('bailout', 'ch', tb); erM *= ef('bailout', 'er', tb); used.push('bailout'); }
-    const tk = tier(p, 'breaker'); if (tk && T.time - s.chgT[p.tm] < tv('t5_b5_bkW', BK.win) && d0 >= tv('t5_b5_bkD', BK.dd)) { chM *= ef('breaker', 'ch', tk); erM *= ef('breaker', 'er', tk); sp = ef('breaker', 'sp', tk); used.push('breaker'); }
     const postIn = p.post || (p.f5 && p.f5.ck && p.f5.ck.k === 'post' && T.time - (p.catchT || -9) < 1.5);
-    const tp = postIn ? tier(p, 'postpm') : 0; if (tp) { chM *= ef('postpm', 'ch', tp); used.push('postpm'); }
-    if (s.hub[p.tm] > T.time) chM *= tv('t5_sk_hubCh', 0.6);
-    if (first && first.d) { const ti = tier(first.d, 'intercept'); if (ti) { chM *= ef('intercept', 'ch', ti); rec('intercept').n++; first.b5i = 1; } }
-    // 团队专属
     const S5 = sk5(p); let skT = null;
     if (S5 && skOk(p, S5)) {
       if (S5.type === 'dime' && (jp || kick || kind === 'bounce' || kind === 'lob' || kind === 'alley' || d0 >= 9 || cut)) skT = 'dime';
       else if (S5.type === 'space' && dHoop(p) <= 4.5 && dHoop(m) >= 5) skT = 'space';
-      if (skT) fire(p, S5, skT === 'dime' ? '妙传' : '突分');
     }
+    return { d0, needle: tier(p, 'needle'), bailout: jp || kick ? tier(p, 'bailout') : 0,
+      breaker: T.time - s.chgT[p.tm] < tv('t5_b5_bkW', BK.win) && d0 >= tv('t5_b5_bkD', BK.dd) ? tier(p, 'breaker') : 0,
+      postpm: postIn ? tier(p, 'postpm') : 0, dimer: tier(p, 'dimer'), hub: s.hub[p.tm] > T.time, S5, skT };
+  }
+  function pass(p, m, kind, ps, Tt, first) {
+    if (!on5() || !ps || !m) return; const T = T5();
+    if (ps.inb) return;
+    const C = ps.badgeState || passState(p, m, kind), d0 = C.d0;
+    let chM = 1, erM = 1, sp = 0; const used = [];
+    const tn = C.needle; if (tn) { chM *= ef('needle', 'ch', tn); used.push('needle'); }
+    const tb = C.bailout; if (tb) { chM *= ef('bailout', 'ch', tb); erM *= ef('bailout', 'er', tb); used.push('bailout'); }
+    const tk = C.breaker; if (tk) { chM *= ef('breaker', 'ch', tk); erM *= ef('breaker', 'er', tk); sp = ef('breaker', 'sp', tk); used.push('breaker'); }
+    const tp = C.postpm; if (tp) { chM *= ef('postpm', 'ch', tp); used.push('postpm'); }
+    if (C.hub) chM *= tv('t5_sk_hubCh', 0.6);
+    if (first && first.d) { const ti = tier(first.d, 'intercept'); if (ti) { chM *= ef('intercept', 'ch', ti); rec('intercept').n++; first.b5i = 1; } }
+    // 团队专属
+    const skT = C.skT;
+    if (skT) fire(p, C.S5, skT === 'dime' ? '妙传' : '突分');
     if (skT) { chM = 0; if (skT === 'dime') erM = 0; }
     if (B.dry) { if (first) for (const k of used) rec(k).x += first.ch * (1 - chM); chM = 1; erM = 1; sp = 0; }
     if (first && !B.dry) { const c0 = first.ch; first.ch = Math.max(c0 * chM, chM === 0 ? 0 : c0 * tv('t5_b5_chMin', 0.35)); if (first.ch <= 0) ps.int = null; for (const k of used) rec(k).x += c0 - first.ch; }
@@ -132,7 +140,7 @@
     }
     for (const k of used) rec(k).n++;
     if (used.length) bpop(p, used[0]);
-    m.b5in = { t: T.time, from: p, dimer: tier(p, 'dimer'), postpm: tp, sk: skT, hub: s.hub[p.tm] > T.time };
+    m.b5in = { t: T.time, from: p, dimer: C.dimer, postpm: tp, sk: skT, hub: C.hub };
   }
   // ---------- 掩护（render.js PH.scr.hit） ----------
   function scrK(s, d) {
@@ -240,6 +248,6 @@
     }
   }
   function stats() { const s = st(); return { st: s.st, sh: s.sh, n: s.n, log: s.log, scr: s.scr || [0, 0] }; }
-  Object.assign(B, { tick, pass, passV, reachK, scrK, scrT, scrD, scrSway, rebK, tier, tiersOf, sk5, stats, KEYS, TH, E, SK, SCORE });
+  Object.assign(B, { tick, pass, passState, passV, reachK, scrK, scrT, scrD, scrSway, rebK, tier, tiersOf, sk5, stats, KEYS, TH, E, SK, SCORE });
   PH.B5 = B;
 })();

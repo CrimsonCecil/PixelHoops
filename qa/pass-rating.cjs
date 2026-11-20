@@ -25,8 +25,51 @@ function fixture(baseline = false, human = -1, seed = 7) {
   }
   ctx.PH.game.seed(seed);
   ctx.PH.T5.start({ home: 'LAL', away: 'BOS', human });
-  return { t5: ctx.PH.T5, G: ctx.PH.game.G, game: ctx.PH.game };
+  return { t5: ctx.PH.T5, G: ctx.PH.game.G, game: ctx.PH.game, b5: ctx.PH.B5 };
 }
+
+function inputStateAudit(postSource, blind = false, blindMultiplier = 1.6) {
+  const { t5, G, game, b5 } = fixture(), T = t5.T;
+  const p = T.tm[0].on.find(q => b5.tier(q, 'postpm') > 0), r = T.tm[0].on.find(q => q !== p), d = T.tm[1].on[0];
+  assert(p, 'Fixture needs a post playmaker');
+  for (const k of b5.KEYS) b5.dis[k] = k !== 'postpm';
+  b5.dis.sk5 = true;
+  Object.assign(T, { phase: 'live' }); Object.assign(G, { phase: 'live', off: 0 });
+  for (const q of G.players) Object.assign(q, { hasBall: false, action: null, x: -7, y: -12 });
+  Object.assign(p, { x: -3, y: 4, face: blind ? Math.PI : 0, hasBall: true, post: postSource === 'post', catchT: T.time - 1.45 });
+  p.f5.ck = postSource === 'catchPost' ? { k: 'post', t: T.time - 1.45 } : null;
+  Object.assign(r, { x: 3, y: 4, vx: 0, vy: 0, speed: 0 });
+  Object.assign(d, { x: 0, y: 4.4, stun: 0 });
+  Object.assign(t5.TV, { t5_pass_er: 0, t5_pass_kf: 0, t5_int_r0: 1, t5_int_rS: 0, t5_int_c0: 0.2, t5_int_cS: 0, t5_int_blind: blindMultiplier });
+  Object.assign(G.ball, { state: 'held', holder: p.id, x: p.x, y: p.y, z: 1.2, dead: false });
+  assert(t5.doPass(p, r, 'chest'));
+  const P = T.ps, tier = b5.tier(p, 'postpm');
+  assert(P.windup > 0);
+  game.t5.step(G.players.map(() => game.t5.zeroInp()), 1 / 120);
+  assert.equal(p.post, false);
+  p.f5.ck = null;
+  T.time += P.windup;
+  t5.qaPassUpdate(P.windup);
+  assert(Math.cos(p.face) > 0, 'Windup should have turned passer toward receiver');
+  assert.equal(P.rec.blind, blind);
+  assert.equal(r.b5in.postpm, postSource === 'none' ? 0 : tier);
+  assert.equal(r.b5in.from, p);
+  const chance = P.int.ch;
+  Object.assign(r, { catchT: T.time, hasBall: true, action: { type: 'shot', released: false, V: { p: 1, g: 1, c: 1 } } });
+  Object.assign(G.ball, { state: 'held', holder: r.id });
+  b5.tick(T, 1 / 120);
+  return { chance, shotP: r.action.V.p, shotG: r.action.V.g, tier, effects: b5.E.postpm };
+}
+
+const noPost = inputStateAudit('none');
+for (const source of ['post', 'catchPost']) {
+  const post = inputStateAudit(source);
+  assert(Math.abs(post.chance / noPost.chance - post.effects.ch[post.tier]) < 1e-9);
+  assert(post.shotP > noPost.shotP && post.shotG > noPost.shotG);
+}
+const blindNeutral = inputStateAudit('none', true, 1), blindRisk = inputStateAudit('none', true, 1.6);
+assert(Math.abs(blindRisk.chance / blindNeutral.chance - 1.6) < 1e-9);
+console.log('Input-state snapshot: post/recent-post interception protection and receiver shooting bonus survive player update; blind multiplier survives windup turn passed.');
 
 function sample(pac, seed, moving = true, tune = {}) {
   const { t5, G, game } = fixture(false, 0, seed), T = t5.T;

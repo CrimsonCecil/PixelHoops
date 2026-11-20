@@ -746,8 +746,8 @@
     // V3.9h 2K 手感：开阔线路的短传几乎不丢；被断主要来自线路上有人且抢断/传球预判高、传得远、盲传（背身/侧身传）、传球属性低
     // 击地传球球在膝盖高度、线路低，防守人够得到的范围和截下概率都打折（同条件被断率不高于普通传球的 1.3 倍）
     let first = null, lane = 9; const cutP = cutNow(m);
-    const pdx = m.x - p.x, pdy = m.y - p.y, blind = (pdx * Math.cos(p.face) + pdy * Math.sin(p.face)) / (d0 || 1) < -0.2;
-    const chK = (ptIs5(p, 'pointC') && dHoop(p) > 3.5 && dHoop(p) < 7.5 ? 0.85 : 1) * TV.t5_int_chK * TV.l1_stealMul * (0.7 + TV.t5_int_long * Math.min(d0, 14)) * (blind ? TV.t5_int_blind : 1) * (kind === 'bounce' ? TV.t5_int_bnc : kind === 'lob' || kind === 'alley' ? TV.t5_int_lob : 1) * (P.playPass ? TV.t5_int_play : 1);  // C2 战术设计好的传球路线更安全
+    const blind = P.blind;
+    const chK = (P.pointC ? 0.85 : 1) * TV.t5_int_chK * TV.l1_stealMul * (0.7 + TV.t5_int_long * Math.min(d0, 14)) * (blind ? TV.t5_int_blind : 1) * (kind === 'bounce' ? TV.t5_int_bnc : kind === 'lob' || kind === 'alley' ? TV.t5_int_lob : 1) * (P.playPass ? TV.t5_int_play : 1);  // C2 战术设计好的传球路线更安全
     for (const d of defs()) {
       const s = segD(d.x, d.y, P.x0, P.y0, tx, ty); if (s.k < 0.12 || s.k > 0.97) continue;
       lane = Math.min(lane, s.d);
@@ -793,6 +793,9 @@
     if (windup > 0 && p.pose) T.ps.pose0 = Object.assign({}, p.pose);
     T.ps.playPass = !!T.plPassing;
     const blind = ((m.x - p.x) * Math.cos(p.face) + (m.y - p.y) * Math.sin(p.face)) / (d0 || 1) < -0.2;
+    T.ps.blind = blind;
+    T.ps.pointC = ptIs5(p, 'pointC') && dHoop(p) > 3.5 && dHoop(p) < 7.5;
+    if (PH.B5 && PH.B5.passState) T.ps.badgeState = PH.B5.passState(p, m, kind);
     const first = windup > 0 ? null : releasePass(T.ps);
     // V3.9h 传球记录（统计被断率用）：类型、距离、线路上最近防守人距离、是否图标传球、结果
     { let lane = 9; for (const d of defs()) { const q = segD(d.x, d.y, T.ps.x0, T.ps.y0, tx, ty); if (q.k >= 0.12 && q.k <= 0.97) lane = Math.min(lane, q.d); }
