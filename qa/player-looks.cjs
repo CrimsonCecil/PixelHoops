@@ -121,6 +121,11 @@ assert.equal(lillard.beard, 'full');
 assert(lillard.body.waist < lillard.body.chest * 0.95);
 assert(lillard.body.limb > curry.body.limb && lillard.body.limb < look('holiday').body.limb);
 console.log('PASS only heavy builds can add belly volume; Lillard stays compact with his full beard');
+const luka = look('luka');
+assert.equal(luka.buildTag, 'muscular');
+assert(luka.body.shoulder >= 1.28 && luka.body.limb > lillard.body.limb * 1.25);
+assert(luka.body.waist < 1.8);
+console.log('PASS Luka retains a broad frame without the heavy-build waist');
 for (const key of ['kdunn', 'curry', 'wemby']) assert.equal(buildTags[key], 'lean', key);
 assert.equal(buildTags.holiday, 'muscular');
 for (const part of ['shoulder', 'chest', 'waist', 'armThickness', 'limb']) {

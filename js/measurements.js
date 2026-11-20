@@ -359,7 +359,7 @@ window.PH.buildTags = {
   ksanders: 'lean', kuminga: 'muscular', kuzma: 'balanced', kyrie: 'lean',
   kyshawn: 'balanced', lamelo: 'lean', landale: 'muscular', laravia: 'balanced',
   larsson: 'balanced', lavine: 'lean', leaky: 'lean', lebron: 'muscular',
-  lendeborg: 'balanced', lillard: 'balanced', lmiller: 'lean', luka: 'balanced',
+  lendeborg: 'balanced', lillard: 'balanced', lmiller: 'lean', luka: 'muscular',
   lyles: 'balanced', maluach: 'lean', mamu: 'heavy', mara: 'lean',
   markkanen: 'lean', matkovic: 'balanced', maxey: 'balanced', mbridges: 'muscular',
   mbrown: 'lean', mcbride: 'muscular', mccain: 'balanced', mccollum: 'lean',

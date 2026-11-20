@@ -1364,7 +1364,7 @@
   const SIGNATURE_LOOK = {
     curry: { style: 'curlfade', face: 'youthful', skin: '#be8b66', beard: '', eyes: 'open', mouthguard: true, build: -0.2, shoulder: 0.94 },
     lebron: { style: 'receding', beard: 'boxed', brow: 'heavy', build: 0.22, muscle: 0.65, shoulder: 1.13, sleeve: 'L' },
-    luka: { style: 'swept', beard: 'stubble', brow: 'soft', build: 0.04 },
+    luka: { style: 'swept', beard: 'stubble', brow: 'soft', build: 0.04, frameBuild: 0.4 },
     giannis: { style: 'curlfade', face: 'long', skin: '#6a4430', build: 0.26, muscle: 0.48, shoulder: 1.16, legs: 1.07 },
     durant: { style: 'receding', face: 'long', beard: 'goatee', build: -0.28, shoulder: 0.94, legs: 1.08 },
     wemby: { style: 'bald', face: 'oval', beard: 'goatee', build: -0.14, shoulder: 0.96, legs: 1.09 },
@@ -1421,7 +1421,7 @@
       const belowHeavy = clamp((28.9 - bmi) / 3, 0, 1);
       const solid = clamp((bmi - 24.1) / 0.45, 0, 1);
       const broadFrame = 0.4 * Math.max(0, look.bw - 1);
-      const measuredBuild = weightBuild + signatureBuild + belowHeavy * (solid * (0.2 - 0.5 * Math.min(0, signatureBuild)) + broadFrame);
+      const measuredBuild = weightBuild + signatureBuild + (sig.frameBuild || 0) + belowHeavy * (solid * (0.2 - 0.5 * Math.min(0, signatureBuild)) + broadFrame);
       const [minBuild, maxBuild] = BUILD_RANGES[buildTag];
       const build = clamp(measuredBuild, minBuild, maxBuild);
       // 骨架比例保留测量值，胸腰与四肢粗细单独放大。
