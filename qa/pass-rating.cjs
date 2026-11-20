@@ -4,7 +4,7 @@ const path = require('node:path');
 const vm = require('node:vm');
 const cp = require('node:child_process');
 
-function fixture(baseline = false, human = -1) {
+function fixture(baseline = false, human = -1, seed = 7) {
   const ctx = vm.createContext({ performance: { now: () => 0 }, setTimeout() {}, clearTimeout() {} });
   ctx.window = ctx;
   ctx.addEventListener = () => {};
@@ -13,17 +13,21 @@ function fixture(baseline = false, human = -1) {
     let code = baseline && name === 'team5'
       ? cp.execFileSync('git', ['show', '3bb7f5f95408c797f8aae8018ac3210f7cb664e9:js/team5.js'], { cwd: path.join(__dirname, '..'), encoding: 'utf8' })
       : fs.readFileSync(path.join(__dirname, '../js', name + '.js'), 'utf8');
-    if (name === 'team5') code = code.replace('doPass: doPass,', 'doPass: doPass, qaPassUpdate: passUpdate, qaHand: handPt,');
+    if (name === 'team5') {
+      code = code.replace('doPass: doPass,', 'doPass: doPass, qaPassUpdate: passUpdate, qaHand: handPt,');
+      code = code.replace('T.ps.rec = rec;', 'rec.qaWindup = Math.max(0, -T.ps.t); T.ps.rec = rec;');
+    }
     vm.runInContext(code, ctx, { filename: name + '.js' });
   }
-  ctx.PH.game.seed(7);
+  ctx.PH.game.seed(seed);
   ctx.PH.T5.start({ home: 'LAL', away: 'BOS', human });
   return { t5: ctx.PH.T5, G: ctx.PH.game.G, game: ctx.PH.game };
 }
 
-function sample(pac, seed, moving = true) {
+function sample(pac, seed, moving = true, tune = {}) {
   const { t5, G, game } = fixture(false, 0), T = t5.T;
   game.seed(seed);
+  Object.assign(t5.TV, tune);
   const p = T.ctl, r = T.tm[0].on.find(q => q !== p), b = G.ball;
   Object.assign(T, { phase: 'live' });
   Object.assign(G, { phase: 'live', off: 0 });
@@ -68,20 +72,43 @@ const avg = pac => {
   return Object.fromEntries(Object.keys(rows[0]).map(k => [k, rows.reduce((s, r) => s + r[k], 0) / rows.length]));
 };
 const high = avg(90), low = avg(50);
-assert(high.windup < low.windup);
-assert(high.speed > low.speed);
-assert(high.miss < low.miss);
+assert(high.windup < low.windup * 0.5);
+assert(high.speed > low.speed * 1.2);
+assert(high.miss < low.miss * 0.5);
 assert(high.er < low.er);
 sample(90, 5, false); sample(50, 5, false);
+assert.equal(sample(50, 5, true, { t5_pass_er: 0, t5_pass_leadLow: 0, t5_pass_leadRnd: 0 }).er, 0.8);
+assert.equal(sample(50, 5, true, { t5_pass_er: 0, t5_pass_leadCap: 0 }).er, 0);
 for (const [label, row] of [['pac90', high], ['pac50', low]]) console.log(`${label}: windup=${row.windup.toFixed(3)}s speed=${row.speed.toFixed(3)}m/s meanMiss=${row.miss.toFixed(3)}m qualityError=${row.er.toFixed(3)}m`);
-for (const baseline of [true, false]) {
-  const { t5, G } = fixture(baseline);
-  for (let i = 0; i < 7200; i++) {
-    t5.tick(1 / 120);
-    assert(Number.isFinite(G.ball.x) && Number.isFinite(G.ball.y) && Number.isFinite(G.ball.z));
-  }
-  const log = t5.T.passLog, intercepted = log.filter(r => r.res === 'int').length;
+const seeds = [7, 19, 43];
+function summarize(label, log) {
   assert(log.length > 0);
-  console.log(`${baseline ? 'Before' : 'After'} 60s VM 5V5 smoke: passes=${log.length} interceptions=${intercepted} rate=${(100 * intercepted / log.length).toFixed(2)}%`);
+  const counts = {
+    ok: log.filter(r => r.res === 'ok' && r.ck !== 'reach').length,
+    reach: log.filter(r => r.res === 'ok' && r.ck === 'reach').length,
+    fumble: log.filter(r => r.res === 'fum').length,
+    miss: log.filter(r => r.res === 'miss').length,
+    interception: log.filter(r => r.res === 'int').length,
+    deflection: log.filter(r => r.res === 'defl').length,
+    unresolved: log.filter(r => r.res === 'fly').length,
+  };
+  assert.equal(Object.values(counts).reduce((a, b) => a + b, 0), log.length);
+  const rates = Object.entries(counts).map(([k, n]) => `${k}=${n} (${(100 * n / log.length).toFixed(2)}%)`).join(' ');
+  const windup = log.reduce((s, r) => s + r.qaWindup, 0) / log.length;
+  console.log(`${label}: passes=${log.length} ${rates} meanWindup=${windup.toFixed(4)}s`);
 }
-console.log('Pass rating: moving/stationary catches, invalid target, windup hands, controller switch and 60s simulations passed.');
+console.log('300s VM 5V5 per seed; reach = successful catch with reach pose; ok excludes reach; all rates per attempted pass, windup includes zero-windup passes.');
+for (const baseline of [true, false]) {
+  const all = [], label = baseline ? 'Before' : 'After';
+  for (const seed of seeds) {
+    const { t5, G } = fixture(baseline, -1, seed);
+    for (let i = 0; i < 36000; i++) {
+      t5.tick(1 / 120);
+      assert(Number.isFinite(G.ball.x) && Number.isFinite(G.ball.y) && Number.isFinite(G.ball.z));
+    }
+    summarize(`${label} seed=${seed}`, t5.T.passLog);
+    all.push(...t5.T.passLog);
+  }
+  summarize(`${label} aggregate`, all);
+}
+console.log('Pass rating: high/low separation, lead cap, moving/stationary catches, invalid target, windup hands, controller switch and 3-seed 300s simulations passed.');

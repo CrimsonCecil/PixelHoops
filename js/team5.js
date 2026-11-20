@@ -103,7 +103,8 @@
     { k: 't5_pass_spd', g: 't5', cat: 'pass', sub: '传球', gm: '5v5', label: '传球 球速差距', v: 0.45, min: 0, max: 1, step: 0.05, note: '倍率。球速 × (1 + 这个 × 传球准确偏离)，pac 90 约 +23%、50 约 −21%' },
     { k: 't5_pass_wFast', g: 't5', cat: 'pass', sub: '传球', gm: '5v5', label: '传球 精英出手时间', v: 0.06, min: 0, max: 0.3, step: 0.01, note: '秒。pac 高端的推球准备时间；发球和跳传不等待' },
     { k: 't5_pass_wSlow', g: 't5', cat: 'pass', sub: '传球', gm: '5v5', label: '传球 低能力出手时间', v: 0.2, min: 0, max: 0.5, step: 0.01, note: '秒。pac 低端的准备时间，与精英时间按能力插值' },
-    { k: 't5_pass_leadLow', g: 't5', cat: 'pass', sub: '传球', gm: '5v5', label: '传球 低能力提前量', v: 0.45, min: 0, max: 1.5, step: 0.05, note: '倍率。低能力预判接球人跑动的比例；高能力趋近 1，误差计入接球质量' },
+    { k: 't5_pass_leadLow', g: 't5', cat: 'pass', sub: '传球', gm: '5v5', label: '传球 低能力提前量', v: 0.65, min: 0, max: 1.5, step: 0.05, note: '倍率。低能力预判接球人跑动的比例；高能力趋近 1，误差计入接球质量' },
+    { k: 't5_pass_leadCap', g: 't5', cat: 'pass', sub: '传球', gm: '5v5', label: '传球 提前量质量惩罚上限', v: 0.8, min: 0, max: 2, step: 0.05, note: '米。跑动提前量不足计入接球质量的误差上限，不限制原有随机落点误差' },
     { k: 't5_pass_leadRnd', g: 't5', cat: 'pass', sub: '传球', gm: '5v5', label: '传球 提前量波动', v: 0.15, min: 0, max: 0.5, step: 0.05, note: '倍率。低能力提前量的随机正负波动，随 pac 提高减小' },
     { k: 't5_pass_arc', g: 't5', cat: 'pass', sub: '传球', gm: '5v5', label: '传球 弧线差距', v: 1.4, min: 0, max: 2, step: 0.05, note: '倍率。胸前 / 长传的弧度 × (1 − 这个 × 传球准确偏离)：能力高的球更直，能力低的更飘' },
     { k: 't5_pass_er', g: 't5', cat: 'pass', sub: '传球', gm: '5v5', label: '传球 落点误差', v: 1.2, min: 0, max: 3, step: 0.05, note: '米。落点误差 = 这个 × max(0, 误差起点 − 传球准确偏离) × 距离 / 类型系数（以前斜率 0.6）' },
@@ -765,7 +766,7 @@
     if (kind === 'alley' || kind === 'lob') { const hl = dHoop(m); if (hl < 5.5) { tx = lerp(tx, 0, 0.35); ty = lerp(ty, HY - 0.6, 0.35); } }
     tx = clamp(tx, -7.4, 7.4); ty = clamp(ty, -13.8, 13.8);
     b.state = 'pass'; b.holder = -1; p.hasBall = false; b.lastTouch = p.id; b.wasShot = false; b.shot = null; b.trail = null;
-    const catchEr = er + hyp(m.vx || 0, m.vy || 0) * (Tt + windup) * Math.abs(1 - lead);
+    const catchEr = er + Math.min(TV.t5_pass_leadCap, hyp(m.vx || 0, m.vy || 0) * (Tt + windup) * Math.abs(1 - lead));
     T.ps = { from: p, to: m, kind: kind, x0: b.x, y0: b.y, z0: Math.max(0.6, b.z), tx: tx, ty: ty, t: -windup, windup: windup, lead: lead, T: Tt, int: null, bnc: false, inb: T.phase === 'inb', er: catchEr, v: d0 / Tt, ua: ua, kf: kf,
       ap: kind === 'chest' || kind === 'skip' ? K.ap * Math.max(0.05, 1 - TV.t5_pass_arc * ua) : K.ap, feet: er > 0.3 && kind !== 'lob' && kind !== 'alley' && rnd() < TV.t5_pass_feet };   // V4.2 能力高的球更直、能力低的更飘
     // 预判拦截：路线上最先碰到球的防守人
