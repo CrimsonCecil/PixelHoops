@@ -21,7 +21,7 @@
     scale = s;
     stage.style.width = Math.round(R.W * s) + 'px'; stage.style.height = Math.round(R.H * s) + 'px';
     document.documentElement.style.setProperty('--u', s + 'px');
-    // V4.5 徽章图标 9×9 像素按整数倍放大：弹出 --bpx（约为原来 1.5 倍）、信息卡 / 能力卡 --bps
+    // 徽章图标 9×9 像素按整数倍放大：弹出 --bpx、信息卡 / 能力卡 --bpk；信息卡间距 --bps
     document.documentElement.style.setProperty('--bpx', Math.max(3, Math.round(s * 1.25)) + 'px');
     document.documentElement.style.setProperty('--bps', Math.max(2, Math.round(s * 0.75)) + 'px');
     document.documentElement.style.setProperty('--bpk', Math.max(2, Math.round(s)) + 'px');
@@ -603,6 +603,16 @@
     const head = '<span class="pc-id">' + name + ovr + '</span>' + role;
     return '<div class="pch">' + head + '</div>' + sl + '<div class="pcg">' + cells + '</div>' + brow + tkl + '<div class="pctk' + (tkOn ? ' on' : '') + '"><span>主宰</span><s><b style="width:' + Math.round(pl.tk) + '%"></b></s></div>';
   }
+  function fitBadgePops(cardPrefix, colPrefix) {
+    const bottoms = [0, 1].map((i) => {
+      const card = $(cardPrefix + i), height = card.offsetHeight;
+      return height ? card.offsetTop + height + 'px' : '';
+    });
+    for (let i = 0; i < 2; i++) {
+      const col = $(colPrefix + i);
+      if (col._bottom !== bottoms[i]) { col._bottom = bottoms[i]; col.style.setProperty('--pcard-bottom', bottoms[i]); }
+    }
+  }
   function pcards() {
     for (let i = 0; i < 2; i++) {
       const el = $('pc' + i), pl = G.players[i];
@@ -613,6 +623,7 @@
       el.classList.toggle('tk', pl.tkOn > 0);
       if (el._h !== html) { el._h = html; el.innerHTML = html; }
     }
+    if (screen === 'play') fitBadgePops('pc', 'bcol');
     pcards5();
   }
   // V3.9g 5V5 信息卡：左上 = 我当前控制的球员，右上 = 他的直接对位（进攻时防我的人，防守时我防的人；没有就取最近的对手）
@@ -1104,6 +1115,7 @@
     const vis = (e) => { if (e.classList.contains('hidden')) return null; const r = e.getBoundingClientRect(); return r.width > 0 ? r : null; }, ra = vis(a), rb = vis(b);
     const cardWidth = Math.max(ra ? ra.width : 0, rb ? rb.width : 0);
     if (cardWidth) hd.style.setProperty('--pc5-width', cardWidth + 'px');
+    fitBadgePops('pc5', 'bcol5');
     let lv = 0;
     for (; lv < 2; lv++) {
       hd.classList.toggle('sbt1', lv === 1); hd.classList.toggle('sbt2', lv === 2);
