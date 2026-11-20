@@ -107,6 +107,7 @@ console.log('PASS flight contact: rising shot blocked and pending make cancelled
 for (const outcome of ['block', 'make', 'miss']) {
   const { ctx, gm, sh, df, qa } = fixture();
   gm.G.phase = 'live'; gm.G.needClear = false; df.off = true;
+  sh.r.badges.push('pullup');
   sh.icy = true; sh.mk = 2;
   gm._dbg.startShot(sh, { mx: 0, my: 0 }, 'a1');
   const a = sh.action, hzBefore = JSON.stringify(gm.G.hz[sh.id]);

@@ -526,6 +526,7 @@
     if (hyp(by.x - x, by.y - y) > 0.4) place(by, x, y, Math.atan2(-y, -x));
     else { by.vx = by.vy = 0; by.action = null; by.hasBall = false; by.face = Math.atan2(-by.y, -by.x); }
     T.phase = 'inb'; T.phaseT = 0; G.phase = 'live'; G.shotClock = 24; T.sclock = 24; T.holdT = 0; T.next = null; T.lastPass = null;
+    by.passCatchT = null; by.catchDribbled = false;
     const b = G.ball; b.state = 'held'; b.holder = by.id; by.hasBall = true; b.dead = false; b.wasShot = false; b.shot = null; b.lastTouch = by.id; b.noPick = 0; b.under = false;
     T.inb = { by: by, t0: T.time, wait: rr(0.5, 0.9) };
     if (T.hum === G.off) setCtl(by, 'auto'); else autoDef();
@@ -946,7 +947,7 @@
   function csTick() {
     for (const p of ps()) {
       const a = p.action; if (!a || a.type !== 'shot' || a.released || a.csK) continue;
-      a.csK = 1; const ct = T.time - (p.catchT || -9); if (ct > 0.6 || !p.hasBall) continue;
+      a.csK = 1; const ct = T.time - (p.catchT ?? -9); if (ct < 0 || ct > 0.6 || !p.hasBall || !a.catchShot || p.catchDribbled) continue;
       const c = p.f5.ck, rdy = !c || c.rdy || c.k === 'cs';
       if (ct <= 0.5) {
         const q = rdy ? 0.04 + 0.04 * clamp((p.r.three - 0.6) / 0.35, 0, 1) : 0; a.t += q;
@@ -1010,6 +1011,7 @@
     if (b.z > r.z + r.h * 0.85) r.catchAt = G.time;
     b.cT = 0.1; b.cx = b.x; b.cy = b.y; b.cz = b.z;
     b.state = 'held'; b.holder = r.id; r.hasBall = true; b.shot = null; b.under = false; b.trail = null; b.lastTouch = r.id; r.drib = 0; r.catchT = T.time; r.gotT = G.time;
+    r.passCatchT = G.time; r.catchDribbled = false;
     if (P.rec && P.rec.ov != null) { let nd = 9; for (const d of defs()) nd = Math.min(nd, dist(d, r)); P.rec.cnd = +nd.toFixed(2); }
     if (P.inb || T.phase === 'inb') { T.phase = 'live'; G.shotClock = 24; }
     for (const p of ps()) { p.ai.t = 0.25; p.ai.hold = false; if (p.tm !== G.off) p.ai.dm = null; }

@@ -1121,6 +1121,7 @@
   ];
   // V3.9o 数值为金档（铜 / 银 / 名人堂按档缩放，见 TIER_F）；five: true 的徽章只在 5V5 生效，按能力自动分配（js/b5.js）
   const BADGES = {
+    pullup: { name: '持球投', desc: '持球跳投免除普通球员的命中率下降（最多 5 个百分点）' },
     limitless: { name: '无限射程', desc: '9.4 米内三分不因距离衰减（普通球员 7.6 米），7.8 米外三分绿区 +20%' },
     deadeye: { name: '神射手', desc: '跳投受干扰影响 -25%，被干扰时绿区 +20%' },
     quick: { name: '快速出手', desc: '跳投出手时间缩短 10%，跳投被盖概率 -25%' },
@@ -1339,6 +1340,9 @@
     a.rej = d(0.45 * vt + 0.3 * agi + 0.25 * a.hus - 0.18 * hv);
     a.leap = d(0.45 * vt + 0.3 * a.dunk + 0.25 * a.spd - 0.2 * hv);
     a.hang = d(0.7 * vt + 0.3 * agi - 0.15 * hv);
+  }
+  for (const key of ['curry', 'harden', 'luka', 'durant', 'lillard', 'kyrie', 'sga', 'kobe', 'booker', 'mitchell', 'brunson', 'trae', 'jmurray', 'maxey']) {
+    if (ARCH[key]) ARCH[key].badges.push('pullup');
   }
   function ovrOf(a) { return a.ovr; }
   // 2K 式评级：S / A+ … D-
@@ -2313,12 +2317,19 @@
       const cap = clamp(K.ctLayCap + K.ctLayCapR * (r - 0.7) - K.ctLayCapD * (cd.r.intD - 0.6), K.smMin, 1);
       prob = Math.min(prob, 1 - w * (1 - cap));
     }
+    if (kind === 'shot' && !V.hook && !SK) {
+      const cs = a.catchShot;
+      const delta = !cs && !hasB(pl, 'pullup') ? -0.05 : 0;
+      prob += delta * Math.min(1, prob / 0.5);
+      info.shotStyle = cs ? 'catch' : 'pullup'; info.styleDelta = delta;
+    }
     prob = clamp(prob, K.smMin, 1);
     const made = G.tips && G.tips.mk && pl.id === 0 ? true : rnd() < prob;
     const cl = SK ? '无视干扰' : c < 0.2 ? '空位' : c < 0.5 ? '轻微干扰' : '严重干扰';
     const tl = green ? '完美' : e < 0 ? (ae > 0.5 ? '很早' : '稍早') : (ae > 0.5 ? '很晚' : '稍晚');
     const colr = green ? '#7dff8a' : ae > 0.5 ? '#ff6b5e' : '#ffd24a';
     G.floats = G.floats.filter((f) => f.pid !== pl.id);
+    if (info.styleDelta < 0) float('持球投衰减', pl, '#f6efe0', 1);
     G.floats.push({ text: tl, sub: cl,   // V3.9r 反馈只显示干扰程度，不再带动作名（LED 上的动作名保留）
     shot: true, pid: pl.id, x: pl.x, y: pl.y, z: pl.h + pl.z * 0.5 + 0.55, t: 0, color: colr, subColor: SK ? '#ffcf5a' : c < 0.2 ? '#7dff8a' : c < 0.5 ? '#ffd24a' : '#ff6b5e' }); if (G.floats.length > 5) G.floats.shift();
     if (green) { st.green++; sfx('green'); flash('#7dff8a', 0.1); tkAdd(pl, 5); }
@@ -2458,7 +2469,7 @@
     b.cT = 0.1; b.cx = b.x; b.cy = b.y; b.cz = b.z;
     if (b.state === 'loose' && pl.ctrl !== 'cpu' && G.phase === 'live') { b.fl = 0.5; pl.grabT = G.time; sfx('grab'); G.fx.rings.push({ x: pl.x, y: pl.y, z: 0.1, t: 0, T: 0.42, col: '#ffffff', R: 1.5 }, { x: pl.x, y: pl.y, z: 0.1, t: -0.08, T: 0.4, col: pl.team.css || '#5ee0ff', R: 1.0 }); burst(b.x, b.y, b.z, 8, ['#ffffff', '#fff6c8', '#ffd24a'], 2.2, 0.3, 8); }
     b.state = 'held'; b.holder = pl.id; pl.hasBall = true; b.shot = null; b.under = false; b.trail = null;
-    pl.drib = 0; pl.gotT = G.time;
+    pl.drib = 0; pl.gotT = G.time; pl.passCatchT = null; pl.catchDribbled = false;
     const change = !isO(pl), keepClk = G.mode === 't5' && !change && !b.wasShot, clk0 = G.shotClock, wasShot = b.wasShot, train = G.mode === 'train' && G.train.role === 'off';
     if (change) { if (playCPU(pl)) { pl.ai.call = null; pl.ai.su = null; } G.illId = -1; G.off = TM(pl); G.needClear = !train && !T5() && !isThree(pl.x, pl.y); if (!train && !T5()) float(G.needClear ? '球权转换 · 先出三分线' : '球权转换', pl, '#5ee0ff', 0); }
     if (wasShot) {
@@ -2536,6 +2547,9 @@
   // 背身（背打刚结束 / 转身刚做完且背对篮筐）：投篮键出转身跳投，不出抛投
   function backTurn(pl) { const t = G.time; return !pl.post && pl.hasBall && faceHoop(pl) < -0.2 && (t - (pl.postAt || -9) < 0.7 || ((pl.lastMove === 'spin' || pl.lastMove === 'postspin') && t - pl.lastMoveT < 0.9)); }
   function canPullupCancel(pl, a) { return pl.r.hnd >= K.pcHnd || hasB(pl, 'ankle') || hasB(pl, 'tight') || (a.kind === 'stepback' && hasB(pl, 'stepper')); }
+  function catchShot(pl) {
+    return G.mode === 't5' && pl.passCatchT != null && G.time - pl.passCatchT >= 0 && G.time - pl.passCatchT <= 0.6 && !pl.catchDribbled;
+  }
   function startShot(pl, inp, btn, cancelVariant) {
     const d = distHoop(pl), q = inDir(pl, inp), df = OP(pl);
     let v;
@@ -2547,6 +2561,7 @@
     else if (pl.speed > 3) v = 'pullup'; else v = 'set';
     const V = SV[v], three = !V.hook && isThree(pl.x, pl.y), F = formOf(pl), TI = CFG.shotIdeal * F.sp * bk(pl, 'quick', K.bgQuickT);
     const a = { type: 'shot', lefty: !V.hook && !!pl.arch.lefty, v: v, V: V, F: F, jT: V.hook ? K.shotJump : clamp(K.shotJump * F.dip, 0.18, TI - 0.12), t: 0, pts: three ? 3 : 2, released: false, jumped: false, latS: q.lat >= 0 ? 1 : -1, ideal: TI, meter: null, skill: null, d0: d, btn: btn || 'a1' };
+    a.catchShot = catchShot(pl);
     // 勾手：侧身对着篮筐，用离篮筐远的那只手出手；默认往禁区中路转身，推左右可以自己选方向
     if (V.hook) { const hd = hoopDir(pl), sx = Math.sign(hd.y * pl.x) || 1; a.hs = Math.abs(q.lat) > 0.35 && q.l > 0.35 ? (q.lat > 0 ? 1 : -1) : sx; a.hand = -a.hs; }
     if (skOf(pl, 'curry') && pl.sk.ready && three && d >= 7.0) a.skill = 'curry';
@@ -3222,6 +3237,7 @@
     pl.dribbleCombo = { count: count, shown: count, last: G.time, name: name, end: null };
   }
   function startMove(pl, inp, force) {
+    pl.catchDribbled = true;
     const df = OP(pl), q = inDir(pl, inp, true), h = q.h, hx = h.x, hy = h.y, h0 = pl.hand || 1;
     const dd = Math.hypot(df.x - pl.x, df.y - pl.y), front = df.off ? -1 : ((df.x - pl.x) * hx + (df.y - pl.y) * hy) / (dd || 1);
     const openS = ((df.x - pl.x) * -hy + (df.y - pl.y) * hx) > 0 ? -1 : 1; // 防守人不在的一侧
@@ -3985,7 +4001,7 @@
     }
     if (pl.hasBall && !a) {
       const p0 = Math.sin(pl.drib); pl.drib += dt * (PH.gait ? PH.gait.drib(pl) : 6.2 + pl.speed * 0.45);
-      if (p0 * Math.sin(pl.drib) < 0) { sfx('bounce'); if (pl.z <= 0.01) pl.sqv = (pl.sqv || 0) - 3.0; }
+      if (p0 * Math.sin(pl.drib) < 0) { if (!(pl.f5 && pl.f5.ck)) pl.catchDribbled = true; sfx('bounce'); if (pl.z <= 0.01) pl.sqv = (pl.sqv || 0) - 3.0; }
     }
     pl.handX = lerp(pl.handX, pl.hand * 0.33, Math.min(1, dt * 16));
     const T = poseTarget(pl), P = pl.pose, kq = Math.min(1, dt * 22);
