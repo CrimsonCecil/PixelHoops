@@ -205,7 +205,8 @@
     }
     if (T.clock) {
       G.shotClock = Math.max(0, G.shotClock - dt);
-      if (!G.shotClock && G.ball.state !== 'shot') lost(ballCarrier || G.players[G.ball.lastTouch], T.clock + ' 秒违例');
+      const b = G.ball, rebounding = b.state === 'loose' && b.wasShot;
+      if (!G.shotClock && b.state !== 'shot' && !rebounding) lost(ballCarrier || G.players[b.lastTouch], T.clock + ' 秒违例');
     }
   }
   PH.T3 = { T, start, stop, tick, holder };

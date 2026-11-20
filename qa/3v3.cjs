@@ -103,6 +103,30 @@ function fixture(options = {}) {
 }
 
 {
+  const { G, api, T3, run } = fixture({ human: 0, clock: 24 });
+  run(60);
+  T3.holder().hasBall = false;
+  G.shotClock = 0.005;
+  Object.assign(G.ball, { state: 'shot', holder: -1, x: api.HOOP.x, y: api.HOOP.y, z: api.HOOP.z,
+    vx: 0, vy: 0, vz: 0, shot: { t: 0, T: 0.025, made: false, shooter: 0, kind: 'shot' } });
+  run(1);
+  assert.equal(G.shotClock, 0);
+  assert.equal(G.ball.state, 'shot');
+  run(1);
+  assert.equal(G.phase, 'live', 'An in-time shot that misses must remain live for a rebound');
+  assert.equal(G.ball.state, 'loose');
+  assert.equal(G.stats[0].tov, 0);
+  run(20);
+  assert.equal(G.phase, 'live');
+  const rebounder = G.players[3];
+  if (!T3.holder()) api.pickup(rebounder);
+  assert.equal(G.off, T3.holder().tm);
+  assert(G.stats[T3.holder().id].reb > 0);
+  assert(G.shotClock >= 14);
+  console.log('PASS: a shot released before expiration stays live through a miss and rebound.');
+}
+
+{
   const { G, run } = fixture();
   for (let i = 0; i < 60 * 360 && G.phase !== 'over'; i++) run(1);
   assert.equal(G.phase, 'over', 'A full CPU-only game should finish from live gameplay');
