@@ -164,7 +164,8 @@
     ['cbMax', 'drib', '连续过人 最多段数', 3, 0, 6, 1, '段：n 封顶', 'int'],
     ['cbWin', 'drib', '连续过人 衔接窗口', 0.35, 0.05, 1, 0.01, '秒：上一个动作结束（或被下一招提前取消）后这么久内出下一招才算接上；同一招连按、停球（投/传/上篮/丢球）都重置'],
     ['cbFat', 'drib', '连续过人 疲劳衰减', 0.8, 0, 1, 0.01, '比例：疲劳度 1（体力 0）时 combo 加成 × (1 − 这个)；疲劳度 = (疲劳线 − 体力) ÷ 疲劳线'],
-    ['cbCost', 'drib', '连续过人 体力递增', 0.1, 0, 1, 0.01, '比例：第 n 段体力消耗 × (1 + 这个 × n)，在原有连招递增之上'],
+    ['cbCost', 'drib', '连续过人 体力递增', 0.2, 0, 1, 0.01, '比例：第 n 段体力消耗 × (1 + 这个 × n)，在每招递增之上'],
+    ['cbStep', 'drib', '连续过人 每招体力递增', 0.5, 0, 2, 0.01, '比例：0.85 秒内换招接上的第 n 招体力消耗 × (1 + 这个 × (n − 1))，不封顶；运球如丝 / 脚踝终结者 按 bgChainSt 放缓'],
     ['mvFat', 'drib', '疲劳 位移衰减', 0.4, 0, 0.8, 0.01, '比例：疲劳度 1 时动作速度 × (1 − 这个)，动作时长另外 +25%，合起来位移 ≈ × (1 − 这个) × 1.25（原来 0.3 → 位移只少 12%，0.4 → 少 25%）；疲劳度 = (疲劳线 − 体力) ÷ 疲劳线'],
     // —— V4.2 AI 连续过人（ai 组）：电脑用同一套 combo（pl.dcn / cbWin），当前招还在做时按下一段走缓冲接上 ——
     ['ai_cb_p0', 'ai', 'AI 连招 基础概率', 0.42, 0, 1, 0.01, '概率：控球 70 的电脑出招后接成连招（≥2 段）的概率'],
@@ -652,6 +653,7 @@
     ['bgDreamBeat', 'rules', '梦幻舞步 背身转身过人加成', 0.15, 0, 1, 0.01, '概率（金档数值；铜 / 银 / 名人堂按徽章档位系数缩放）'],
     ['bgStepD', 'rules', '后撤步大师 后撤距离倍率', 1.25, 0, 5, 0.01, '倍率（金档数值；铜 / 银 / 名人堂按徽章档位系数缩放）'],
     ['bgTightSt', 'rules', '运球如丝 运球体力消耗倍率', 0.6, 0, 1, 0.01, '倍率（金档数值；铜 / 银 / 名人堂按徽章档位系数缩放）'],
+    ['bgChainSt', 'rules', '运球徽章 连续过人体力递增倍率', 0.5, 0, 1, 0.01, '倍率：运球如丝 / 脚踝终结者 让连招多出来的体力消耗 × 这个，两枚取更好的（金档数值；铜 / 银 / 名人堂按徽章档位系数缩放）'],
     ['bgDreamSpin', 'rules', '梦幻舞步 背身转身撞开加成', 0.45, 0, 1, 0.01, '概率（金档数值；铜 / 银 / 名人堂按徽章档位系数缩放）'],
     ['bgBullySpin', 'rules', '推土机 背身转身撞开加成', 0.2, 0, 1, 0.01, '概率（金档数值；铜 / 银 / 名人堂按徽章档位系数缩放）'],
     ['bgHuDive', 'rules', '拼抢 鱼跃扑球距离加成', 0.6, 0, 1, 0.01, '米：× 1.5（金档数值；铜 / 银 / 名人堂按徽章档位系数缩放）'],
@@ -1128,8 +1130,8 @@
     clutch: { name: '关键先生', desc: '进攻时间 ≤5 秒或赛点时绿区 +30%' },
     fade: { name: '后仰大师', desc: '后仰 / 转身跳投受干扰 -30%、绿区 +20%' },
     stepper: { name: '后撤步大师', desc: '后撤步距离 +25%，后撤步跳投受干扰 -30%、绿区 +20%，后撤步可随时接跳投' },
-    ankle: { name: '脚踝终结者', desc: '晃人成功率 +50%，晃倒时间 +25%，运球可随时接干拔' },
-    tight: { name: '运球如丝', desc: '运球动作体力消耗 -40%，运球时被抢断率 -50%，运球可随时接干拔' },
+    ankle: { name: '脚踝终结者', desc: '晃人成功率 +50%，晃倒时间 +25%，连续过人体力递增 -50%，运球可随时接干拔' },
+    tight: { name: '运球如丝', desc: '运球动作体力消耗 -40%，连续过人体力递增 -50%，运球时被抢断率 -50%，运球可随时接干拔' },
     acrobat: { name: '杂耍终结', desc: '上篮 / 抛投受干扰 -35%、绿区 +30%' },
     poster: { name: '隔人暴扣', desc: '隔扣对抗 +8：扣篮更难被盖，被干扰时命中下降更少' },
     launch: { name: '起飞跑道', desc: '扣篮起跳距离 +0.4 米' },
@@ -3295,7 +3297,9 @@
     // V4.2 胯下接背后：最后一下背后换到摇杆那一侧的手（先胯下换走、再背后换回）
     let spH0 = mvx === 'tbb' ? pl.hand : h0; if (kind === 'spin') { const sL = hx * dy - hy * dx; if (Math.abs(sL) > 0.05) pl.hand = sL > 0 ? -1 : 1; spH0 = -pl.hand; }
     pl.action = { type: 'move', kind: kind, cb: cb, t: 0, T: MT, cw: clamp(0.95 - 0.55 * hnd, 0.4, 0.9), dx: dx, dy: dy, sp: sp * (CBk ? CBk.sp : 1), name: CBk ? CBk.name : M.name, mv: mvx, bp: X ? X.bp : null, f0: pl.face, sd: pl.hand, hx: hx, hy: hy, os: openS, h0: spH0, h1: pl.hand, v0x: pl.vx, v0y: pl.vy };
-    pl.stam = Math.max(0, pl.stam - CFG.moveCost * M.cost * (CBk ? 1.3 : 1) * (1 + 0.3 * (pl.combo - 1)) * (1 + K.cbCost * pl.dcn) * bk(pl, 'tight', K.bgTightSt) * (tkIs(pl, 'hnd') ? 0.4 : 1) * stamK(pl)); pl.animT = 0; pl.cd = (MT + lerp(0.2, 0.02, clamp((hnd - 0.4) / 0.55, 0, 1))) * (ptIs(pl, 'playmaker') ? 0.9 : 1); pl.boost = kind === 'hesi' ? MT + 0.7 : 0.75;
+    // 连续过人越往后越累：每多一招、每接上一段都加价；运球如丝 / 脚踝终结者 只让加出来的那部分放缓
+    const chainX = (1 + K.cbStep * (pl.combo - 1)) * (1 + K.cbCost * pl.dcn) - 1, chainBg = Math.max(0, Math.min(bk(pl, 'tight', K.bgChainSt), bk(pl, 'ankle', K.bgChainSt)));
+    pl.stam = Math.max(0, pl.stam - CFG.moveCost * M.cost * (CBk ? 1.3 : 1) * (1 + chainX * chainBg) * bk(pl, 'tight', K.bgTightSt) * (tkIs(pl, 'hnd') ? 0.4 : 1) * stamK(pl)); pl.animT = 0; pl.cd = (MT + lerp(0.2, 0.02, clamp((hnd - 0.4) / 0.55, 0, 1))) * (ptIs(pl, 'playmaker') ? 0.9 : 1); pl.boost = kind === 'hesi' ? MT + 0.7 : 0.75;
     pl.lastMove = kind; pl.lastMv = mvx || kind; pl.lastMoveT = G.time; pl.post = false;
     if (kind === 'hesi') blendHeldBall();
     if (force === 'inout') { pl.action.hesiDrive = true; pl.action.name = '同侧突破'; }
