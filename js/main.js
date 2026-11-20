@@ -8,6 +8,7 @@
   const isTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
   if (isTouch) document.getElementById('stage').classList.add('touch');
   const DT = 1 / 60;
+  const REPLAY_MIN = 1;
   let panelOpen = true, hasPad = false;
 
   function layout() {
@@ -442,7 +443,7 @@
         g('属性颜色', [['亮绿 90+', '顶级，带发光'], ['黄绿 80+', '优秀'], ['金黄 70+', '合格'], ['暗橙 60+', '偏弱'], ['暗红 60 以下', '短板']]) +
         g('比赛规则', [['目标分', '11 / 21 / 33 / 50 分，默认 21；必须领先 2 分才算赢，没拉开就一直打下去'], ['赛点', '某一方这一回合进一个三分就能赢时进入赛点：广告屏打出 MATCH POINT，观众起立，广告带上下沿按该队颜色闪，比分牌下方显示“赛点”'], ['比赛时间', '默认不限；可选 3 / 5 / 10 分钟，只在比赛进行中走表。最后 10 秒每秒读秒，时间到鸣笛：球在空中等它落地（压哨球算），领先方获胜；平分进加时，下一球定胜负'], ['进攻时间', '最后 5 秒每秒滴一声，最后 3 秒更急'], ['三分线外清球', '球权转换后要先把球带出三分线，三分线变红并流动提示，出线时闪一下绿色。没出线也可以投篮、突破，但进了不算，判违例，球权交给对方']]) +
         g('声音（设置 → 声音）', [['音量', '总音量、音乐、音效、语音四个滑条，50 是默认；默认值按离线测出来的响度配平，语音和普通音效差不多响，音乐垫在下面，球员说话时音乐自动压低'], ['动作演示', '选人界面右侧的运球、上篮动作和必杀技都能点，用这名球员本人演示']]) +
-        g('精彩回放与特写（设置 → 显示 里可关）', [['特写', '精彩瞬间镜头推近；越精彩推得越近、停得越久'], ['回放', '每个回合里最精彩的一球，死球后立即慢放回放一次，双方都算；至少播 2.5 秒，之后按 Enter / Esc（手柄 B 或 Menu）或点屏幕跳过，打球的键不会误跳'], ['精彩度', '按档位打分，再加分：隔扣、花式扣、钉板、完美时机、晃倒、晃倒后得分、关键球、致胜球、超远三分']]) +
+        g('精彩回放与特写（设置 → 显示 里可关）', [['特写', '精彩瞬间镜头推近；越精彩推得越近、停得越久'], ['回放', '每个回合里最精彩的一球，死球后立即慢放回放一次，双方都算；播满 ' + REPLAY_MIN + ' 秒后，按键盘任意键、手柄任意按钮或点画面跳过'], ['精彩度', '按档位打分，再加分：隔扣、花式扣、钉板、完美时机、晃倒、晃倒后得分、关键球、致胜球、超远三分']]) +
         g('进攻节奏博弈（对电脑）', [['电脑会记你的打法', '电脑会记住你最近几回合靠什么得分（背打转身、背打勾手、突破、三分、后撤步、中投），下回合可能提前针对：防背身转身就退一步等你转、防突破就退后放投、防三分就贴身。它猜中了很难打，猜错了反而更好打，换打法就能反制'], ['看防守反应', '你做完一个动作，电脑会选择：扑上来（压低身体、举手贴近）、后撤（退一步防突破）或者不动'], ['它扑上来', '重心在前、转身慢，这时变向或直接突破最容易过'], ['它后撤', '给出了投篮空间，接着投'], ['常用骗法', '犹豫步 / 内外晃引它后撤再投；后撤步引它扑出来再突破。投射好的人，电脑更愿意扑，防守好的电脑更常选不动']]);
     }
     const D = HELP[tab], pad = tab === 'pad';
@@ -517,8 +518,8 @@
   $('btn-close').addEventListener('click', () => { G.vopt.close = !G.vopt.close; saveV(); });
   $('btn-hz').addEventListener('click', () => { G.vopt.hz = G.vopt.hz === false; saveV(); });
   $('btn-vo').addEventListener('click', () => { PH.audio.setVo(!PH.audio.voOn); saveV(); });
-  const REPLAY_MIN = 2.5; // 回放至少播 2.5 秒才能跳过，只认 Enter / Esc / 手柄 B·Menu / 点击画面（打球键不会误跳）
-  canvas.addEventListener('pointerdown', () => { if (G.replay && G.replay.age >= REPLAY_MIN) G.replay.skip = true; });
+  function skipReplay() { if (screen === 'play' && !paused && G.replay && G.replay.age >= REPLAY_MIN) G.replay.skip = true; }
+  canvas.addEventListener('pointerdown', skipReplay);
   $('btn-fb').addEventListener('click', () => { opts.fb = opts.fb === 'detail' ? 'simple' : 'detail'; G.fb = opts.fb; if (typeof refreshMenu === 'function') refreshMenu(); setLabels(); });
   // ---------- 动作演示 ----------
   let tipsSave = null;
@@ -898,8 +899,6 @@
     }
     for (const [id, el] of bEls5) if (!live.has(id)) { el.remove(); bEls5.delete(id); }
   }
-  let padPrev = false;
-  function padAny() { const ps = PH.input.pads(); let on = false; for (const p of ps) if (p && p.buttons) for (const b of p.buttons) if (b.pressed) on = true; const e = on && !padPrev; padPrev = on; return e; }
   function drawFloats() {
     // 浮字（互相避让，避开 LED 横幅）
     const placed = [], ly = R.ledY, sbE = $('scorebar');
@@ -1263,9 +1262,10 @@
 
   // ---------- 循环 ----------
   function sysKeys() {
-    const I = PH.input; I.pollPads();
-    // 回放：播满 2.5 秒后才能用 Enter / Esc / 手柄 B·Menu 跳过
-    if (screen === 'play' && G.replay && !paused) { padAny(); const sk = I.sysPressed('Escape') || I.sysPressed('Enter') || I.sysPressed('PadB') || I.sysPressed('PadStart'); I.clearSys(); if (sk && G.replay.age >= REPLAY_MIN) G.replay.skip = true; return; }
+    const I = PH.input, replay = screen === 'play' && G.replay && !paused;
+    const key = replay && I.sysAny(); // 先读键盘，避免把手柄导航连发当成新按键
+    const button = I.pollPads();
+    if (replay) { I.clearSys(); if (key || button) skipReplay(); return; }
     if (I.sysPressed('KeyM')) toggleMusic();
     if (I.sysPressed('KeyI') && screen === 'play') toggleInfo();
     if (I.sysPressed('KeyC') && screen === 'play' && G.phase !== 'over') toggleCam();
