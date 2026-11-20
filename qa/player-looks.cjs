@@ -288,6 +288,28 @@ for (const key of game.ROSTER) {
 console.log('PASS continuous side and rear scalp coverage for all 302 players, including bald exceptions');
 console.log('PASS hair stays off the front half of the profile from eye to jaw');
 
+const dosunmu = look('dosunmu'), wells = look('jwells');
+assert.equal(dosunmu.style, 'longbraids');
+assert.equal(wells.style, 'afro');
+assert(wells.body.headScale > dosunmu.body.headScale && wells.body.neckScale > dosunmu.body.neckScale);
+const hairstyles = [...new Set(game.ROSTER.map(key => look(key).style))];
+const pixelDifference = (a, b) => {
+  const positions = new Set([...a.keys(), ...b.keys()]);
+  let changed = 0;
+  for (const p of positions) if (a.get(p) !== b.get(p)) changed++;
+  return changed / positions.size;
+};
+for (const angle of [Math.PI / 4, Math.PI / 2, 3 * Math.PI / 4]) {
+  const hairstylesAtAngle = hairstyles.map(style => [style,
+    headPixels({ ...dosunmu, style, band: '', beard: '' }, 16, angle).pixels]);
+  hairstylesAtAngle.forEach(([a, pixels], i) => {
+    for (const [b, other] of hairstylesAtAngle.slice(i + 1)) {
+      assert(pixelDifference(pixels, other) >= 0.05, `${a} vs ${b} at ${angle}: hairstyle sprites too similar`);
+    }
+  });
+}
+console.log(`PASS all ${hairstyles.length} roster hairstyles are visibly distinct from the back and rear ¾`);
+
 const gameCanvas = canvas();
 let spriteContext;
 gameCanvas.getContext().drawImage = (image) => { spriteContext = image.getContext('2d'); };
