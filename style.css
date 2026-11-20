@@ -889,3 +889,15 @@ select.pf, input.pf, .tn-row.pf, .sl.pf, .crow.pf, .mx.pf { outline: calc(var(--
 .sl input[class*="rating-"]::-moz-range-thumb { background: var(--rating); }
 .rating-legend { display: flex; flex-wrap: wrap; gap: calc(var(--u) * 2); align-items: center; margin-bottom: calc(var(--u) * 2); font-size: var(--fs-xs); color: var(--muted); }
 .rating-legend span { padding: 2px 4px; border: 1px solid var(--rating); background: #0c0f22; white-space: nowrap; }
+
+/* 主菜单右上角：快捷音量 + 设置 */
+#menutop { position: absolute; top: calc(var(--u) * 6); right: calc(var(--u) * 6); display: flex; gap: calc(var(--u) * 2); z-index: 2; }
+#menutop > button { font-size: var(--fs-xs); padding: calc(var(--u) * 1.5) calc(var(--u) * 3); display: inline-flex; align-items: center; gap: calc(var(--u) * 2); }
+#btn-qvol .pxi { width: 16px; height: 16px; vertical-align: 0; }
+#btn-qvol span { min-width: 2.2em; text-align: left; font-variant-numeric: tabular-nums; }
+#qvol { position: absolute; top: calc(100% + var(--u) * 2); right: 0; width: 220px; display: flex; flex-direction: column; gap: 8px; padding: 10px 12px; background: var(--panel); border: calc(var(--u) * 1) solid var(--ink); box-shadow: 0 0 0 calc(var(--u) * 1) var(--line), calc(var(--u) * 3) calc(var(--u) * 3) 0 calc(var(--u) * 1) rgba(0, 0, 0, 0.5); }
+#qvol .mx { display: grid; grid-template-columns: auto 1fr 28px; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); }
+#qvol .mx input { width: 100%; accent-color: var(--gold); }
+#qvol .mx b { text-align: right; color: var(--text); font-weight: normal; }
+#pause.inmenu .ingame, #pause:not(.inmenu) .inmenu { display: none; }
+@media (max-width: 700px), (max-height: 420px) { #menutop { top: 6px; right: 6px; } }

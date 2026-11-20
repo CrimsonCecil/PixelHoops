@@ -228,7 +228,7 @@
   function toMenu() {
     tuneClose();
     screen = 'menu'; paused = false; clearPf(); camOpen = false; camFromSet = false; show('campanel', false); pcards();
-    show('menu', true); show('picker', false); show('cutin', false); show('hud', false); show('pause', false); show('over', false); show('help', false); show('touch', false); show('banner', false); show('train', false); show('shotcard', false); stage.classList.remove('panel');
+    show('menu', true); show('qvol', false); show('picker', false); show('cutin', false); show('hud', false); show('pause', false); show('over', false); show('help', false); show('touch', false); show('banner', false); show('train', false); show('shotcard', false); stage.classList.remove('panel');
     if (PH.T5) { PH.T5.stop(); PH.render5.restore(); } show('hud5', false); show('over5', false); show('tpicker', false); show('btn-cam', true); show('btn-disp', true); show('btn-box5', false); if (PH.box5 && PH.box5.isOpen()) PH.box5.close();
     startDemo(); camShift();
   }
@@ -260,6 +260,7 @@
   let setV = 'main';
   function setView(v) {
     setV = v; for (const k of ['main', 'sound', 'disp', 'cam5']) show('set-' + k, k === v);
+    $('pause').classList.toggle('inmenu', screen === 'menu');   // 主菜单打开的设置只有声音 / 显示
     // 5V5 的显示设置只有球员信息和配音（投篮反馈/回放/特写/热区是 1V1 的）
     for (const id of ['btn-fb', 'btn-replay', 'btn-close', 'btn-hz']) show(id, screen !== 'play5');
     $('set-title').textContent = v === 'sound' ? '声音' : v === 'disp' ? '显示' : v === 'cam5' ? '镜头' : '设置'; setLabels(); if (v === 'cam5') cam5Labels(); clearPf();
@@ -484,12 +485,31 @@
   for (const b of document.querySelectorAll('#pause [data-back]')) b.addEventListener('click', () => setView('main'));
   $('btn-sfx').addEventListener('click', () => { PH.audio.setSfx(!PH.audio.sfxOn); setLabels(); });
   // 声音面板：总音量 / 音乐 / 音效 / 语音，50 为默认
+  let mixSync = () => {};
   { const MX = [['master', '总音量'], ['music', '音乐'], ['sfx', '音效'], ['vo', '语音']];
     $('mixer').innerHTML = MX.map((m) => '<label class="mx"><span>' + m[1] + '</span><input type="range" min="0" max="100" step="1" data-mx="' + m[0] + '" data-testid="mx-' + m[0] + '"><b></b></label>').join('');
-    const sync = () => $('mixer').querySelectorAll('input').forEach((i) => { const k = i.getAttribute('data-mx'), v = Math.round((k === 'master' ? PH.audio.MIX.master / 0.8 * 50 : PH.audio.MIX[k] * 100)); i.value = v; i.nextElementSibling.textContent = v; });
-    $('mixer').addEventListener('input', (e) => { const i = e.target, k = i.getAttribute('data-mx'); if (!k) return; const v = +i.value; PH.audio.setMix(k, k === 'master' ? v / 50 * 0.8 : v / 100); i.nextElementSibling.textContent = v; });
+    mixSync = () => { $('mixer').querySelectorAll('input').forEach((i) => { const k = i.getAttribute('data-mx'), v = Math.round((k === 'master' ? PH.audio.MIX.master / 0.8 * 50 : PH.audio.MIX[k] * 100)); i.value = v; i.nextElementSibling.textContent = v; }); qvSync(); };
+    $('mixer').addEventListener('input', (e) => { const i = e.target, k = i.getAttribute('data-mx'); if (!k) return; const v = +i.value; PH.audio.setMix(k, k === 'master' ? v / 50 * 0.8 : v / 100); i.nextElementSibling.textContent = v; if (k === 'master') qvSync(); });
     $('mixer').addEventListener('change', (e) => { const k = e.target.getAttribute('data-mx'); PH.audio.play(k === 'vo' ? 'ui' : k === 'music' ? 'ui' : 'swish'); if (k === 'vo' && G.players[0]) PH.audio.vo(G.players[0].arch.key, 'three', 'pri'); });
-    sync(); }
+    mixSync(); }
+  // 主菜单右上角：快捷音量（总音量滑条 + 静音）和设置入口（声音 / 显示）
+  let qvLast = 50;
+  function qvGet() { return Math.round(PH.audio.MIX.master / 0.8 * 50); }
+  function qvSet(v) { PH.audio.setMix('master', v / 50 * 0.8); mixSync(); }
+  function qvSync() {
+    const v = qvGet(); $('qv-range').value = v; $('qv-val').textContent = v;
+    $('btn-qvol').innerHTML = IC.svg(v ? 'vol' : 'mute') + '<span>' + (v || '静音') + '</span>'; $('btn-qvol').title = '音量 ' + v;
+    $('qv-mute').textContent = v ? '静音' : '取消静音';
+  }
+  function qvOpen(on) { if (on == null) on = $('qvol').classList.contains('hidden'); show('qvol', on); $('btn-qvol').setAttribute('aria-expanded', String(on)); if (on) qvSync(); }
+  function menuSet(on) { if (on && screen !== 'menu') return; qvOpen(false); clearPf(); if (on) setView('main'); show('pause', on); }
+  $('btn-qvol').addEventListener('click', () => { PH.audio.play('ui'); qvOpen(); });
+  $('qv-range').addEventListener('input', (e) => { const v = +e.target.value; if (v) qvLast = v; qvSet(v); });
+  $('qv-range').addEventListener('change', () => PH.audio.play('swish'));
+  $('qv-mute').addEventListener('click', () => { const v = qvGet(); if (v) { qvLast = v; qvSet(0); } else { qvSet(qvLast || 50); PH.audio.play('ui'); } });
+  document.addEventListener('pointerdown', (e) => { if (!$('qvol').classList.contains('hidden') && !$('menutop').contains(e.target)) qvOpen(false); });
+  $('btn-set').addEventListener('click', () => { PH.audio.play('ui'); menuSet(true); });
+  $('btn-set-close').addEventListener('click', () => menuSet(false));
   $('btn-info').addEventListener('click', () => { toggleInfo(); setLabels(); });
   const saveV = () => setLabels();
   $('btn-replay').addEventListener('click', () => { G.vopt.replay = !G.vopt.replay; saveV(); });
@@ -1151,6 +1171,7 @@
   // ---------- 手柄菜单导航 ----------
   const NAV_SEL = 'button, select, input[type=range]';
   const navList = (root) => Array.prototype.filter.call(root.querySelectorAll(NAV_SEL), (b) => b.offsetParent !== null && !b.disabled && !b.hasAttribute('data-nonav'));
+  const navPri = (root) => Array.prototype.find.call(root.querySelectorAll('button.primary'), (b) => b.offsetParent !== null);
   const trainPanelOn = () => screen === 'play' && G.mode === 'train' && panelOpen && !paused && !G.replay && !$('train').classList.contains('hidden');
   // 当前能用手柄操作的界面（从上到下优先）：调参台 / 镜头面板 / 说明 / 选队 / 选人 / 设置 / 结算 / 主菜单 / 训练面板
   function navRoot() {
@@ -1192,7 +1213,7 @@
     const root = navRoot(); if (!root) return;
     const list = navList(root); if (!list.length) return;
     let cur = root.querySelector('.pf');
-    if (!cur || cur.offsetParent === null || !cur.matches(NAV_SEL)) { cur = root.querySelector('button.primary') || list[0]; if (!list.includes(cur)) cur = list[0]; navSet(root, cur); return; }
+    if (!cur || cur.offsetParent === null || !cur.matches(NAV_SEL)) { cur = navPri(root) || list[0]; if (!list.includes(cur)) cur = list[0]; navSet(root, cur); return; }
     if (dx && cur.type === 'range') { navAdjust(cur, dx); return; }
     const r0 = cur.getBoundingClientRect(), cx = r0.left + r0.width / 2, cy = r0.top + r0.height / 2;
     let best = null, bs = 1e9;
@@ -1216,7 +1237,7 @@
   }
   function navClick() {
     const root = navRoot(); if (!root) return false;
-    const list = navList(root), b = root.querySelector('.pf') || root.querySelector('button.primary');
+    const list = navList(root), b = root.querySelector('.pf') || navPri(root);
     if (!b) { if (list[0]) navSet(root, list[0]); return true; }
     if (b.tagName === 'SELECT') { navAdjust(b, 1); return true; }
     if (b.type === 'range') return true;
@@ -1267,6 +1288,8 @@
     if (!$('help').classList.contains('hidden')) { if (esc || ok || pb) { show('help', false); clearPf(); } else if (pa) navClick(); }
     else if (!$('tpicker').classList.contains('hidden')) { if (pb || esc) closeTP(false); else if (pa || ok) navClick(); }
     else if (!$('picker').classList.contains('hidden')) { if (pb || esc) closePicker(false); else if (ok) closePicker(true); else if (pa) { const b = $('picker').querySelector('.pf'); if (b && b.hasAttribute('data-pk')) { if (b.getAttribute('data-pk') === pkSel) closePicker(true); else b.click(); b.classList.add('pf'); } else navClick(); } }
+    else if (screen === 'menu' && !$('pause').classList.contains('hidden')) { if (setV !== 'main' && (esc || pb)) setView('main'); else if (esc || pb || ok) menuSet(false); else if (pa) navClick(); }
+    else if (screen === 'menu' && !$('qvol').classList.contains('hidden') && (esc || pb)) qvOpen(false);
     else if (screen === 'menu') { if (ok || ps) startMatch(false); else if (pa) navClick(); }
     else if (screen === 'play5') {
       // 手柄十字键下（只认十字键，不认左摇杆）= 换人页；View = 数据面板；键盘 Tab = 数据面板、B / 4 = 换人页
