@@ -1130,6 +1130,9 @@
       fgL: tw(fing(AL, P.flL || 0)), fgR: tw(fing(AR, P.flR || 0)),
     };
     if (grip && P === pl.pose && pl.grip) finishGrip(k, pl);
+    if (grip && P === pl.pose && P.passHands) {
+      for (const side of ['L', 'R']) gripArm(k, side, P.passHands[side], false);
+    }
     return k;
   }
   PH.rig = rig;
@@ -1139,7 +1142,7 @@
     if (!body) return rig(pl);
     const k = rig(pl, pl.pose, false, body);
     // 用比赛骨架的手部落点，保持持球、触球和盖帽动作对齐。
-    if (pl.grip || pl.hasBall || pl.anim === 'block' || pl.anim === 'steal' || pl.armS) {
+    if (pl.grip || pl.hasBall || pl.anim === 'block' || pl.anim === 'steal' || pl.armS || pl.pose.passHands) {
       const live = rig(pl);
       for (const side of ['L', 'R']) gripArm(k, side, live['hand' + side], false);
     }

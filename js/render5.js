@@ -212,8 +212,15 @@
   function G5() { return PH.game.G; }
   function dOf(T) { return RPL.on && RPL.view ? RPL.view.dir : T.dir[G5().off]; }
   // 逻辑坐标 → 世界坐标的代理对象（转播镜头用）
+  function poseInView(p, xy) {
+    if (!p.pose || !p.pose.passHands) return p.pose;
+    const Q = p.pose.passHands, hands = Object.assign({}, Q);
+    for (const side of ['L', 'R']) hands[side] = [...xy(Q[side][0], Q[side][1]), Q[side][2]];
+    return Object.assign({}, p.pose, { passHands: hands });
+  }
   function wp(p, d) {
     const q = Object.create(p); q.x = d * p.y; q.y = -d * p.x; q.vx = d * (p.vy || 0); q.vy = -d * (p.vx || 0); q.face = p.face - d * PI2;
+    q.pose = poseInView(p, (x, y) => [d * y, -d * x]);
     if (p.grip && p.grip.rim) { q.gripRimX = d * HX; q.gripRimY = 0; }
     if (p.ghosts) q.ghosts = p.ghosts.map((g) => Object.assign({}, g, { x: d * g.y, y: -d * g.x, face: g.face - d * PI2 }));
     return q;
@@ -396,6 +403,7 @@
     const fa = PI2 - d * PI2 - ph;   // 朝向角：逻辑 → 镜头
     const wpk = (p) => {
       const q = Object.create(p); q.x = U(p.x, p.y); q.y = V(p.x, p.y); q.vx = U(p.vx || 0, p.vy || 0); q.vy = V(p.vx || 0, p.vy || 0); q.face = p.face + fa;
+      q.pose = poseInView(p, (x, y) => [U(x, y), V(x, y)]);
       if (p.grip && p.grip.rim) { q.gripRimX = U(0, HX); q.gripRimY = V(0, HX); }
       if (p.ghosts) q.ghosts = p.ghosts.map((g) => Object.assign({}, g, { x: U(g.x, g.y), y: V(g.x, g.y), face: g.face + fa }));
       return q;

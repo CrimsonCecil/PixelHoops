@@ -100,10 +100,15 @@
     { k: 't5_clk_heave', g: 't5', cat: 't5', sub: '时间管理', gm: '5v5', label: '时间紧迫 无论位置强投', v: 1.5, min: 0, max: 4, step: 0.1, note: '秒。剩余 ≤ 这个：无论在哪都马上出手（超远三分 / 抛投）' },
     { k: 't5_clk_rel', g: 't5', cat: 't5', sub: '时间管理', gm: '5v5', label: '时间紧迫 强制出手点', v: 0.3, min: 0, max: 1, step: 0.05, note: '秒。投篮动作中剩余 ≤ 这个就立刻出手，保证球在计时结束前离手' },
     { k: 't5_clk_hold', g: 't5', cat: 't5', sub: '时间管理', gm: '5v5', label: '小节末 领先耗时到', v: 7, min: 0, max: 24, step: 0.5, note: '秒。小节时间少于进攻时间、领先或平分时，电脑先运球耗时，到剩这么多秒再进攻（最后一攻，仍必须在小节结束前出手）；0 = 不耗' },
-    { k: 't5_pass_spd', g: 't5', cat: 'pass', sub: '传球', gm: '5v5', label: '传球 球速差距', v: 0.45, min: 0, max: 1, step: 0.05, note: '倍率。球速 × (1 + 这个 × 传球准确偏离)，传球准确 pac 85 约 +18%、55 约 −16%（以前 0.2）' },
+    { k: 't5_pass_spd', g: 't5', cat: 'pass', sub: '传球', gm: '5v5', label: '传球 球速差距', v: 0.45, min: 0, max: 1, step: 0.05, note: '倍率。球速 × (1 + 这个 × 传球准确偏离)，pac 90 约 +23%、50 约 −21%' },
+    { k: 't5_pass_wFast', g: 't5', cat: 'pass', sub: '传球', gm: '5v5', label: '传球 精英出手时间', v: 0.06, min: 0, max: 0.3, step: 0.01, note: '秒。pac 高端的推球准备时间；发球和跳传不等待' },
+    { k: 't5_pass_wSlow', g: 't5', cat: 'pass', sub: '传球', gm: '5v5', label: '传球 低能力出手时间', v: 0.2, min: 0, max: 0.5, step: 0.01, note: '秒。pac 低端的准备时间，与精英时间按能力插值' },
+    { k: 't5_pass_leadLow', g: 't5', cat: 'pass', sub: '传球', gm: '5v5', label: '传球 低能力提前量', v: 0.65, min: 0, max: 1.5, step: 0.05, note: '倍率。低能力预判接球人跑动的比例；高能力趋近 1，误差计入接球质量' },
+    { k: 't5_pass_leadCap', g: 't5', cat: 'pass', sub: '传球', gm: '5v5', label: '传球 提前量质量惩罚上限', v: 0.8, min: 0, max: 2, step: 0.05, note: '米。跑动提前量不足计入接球质量的误差上限，不限制原有随机落点误差' },
+    { k: 't5_pass_leadRnd', g: 't5', cat: 'pass', sub: '传球', gm: '5v5', label: '传球 提前量波动', v: 0.15, min: 0, max: 0.5, step: 0.05, note: '倍率。低能力提前量的随机正负波动，随 pac 提高减小' },
     { k: 't5_pass_arc', g: 't5', cat: 'pass', sub: '传球', gm: '5v5', label: '传球 弧线差距', v: 1.4, min: 0, max: 2, step: 0.05, note: '倍率。胸前 / 长传的弧度 × (1 − 这个 × 传球准确偏离)：能力高的球更直，能力低的更飘' },
     { k: 't5_pass_er', g: 't5', cat: 'pass', sub: '传球', gm: '5v5', label: '传球 落点误差', v: 1.2, min: 0, max: 3, step: 0.05, note: '米。落点误差 = 这个 × max(0, 误差起点 − 传球准确偏离) × 距离 / 类型系数（以前斜率 0.6）' },
-    { k: 't5_pass_er0', g: 't5', cat: 'pass', sub: '传球', gm: '5v5', label: '传球 误差起点', v: 0.25, min: -0.5, max: 0.5, step: 0.01, note: '传球准确偏离高于这个（约 pac 79）就没有落点误差' },
+    { k: 't5_pass_er0', g: 't5', cat: 'pass', sub: '传球', gm: '5v5', label: '传球 误差起点', v: 0.25, min: -0.5, max: 0.5, step: 0.01, note: '传球准确偏离高于这个（约 pac 79）就没有随机落点误差；跑动提前量不足仍计入接球质量' },
     { k: 't5_pass_trk', g: 't5', cat: 'pass', sub: '传球', gm: '5v5', label: '传球 偏球修正', v: 0.8, min: 0.2, max: 3, step: 0.05, note: '米。球飞行中向接球人手上修正的速度 × (1 − 落点误差 / 这个)：越小越难修正，偏球会真的偏到身后 / 脚下' },
     { k: 't5_pass_bh', g: 't5', cat: 'pass', sub: '传球', gm: '5v5', label: '传球 偏到身后概率', v: 0.65, min: 0, max: 1, step: 0.05, note: '概率。接球人在跑动时，落点误差偏到他身后的概率（要停下来回身接）' },
     { k: 't5_pass_feet', g: 't5', cat: 'pass', sub: '传球', gm: '5v5', label: '传球 偏到脚下概率', v: 0.35, min: 0, max: 1, step: 0.05, note: '概率。落点误差 > 0.3 米时球偏低、到脚下（低位接球，不能接球即投）' },
@@ -417,11 +422,12 @@
   function stop() { if (T.on) { T.on = false; if (A5) A5.end(); } }
 
   // ---------- 场上状态工具 ----------
-  function place(p, x, y, face) { p.x = x; p.y = y; p.z = 0; p.vx = p.vy = p.vz = 0; p.action = null; p.stun = 0; p.hasBall = false; p.post = false; if (face != null) p.face = face; p.ai.om = null; p.ai.dm = null; p.ai.t = 0; }
+  function place(p, x, y, face) { p.x = x; p.y = y; p.z = 0; p.vx = p.vy = p.vz = 0; p.action = null; p.stun = 0; p.hasBall = false; p.post = false; if (p.pose) delete p.pose.passHands; if (face != null) p.face = face; p.ai.om = null; p.ai.dm = null; p.ai.t = 0; }
   function flipAll() {
     const neg = (o, ks) => { for (const k of ks) if (typeof o[k] === 'number') o[k] = -o[k]; };
     for (const p of ps()) {
       neg(p, ['x', 'y', 'vx', 'vy']); p.face += Math.PI;
+      if (p.pose && p.pose.passHands) for (const side of ['L', 'R']) { const h = p.pose.passHands[side]; h[0] = -h[0]; h[1] = -h[1]; }
       if (p.ai) { neg(p.ai, ['hx', 'hy', 'cdx', 'cdy']); p.ai.om = null; p.ai.dm = null; p.ai.t = 0; }
       if (p.action && /shot|layup|dunk|post|fake|dive/.test(p.action.type)) p.action = null;
       if (p.ghosts) for (const g of p.ghosts) { g.x = -g.x; g.y = -g.y; g.face += Math.PI; }
@@ -432,7 +438,11 @@
     for (const q of G.fx.parts) neg(q, ['x', 'y', 'vx', 'vy']);
     for (const r of G.fx.rings) neg(r, ['x', 'y']);
     for (const f of G.floats) neg(f, ['x', 'y']);
-    if (T.ps) neg(T.ps, ['x0', 'y0', 'tx', 'ty']);
+    if (T.ps) {
+      neg(T.ps, ['x0', 'y0', 'tx', 'ty']);
+      for (const key of ['gather', 'handAxis']) if (T.ps[key]) { T.ps[key][0] = -T.ps[key][0]; T.ps[key][1] = -T.ps[key][1]; }
+      if (T.ps.face0 != null) T.ps.face0 += Math.PI;
+    }
   }
   function setOff(t) { if (G.off !== t) { G.off = t; flipAll(); } T.off = t; }
   const ptIs5 = (p, id) => !!(PH.game && PH.game.ptIs && PH.game.ptIs(p, id));
@@ -736,8 +746,40 @@
     }
     return best;
   }
+  function gatherPoint(points) {
+    for (let i = 0; i < points.length; i++) for (let j = i + 1; j < points.length; j++) {
+      const c = points[i].map((v, k) => (v + points[j][k]) / 2), radius = Math.hypot(...points[i].map((v, k) => v - c[k]));
+      if (points.every(p => Math.hypot(...p.map((v, k) => v - c[k])) <= radius + 1e-9)) return c;
+    }
+    const a = points[0], u = points[1].map((v, i) => v - a[i]), v = points[2].map((v, i) => v - a[i]);
+    const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+    const n = cross(u, v), un = Math.hypot(...u) ** 2, vn = Math.hypot(...v) ** 2, nn = Math.hypot(...n) ** 2;
+    const x = cross(v, n), y = cross(n, u);
+    return a.map((v, i) => v + (un * x[i] + vn * y[i]) / (2 * nn));
+  }
+  function releasePass(P) {
+    const p = P.from, m = P.to, kind = P.kind, ua = P.ua, kf = P.kf, tx = P.tx, ty = P.ty, d0 = hyp(tx - P.x0, ty - P.y0);
+    // 预判拦截：路线上最先碰到球的防守人
+    // V3.9h 2K 手感：开阔线路的短传几乎不丢；被断主要来自线路上有人且抢断/传球预判高、传得远、盲传（背身/侧身传）、传球属性低
+    // 击地传球球在膝盖高度、线路低，防守人够得到的范围和截下概率都打折（同条件被断率不高于普通传球的 1.3 倍）
+    let first = null, lane = 9; const cutP = cutNow(m);
+    const blind = P.blind;
+    const chK = (P.pointC ? 0.85 : 1) * TV.t5_int_chK * TV.l1_stealMul * (0.7 + TV.t5_int_long * Math.min(d0, 14)) * (blind ? TV.t5_int_blind : 1) * (kind === 'bounce' ? TV.t5_int_bnc : kind === 'lob' || kind === 'alley' ? TV.t5_int_lob : 1) * (P.playPass ? TV.t5_int_play : 1);  // C2 战术设计好的传球路线更安全
+    for (const d of defs()) {
+      const s = segD(d.x, d.y, P.x0, P.y0, tx, ty); if (s.k < 0.12 || s.k > 0.97) continue;
+      lane = Math.min(lane, s.d);
+      const hz = kind === 'bounce' ? 0.8 : kind === 'lob' || kind === 'alley' ? lerp(1, 4, 4 * s.k * (1 - s.k)) : kind === 'skip' ? 1.3 + 1.2 * 4 * s.k * (1 - s.k) : 1.3;
+      // 传球预判 ppc：截传范围 ±20%、成功率 ±30%；传球人 pac 高 → 被截率最多 -30%
+      const reach = (TV.t5_int_r0 + TV.t5_int_rS * d.r.stl) * (1 + TV.t5_int_rP * U(d, 'ppc')) * (d.action && d.action.type === 'steal' ? TV.t5_int_rStl : 1) * (d.stance ? 1.1 : 1) * (hz > d.h + 0.6 ? 0.15 : 1) * (cutP ? blindF(d, m, p) : 1) * (kind === 'bounce' ? 0.75 : 1) * (PH.B5 ? PH.B5.reachK(d, p) : 1) * Math.max(0.05, 1 - TV.t5_pass_rch * ua) * (kf ? 1.2 : 1);   // V4.2 能力低的球慢，更容易被够到   // V3.9d 看球不看人的防守人，截空切传球的范围打折
+      if (s.d < reach && (!first || s.k < first.u)) first = { d: d, u: s.k, ch: clamp((reach - s.d) / reach * (TV.t5_int_c0 + TV.t5_int_cS * d.r.stl) * (1 + TV.t5_int_cP * U(d, 'ppc')) * Math.max(0.05, 1 - TV.t5_pass_int * ua) * (1 + TV.t5_pass_intL * 2 * Math.max(0, -ua) * clamp((d0 - 6) / 8, 0, 1)) * (d.ctrl === 'cpu' ? TV.l1_stlCpu0 + TV.l1_stlCpuD * T.diff : 1) * chK, 0, Math.min(0.95, 0.6 * Math.max(1, (1 + 0.5 * TV.t5_pass_int) / 1.6, 1 + TV.t5_pass_intL - 0.8))) };   // V4.4 截下概率上限 0.6 跟着 t5_pass_int / intL 放大
+    }
+    P.int = first; if (PH.B5) PH.B5.pass(p, m, kind, P, P.T, first);
+    if (P.rec) { P.rec.ch = P.int ? +P.int.ch.toFixed(3) : 0; P.rec.blind = blind; P.rec.lane = +lane.toFixed(2); }
+    return P.int;
+  }
   function doPass(p, m, kind) {
     if (!m || !canPass(p)) return false;
+    const cancelShot = p.action && (p.action.type === 'shot' || p.action.type === 'layup' || p.action.type === 'dunk');
     if (p.action) p.action = null;
     const b = G.ball, K = PASS[kind] || PASS.chest, ua = U(p, 'pac');
     // V4.2 传球能力差异化：高难度传球（击地 / 过顶长传 / 高吊 / 空中接力 / 背后 No-look / 跳传）按传球准确 pac + 控球 hnd 判失手
@@ -745,9 +787,10 @@
     const kd = (kind === 'bounce' ? TV.t5_pass_kdB : kind === 'skip' ? TV.t5_pass_kdS : kind === 'lob' ? TV.t5_pass_kdL : kind === 'alley' ? TV.t5_pass_kdA : 0) + (bl0 ? TV.t5_pass_kdN : 0) + (p.jpNow ? TV.t5_pass_kdJ : 0);
     const kf = !T.plPassing && T.phase !== 'inb' && kd > 0 && rnd() < TV.t5_pass_kf * kd * clamp(TV.t5_pass_kfS - ua - 0.5 * uh, 0, 1);
     if (kf) T.cnt.ps_kf = (T.cnt.ps_kf || 0) + 1;
-    // 传球准确 pac：球速 ±10%，落点误差 0~0.6 米（距离越远、高吊 / 长传越大）
+    const skill = clamp(ua + 0.5, 0, 1), windup = T.phase === 'inb' || p.jpNow || cancelShot ? 0 : lerp(TV.t5_pass_wSlow, TV.t5_pass_wFast, skill);
     const d0 = dist(p, m), Tt = Math.max(0.22, d0 / (K.v * (1 + TV.t5_pass_spd * ua + 0.06 * (U(p, 'vis') + U(p, 'iq'))) * (p.jpNow ? TV.t5_pass_jpV : 1) * (kf ? 0.85 : 1))) * (kind === 'lob' || kind === 'alley' ? TV.t5_pass_lobT : 1);   // V3.9q 跳传更慢；球商高的人出球更快
-    let tx = m.x + (m.vx || 0) * Tt * 0.6, ty = m.y + (m.vy || 0) * Tt * 0.6;
+    const lead = lerp(TV.t5_pass_leadLow + rr(-TV.t5_pass_leadRnd, TV.t5_pass_leadRnd), 1, skill);
+    let tx = m.x + (m.vx || 0) * (Tt + windup) * lead, ty = m.y + (m.vy || 0) * (Tt + windup) * lead;
     // V4.2 落点误差：传球准确越低越偏（失手的高难度传球再偏 0.9~1.8 米）；接球人在跑动时多半偏到身后，偏得多的有时偏到脚下
     const er = TV.t5_pass_er * Math.max(0, TV.t5_pass_er0 - ua) * (0.5 + d0 / 14) * (kind === 'skip' || kind === 'lob' || kind === 'alley' ? 1.4 : 1) * Math.sqrt(rnd()) + (kf ? rr(0.9, 1.8) : 0);
     let ea = rnd() * 6.2832; if ((m.speed || 0) > 1.2 && rnd() < TV.t5_pass_bh) ea = Math.atan2(-(m.vy || 0), -(m.vx || 0)) + rr(-0.7, 0.7);
@@ -761,22 +804,25 @@
     if (kind === 'alley' || kind === 'lob') { const hl = dHoop(m); if (hl < 5.5) { tx = lerp(tx, 0, 0.35); ty = lerp(ty, HY - 0.6, 0.35); } }
     tx = clamp(tx, -7.4, 7.4); ty = clamp(ty, -13.8, 13.8);
     b.state = 'pass'; b.holder = -1; p.hasBall = false; b.lastTouch = p.id; b.wasShot = false; b.shot = null; b.trail = null;
-    T.ps = { from: p, to: m, kind: kind, x0: b.x, y0: b.y, z0: Math.max(0.6, b.z), tx: tx, ty: ty, t: 0, T: Tt, int: null, bnc: false, inb: T.phase === 'inb', er: er, v: d0 / Tt, ua: ua, kf: kf,
+    const leadEr = Math.min(TV.t5_pass_leadCap, hyp(m.vx || 0, m.vy || 0) * (Tt + windup) * Math.abs(1 - lead));
+    T.ps = { from: p, to: m, kind: kind, x0: b.x, y0: b.y, z0: Math.max(0.6, b.z), tx: tx, ty: ty, t: -windup, windup: windup, lead: lead, T: Tt, int: null, bnc: false, inb: T.phase === 'inb', er: er, leadEr: leadEr, v: d0 / Tt, ua: ua, kf: kf,
       ap: kind === 'chest' || kind === 'skip' ? K.ap * Math.max(0.05, 1 - TV.t5_pass_arc * ua) : K.ap, feet: er > 0.3 && kind !== 'lob' && kind !== 'alley' && rnd() < TV.t5_pass_feet };   // V4.2 能力高的球更直、能力低的更飘
-    // 预判拦截：路线上最先碰到球的防守人
-    // V3.9h 2K 手感：开阔线路的短传几乎不丢；被断主要来自线路上有人且抢断/传球预判高、传得远、盲传（背身/侧身传）、传球属性低
-    // 击地传球球在膝盖高度、线路低，防守人够得到的范围和截下概率都打折（同条件被断率不高于普通传球的 1.3 倍）
-    let first = null; const cutP = cutNow(m);
-    const pdx = m.x - p.x, pdy = m.y - p.y, blind = (pdx * Math.cos(p.face) + pdy * Math.sin(p.face)) / (d0 || 1) < -0.2;
-    const chK = (ptIs5(p, 'pointC') && dHoop(p) > 3.5 && dHoop(p) < 7.5 ? 0.85 : 1) * TV.t5_int_chK * TV.l1_stealMul * (0.7 + TV.t5_int_long * Math.min(d0, 14)) * (blind ? TV.t5_int_blind : 1) * (kind === 'bounce' ? TV.t5_int_bnc : kind === 'lob' || kind === 'alley' ? TV.t5_int_lob : 1) * (T.plPassing ? TV.t5_int_play : 1);  // C2 战术设计好的传球路线更安全
-    for (const d of defs()) {
-      const s = segD(d.x, d.y, T.ps.x0, T.ps.y0, tx, ty); if (s.k < 0.12 || s.k > 0.97) continue;
-      const hz = kind === 'bounce' ? 0.8 : kind === 'lob' || kind === 'alley' ? lerp(1, 4, 4 * s.k * (1 - s.k)) : kind === 'skip' ? 1.3 + 1.2 * 4 * s.k * (1 - s.k) : 1.3;
-      // 传球预判 ppc：截传范围 ±20%、成功率 ±30%；传球人 pac 高 → 被截率最多 -30%
-      const reach = (TV.t5_int_r0 + TV.t5_int_rS * d.r.stl) * (1 + TV.t5_int_rP * U(d, 'ppc')) * (d.action && d.action.type === 'steal' ? TV.t5_int_rStl : 1) * (d.stance ? 1.1 : 1) * (hz > d.h + 0.6 ? 0.15 : 1) * (cutP ? blindF(d, m, p) : 1) * (kind === 'bounce' ? 0.75 : 1) * (PH.B5 ? PH.B5.reachK(d, p) : 1) * Math.max(0.05, 1 - TV.t5_pass_rch * ua) * (kf ? 1.2 : 1);   // V4.2 能力低的球慢，更容易被够到   // V3.9d 看球不看人的防守人，截空切传球的范围打折
-      if (s.d < reach && (!first || s.k < first.u)) first = { d: d, u: s.k, ch: clamp((reach - s.d) / reach * (TV.t5_int_c0 + TV.t5_int_cS * d.r.stl) * (1 + TV.t5_int_cP * U(d, 'ppc')) * Math.max(0.05, 1 - TV.t5_pass_int * ua) * (1 + TV.t5_pass_intL * 2 * Math.max(0, -ua) * clamp((d0 - 6) / 8, 0, 1)) * (d.ctrl === 'cpu' ? TV.l1_stlCpu0 + TV.l1_stlCpuD * T.diff : 1) * chK, 0, Math.min(0.95, 0.6 * Math.max(1, (1 + 0.5 * TV.t5_pass_int) / 1.6, 1 + TV.t5_pass_intL - 0.8))) };   // V4.4 截下概率上限 0.6 跟着 t5_pass_int / intL 放大
+    if (windup > 0 && p.pose) {
+      T.ps.pose0 = Object.assign({}, p.pose); T.ps.face0 = p.face;
+      const H = PH.rig(p), axis = H.handR.map((v, i) => v - H.handL[i]), span = Math.hypot(...axis) || 1;
+      T.ps.handAxis = axis.map(v => v / span * 0.108);
+      const points = [[b.x, b.y, b.z], H.handL.map((v, i) => v + T.ps.handAxis[i]), H.handR.map((v, i) => v - T.ps.handAxis[i])];
+      T.ps.gather = gatherPoint(points);
+      const radius = Math.max(...points.map(q => Math.hypot(...q.map((v, i) => v - T.ps.gather[i]))));
+      T.ps.gatherSpeed = Math.max(7.2, radius / windup);
+      p.pose.passHands = { L: H.handL.slice(), R: H.handR.slice(), follow: 0.14 };
     }
-    T.ps.int = first; if (PH.B5) PH.B5.pass(p, m, kind, T.ps, Tt, first);
+    T.ps.playPass = !!T.plPassing;
+    const blind = ((m.x - p.x) * Math.cos(p.face) + (m.y - p.y) * Math.sin(p.face)) / (d0 || 1) < -0.2;
+    T.ps.blind = blind;
+    T.ps.pointC = ptIs5(p, 'pointC') && dHoop(p) > 3.5 && dHoop(p) < 7.5;
+    if (PH.B5 && PH.B5.passState) T.ps.badgeState = PH.B5.passState(p, m, kind);
+    const first = windup > 0 ? null : releasePass(T.ps);
     // V3.9h 传球记录（统计被断率用）：类型、距离、线路上最近防守人距离、是否图标传球、结果
     { let lane = 9; for (const d of defs()) { const q = segD(d.x, d.y, T.ps.x0, T.ps.y0, tx, ty); if (q.k >= 0.12 && q.k <= 0.97) lane = Math.min(lane, q.d); }
       const rec = { t: T.time, tm: p.tm, kind: kind, d: +d0.toFixed(2), lane: +lane.toFixed(2), hum: p.ctrl === 'p1', icon: !!T.iconNow, inb: T.phase === 'inb', ch: first ? +first.ch.toFixed(3) : 0, blind: blind, kick: dHoop(p) < 5 || inPaint(p.x, p.y), jp: !!p.jpNow, res: 'fly', er: +er.toFixed(2), kf: kf ? 1 : 0 };
@@ -793,14 +839,56 @@
     return true;
   }
   function passUpdate(dt) {
+    if (dt <= 0) return;
     const b = G.ball, P = T.ps;
+    for (const p of ps()) {
+      const Q = p.pose && p.pose.passHands;
+      if (!Q || (b.state === 'pass' && P && P.from === p && P.t < 0)) continue;
+      const k = PH.rig(p, p.pose, false); let done = Q.follow <= dt;
+      for (const side of ['L', 'R']) {
+        const delta = k['hand' + side].map((v, i) => v - Q[side][i]), d = Math.hypot(...delta);
+        const move = Math.min(1, dt / Math.max(dt, Q.follow), 7.2 * dt / (d || 1));
+        Q[side] = Q[side].map((v, i) => v + delta[i] * move);
+        if (move < 1) done = false;
+      }
+      Q.follow = Math.max(0, Q.follow - dt);
+      if (done) delete p.pose.passHands;
+    }
     if (T.phase === 'inb' && b.state === 'loose') { T.phase = 'live'; G.shotClock = 24; }   // 发球没接住 / 被碰掉：直接转入活球抢球
     if (b.state !== 'pass' || !P) return;
+    const prevT = P.t;
     P.t += dt; const r = P.to, K = PASS[P.kind] || PASS.chest;
+    if (prevT < 0) {
+      if (P.t > -1e-9) P.t = 0;
+      const p = P.from, w = clamp(1 + P.t / P.windup, 0, 1);
+      const face = Math.atan2(P.ty - p.y, P.tx - p.x), turn = Math.atan2(Math.sin(face - P.face0), Math.cos(face - P.face0));
+      p.face = P.face0 + turn * w;
+      if (p.pose) {
+        const lift = clamp((b.z - p.z - p.h * 0.4) / (p.h * 0.35), 0, 1);
+        const pose = { aLp: 0.2 + 1.1 * lift, aRp: 0.2 + 1.1 * lift, aLe: 0.6, aRe: 0.6, aLq: 0.18, aRq: 0.18, yaw: 0, lean: 0.08, tilt: 0 }, blend = w * w * (3 - 2 * w);
+        for (const k in pose) p.pose[k] = lerp((P.pose0 && P.pose0[k]) || 0, pose[k], blend);
+      }
+      const H = P.gather || handPt(p, b, false), rem = -prevT, step = Math.min(dt, rem), cap = (P.gatherSpeed || 7.2) * step;
+      const dx = H[0] - b.x, dy = H[1] - b.y, dz = H[2] - b.z, d = Math.hypot(dx, dy, dz), move = Math.min(step / rem, cap / (d || 1));
+      b.x += dx * move; b.y += dy * move; b.z += dz * move;
+      if (p.pose) {
+        const Q = p.pose.passHands, axis = P.handAxis;
+        for (const side of ['L', 'R']) {
+          const target = H.map((v, i) => v + (side === 'L' ? -axis[i] : axis[i])), delta = target.map((v, i) => v - Q[side][i]);
+          const move = Math.min(step / rem, cap / (Math.hypot(...delta) || 1));
+          Q[side] = Q[side].map((v, i) => v + delta[i] * move);
+        }
+        Q.follow = 0.14;
+      }
+      P.x0 = b.x; P.y0 = b.y; P.z0 = b.z; b.vx = b.vy = b.vz = 0;
+      P.t = Math.min(P.t, 0);
+      if (P.t === 0) releasePass(P);
+      return;
+    }
     if (r && dt > 0) { if (P.rpx != null) P.rsp = lerp(P.rsp || 0, hyp(r.x - P.rpx, r.y - P.rpy) / dt, 0.35); P.rpx = r.x; P.rpy = r.y; }   // V3.9j 接球人移动速度（判“移动中接球”）
     // 球追着接球人走一点（不是瞬移）
     // 球追着接球人走一点（不是瞬移）——P.tx / P.ty 是接球人要去的落点（身体）
-    if (r && P.t < P.T * 0.85 && !P.lin) { const dx = r.x - P.tx, dy = r.y - P.ty, l = hyp(dx, dy), mv = Math.min(l, (P.kind === 'bounce' ? 4 : 2.5) * dt); if (l > 0.01) { P.tx += dx / l * mv; P.ty += dy / l * mv; } }
+    if (r && P.t < P.T * 0.85 && !P.lin) { const rem = Math.max(0, P.T - P.t) * (P.lead == null ? 0.6 : P.lead), dx = r.x + (r.vx || 0) * rem - P.tx, dy = r.y + (r.vy || 0) * rem - P.ty, l = hyp(dx, dy), mv = Math.min(l, (P.kind === 'bounce' ? 4 : 2.5) * dt); if (l > 0.01) { P.tx += dx / l * mv; P.ty += dy / l * mv; } }
     // V3.9m 球的终点 P.ex / ey / ez 对准接球人的手（双手中点），一直跟到最后；后 35% 跟得更快，保证到达那一刻球就在手上
     if (P.ex == null) { P.ex = P.tx; P.ey = P.ty; P.ez = K.tz; }
     if (r && !P.lin) {
@@ -880,8 +968,8 @@
     return rnd() < pc;
   }
   // V3.9m 接球人的手：双手中点（骨架 rig；没有 pose 时用身体前方 0.35 米、胸口高度估算）
-  function handPt(r, b) {
-    if (r.pose && PH.rig) { const k = PH.rig(r); return [(k.handL[0] + k.handR[0]) / 2, (k.handL[1] + k.handR[1]) / 2, (k.handL[2] + k.handR[2]) / 2]; }
+  function handPt(r, b, grip = true) {
+    if (r.pose && PH.rig) { const k = PH.rig(r, r.pose, grip); return [(k.handL[0] + k.handR[0]) / 2, (k.handL[1] + k.handR[1]) / 2, (k.handL[2] + k.handR[2]) / 2]; }
     const dx = b.x - r.x, dy = b.y - r.y, l = hyp(dx, dy) || 1; return [r.x + dx / l * 0.35, r.y + dy / l * 0.35, r.z + r.h * 0.6];
   }
   // V3.9m 接球前 0.25 秒：接球人转向来球、双手伸出去迎（高球举手 / 低球放低 / 偏到一侧单手够）
@@ -1007,7 +1095,7 @@
     (T.dblLog || (T.dblLog = [])).push({ m: L.made ? 1 : 0, p3: L.pts === 3 ? 1 : 0, c: +L.contest.toFixed(2) }); T.cnt.dblC = (T.cnt.dblC || 0) + 1;
   }
   function catchBall(r, P) {
-    const b = G.ball;
+    const b = G.ball, catchEr = (P.er || 0) + (P.leadEr || 0);
     if (b.z > r.z + r.h * 0.85) r.catchAt = G.time;
     b.cT = 0.1; b.cx = b.x; b.cy = b.y; b.cz = b.z;
     b.state = 'held'; b.holder = r.id; r.hasBall = true; b.shot = null; b.under = false; b.trail = null; b.lastTouch = r.id; r.drib = 0; r.catchT = T.time; r.gotT = G.time;
@@ -1021,16 +1109,16 @@
     let od = 9; for (const d of defs()) od = Math.min(od, dist(d, r));
     if (P.rec) P.rec.open = +od.toFixed(2);
     // V4.2 传球质量（0~1）：落点准、球快 → 高；偏球 / 失手的高难度传球 → 低。接球投篮按它加减成（csTick）
-    r.f5.pq = clamp((1 - (P.er || 0) / 0.6) * (1 + 0.4 * (P.ua || 0)), 0, 1) * (P.kf ? 0.3 : 1); r.f5.pqT = T.time; if (P.rec) P.rec.q = +r.f5.pq.toFixed(2);
+    r.f5.pq = clamp((1 - catchEr / 0.6) * (1 + 0.4 * (P.ua || 0)), 0, 1) * (P.kf ? 0.3 : 1); r.f5.pqT = T.time; if (P.rec) P.rec.q = +r.f5.pq.toFixed(2);
     r.f5.cOd = od;   // V3.9r 接球时最近防守人（空位接球不否决）
     // V3.9j 接球动作按情境区分（数据驱动，见 CATCH）：接球即投 / 高球 / 击地 / 背身 / 够偏球 / 贴身护球 / 移动中 / 原地
     { const hx = -r.x, hy = HY - r.y, hl = hyp(hx, hy) || 1, fh = (Math.cos(r.face) * hx + Math.sin(r.face) * hy) / hl;
-      const csW = r.ctrl === 'cpu' ? ((P.er || 0) <= TV.t5_pass_csEr || left5() <= TV.t5_clk_force) && cpuCS(r, od) : !!((r.cq && r.cq.k === 'shot') || (r.ib && r.ib.k === 'a1' && r.ib.wc));
-      const k = csW && od > 1.0 ? 'cs' : P.kind === 'lob' || P.kind === 'alley' || b.z > r.h * 0.95 ? 'high' : P.kind === 'bounce' ? 'low' : P.feet && P.er > 0.3 ? 'low' : r.reachC > T.time - 0.3 || P.er > 0.38 ? 'reach' : (P.rsp || 0) > 1.3 && od >= 0.8 ? 'move' : od < 1.0 ? 'protect' : fh < -0.3 && dHoop(r) < 5.5 ? 'post' : 'stand';
+      const csW = r.ctrl === 'cpu' ? (catchEr <= TV.t5_pass_csEr || left5() <= TV.t5_clk_force) && cpuCS(r, od) : !!((r.cq && r.cq.k === 'shot') || (r.ib && r.ib.k === 'a1' && r.ib.wc));
+      const k = csW && od > 1.0 ? 'cs' : P.kind === 'lob' || P.kind === 'alley' || b.z > r.h * 0.95 ? 'high' : P.kind === 'bounce' ? 'low' : P.feet && P.er > 0.3 ? 'low' : r.reachC > T.time - 0.3 || catchEr > 0.38 ? 'reach' : (P.rsp || 0) > 1.3 && od >= 0.8 ? 'move' : od < 1.0 ? 'protect' : fh < -0.3 && dHoop(r) < 5.5 ? 'post' : 'stand';
       r.f5.ck = { k: k, t: T.time, side: (Math.cos(r.face) * (b.y - r.y) - Math.sin(r.face) * (b.x - r.x)) > 0 ? -1 : 1, rdy: CATCH[k].rdy && fh > 0.2, pre: !!(r.f5.pre && T.time - r.f5.pre.t < 0.1) };
       r.f5.csW = csW && k === 'cs'; T.catchN[k] = (T.catchN[k] || 0) + 1; if (P.rec) P.rec.ck = k;
       if (!CATCH[k].rdy) r.f5.dec = Math.max(r.f5.dec, T.time + 0.2);
-      if (r.ctrl === 'cpu' && (P.er || 0) > 0.25) r.f5.dec = Math.max(r.f5.dec, T.time + 0.2 + TV.t5_pass_ckD * clamp(((P.er || 0) - 0.25) / 0.5, 0, 1)); }   // V4.2 偏球：接球人要停顿、调整
+      if (r.ctrl === 'cpu' && catchEr > 0.25) r.f5.dec = Math.max(r.f5.dec, T.time + 0.2 + TV.t5_pass_ckD * clamp((catchEr - 0.25) / 0.5, 0, 1)); }   // V4.2 偏球：接球人要停顿、调整
     if (r.rk) r.rk.st.catch++;
     if (P.kind === 'alley' && dHoop(r) < 4.2) r.f5.alley = T.time;
     // V3.9c 空切接球：接着往篮下冲 0.7 秒，不马上回传
