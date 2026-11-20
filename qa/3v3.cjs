@@ -81,6 +81,32 @@ function fixture(options = {}) {
   assert(feet().y < hintY, 'keep the controlled player clear while the camera follows the shot');
   console.log('PASS: closer 3V3 camera pans and frames the rim, sideline handler and airborne ball.');
   console.log('PASS: 3V3 player, name tag and stamina bar clear the control hints without losing the rim or wing zoom.');
+
+  const guest = G.players[2];
+  p.ring = false;
+  guest.ring = true;
+  Object.assign(p, { x: 7.4, y: 5 });
+  Object.assign(guest, { x: 6.8, y: 5, z: 0 });
+  G.ball = { ...G.ball, state: 'held', holder: p.id, x: p.x, y: p.y, z: 1.3 };
+  const ball = () => R.proj(G.ball.x, G.ball.y, G.ball.z);
+  const guestFeet = () => R.proj(guest.x, guest.y, 0);
+  const guestHead = () => R.proj(guest.x, guest.y, guest.z + guest.h);
+  R.render(G, 3);
+  const close = ball().s;
+  guest.ring = false;
+  R.render(G, 0);
+  assert.equal(ball().s, close, 'a nearby local player needs no extra zoom out');
+  guest.ring = true;
+  guest.x = -7.4;
+  R.render(G, 0);
+  assert(ball().s < close, 'widen when the local slot is across the court from the receiver');
+  assert([guestFeet(), guestHead(), ball(), rim()].every(visible), 'frame the off-ball guest, receiver and rim even without a control hint');
+  const minX = Math.min(guestFeet().x, guestHead().x, ball().x), maxX = Math.max(guestFeet().x, guestHead().x, ball().x);
+  assert(maxX - minX > R.W - 95, 'use the available width instead of zooming farther out');
+  G.ball = { ...G.ball, state: 'pass', holder: -1, z: 2 };
+  R.render(G, 1 / 60, hintY);
+  assert([guestFeet(), guestHead(), ball(), rim()].every(visible) && guestFeet().y < hintY, 'keep the off-ball guest framed when following the pass');
+  console.log('PASS: off-ball local slot 2, ball, and rim stay framed across the court; zoom remains close when the local player is near the ball.');
 }
 
 {

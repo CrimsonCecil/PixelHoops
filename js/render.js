@@ -1682,16 +1682,20 @@
     const rim = proj(HOOP.x, HOOP.y, HOOP.z), board = proj(0, BOARD_Y, 3.95);
     const q = proj(b.x, b.y, b.z);
     const feet = p ? proj(p.x, p.y, 0) : q, head = p ? proj(p.x, p.y, p.z + p.h) : q;
-    const left = Math.min(rim.x, board.x, q.x, feet.x, head.x), right = Math.max(rim.x, board.x, q.x, feet.x, head.x);
-    const top = Math.min(board.y, q.y, head.y), bottom = Math.max(rim.y, q.y, feet.y);
+    const local = G.players.find((pl) => pl.ring && !pl.off);
+    const localFeet = local && local !== p ? proj(local.x, local.y, 0) : feet;
+    const localHead = local && local !== p ? proj(local.x, local.y, local.z + local.h) : head;
+    const left = Math.min(rim.x, board.x, q.x, feet.x, head.x, localFeet.x, localHead.x);
+    const right = Math.max(rim.x, board.x, q.x, feet.x, head.x, localFeet.x, localHead.x);
+    const top = Math.min(board.y, rim.y, q.y, head.y, localHead.y);
+    const bottom = Math.max(rim.y, q.y, feet.y, localFeet.y);
     const zx = right - left, zy = bottom - top;
     let zoom = Math.min(1, zx ? (W - 84) / zx : 1, zy ? (H - 54) / zy : 1);
     const center = H / 2 + cam.oy;
     const scaledY = (y) => center + (y - center) * zoom;
-    const local = hintY != null && G.players.find((pl) => pl.ring && !pl.off);
     let clearTop, nameAnchor, footLimit, nameLimit;
     if (hintY != null) {
-      clearTop = Math.min(rim.y, q.y, head.y, local ? proj(local.x, local.y, local.z + local.h).y : H);
+      clearTop = Math.min(rim.y, q.y, head.y, localHead.y);
       footLimit = hintY - 4;
       if (local) {
         nameAnchor = nameFoot(local, true).y;
