@@ -410,8 +410,8 @@ button.pick .pk-c { grid-row: 1 / 3; grid-column: 3; font-size: var(--fs-xs); co
 #help-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding-right: calc(var(--u) * 2); }
 #help .actions { flex: 0 0 auto; margin-top: calc(var(--u) * 3); }
 #notice { top: calc(var(--u) * 48); }
-.bcol { bottom: auto; top: 40%; }
-#stage.touch .bcol { top: 34%; }
+.bcol { bottom: auto; --bcol-top: 40%; top: max(var(--bcol-top), calc(var(--pcard-bottom, 0px) + var(--u) * 2)); }
+#stage.touch .bcol { --bcol-top: 34%; }
 #shotcard { top: auto; bottom: calc(var(--u) * 16); }
 /* V2.3 等级配色与属性数值同一色阶：S 绿（发光）/ A 黄绿 / B 金 / C 铜 / D 灰红 */
 :root { --tS: #5dff8a; --tA: #c6f060; --tB: #ffd24a; --tC: #c98a5a; --tD: #a8707a; }
