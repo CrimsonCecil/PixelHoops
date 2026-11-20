@@ -30,7 +30,42 @@ function fixture(options = {}) {
   game.seed(7);
   const slots = ['curry', 'edwards', 'jokic', 'lebron', 'durant', 'giannis'].map((arch, i) => ({ arch, role: options.human === i ? 'human' : 'cpu' }));
   T3.start({ slots, target: 21, clock: 14, replay: false, ...options });
-  return { G: game.G, Gm: game, api: game.t5, T3, run: (count, inputs) => { for (let i = 0; i < count; i++) T3.tick(1 / 60, inputs); } };
+  return { ctx, G: game.G, Gm: game, api: game.t5, T3, run: (count, inputs) => { for (let i = 0; i < count; i++) T3.tick(1 / 60, inputs); } };
+}
+
+{
+  const { ctx, G, T3 } = fixture({ human: 0 });
+  const canvas = () => {
+    const c = new Proxy({
+      createImageData: (w, h) => ({ data: new Uint8ClampedArray(w * h * 4) }),
+      measureText: () => ({ width: 8 }),
+    }, { get: (obj, key) => obj[key] ?? (() => {}) });
+    return { getContext: () => c };
+  };
+  ctx.document = { createElement: canvas };
+  const R = ctx.PH.render, p = T3.holder();
+  R.init(canvas());
+  const visible = (q) => q.x > 12 && q.x < R.W - 12 && q.y > 12 && q.y < R.H - 12;
+  const rim = () => R.proj(R.HOOP.x, R.HOOP.y, R.HOOP.z);
+  const feet = () => R.proj(p.x, p.y, 0);
+  const move = (x, y) => {
+    Object.assign(p, { x, y, vx: 0, vy: 0 });
+    Object.assign(G.ball, { x, y, z: 1.3 });
+  };
+  move(0, 6);
+  R.render(G);
+  assert(feet().s > 30, '3V3 uses close framing at the arc');
+  const origin = R.cam.x;
+  move(7.4, 1);
+  R.render(G, 1 / 60);
+  const first = R.cam.x;
+  assert(visible(feet()) && visible(rim()), 'keep the rim and sideline handler in frame during the pan');
+  R.render(G, 1);
+  assert(origin < first && first < R.cam.x, 'the camera pans rather than jumping to the handler');
+  G.ball = { ...G.ball, state: 'shot', holder: -1, x: -4, y: 7, z: 6 };
+  R.render(G);
+  assert(visible(R.proj(G.ball.x, G.ball.y, G.ball.z)) && visible(rim()), 'follow a shot from the snapshot ball');
+  console.log('PASS: closer 3V3 camera pans and frames the rim, sideline handler and airborne ball.');
 }
 
 {

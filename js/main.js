@@ -1637,7 +1637,7 @@
     sysKeys();
     { const nr = navRoot(); PH.input.lock.on = !!nr && (nr.id === 'tune' || nr.id === 'campanel' || nr.id === 'train'); }
     if (!manual && (!paused || room.role === 'guest')) { acc += d; let n = 0; while (acc >= DT && n < 5) { tickMatch(); acc -= DT; n++; } if (n === 5) acc = 0; }
-    draw();
+    draw(d);
   }
   // 分场景音乐：每帧按当前界面 / 比赛状态选曲（audio.js 内部去重，切换时交叉淡入淡出）
   function musicPick() {
@@ -1661,11 +1661,11 @@
   // 浏览器要求用户操作后才能出声：第一次点击 / 按键时启动音乐（主菜单就有音乐）
   const musKick = () => { if (PH.audio.ensure()) { PH.audio.startMusic(); musicPick(); } };
   window.addEventListener('pointerdown', musKick, true); window.addEventListener('keydown', musKick, true);
-  function draw() {
+  function draw(dt) {
     PH.audio.setPaused((screen === 'play' || screen === 'play5') && paused);
     musicPick();
     if (screen === 'play5') { PH.render5.render(PH.T5.T, manual ? 0.05 : 1 / Math.max(30, fps)); hud5(); cutin(); return; }
-    R.render(G); hud(); cutin();
+    R.render(G, dt); hud(); cutin();
     const dbg = $('debug');
     if (debug) { dbg.classList.remove('hidden'); dbg.textContent = 'FPS ' + fps.toFixed(0) + ' · ' + G.phase + ' · 进攻 ' + G.off + ' · 球 ' + G.ball.state; } else dbg.classList.add('hidden');
   }
@@ -1688,7 +1688,7 @@
     el.querySelectorAll('.ci-band,.ci-lines').forEach((e) => { e.style.animation = 'none'; void e.offsetWidth; e.style.animation = ''; });
     if (PH.ci) PH.ci.frame(c, el, screen);
   }
-  window.advanceTime = function (ms) { manual = true; step(Math.max(1, Math.round(ms / (1000 / 60)))); draw(); };
+  window.advanceTime = function (ms) { manual = true; const n = Math.max(1, Math.round(ms / (1000 / 60))); step(n); draw(n * DT); };
   window.resumeRealtime = function () { manual = false; };
   window.render_game_to_text = function () { const o = JSON.parse(GM.toText()); o.screen = screen; if (screen === 'play5') o.t5 = PH.T5.state(); o.paused = paused; o.panelOpen = panelOpen; o.cfg = CFG; return JSON.stringify(o); };
   document.addEventListener('visibilitychange', () => {
