@@ -143,6 +143,64 @@ assert(dist(visual.shL, visual.elL) < 0.96 * 0.28 * scale * arm);
 assert(dist(visual.hipL, visual.kneeL) < 0.97 * 0.41 * scale * legs);
 console.log('PASS all 302 builds are tagged and ordered; Dunn stays lean and approved V6 builds are preserved');
 
+function headPixels(look, size, angle) {
+  const rows = new Map(), pixels = new Map();
+  let clipped = false;
+  const c = {
+    save: noop, beginPath: noop, rect: (x, y, w) => rows.set(y, [x, x + w]),
+    clip: () => { clipped = true; }, restore: () => { clipped = false; },
+    fillRect(x, y, w, h) {
+      for (let yy = y; yy < y + h; yy++) {
+        const bounds = rows.get(yy);
+        for (let xx = x; xx < x + w; xx++) {
+          if (!clipped || (bounds && xx >= bounds[0] && xx < bounds[1])) pixels.set(yy * 128 + xx, this.fillStyle);
+        }
+      }
+    }
+  };
+  render.drawHead(c, look, 48, 48, size, angle);
+  return { rows, pixels };
+}
+
+for (const key of game.ROSTER) {
+  const profile = look(key), bald = profile.style === 'bald';
+  const bare = [...profile.skin, ctx.PH.shade(profile.skin[1], 1.18)];
+  for (const size of [8, 16, 29]) {
+    for (const angle of [-0.16, 0, Math.PI / 4, Math.PI / 2, 3 * Math.PI / 4, Math.PI, Math.PI + 0.16]) {
+      const { rows, pixels } = headPixels(profile, size, angle);
+      const first = rows.keys().next().value;
+      const side = Math.cos(angle), back = Math.sin(angle) > 0.35;
+      for (const [y, [left, right]] of rows) {
+        const t = (y - first) / rows.size;
+        if (t >= (back ? 0.63 : Math.sin(angle) < -0.1 ? 0.47 : 0.54)) break;
+        for (let x = left; x < right; x++) {
+          const u = (x + 0.5 - left) / (right - left);
+          if (!back && t >= 0.08 && (side > 0 ? u > 0.24 : u < 0.76)) continue;
+          const color = pixels.get(y * 128 + x);
+          if (profile.band && [profile.band, ctx.PH.shade(profile.band, 1.16)].includes(color)) continue;
+          assert(color && bare.includes(color) === bald, `${key} (${profile.style}), size ${size}, angle ${angle}: unexpected scalp pixel at ${x},${y}`);
+        }
+      }
+      if (!bald && !back) {
+        const bareFace = { ...profile, beard: false };
+        const shaved = headPixels({ ...bareFace, style: 'bald' }, size, angle).pixels;
+        const withHair = headPixels(bareFace, size, angle).pixels;
+        for (const [y, [left, right]] of rows) {
+          if ((y - first) / rows.size < 0.39) continue;
+          for (let x = left; x < right; x++) {
+            if ((x + 0.5 >= (left + right) / 2) !== (side > 0)) continue;
+            const pixel = y * 128 + x;
+            assert.strictEqual(withHair.get(pixel), shaved.get(pixel),
+              `${key} (${profile.style}), size ${size}, angle ${angle}: hair covers the profile face at ${x},${y}`);
+          }
+        }
+      }
+    }
+  }
+}
+console.log('PASS continuous side and rear scalp coverage for all 302 players, including bald exceptions');
+console.log('PASS hair stays off the front half of the profile from eye to jaw');
+
 const gameCanvas = canvas();
 let spriteContext;
 gameCanvas.getContext().drawImage = (image) => { spriteContext = image.getContext('2d'); };
