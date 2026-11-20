@@ -640,6 +640,7 @@
         }
       }
     }
+    R.drawCombos(Gm, pr);
     // 飘字（1V1 的 G.floats）
     for (const f of Gm.floats) {
       const q = pr(f.x, f.y, f.z + f.t * 0.8); if (q.x < -20 || q.x > W + 20) continue;

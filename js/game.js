@@ -1510,6 +1510,7 @@
   function shake(v) { G.fx.shake = Math.max(G.fx.shake, v); }
   function flash(col, v) { G.fx.flash = v; G.fx.flashCol = col; }
   function fxUpdate(dt) {
+    for (const p of G.players) comboTick(p);
     const F = G.fx;
     if (G.cz) { G.cz.t += dt; if (G.cz.t > G.cz.T) G.cz = null; }
     F.shake = Math.max(0, F.shake - dt * 22); F.flash = Math.max(0, F.flash - dt); F.cheer = Math.max(0, F.cheer - dt); F.board = Math.max(0, F.board - dt); F.shatter = Math.max(0, F.shatter - dt);
@@ -2445,6 +2446,7 @@
     if (G.h5) G.h5.score(pl, pts, kind, name);
   }
   function pickup(pl) {
+    for (const p of G.players) comboEnd(p);
     const b = G.ball;
     if (b.wasShot && b.z > pl.z + pl.h * 0.85) pl.catchAt = G.time; // 高球：双手举起接球的姿势
     b.cT = 0.1; b.cx = b.x; b.cy = b.y; b.cz = b.z;
@@ -3190,6 +3192,21 @@
     else a.rot = m > Math.PI * 1.5 ? -sd * (2 * Math.PI - m) : sd * m;
     return a.rot;
   }
+  function comboEnd(pl, at) {
+    const c = pl.dribbleCombo;
+    if (c && c.end == null) { c.end = at == null ? G.time : at; c.count = 0; }
+  }
+  function comboTick(pl) {
+    const c = pl.dribbleCombo;
+    if (!c || c.end != null) return;
+    if (!pl.hasBall || G.ball.state !== 'held' || G.ball.holder !== pl.id || G.ball.dead || G.phase !== 'live' || (pl.action && ['shot', 'layup', 'dunk', 'fake'].includes(pl.action.type))) comboEnd(pl);
+    else if (G.time - c.last > 1.5) comboEnd(pl, c.last + 1.5);
+  }
+  function comboMove(pl, name) {
+    comboTick(pl);
+    const old = pl.dribbleCombo, count = old && old.end == null ? old.count + 1 : 1;
+    pl.dribbleCombo = { count: count, shown: count, last: G.time, name: name, end: null };
+  }
   function startMove(pl, inp, force) {
     const df = OP(pl), q = inDir(pl, inp, true), h = q.h, hx = h.x, hy = h.y, h0 = pl.hand || 1;
     const dd = Math.hypot(df.x - pl.x, df.y - pl.y), front = df.off ? -1 : ((df.x - pl.x) * hx + (df.y - pl.y) * hy) / (dd || 1);
@@ -3252,6 +3269,7 @@
     pl.lastMove = kind; pl.lastMv = mvx || kind; pl.lastMoveT = G.time; pl.post = false;
     if (kind === 'hesi') blendHeldBall();
     if (force === 'inout') { pl.action.hesiDrive = true; pl.action.name = '同侧突破'; }
+    comboMove(pl, pl.action.name);
     sfx('squeak');
     if (kind === 'stepback' && skOf(pl, 'luka') && !df.off && dd < 2.4) pl.sk.win = G.time + M.T + 1.0;
     if (kySk) { fireSkill(pl); pl.sk.ky = G.time + M.T + 1.6; }
@@ -5239,6 +5257,7 @@
     // 碰撞
     collide(ps[0], ps[1]);
     updateBall(dt);
+    for (const p of ps) comboTick(p);
     G.net = Math.max(0, G.net - dt * 2.4); if (G.fx.rim > 0) G.fx.rim = Math.max(0, G.fx.rim - dt * 3.2);
     // 规则
     const trainOff = train && T.role === 'off';
@@ -5351,6 +5370,7 @@
       collide(a, c);
     }
     updateBall(dt);
+    for (const p of ps) comboTick(p);
     G.net = Math.max(0, G.net - dt * 2.4); if (F.rim > 0) F.rim = Math.max(0, F.rim - dt * 3.2);
     for (const f of G.floats) f.t += dt; while (G.floats.length && G.floats[0].t > 1.3) G.floats.shift();
     if (G.banner) { G.banner.t += dt; if (G.banner.t > G.banner.dur) G.banner = null; }
