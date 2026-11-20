@@ -1150,11 +1150,12 @@
     tapered: { w: 1, h: 1.14, r: 0.33, rb: 0.34, chin: 0.13 },
     youthful: { w: 1.03, h: 1.07, r: 0.34, rb: 0.42, chin: 0.04, soft: true } };
   const headHeight = (face, size) => Math.max(5, Math.round(size * (FACES[face] || FACES.square).h));
+  const HAIRLINE = { buzz: 0.14, receding: 0.14, crop: 0.23, fade: 0.23, curlfade: 0.22, braids: 0.24, wispy: 0.2 };
   function drawHead(c, C, x, y, size, facing) {
     const fs = FACES[C.face] || FACES.square;
     const w = Math.max(5, Math.round(size * fs.w)), h = headHeight(C.face, size);
     const left = Math.round(x - w / 2), top = Math.round(y - h / 2);
-    const away = Math.sin(facing) > 0.35, side = Math.cos(facing), profile = Math.abs(side) > 0.45;
+    const back = Math.sin(facing), away = back > 0.35, side = Math.cos(facing), profile = Math.abs(side) > 0.45;
     const px = (x, y, w, h, col) => {
       c.fillStyle = col; c.fillRect(left + Math.round(x), top + Math.round(y), Math.max(1, Math.round(w)), Math.max(1, Math.round(h)));
     };
@@ -1202,23 +1203,26 @@
     px(0, 0, w, h, dark); px(0, 0, w - Math.max(1, w * 0.13), h - 1, skin);
     if (st === 'bald') px(w * 0.25, h * 0.12, w * 0.26, 1, shade(skin, 1.18));
     else {
-      const hairline = { buzz: 0.14, receding: 0.14, crop: 0.23, fade: 0.23, curlfade: 0.22, braids: 0.24, wispy: 0.2 };
-      const depth = away ? 0.74 : hairline[st] || 0.3;
-      const col = st === 'buzz' || st === 'receding' ? shade(skin, 0.72) : hr;
-      px(0, 0, w, h * depth, col);
+      const hairline = HAIRLINE[st] || 0.3;
+      const faded = st === 'fade' || st === 'crop' || st === 'curlfade';
+      const close = st === 'buzz' || st === 'receding';
+      const nape = st === 'locks' || st === 'long' || st === 'braids' ? 0.82 : 0.74;
+      const hairColor = close ? shade(skin, 0.55) : hr, fadeColor = faded ? shade(hr, 1.65) : hairColor;
+      const braidStart = Math.max(1, Math.round(w / 6)), braidStep = Math.max(2, Math.round(w / 4));
+      const rear = Math.max(0, back * 2.25);
+      for (let i = 0; i < w; i++) {
+        const towardNape = Math.min(1, Math.max(rear, (1 + back) / 2 + side * (0.5 - (i + 0.5) / w)));
+        const depth = Math.round(h * lerpN(hairline, nape, towardNape));
+        const braid = st === 'braids' && i >= braidStart && i < w - 1 && (i - braidStart) % braidStep === 0;
+        const fadeStart = faded && towardNape > 0.2 ? Math.max(1, depth - Math.max(1, Math.round(h * 0.16))) : depth;
+        px(i, 0, 1, fadeStart, braid ? bh : hairColor);
+        if (fadeStart < depth) px(i, fadeStart, 1, depth - fadeStart, fadeColor);
+      }
       if (!away && st === 'receding') px(w * 0.33, h * 0.08, w * 0.34, h * 0.12, hr);
       if (!away && st === 'swept') {
         px(w * 0.04, h * 0.19, w * 0.55, h * 0.12, hr);
         px(w * 0.16, h * 0.07, w * 0.48, 1, bh);
       }
-      if (st === 'fade' || st === 'crop' || st === 'curlfade') {
-        px(0, h * 0.17, w * 0.13, h * 0.25, shade(skin, 0.7));
-        px(w * 0.87, h * 0.17, w * 0.13, h * 0.25, shade(skin, 0.7));
-      }
-      if (st === 'braids') {
-        for (let i = Math.max(1, Math.round(w / 6)); i < w - 1; i += Math.max(2, Math.round(w / 4))) px(i, 0, 1, h * depth, bh);
-      }
-      if (!away && profile && st !== 'buzz' && st !== 'receding') px(side > 0 ? 0 : w * 0.78, h * 0.25, w * 0.22, h * 0.29, hr);
     }
     if (C.band) {
       px(0, h * 0.22, w, h * 0.1, C.band);
