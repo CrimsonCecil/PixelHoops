@@ -1344,7 +1344,12 @@
     const facing = pl.face + (pl.pose.yaw || 0), away = Math.sin(facing);
     const numberTorso = C.jerseyNo != null && Math.abs(away) > 0.55
       ? segs.find(g => g.a === (J.mid || J.pelvis) && g.b === J.chest) : null;
-    const lastJersey = numberTorso && segs.findLast(g => g.c === C.jersey);
+    let lastJersey;
+    if (numberTorso) {
+      for (let i = segs.length - 1; i >= 0; i--) {
+        if (segs[i].c === C.jersey) { lastJersey = segs[i]; break; }
+      }
+    }
     for (const g of segs) {
       if (g.head) {
         drawHead(sctx, C, J.head.x, J.head.y, headSize, facing);

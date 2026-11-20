@@ -5,6 +5,7 @@ const vm = require('node:vm');
 
 const ctx = vm.createContext({ console, performance: { now: () => 0 } });
 ctx.window = ctx;
+vm.runInContext('delete Array.prototype.findLast', ctx);
 const noop = () => {};
 let numberPixels;
 const canvas = () => {
