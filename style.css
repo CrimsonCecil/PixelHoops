@@ -395,6 +395,8 @@ button.pick .pk-c { grid-row: 1 / 3; grid-column: 3; font-size: var(--fs-xs); co
 .pcard .pch u.ro { background: var(--gold); }
 .pcard .pch u.rd { background: #5ee0ff; }
 .pcard.p1 .pch { flex-direction: row-reverse; }
+.pcard .pc-id { display: inline-flex; align-items: baseline; gap: calc(var(--u) * 1.5); }
+.pcard.p1 .pc-id { flex-direction: row-reverse; }
 .pcard .pctk { display: flex; align-items: center; gap: 0.4em; margin-top: calc(var(--u) * 1); color: var(--muted); }
 .pcard.p1 .pctk { flex-direction: row-reverse; }
 .pcard .pctk s { flex: 1; height: calc(var(--u) * 2); min-height: 4px; background: rgba(255,255,255,0.12); text-decoration: none; position: relative; }
