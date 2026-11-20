@@ -1210,8 +1210,13 @@
       const hairColor = close ? shade(skin, 0.55) : hr, fadeColor = faded ? shade(hr, 1.65) : hairColor;
       const braidStart = Math.max(1, Math.round(w / 6)), braidStep = Math.max(2, Math.round(w / 4));
       const rear = Math.max(0, back * 2.25);
+      const profileMix = clampR(Math.min((back + 0.75) / 0.45, (0.45 - back) / 0.1), 0, 1);
       for (let i = 0; i < w; i++) {
-        const towardNape = Math.min(1, Math.max(rear, (1 + back) / 2 + side * (0.5 - (i + 0.5) / w)));
+        const u = (i + 0.5) / w;
+        const distanceFromNape = side > 0 ? u : 1 - u;
+        const temple = clampR((0.43 - distanceFromNape) / 0.18, 0, 1);
+        const crownDepth = Math.min(1, Math.max(rear, (1 + back) / 2 + side * (0.5 - u)));
+        const towardNape = lerpN(crownDepth, temple, profileMix);
         const depth = Math.round(h * lerpN(hairline, nape, towardNape));
         const braid = st === 'braids' && i >= braidStart && i < w - 1 && (i - braidStart) % braidStep === 0;
         const fadeStart = faded && towardNape > 0.2 ? Math.max(1, depth - Math.max(1, Math.round(h * 0.16))) : depth;

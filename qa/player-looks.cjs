@@ -181,10 +181,25 @@ for (const key of game.ROSTER) {
           assert(color && bare.includes(color) === bald, `${key} (${profile.style}), size ${size}, angle ${angle}: unexpected scalp pixel at ${x},${y}`);
         }
       }
+      if (!bald && !back) {
+        const bareFace = { ...profile, beard: false };
+        const shaved = headPixels({ ...bareFace, style: 'bald' }, size, angle).pixels;
+        const withHair = headPixels(bareFace, size, angle).pixels;
+        for (const [y, [left, right]] of rows) {
+          if ((y - first) / rows.size < 0.39) continue;
+          for (let x = left; x < right; x++) {
+            if ((x + 0.5 >= (left + right) / 2) !== (side > 0)) continue;
+            const pixel = y * 128 + x;
+            assert.strictEqual(withHair.get(pixel), shaved.get(pixel),
+              `${key} (${profile.style}), size ${size}, angle ${angle}: hair covers the profile face at ${x},${y}`);
+          }
+        }
+      }
     }
   }
 }
 console.log('PASS continuous side and rear scalp coverage for all 302 players, including bald exceptions');
+console.log('PASS hair stays off the front half of the profile from eye to jaw');
 
 const gameCanvas = canvas();
 let spriteContext;
