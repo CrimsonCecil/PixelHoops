@@ -58,7 +58,9 @@ function sample(pac, seed, moving = true, tune = {}) {
     const dt = Math.min(1 / 240, P.T - P.t);
     const arrives = !P.lin && P.t + dt >= P.T;
     r.y += r.vy * dt;
+    const releasing = P.t < 0 && P.t + dt >= 0;
     t5.qaPassUpdate(dt);
+    if (releasing) P.int = interception;
     if (!P.lin && P.t / P.T < interception.u) assert.equal(interception.done, false);
     if (arrives) {
       const H = t5.qaHand(r, { x: p.x, y: p.y });
@@ -95,6 +97,29 @@ const high = avg(90), low = avg(50);
   assert(Math.hypot(T.ps.ex - H[0], T.ps.ey - H[1]) < 0.35);
 }
 console.log('Corner receiver: stationary foot target preserved outside arc; ball endpoint tracks hands passed.');
+for (const enters of [true, false]) {
+  const { t5, G } = fixture(false, 0), T = t5.T, p = T.ctl, r = T.tm[0].on.find(q => q !== p), d = T.tm[1].on[0];
+  Object.assign(T, { phase: 'live' }); Object.assign(G, { phase: 'live', off: 0 });
+  for (const q of G.players) Object.assign(q, { hasBall: false, x: -7, y: -12 });
+  Object.assign(p, { x: -3, y: 0, face: 0, hasBall: true, action: null });
+  Object.assign(r, { x: 3, y: 0, vx: 0, vy: 0, speed: 0, pose: null });
+  if (!enters) Object.assign(d, { x: 0, y: 0, stun: 0 });
+  Object.assign(G.ball, { state: 'held', holder: p.id, x: p.x, y: p.y, z: 1.2, dead: false });
+  assert(t5.doPass(p, r, 'chest'));
+  const P = T.ps;
+  assert.equal(P.int, null);
+  t5.qaPassUpdate(P.windup / 2);
+  Object.assign(d, enters ? { x: 0, y: 0, stun: 0 } : { x: -7, y: -12 });
+  t5.qaPassUpdate(P.windup / 2);
+  if (enters) {
+    assert.equal(P.int.d, d);
+    assert(P.int.u > 0 && P.int.u < 1);
+    P.int.ch = 1;
+    t5.qaPassUpdate(P.T * P.int.u);
+    assert.equal(P.rec.res, 'int');
+  } else assert.equal(P.int, null);
+}
+console.log('Release interception: defender entering lane can intercept; defender leaving lane is excluded passed.');
 assert(high.windup < low.windup * 0.5);
 assert(high.speed > low.speed * 1.2);
 assert(high.miss < low.miss * 0.5);
