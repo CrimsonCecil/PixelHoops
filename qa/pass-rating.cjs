@@ -9,6 +9,10 @@ function fixture(baseline = false, human = -1, seed = 7) {
   ctx.window = ctx;
   ctx.addEventListener = () => {};
   ctx.navigator = { getGamepads: () => [] };
+  vm.runInContext(`Math.random = (() => {
+    let state = ${seed >>> 0};
+    return () => { state = (Math.imul(state, 1664525) + 1013904223) >>> 0; return state / 4294967296; };
+  })();`, ctx);
   for (const name of ['tune', 'render', 'input', 'roster', 'r5', 'game', 'b5', 'team5']) {
     let code = baseline && name === 'team5'
       ? cp.execFileSync('git', ['show', '3bb7f5f95408c797f8aae8018ac3210f7cb664e9:js/team5.js'], { cwd: path.join(__dirname, '..'), encoding: 'utf8' })
@@ -25,7 +29,7 @@ function fixture(baseline = false, human = -1, seed = 7) {
 }
 
 function sample(pac, seed, moving = true, tune = {}) {
-  const { t5, G, game } = fixture(false, 0), T = t5.T;
+  const { t5, G, game } = fixture(false, 0, seed), T = t5.T;
   game.seed(seed);
   Object.assign(t5.TV, tune);
   const p = T.ctl, r = T.tm[0].on.find(q => q !== p), b = G.ball;
@@ -64,7 +68,7 @@ function sample(pac, seed, moving = true, tune = {}) {
   }
   assert.equal(interception.done, true);
   assert(Number.isFinite(miss));
-  return { windup, speed, miss, er: P.er };
+  return { windup, speed, miss, er: P.er + P.leadEr, physicalEr: P.er, leadEr: P.leadEr };
 }
 
 const avg = pac => {
@@ -77,7 +81,9 @@ assert(high.speed > low.speed * 1.2);
 assert(high.miss < low.miss * 0.5);
 assert(high.er < low.er);
 sample(90, 5, false); sample(50, 5, false);
-assert.equal(sample(50, 5, true, { t5_pass_er: 0, t5_pass_leadLow: 0, t5_pass_leadRnd: 0 }).er, 0.8);
+const capped = sample(50, 5, true, { t5_pass_er: 0, t5_pass_leadLow: 0, t5_pass_leadRnd: 0 });
+assert.equal(capped.leadEr, 0.8);
+assert.equal(capped.physicalEr, 0);
 assert.equal(sample(50, 5, true, { t5_pass_er: 0, t5_pass_leadCap: 0 }).er, 0);
 for (const [label, row] of [['pac90', high], ['pac50', low]]) console.log(`${label}: windup=${row.windup.toFixed(3)}s speed=${row.speed.toFixed(3)}m/s meanMiss=${row.miss.toFixed(3)}m qualityError=${row.er.toFixed(3)}m`);
 const seeds = [7, 19, 43];
@@ -96,6 +102,7 @@ function summarize(label, log) {
   const rates = Object.entries(counts).map(([k, n]) => `${k}=${n} (${(100 * n / log.length).toFixed(2)}%)`).join(' ');
   const windup = log.reduce((s, r) => s + r.qaWindup, 0) / log.length;
   console.log(`${label}: passes=${log.length} ${rates} meanWindup=${windup.toFixed(4)}s`);
+  return { ...counts, total: log.length };
 }
 console.log('300s VM 5V5 per seed; reach = successful catch with reach pose; ok excludes reach; all rates per attempted pass, windup includes zero-windup passes.');
 for (const baseline of [true, false]) {
@@ -109,6 +116,7 @@ for (const baseline of [true, false]) {
     summarize(`${label} seed=${seed}`, t5.T.passLog);
     all.push(...t5.T.passLog);
   }
-  summarize(`${label} aggregate`, all);
+  const counts = summarize(`${label} aggregate`, all);
+  if (!baseline) assert((counts.fumble + counts.miss) / counts.total <= 0.025, 'Catch turnover rate must stay within 2.5%');
 }
 console.log('Pass rating: high/low separation, lead cap, moving/stationary catches, invalid target, windup hands, controller switch and 3-seed 300s simulations passed.');

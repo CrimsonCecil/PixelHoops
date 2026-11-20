@@ -766,8 +766,8 @@
     if (kind === 'alley' || kind === 'lob') { const hl = dHoop(m); if (hl < 5.5) { tx = lerp(tx, 0, 0.35); ty = lerp(ty, HY - 0.6, 0.35); } }
     tx = clamp(tx, -7.4, 7.4); ty = clamp(ty, -13.8, 13.8);
     b.state = 'pass'; b.holder = -1; p.hasBall = false; b.lastTouch = p.id; b.wasShot = false; b.shot = null; b.trail = null;
-    const catchEr = er + Math.min(TV.t5_pass_leadCap, hyp(m.vx || 0, m.vy || 0) * (Tt + windup) * Math.abs(1 - lead));
-    T.ps = { from: p, to: m, kind: kind, x0: b.x, y0: b.y, z0: Math.max(0.6, b.z), tx: tx, ty: ty, t: -windup, windup: windup, lead: lead, T: Tt, int: null, bnc: false, inb: T.phase === 'inb', er: catchEr, v: d0 / Tt, ua: ua, kf: kf,
+    const leadEr = Math.min(TV.t5_pass_leadCap, hyp(m.vx || 0, m.vy || 0) * (Tt + windup) * Math.abs(1 - lead));
+    T.ps = { from: p, to: m, kind: kind, x0: b.x, y0: b.y, z0: Math.max(0.6, b.z), tx: tx, ty: ty, t: -windup, windup: windup, lead: lead, T: Tt, int: null, bnc: false, inb: T.phase === 'inb', er: er, leadEr: leadEr, v: d0 / Tt, ua: ua, kf: kf,
       ap: kind === 'chest' || kind === 'skip' ? K.ap * Math.max(0.05, 1 - TV.t5_pass_arc * ua) : K.ap, feet: er > 0.3 && kind !== 'lob' && kind !== 'alley' && rnd() < TV.t5_pass_feet };   // V4.2 能力高的球更直、能力低的更飘
     // 预判拦截：路线上最先碰到球的防守人
     // V3.9h 2K 手感：开阔线路的短传几乎不丢；被断主要来自线路上有人且抢断/传球预判高、传得远、盲传（背身/侧身传）、传球属性低
@@ -1022,7 +1022,7 @@
     (T.dblLog || (T.dblLog = [])).push({ m: L.made ? 1 : 0, p3: L.pts === 3 ? 1 : 0, c: +L.contest.toFixed(2) }); T.cnt.dblC = (T.cnt.dblC || 0) + 1;
   }
   function catchBall(r, P) {
-    const b = G.ball;
+    const b = G.ball, catchEr = (P.er || 0) + (P.leadEr || 0);
     if (b.z > r.z + r.h * 0.85) r.catchAt = G.time;
     b.cT = 0.1; b.cx = b.x; b.cy = b.y; b.cz = b.z;
     b.state = 'held'; b.holder = r.id; r.hasBall = true; b.shot = null; b.under = false; b.trail = null; b.lastTouch = r.id; r.drib = 0; r.catchT = T.time; r.gotT = G.time;
@@ -1035,16 +1035,16 @@
     let od = 9; for (const d of defs()) od = Math.min(od, dist(d, r));
     if (P.rec) P.rec.open = +od.toFixed(2);
     // V4.2 传球质量（0~1）：落点准、球快 → 高；偏球 / 失手的高难度传球 → 低。接球投篮按它加减成（csTick）
-    r.f5.pq = clamp((1 - (P.er || 0) / 0.6) * (1 + 0.4 * (P.ua || 0)), 0, 1) * (P.kf ? 0.3 : 1); r.f5.pqT = T.time; if (P.rec) P.rec.q = +r.f5.pq.toFixed(2);
+    r.f5.pq = clamp((1 - catchEr / 0.6) * (1 + 0.4 * (P.ua || 0)), 0, 1) * (P.kf ? 0.3 : 1); r.f5.pqT = T.time; if (P.rec) P.rec.q = +r.f5.pq.toFixed(2);
     r.f5.cOd = od;   // V3.9r 接球时最近防守人（空位接球不否决）
     // V3.9j 接球动作按情境区分（数据驱动，见 CATCH）：接球即投 / 高球 / 击地 / 背身 / 够偏球 / 贴身护球 / 移动中 / 原地
     { const hx = -r.x, hy = HY - r.y, hl = hyp(hx, hy) || 1, fh = (Math.cos(r.face) * hx + Math.sin(r.face) * hy) / hl;
-      const csW = r.ctrl === 'cpu' ? ((P.er || 0) <= TV.t5_pass_csEr || left5() <= TV.t5_clk_force) && cpuCS(r, od) : !!((r.cq && r.cq.k === 'shot') || (r.ib && r.ib.k === 'a1' && r.ib.wc));
-      const k = csW && od > 1.0 ? 'cs' : P.kind === 'lob' || P.kind === 'alley' || b.z > r.h * 0.95 ? 'high' : P.kind === 'bounce' ? 'low' : P.feet && P.er > 0.3 ? 'low' : r.reachC > T.time - 0.3 || P.er > 0.38 ? 'reach' : (P.rsp || 0) > 1.3 && od >= 0.8 ? 'move' : od < 1.0 ? 'protect' : fh < -0.3 && dHoop(r) < 5.5 ? 'post' : 'stand';
+      const csW = r.ctrl === 'cpu' ? (catchEr <= TV.t5_pass_csEr || left5() <= TV.t5_clk_force) && cpuCS(r, od) : !!((r.cq && r.cq.k === 'shot') || (r.ib && r.ib.k === 'a1' && r.ib.wc));
+      const k = csW && od > 1.0 ? 'cs' : P.kind === 'lob' || P.kind === 'alley' || b.z > r.h * 0.95 ? 'high' : P.kind === 'bounce' ? 'low' : P.feet && P.er > 0.3 ? 'low' : r.reachC > T.time - 0.3 || catchEr > 0.38 ? 'reach' : (P.rsp || 0) > 1.3 && od >= 0.8 ? 'move' : od < 1.0 ? 'protect' : fh < -0.3 && dHoop(r) < 5.5 ? 'post' : 'stand';
       r.f5.ck = { k: k, t: T.time, side: (Math.cos(r.face) * (b.y - r.y) - Math.sin(r.face) * (b.x - r.x)) > 0 ? -1 : 1, rdy: CATCH[k].rdy && fh > 0.2, pre: !!(r.f5.pre && T.time - r.f5.pre.t < 0.1) };
       r.f5.csW = csW && k === 'cs'; T.catchN[k] = (T.catchN[k] || 0) + 1; if (P.rec) P.rec.ck = k;
       if (!CATCH[k].rdy) r.f5.dec = Math.max(r.f5.dec, T.time + 0.2);
-      if (r.ctrl === 'cpu' && (P.er || 0) > 0.25) r.f5.dec = Math.max(r.f5.dec, T.time + 0.2 + TV.t5_pass_ckD * clamp(((P.er || 0) - 0.25) / 0.5, 0, 1)); }   // V4.2 偏球：接球人要停顿、调整
+      if (r.ctrl === 'cpu' && catchEr > 0.25) r.f5.dec = Math.max(r.f5.dec, T.time + 0.2 + TV.t5_pass_ckD * clamp((catchEr - 0.25) / 0.5, 0, 1)); }   // V4.2 偏球：接球人要停顿、调整
     if (r.rk) r.rk.st.catch++;
     if (P.kind === 'alley' && dHoop(r) < 4.2) r.f5.alley = T.time;
     // V3.9c 空切接球：接着往篮下冲 0.7 秒，不马上回传
