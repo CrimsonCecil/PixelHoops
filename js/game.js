@@ -3962,9 +3962,8 @@
       }
     }
     if (pl.hasBall && !a) {
-      if (pl.speed > 0.5) pl.catchDribbled = true;
       const p0 = Math.sin(pl.drib); pl.drib += dt * (PH.gait ? PH.gait.drib(pl) : 6.2 + pl.speed * 0.45);
-      if (p0 * Math.sin(pl.drib) < 0) { pl.catchDribbled = true; sfx('bounce'); if (pl.z <= 0.01) pl.sqv = (pl.sqv || 0) - 3.0; }
+      if (p0 * Math.sin(pl.drib) < 0) { if (!(pl.f5 && pl.f5.ck)) pl.catchDribbled = true; sfx('bounce'); if (pl.z <= 0.01) pl.sqv = (pl.sqv || 0) - 3.0; }
     }
     pl.handX = lerp(pl.handX, pl.hand * 0.33, Math.min(1, dt * 16));
     const T = poseTarget(pl), P = pl.pose, kq = Math.min(1, dt * 22);
