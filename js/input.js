@@ -18,7 +18,7 @@
   window.addEventListener('blur', () => { for (const k in keys) keys[k] = false; });
 
   const held = (list) => { for (const c of list) if (keys[c] || latch[c]) return true; return false; };
-  const padPrev = [{}, {}];
+  let padPrev = {};
   const lock = { on: false };
 
   function pads() {
@@ -94,9 +94,12 @@
   // 每帧轮询手柄的菜单按键（上下左右 / A / B / Menu）
   const navPrev = {}, navRep = {}, REPEAT = { PadUp: 1, PadDown: 1, PadLeft: 1, PadRight: 1 };
   function pollPads() {
-    const cur = {}, now = performance.now();
+    const cur = {}, nextButtons = {}, now = performance.now();
+    let pressed = false;
     for (const gp of pads()) {
-      const B = (i) => !!(gp.buttons[i] && gp.buttons[i].pressed), ax = gp.axes[0] || 0, ay = gp.axes[1] || 0, rx = gp.axes[2] || 0;
+      const prev = padPrev[gp.index] || [], buttons = nextButtons[gp.index] = gp.buttons.map((b) => b.pressed);
+      if (buttons.some((b, i) => b && !prev[i])) pressed = true;
+      const B = (i) => buttons[i], ax = gp.axes[0] || 0, ay = gp.axes[1] || 0, rx = gp.axes[2] || 0;
       if (B(12) || ay < -0.6) cur.PadUp = true; if (B(13) || ay > 0.6) cur.PadDown = true; if (B(14) || ax < -0.6) cur.PadLeft = true; if (B(15) || ax > 0.6) cur.PadRight = true;
       if (B(0)) cur.PadA = true; if (B(1)) cur.PadB = true; if (B(9)) cur.PadStart = true; if (B(8)) cur.PadBack = true;
       if (B(2)) cur.PadX = true; if (B(3)) cur.PadY = true; if (B(4)) cur.PadLB = true; if (B(5)) cur.PadRB = true;
@@ -107,6 +110,8 @@
       else if (cur[k] && REPEAT[k] && now >= navRep[k]) { sys[k] = true; navRep[k] = now + 85; }
       navPrev[k] = !!cur[k];
     }
+    padPrev = nextButtons;
+    return pressed;
   }
   // 右摇杆（菜单里用来滚动 / 翻页）：取摇杆偏移最大的手柄，死区 0.25
   function rstick() {

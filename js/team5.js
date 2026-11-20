@@ -1223,6 +1223,7 @@
     if (p.hasBall) {
       const X = R.X && !T.reboundX;
       o.a1 = X;
+      o.shootPress = X && E.X;
       // V3.9j 接球缓冲统一进 ibuf：接球即投（a1）由 game.js 自己在拿到球那帧放出（点按 = 自动出手）；接球即传（cp）/ 接球即招式（cm）这里取
       const IB = PH.game.ibuf;
       if (IB.wc && p.ib && (p.ib.k === 'cp' || p.ib.k === 'cm') && T.time - (p.catchT || -9) < 0.45) {
