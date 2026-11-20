@@ -181,8 +181,8 @@ assert(high.windup < low.windup * 0.5);
 assert(high.speed > low.speed * 1.2);
 assert(high.miss < low.miss * 0.5);
 assert(high.er < low.er);
-let maxWindupStep = 0;
-for (const pac of [50, 90]) for (const z of [0.25, 1.2]) {
+let maxWindupStep = 0, maxReleaseGap = 0;
+for (const pac of [50, 90]) for (const z of [0.25, 1.2]) for (const duration of [null, 0.015]) {
   const { t5, G } = fixture(false, 0), p = t5.T.ctl, r = t5.T.tm[0].on.find(q => q !== p), b = G.ball;
   Object.assign(t5.T, { phase: 'live' });
   Object.assign(G, { phase: 'live', off: 0 });
@@ -191,24 +191,29 @@ for (const pac of [50, 90]) for (const z of [0.25, 1.2]) {
   Object.assign(b, { state: 'held', holder: p.id, x: p.x + 0.4, y: p.y - 0.2, z, dead: false });
   assert(t5.doPass(p, r, 'chest'));
   const P = t5.T.ps, startPose = { ...p.pose };
+  if (duration != null) { P.windup = duration; P.t = -duration; }
   P.int = null;
   while (P.t < 0) {
     const before = [b.x, b.y, b.z];
     t5.qaPassUpdate(1 / 60);
     const step = Math.hypot(b.x - before[0], b.y - before[1], b.z - before[2]);
     maxWindupStep = Math.max(maxWindupStep, step);
-    assert(step <= 0.1 + 1e-9, `Windup ball step ${step} exceeds 0.1m`);
+    assert(step <= 0.12 + 1e-9, `Windup ball step ${step} exceeds 0.12m`);
     assert.deepEqual([P.x0, P.y0, P.z0], [b.x, b.y, b.z]);
-    if (P.t < -P.windup + 1 / 60 + 1e-9) {
+    if (P.t < 0 && P.t < -P.windup + 1 / 60 + 1e-9) {
       assert(Math.abs(p.pose.aLp - startPose.aLp) < Math.abs(1.3 - startPose.aLp));
     }
   }
   const release = [b.x, b.y, b.z];
+  const hands = t5.qaHand(p, b), gap = Math.hypot(...hands.map((v, i) => v - release[i]));
+  maxReleaseGap = Math.max(maxReleaseGap, gap);
+  assert(gap <= 0.08, `Release hand gap ${gap} exceeds 0.08m`);
   t5.qaPassUpdate(1 / 600);
+  assert.equal(p.pose.passHands, undefined);
   assert.deepEqual([P.x0, P.y0, P.z0], release);
   assert(Math.hypot(b.x - release[0], b.y - release[1], b.z - release[2]) < 0.1);
 }
-console.log(`Windup 60Hz: maxBallStep=${maxWindupStep.toFixed(4)}m (limit 0.1000m); pose blend and release origin passed.`);
+console.log(`Windup 60Hz: maxBallStep=${maxWindupStep.toFixed(4)}m (limit 0.1200m) maxReleaseGap=${maxReleaseGap.toFixed(4)}m (limit 0.0800m); short-windup hand convergence, pose blend and release origin passed.`);
 sample(90, 5, false); sample(50, 5, false);
 const capped = sample(50, 5, true, { t5_pass_er: 0, t5_pass_leadLow: 0, t5_pass_leadRnd: 0 });
 assert.equal(capped.leadEr, 0.8);

@@ -825,14 +825,16 @@
         const pose = { aLp: 0.9 + 0.4 * w, aRp: 0.9 + 0.4 * w, aLe: 1.3 - 0.7 * w, aRe: 1.3 - 0.7 * w }, blend = w * w * (3 - 2 * w);
         for (const k in pose) p.pose[k] = lerp((P.pose0 && P.pose0[k]) || 0, pose[k], blend);
       }
-      const H = handPt(p, b);
-      const dx = H[0] - b.x, dy = H[1] - b.y, dz = H[2] - b.z, d = Math.hypot(dx, dy, dz), move = Math.min(1, 6 * Math.min(dt, -prevT) / (d || 1));
+      const H = handPt(p, b, false), rem = -prevT, step = Math.min(dt, rem);
+      const dx = H[0] - b.x, dy = H[1] - b.y, dz = H[2] - b.z, d = Math.hypot(dx, dy, dz), move = Math.min(step / rem, 7.2 * step / (d || 1));
       b.x += dx * move; b.y += dy * move; b.z += dz * move;
+      if (p.pose) p.pose.passHands = H.map((v, i) => lerp(v, [b.x, b.y, b.z][i], w));
       P.x0 = b.x; P.y0 = b.y; P.z0 = b.z; b.vx = b.vy = b.vz = 0;
       P.t = Math.min(P.t, 0);
       if (P.t === 0) releasePass(P);
       return;
     }
+    if (P.from.pose) delete P.from.pose.passHands;
     if (r && dt > 0) { if (P.rpx != null) P.rsp = lerp(P.rsp || 0, hyp(r.x - P.rpx, r.y - P.rpy) / dt, 0.35); P.rpx = r.x; P.rpy = r.y; }   // V3.9j 接球人移动速度（判“移动中接球”）
     // 球追着接球人走一点（不是瞬移）
     // 球追着接球人走一点（不是瞬移）——P.tx / P.ty 是接球人要去的落点（身体）
@@ -916,8 +918,8 @@
     return rnd() < pc;
   }
   // V3.9m 接球人的手：双手中点（骨架 rig；没有 pose 时用身体前方 0.35 米、胸口高度估算）
-  function handPt(r, b) {
-    if (r.pose && PH.rig) { const k = PH.rig(r); return [(k.handL[0] + k.handR[0]) / 2, (k.handL[1] + k.handR[1]) / 2, (k.handL[2] + k.handR[2]) / 2]; }
+  function handPt(r, b, grip = true) {
+    if (r.pose && PH.rig) { const k = PH.rig(r, r.pose, grip); return [(k.handL[0] + k.handR[0]) / 2, (k.handL[1] + k.handR[1]) / 2, (k.handL[2] + k.handR[2]) / 2]; }
     const dx = b.x - r.x, dy = b.y - r.y, l = hyp(dx, dy) || 1; return [r.x + dx / l * 0.35, r.y + dy / l * 0.35, r.z + r.h * 0.6];
   }
   // V3.9m 接球前 0.25 秒：接球人转向来球、双手伸出去迎（高球举手 / 低球放低 / 偏到一侧单手够）
