@@ -1128,10 +1128,8 @@
       fgL: tw(fing(AL, P.flL || 0)), fgR: tw(fing(AR, P.flR || 0)),
     };
     if (grip && P === pl.pose && pl.grip) finishGrip(k, pl);
-    const pass = PH.T5 && PH.T5.T.ps;
-    if (grip && P === pl.pose && P.passHands && pass && pass.from === pl && pass.t <= 0 && PH.game.G.ball.state === 'pass') {
-      const offset = P.passHands.map((v, i) => v - (k.handL[i] + k.handR[i]) / 2);
-      for (const side of ['L', 'R']) gripArm(k, side, k['hand' + side].map((v, i) => v + offset[i]), false);
+    if (grip && P === pl.pose && P.passHands) {
+      for (const side of ['L', 'R']) gripArm(k, side, P.passHands[side], false);
     }
     return k;
   }

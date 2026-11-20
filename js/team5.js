@@ -790,7 +790,11 @@
     const leadEr = Math.min(TV.t5_pass_leadCap, hyp(m.vx || 0, m.vy || 0) * (Tt + windup) * Math.abs(1 - lead));
     T.ps = { from: p, to: m, kind: kind, x0: b.x, y0: b.y, z0: Math.max(0.6, b.z), tx: tx, ty: ty, t: -windup, windup: windup, lead: lead, T: Tt, int: null, bnc: false, inb: T.phase === 'inb', er: er, leadEr: leadEr, v: d0 / Tt, ua: ua, kf: kf,
       ap: kind === 'chest' || kind === 'skip' ? K.ap * Math.max(0.05, 1 - TV.t5_pass_arc * ua) : K.ap, feet: er > 0.3 && kind !== 'lob' && kind !== 'alley' && rnd() < TV.t5_pass_feet };   // V4.2 能力高的球更直、能力低的更飘
-    if (windup > 0 && p.pose) T.ps.pose0 = Object.assign({}, p.pose);
+    if (windup > 0 && p.pose) {
+      T.ps.pose0 = Object.assign({}, p.pose); T.ps.face0 = p.face;
+      const H = PH.rig(p), axis = H.handR.map((v, i) => v - H.handL[i]), span = Math.hypot(...axis) || 1;
+      T.ps.handAxis = axis.map(v => v / span * 0.108);
+    }
     T.ps.playPass = !!T.plPassing;
     const blind = ((m.x - p.x) * Math.cos(p.face) + (m.y - p.y) * Math.sin(p.face)) / (d0 || 1) < -0.2;
     T.ps.blind = blind;
@@ -813,28 +817,47 @@
     return true;
   }
   function passUpdate(dt) {
+    if (dt <= 0) return;
     const b = G.ball, P = T.ps;
+    for (const p of ps()) {
+      const Q = p.pose && p.pose.passHands;
+      if (!Q || (b.state === 'pass' && P && P.from === p && P.t < 0)) continue;
+      const k = PH.rig(p, p.pose, false); let done = Q.follow <= dt;
+      for (const side of ['L', 'R']) {
+        const delta = k['hand' + side].map((v, i) => v - Q[side][i]), d = Math.hypot(...delta);
+        const move = Math.min(1, dt / Math.max(dt, Q.follow), 7.2 * dt / (d || 1));
+        Q[side] = Q[side].map((v, i) => v + delta[i] * move);
+        if (move < 1) done = false;
+      }
+      Q.follow = Math.max(0, Q.follow - dt);
+      if (done) delete p.pose.passHands;
+    }
     if (T.phase === 'inb' && b.state === 'loose') { T.phase = 'live'; G.shotClock = 24; }   // 发球没接住 / 被碰掉：直接转入活球抢球
     if (b.state !== 'pass' || !P) return;
     const prevT = P.t;
     P.t += dt; const r = P.to, K = PASS[P.kind] || PASS.chest;
     if (prevT < 0) {
+      if (P.t > -1e-9) P.t = 0;
       const p = P.from, w = clamp(1 + P.t / P.windup, 0, 1);
-      p.face = Math.atan2(P.ty - p.y, P.tx - p.x);
+      const face = Math.atan2(P.ty - p.y, P.tx - p.x), turn = Math.atan2(Math.sin(face - P.face0), Math.cos(face - P.face0));
+      p.face = P.face0 + turn * w;
       if (p.pose) {
-        const pose = { aLp: 0.9 + 0.4 * w, aRp: 0.9 + 0.4 * w, aLe: 1.3 - 0.7 * w, aRe: 1.3 - 0.7 * w }, blend = w * w * (3 - 2 * w);
+        const lift = clamp((b.z - p.z - p.h * 0.4) / (p.h * 0.35), 0, 1);
+        const pose = { aLp: 0.2 + 1.1 * lift, aRp: 0.2 + 1.1 * lift, aLe: 0.6, aRe: 0.6, aLq: 0.18, aRq: 0.18, yaw: 0, lean: 0.08, tilt: 0 }, blend = w * w * (3 - 2 * w);
         for (const k in pose) p.pose[k] = lerp((P.pose0 && P.pose0[k]) || 0, pose[k], blend);
       }
       const H = handPt(p, b, false), rem = -prevT, step = Math.min(dt, rem);
       const dx = H[0] - b.x, dy = H[1] - b.y, dz = H[2] - b.z, d = Math.hypot(dx, dy, dz), move = Math.min(step / rem, 7.2 * step / (d || 1));
       b.x += dx * move; b.y += dy * move; b.z += dz * move;
-      if (p.pose) p.pose.passHands = H.map((v, i) => lerp(v, [b.x, b.y, b.z][i], w));
+      if (p.pose) {
+        const center = [b.x, b.y, b.z], axis = P.handAxis;
+        p.pose.passHands = { L: center.map((v, i) => v - axis[i]), R: center.map((v, i) => v + axis[i]), follow: 0.14 };
+      }
       P.x0 = b.x; P.y0 = b.y; P.z0 = b.z; b.vx = b.vy = b.vz = 0;
       P.t = Math.min(P.t, 0);
       if (P.t === 0) releasePass(P);
       return;
     }
-    if (P.from.pose) delete P.from.pose.passHands;
     if (r && dt > 0) { if (P.rpx != null) P.rsp = lerp(P.rsp || 0, hyp(r.x - P.rpx, r.y - P.rpy) / dt, 0.35); P.rpx = r.x; P.rpy = r.y; }   // V3.9j 接球人移动速度（判“移动中接球”）
     // 球追着接球人走一点（不是瞬移）
     // 球追着接球人走一点（不是瞬移）——P.tx / P.ty 是接球人要去的落点（身体）
