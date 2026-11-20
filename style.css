@@ -513,8 +513,8 @@ button.pick .pk-n small { color: var(--tc, var(--gold)); }
 
 /* V2.4 信息卡分区 */
 .pcard .pcg { border-top: 1px solid rgba(255, 255, 255, 0.14); padding-top: calc(var(--u) * 1); }
-.pcard .pc-speed { grid-column: 1 / -1; justify-self: start; color: var(--text); background: var(--panel); padding: 0 0.35em; }
-.pcard.p1 .pc-speed { justify-self: end; }
+#hud .pcard.p1 .pcg { direction: rtl; }
+#hud .pcard.p1 .pcg > span { direction: ltr; }
 #hud5 .pcard .pcg { grid-template-columns: repeat(2, 1fr); }
 .pcard .pctki { border-top: 1px solid rgba(255, 138, 42, 0.45); padding-top: calc(var(--u) * 1); }
 .pcard .pctki .tkh { display: flex; justify-content: space-between; gap: calc(var(--u) * 3); white-space: nowrap; }

@@ -551,8 +551,9 @@
   const PC_SHOOT = ['shooting', '投篮'], PC_FINISH = ['finishing', '终结'], PC_ATH = ['athleticism', '运动'];
   const PC_GUARD = ['defense', '防守'], PC_REB = ['rebounding', '篮板'];
   const PC_STEAL = ['stl', '抢断'], PC_BLOCK = ['blk', '盖帽'];
-  const PC_OFF = [PC_SHOOT, PC_FINISH, ['hnd', '控球'], PC_ATH];
-  const PC_DEF = [PC_GUARD, PC_REB, ['def', '外防'], ['intD', '内防'], PC_STEAL, PC_BLOCK];
+  const PC_SPEED = ['spd', '速度'];
+  const PC_OFF = [['three', '三分'], ['mid', '中投'], ['lay', '上篮'], ['hnd', '控球'], ['acc', '敏捷'], PC_SPEED];
+  const PC_DEF = [['def', '外防'], ['intD', '内防'], PC_STEAL, PC_BLOCK, ['dreb', '后板'], PC_SPEED];
   const PC_OFF_5 = [PC_SHOOT, PC_FINISH, ['playmaking', '组织'], PC_ATH];
   function pcRating(key, r, raw, weights, heat) {
     const value = (k) => {
@@ -568,9 +569,9 @@
     }
     return used ? Math.round(total / used) : null;
   }
-  function pcCell(name, v, d, klass = '') {
+  function pcCell(name, v, d) {
     const change = d > 0 ? '<sup>↑' + d + '</sup>' : d < 0 ? '<sup>↓' + (-d) + '</sup>' : '';
-    return '<span' + (klass ? ' class="' + klass + '"' : '') + '>' + name + '<i class="' + vcl(v) + (d > 0 ? ' up' : d < 0 ? ' dn' : '') + '">' + (v == null ? '—' : v) + change + '</i></span>';
+    return '<span>' + name + '<i class="' + vcl(v) + (d > 0 ? ' up' : d < 0 ? ' dn' : '') + '">' + (v == null ? '—' : v) + change + '</i></span>';
   }
   function pcRatings(pl, isOff, is5) {
     const weights = is5 ? PC_WEIGHTS_5 : PC_WEIGHTS;
@@ -579,8 +580,8 @@
     const keys = is5
       ? (isOff ? PC_OFF_5 : [PC_GUARD, PC_REB, PC_ATH, A99(base.stl) >= A99(base.blk) ? PC_STEAL : PC_BLOCK])
       : (isOff ? PC_OFF : PC_DEF);
-    const speed = is5 ? '' : pcCell('速度', pcRating('spd', base, null, weights, 0), 0, 'pc-speed');
-    return speed + keys.map(([k, name]) => {
+    return keys.map(([k, name]) => {
+      if (k === 'spd') return pcCell(name, pcRating(k, base, null, weights, 0), 0);
       const v = pcRating(k, pl.r, raw, weights, heat);
       const original = base !== pl.r || heat ? pcRating(k, base, raw, weights, 0) : v;
       return pcCell(name, v, v != null && original != null ? v - original : 0);
