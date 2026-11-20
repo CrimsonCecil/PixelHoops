@@ -1635,7 +1635,8 @@
   function draw3pt(G) {
     const now = G.time, ping = now - (G.clearPing || -9), ok = now - (G.clearOk || -9);
     let col, a;
-    if (G.needClear && G.phase === 'live' && G.ball.state === 'held' && G.players[G.off] && G.players[G.off].ctrl !== 'cpu') { col = '#ff3b30'; a = 0.7 + 0.3 * Math.sin(now * 7) + (ping < 0.5 ? 0.5 * (1 - ping / 0.5) : 0); }
+    const h = G.players[G.mode === 't3' ? G.ball.holder : G.off];
+    if (G.needClear && G.phase === 'live' && G.ball.state === 'held' && h && (G.mode === 't3' || h.ctrl !== 'cpu')) { col = '#ff3b30'; a = 0.7 + 0.3 * Math.sin(now * 7) + (ping < 0.5 ? 0.5 * (1 - ping / 0.5) : 0); }
     else if (ok < 0.6) { col = '#7dff8a'; a = 1 - ok / 0.6; }
     else return;
     const pts = [];
@@ -1692,6 +1693,11 @@
     // 禁区推近（可关）：持球接近篮下时镜头沿纵向前推、机位压低。只用平滑过的 camK，不读球员实时位置，不做额外取景修正
     const pk = RP || cz || !CAMV.push ? 0 : (G.camK || 0);
     if (pk > 0.001) { const e = pk * pk * (3 - 2 * pk); cam.y += CAMV.pin * 5 * e; cam.z -= (cam.z - 1.2) * CAMV.pin * CAMV.plow * e; }
+    if (G.mode === 't3') {
+      cam.x = 0; cam.y = -12; cam.z = 9; cam.F = 400;
+      const fit = proj(8.6, -1.1, 2.5);
+      cam.F *= Math.min(1, (W / 2 - 18) / (fit.x - W / 2));
+    }
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.fillStyle = '#070a16'; ctx.fillRect(0, 0, W, H);
     if (F.shake > 0.3) { const h = hash((G.time * 60) | 0); ctx.setTransform(1, 0, 0, 1, Math.round(((h & 255) / 255 - 0.5) * F.shake), Math.round((((h >>> 8) & 255) / 255 - 0.5) * F.shake)); }
