@@ -1435,7 +1435,7 @@
     ad: { style: 'crop', skin: '#9c6749', brow: 'joined', beard: 'boxed' },
     embiid: { style: 'locks', face: 'wide', beard: 'boxed', build: 0.24, muscle: 0.43, shoulder: 1.10 },
     morant: { style: 'locks', face: 'oval', build: -0.12 },
-    edwards: { style: 'fade', face: 'wide', brow: 'heavy', build: 0.11, muscle: 0.4, shoulder: 1.08 },
+    edwards: { style: 'buzz', face: 'oval', beard: 'goatee', smile: true, brow: 'heavy', build: 0.02, muscle: 0.48, shoulder: 1.12, waistScale: 0.76, hipScale: 0.88, taper: true },
     trae: { style: 'wispy', beard: 'goatee', face: 'oval' },
     brunson: { style: 'braids', face: 'round', skin: '#a97759', beard: 'boxed', shoulder: 1.05 },
     haliburton: { style: 'crop', face: 'oval', beard: 'goatee', legs: 1.05 },
@@ -1462,7 +1462,7 @@
     const m = PH.measurements && PH.measurements[a.key];
     const buildTag = PH.buildTags?.[a.key] || 'balanced';
     const look = { skin: pair(sig.skin || a.skin), hair: sig.hair || a.hair, style: sig.style || a.style, beard: sig.beard ?? a.beard ?? '', beardFit: sig.beardFit, band: sig.band ?? a.band ?? '',
-      bw: a.bw || 1, wing: a.wing || 1, face: sig.face || FACE[a.key] || 'square', brow: sig.brow, eyes: sig.eyes, mouthguard: sig.mouthguard, sleeve: sig.sleeve, buildTag };
+      bw: a.bw || 1, wing: a.wing || 1, face: sig.face || FACE[a.key] || 'square', brow: sig.brow, eyes: sig.eyes, smile: sig.smile, mouthguard: sig.mouthguard, sleeve: sig.sleeve, buildTag };
     if (m) {
       const [inches, pounds, span, hand] = m, height = inches * 0.0254;
       const bmi = pounds * 0.45359237 / (height * height);
@@ -1486,7 +1486,7 @@
       const waistBuild = build - 0.5 * muscle * (build - legacyBuild);
       const naturalWaist = 1 + (buildTag === 'balanced' ? 0.45 : 0.76) * waistBuild;
       const waist = buildTag === 'heavy' ? Math.max(1.83, naturalWaist + (sig.waist || 0)) : Math.min(naturalWaist, chest * 1.03);
-      look.body = { height, baseHeight: a.h, shoulder, chest: chest * widthScale, waist: waist * widthScale, hip: 1 + 0.4 * build,
+      look.body = { height, baseHeight: a.h, shoulder, chest: chest * widthScale, waist: waist * widthScale * (sig.waistScale || 1), hip: (1 + 0.4 * build) * (sig.hipScale || 1), taper: sig.taper ? 1 : 0,
         arm: span ? clamp(1 + 1.65 * (span / inches - 1.047) - 0.086 * frame, 0.87, 1.17) : look.wing,
         legs: sig.legs || clamp(1 + (inches - 78) * 0.002 - frame * 0.06, 0.96, 1.04),
         limb: limb * widthScale, armThickness: (limb + 0.82 * muscle) * widthScale, hand: hand ? clamp(hand / (0.11 * inches), 0.84, 1.18) : 1,

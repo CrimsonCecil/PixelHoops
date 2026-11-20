@@ -162,6 +162,19 @@ for (const key of ['lebron', 'giannis', 'zion', 'embiid', 'edwards']) {
 }
 assert(lebron.body.chest > lebron.body.waist * 1.3);
 assert(lebron.body.armThickness > lebron.body.limb * 1.3);
+const edwards = look('edwards');
+assert.equal(edwards.buildTag, 'muscular');
+assert.equal(edwards.style, 'buzz');
+assert.equal(edwards.face, 'oval');
+assert.equal(edwards.beard, 'goatee');
+assert.equal(edwards.smile, true);
+assert.equal(edwards.body.taper, 1);
+assert(edwards.body.chest > edwards.body.waist * 1.65);
+assert(edwards.body.shoulder > edwards.body.hip * 1.35);
+assert(edwards.body.armThickness > edwards.body.limb * 1.2);
+assert.equal(curry.smile, undefined);
+assert.equal(curry.body.taper, 0);
+assert.equal(game.lookOf({ ...game.ARCH.curry, key: 'unknown' }).smile, undefined);
 assert(look('clingan').body.chest > look('kobe').body.chest * 1.3);
 for (const key of ['curry', 'cade', 'shaq', 'jokic', 'morant', 'butler', 'kawhi']) {
   const { limb, armThickness } = look(key).body;
