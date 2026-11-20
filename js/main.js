@@ -87,9 +87,10 @@
     const L = GM.HZ.filter((z) => (B[z] || 0) > 0).sort((x, y) => B[y] - B[x]).map((z) => '<span class="hz' + B[z] + '">' + GM.HZN[z] + '</span>').join('');
     return '<div class="pkhz"><svg viewBox="0 0 160 110" width="160" height="110" shape-rendering="crispEdges">' + cells + lines + '</svg><div><em>热区</em>' + (L || '<span>无</span>') + '</div></div>';
   }
+  const AT_CLOSE = GM.ATTRS.find(([k]) => k === 'close').slice(0, 2);
   // V4.2 属性分组（参考 2K 六大类）：只列游戏里真实使用的字段；第三项 1 = 5V5 专用能力（js/r5.js，取自 2K），没有数据的球员不显示该项
   const AGRP = [
-    ['投篮', '投篮', [['close', '近距离'], ['mid', '中投'], ['three', '三分'], ['fade', '后仰'], ['ocon', '进攻稳定'], ['siq', '投篮 IQ', 1]]],
+    ['投篮', '投篮', [AT_CLOSE, ['mid', '中投'], ['three', '三分'], ['fade', '后仰'], ['ocon', '进攻稳定'], ['siq', '投篮 IQ', 1]]],
     ['终结', '终结', [['lay', '上篮'], ['flo', '抛投'], ['dunk', '扣篮'], ['sdunk', '站扣'], ['post', '低位'], ['hook', '勾手']]],
     ['组织', '组织', [['hnd', '控球'], ['spdB', '持球速度'], ['pac', '传球准度', 1], ['piq', '传球 IQ', 1], ['vis', '传球视野', 1], ['iq', '球商', 1], ['hands', '接球', 1]]],
     ['运动', '运动', [['spd', '速度'], ['acc', '敏捷'], ['str', '力量'], ['vert', '弹跳高度'], ['rej', '二次起跳'], ['leap', '起跳距离'], ['hang', '滞空'], ['sta', '体力'], ['hus', '拼抢'], ['dur', '耐久']]],
@@ -557,10 +558,19 @@
   // ---------- 球员信息卡 ----------
   const PC_SPEED = ['spd', '速度'];
   const PC_OFF = [['three', '三分'], ['mid', '中投'], ['dunk', '扣篮'], ['lay', '上篮'], ['hnd', '控球'], PC_SPEED];
-  const PC_OFF_5 = PC_OFF.map((cell) => cell[0] === 'hnd' ? ['pac', '传球'] : cell);
   const PC_DEF = [['def', '外防'], ['intD', '内防'], ['stl', '抢断'], ['blk', '盖帽'], ['dreb', '后板'], PC_SPEED];
+  const PC_OFF_5 = [
+    ['three', '三分'], ['mid', '中投'], AT_CLOSE,
+    ['lay', '上篮'], ['dunk', '扣篮'], ['flo', '抛投'],
+    ['pac', '传球'], ['hnd', '控球'], PC_SPEED,
+  ];
+  const PC_DEF_5 = [
+    ['def', '外防'], ['intD', '内防'], ['hlp', '协防'],
+    ['stl', '抢断'], ['blk', '盖帽'], ['lat', '横移'],
+    ['oreb', '前板'], ['dreb', '后板'], PC_SPEED,
+  ];
   function pcRating(key, r, raw, heat) {
-    const v = key === 'pac' ? raw && raw.pac : Number.isFinite(r[key]) ? A99(r[key]) : null;
+    const v = raw && Number.isFinite(raw[key]) ? raw[key] : Number.isFinite(r[key]) ? A99(r[key]) : null;
     if (!Number.isFinite(v)) return null;
     return Math.min(99, Math.max(0, Math.round(v) + (key === 'three' || key === 'mid' ? heat : 0)));
   }
@@ -571,7 +581,7 @@
   function pcRatings(pl, isOff, is5) {
     const base = pl.rBase || pl.r, raw = is5 && pl.r5 ? pl.r5.raw : null;
     const heat = is5 ? 0 : Math.round(GM.hcMod(pl) * 99);
-    const keys = isOff ? (is5 ? PC_OFF_5 : PC_OFF) : PC_DEF;
+    const keys = is5 ? (isOff ? PC_OFF_5 : PC_DEF_5) : (isOff ? PC_OFF : PC_DEF);
     return keys.map(([k, name]) => {
       if (k === 'spd') return pcCell(name, pcRating(k, base, null, 0), 0);
       const v = pcRating(k, pl.r, raw, heat);
