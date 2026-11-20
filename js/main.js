@@ -497,7 +497,7 @@
   function qvGet() { return Math.round(PH.audio.MIX.master / 0.8 * 50); }
   function qvSet(v) { PH.audio.setMix('master', v / 50 * 0.8); mixSync(); }
   function qvSync() {
-    const v = qvGet(); $('qv-range').value = v; $('qv-val').textContent = v;
+    const v = qvGet(); if (v) qvLast = v; $('qv-range').value = v; $('qv-val').textContent = v;
     $('btn-qvol').innerHTML = IC.svg(v ? 'vol' : 'mute') + '<span>' + (v || '静音') + '</span>'; $('btn-qvol').title = '音量 ' + v;
     $('qv-mute').textContent = v ? '静音' : '取消静音';
   }
