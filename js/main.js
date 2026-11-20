@@ -92,8 +92,7 @@
     ['投篮', '投篮', [['close', '近距离'], ['mid', '中投'], ['three', '三分'], ['fade', '后仰'], ['ocon', '进攻稳定'], ['siq', '投篮 IQ', 1]]],
     ['终结', '终结', [['lay', '上篮'], ['flo', '抛投'], ['dunk', '扣篮'], ['sdunk', '站扣'], ['post', '低位'], ['hook', '勾手']]],
     ['组织', '组织', [['hnd', '控球'], ['spdB', '持球速度'], ['pac', '传球准度', 1], ['piq', '传球 IQ', 1], ['vis', '传球视野', 1], ['iq', '球商', 1], ['hands', '接球', 1]]],
-    ['运动', '运动', [['spd', '速度'], ['acc', '敏捷'], ['str', '力量'], ['sta', '体力'], ['hus', '拼抢'], ['dur', '耐久']]],
-    ['弹跳', '弹跳', [['vert', '弹跳高度'], ['rej', '二次起跳'], ['leap', '起跳距离'], ['hang', '滞空']]],
+    ['运动', '运动', [['spd', '速度'], ['acc', '敏捷'], ['str', '力量'], ['vert', '弹跳高度'], ['rej', '二次起跳'], ['leap', '起跳距离'], ['hang', '滞空'], ['sta', '体力'], ['hus', '拼抢'], ['dur', '耐久']]],
     ['防守', '防守', [['def', '外防'], ['lat', '横移'], ['dcon', '防守稳定'], ['intD', '内防'], ['stl', '抢断'], ['blk', '盖帽'], ['hlp', '协防 IQ', 1], ['ppc', '传球预判', 1]]],
     ['篮板', '篮板', [['oreb', '前场板'], ['dreb', '后场板']]],
   ];
@@ -1051,9 +1050,8 @@
     const N = PH.RX.teams[ab], L = T5.lineup(ab);
     const ovr = Math.round(L.start.reduce((s, k) => s + GM.ARCH[k].ovr, 0) / 5);
     // V4.2 首发五人六大类均值（同选人面板的分组）
-    const CG = AGRP.map((g, i) => i).filter((i) => AGRP[i][0] !== '弹跳');   // 对阵卡两行放不下 7 组：弹跳不上卡（属性页 / 技术统计里有）
     const GA = L.start.map((k) => attrGroups(GM.ARCH[k], GM.ARCH[k])), gv = (gi) => { const v = Math.round(GA.reduce((t, g) => t + g[gi][2], 0) / GA.length); return '<b class="' + vcl(v) + '">' + v + '</b>'; };
-    const g5 = '<span class="pk-s pk-5" data-testid="' + id + '-r5">' + CG.slice(0, 3).map((gi) => AGRP[gi][1] + gv(gi)).join(' ') + '</span><span class="pk-s pk-5">' + CG.slice(3).map((gi) => AGRP[gi][1] + gv(gi)).join(' ') + '</span>';
+    const g5 = '<span class="pk-s pk-5" data-testid="' + id + '-r5">' + AGRP.slice(0, 3).map((g, gi) => g[1] + gv(gi)).join(' ') + '</span><span class="pk-s pk-5">' + AGRP.slice(3).map((g, gi) => g[1] + gv(gi + 3)).join(' ') + '</span>';
     $(id).innerHTML = '<span class="tb5-sw" style="background:' + N.jersey + ';border-color:' + N.trim + '"></span><span class="pk-n">' + N.name + ' <small>' + ovr + '</small></span><span class="pk-s">' + N.city + ' · ' + L.start.map((k) => GM.ARCH[k].name).join(' ') + '</span>' + g5 + '<span class="pk-c">更换</span>';
   }
   function refresh5() {
