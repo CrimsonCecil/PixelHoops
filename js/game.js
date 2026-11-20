@@ -1435,7 +1435,7 @@
     ad: { style: 'crop', skin: '#9c6749', brow: 'joined', beard: 'boxed' },
     embiid: { style: 'locks', face: 'wide', beard: 'boxed', build: 0.24, muscle: 0.43, shoulder: 1.10 },
     morant: { style: 'locks', face: 'oval', build: -0.12 },
-    edwards: { style: 'buzz', face: 'oval', beard: 'goatee', smile: true, brow: 'heavy', build: 0.02, muscle: 0.48, shoulder: 1.12, waistScale: 0.76, hipScale: 0.88, taper: true },
+    edwards: { style: 'buzz', face: 'oval', beard: 'goatee', smile: true, brow: 'heavy', build: 0.02, muscle: 0.48, shoulder: 1.12, waistScale: 0.6, hipScale: 0.7, shortsScale: 0.7, taper: true },
     trae: { style: 'wispy', beard: 'goatee', face: 'oval' },
     brunson: { style: 'braids', face: 'round', skin: '#a97759', beard: 'boxed', shoulder: 1.05 },
     haliburton: { style: 'crop', face: 'oval', beard: 'goatee', legs: 1.05 },
@@ -1491,7 +1491,7 @@
         legs: sig.legs || clamp(1 + (inches - 78) * 0.002 - frame * 0.06, 0.96, 1.04),
         limb: limb * widthScale, armThickness: (limb + 0.82 * muscle) * widthScale, hand: hand ? clamp(hand / (0.11 * inches), 0.84, 1.18) : 1,
         headScale: (0.92 + 0.08 * Math.min(1.4, 1 + 0.7 * legacyBuild + 0.9 * muscle)) * (sig.headScale || 1),
-        neckScale: sig.neckScale || 1 };
+        neckScale: sig.neckScale || 1, shortsScale: sig.shortsScale || 1 };
     }
     return look;
   }

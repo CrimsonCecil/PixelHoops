@@ -1367,12 +1367,12 @@
       const hip = J['hip' + side], knee = J['knee' + side], hem = 'hem' + side;
       if (B) J[hem] = { x: lerpN(hip.x, knee.x, 0.82), y: lerpN(hip.y, knee.y, 0.82), d: lerpN(hip.d, knee.d, 0.82) };
       const shortsEnd = B ? hem : 'knee' + side;
-      seg('hip' + side, shortsEnd, (B ? 0.21 : 0.17) * lw, C.shorts);
+      seg('hip' + side, shortsEnd, (B ? 0.21 * (B.shortsScale || 1) : 0.17) * lw, C.shorts);
       if (B) seg(hem, 'knee' + side, 0.135 * lw, C.skin);
       seg('knee' + side, 'foot' + side, (B ? 0.12 : 0.11) * lw, C.skin);
     }
     seg('footL', 'toeL', 0.12, C.shoe, -0.01); seg('footR', 'toeR', 0.12, C.shoe, -0.01);
-    seg('hipL', 'hipR', (B ? 0.23 : 0.2) * lw, C.shorts);
+    seg('hipL', 'hipR', (B ? 0.23 * (B.shortsScale || 1) : 0.2) * lw, C.shorts);
     if (B) {
       const P = J.pelvis, Q = J.chest;
       J.mid = { x: (P.x + Q.x) / 2, y: (P.y + Q.y) / 2, d: (P.d + Q.d) / 2 };
@@ -1380,9 +1380,8 @@
       seg('pelvis', 'mid', 0.32 * B.waist, C.jersey, 0, shoulderTop);
       seg('mid', 'chest', 0.375 * tw, C.jersey, 0, shoulderTop);
       if (B.taper) {
-        segs[segs.length - 2].endWidth = (0.32 * B.waist + 0.375 * tw) * 0.5 * s;
-        segs[segs.length - 1].endWidth = 0.375 * tw * s;
-        segs[segs.length - 1].w = segs[segs.length - 2].endWidth;
+        segs[segs.length - 2].hidden = true;
+        segs[segs.length - 1].torso = true;
       }
       seg('chest', 'neck', 0.13 * (0.72 * lw + 0.28 * B.shoulder) * (B.neckScale || 1), C.skin, 0.02);
     } else seg('pelvis', 'chest', 0.31 * tw, C.jersey, 0, shoulderTop);
@@ -1410,6 +1409,18 @@
     for (const g of segs) {
       if (g.head) {
         drawHead(sctx, C, J.head.x, J.head.y, headSize, facing);
+      } else if (g.torso) {
+        const top = Math.max(shoulderTop, Math.round(J.chest.y - 0.06 * s));
+        const bottom = Math.max(top + 1, Math.round(J.pelvis.y + 0.07 * s));
+        for (let y = top; y <= bottom; y++) {
+          const t = (y - top) / (bottom - top), width = Math.max(1, Math.round(lerpN(0.375 * tw, 0.32 * B.waist, t) * s));
+          const x = Math.round(lerpN(J.chest.x, J.pelvis.x, t) - width / 2);
+          sctx.fillStyle = C.jersey[0]; sctx.fillRect(x, y, width, 1);
+          sctx.fillStyle = C.jersey[1]; sctx.fillRect(x, y, Math.max(1, width - 1), 1);
+        }
+        if (g === lastJersey) drawJerseyNumber(sctx, C, numberTorso, s);
+      } else if (g.hidden) {
+        continue;
       } else {
         brush(sctx, g.a.x, g.a.y, g.b.x, g.b.y, g.w, g.c[0], g.c[1], g.top, !!B && (g.c === C.jersey || g.c === C.shorts), g.endWidth);
         if (g === lastJersey) drawJerseyNumber(sctx, C, numberTorso, s);
