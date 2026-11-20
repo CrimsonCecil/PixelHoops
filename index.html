@@ -90,9 +90,16 @@
   </div>
 
   <div id="menu" class="overlay">
-    <div class="panel">
-      <h1><span>PIXEL HOOPS</span><small>像素斗牛 · 半场 1 对 1</small></h1>
-      <div class="row"><label>模式</label><div class="seg" data-opt="mode"><button data-v="cpu" class="on" data-testid="mode-cpu">单人对电脑</button><button data-v="2p" data-testid="mode-2p">本地双人</button><button data-v="train" data-testid="mode-train">自由训练</button><button data-v="t5" data-testid="mode-t5">5V5 球队</button></div></div>
+    <div class="panel menu-panel">
+      <div class="menu-kicker">像素斗牛 <span>／</span> 篮球街机</div>
+      <h1><span>PIXEL HOOPS</span></h1>
+      <div class="seg menu-modes" data-opt="format" role="group" aria-label="比赛模式">
+        <button data-v="duel" class="on" data-testid="mode-1v1">1V1<small>半场斗牛</small></button>
+        <button data-v="t3" data-testid="mode-t3">3V3<small>半场组队</small></button>
+        <button data-v="t5" data-testid="mode-t5">5V5<small>全场比赛</small></button>
+        <button data-v="train" data-testid="mode-train">训练<small>自由练习</small></button>
+      </div>
+      <div class="row" id="row-opponent"><label>对手</label><div class="seg" data-opt="opponent"><button data-v="cpu" class="on" data-testid="mode-cpu">电脑</button><button data-v="2p" data-testid="mode-2p">本地双人</button><button data-v="online" data-testid="mode-online">在线</button></div></div>
       <div class="row" id="row-diff"><label>难度</label><div class="seg" data-opt="diff"><button data-v="0">简单</button><button data-v="1" class="on">普通</button><button data-v="2">困难</button></div></div>
       <div class="row" id="row-target"><label>目标分</label><div class="seg" data-opt="target"><button data-v="11">11</button><button data-v="21" class="on">21</button><button data-v="33">33</button><button data-v="50">50</button></div></div>
       <div class="row" id="row-glen"><label>比赛时间</label><div class="seg" data-opt="glen"><button data-v="0" class="on">不限</button><button data-v="180">3 分钟</button><button data-v="300">5 分钟</button><button data-v="600">10 分钟</button></div></div>
@@ -105,6 +112,19 @@
       <div class="row" id="row-info"><label>球员信息</label><div class="seg" data-opt="info"><button data-v="show" class="on" data-testid="info-show">显示</button><button data-v="hide" data-testid="info-hide">隐藏</button></div></div>
       <div class="row" id="row-fb"><label>投篮反馈</label><div class="seg" data-opt="fb"><button data-v="simple" class="on" data-testid="fb-simple">精简</button><button data-v="detail" data-testid="fb-detail">详细</button></div></div>
       <p class="desc" id="arch-desc"></p>
+      <section id="lobby3" class="hidden" aria-labelledby="lobby3-title">
+        <div class="lobby3-head"><h2 id="lobby3-title">半场阵容</h2><span>每队 3 人</span></div>
+        <div class="lobby3-teams">
+          <div class="lobby3-team" id="lobby3-home"><h3>主队</h3></div>
+          <div class="lobby3-team" id="lobby3-away"><h3>客队</h3></div>
+        </div>
+      </section>
+      <div class="menu-rooms hidden" id="menu-rooms">
+        <button id="btn-room-create">建房间</button>
+        <input id="room-code" type="text" aria-label="房间号" placeholder="输入房间号" autocomplete="off">
+        <button id="btn-room-join">加入</button>
+      </div>
+      <p class="menu-status hidden" id="menu-status" role="status"></p>
       <div class="actions">
         <button class="primary" id="btn-start" data-testid="btn-start">开始比赛</button>
         <button id="btn-help" data-testid="btn-help">操作说明</button>
