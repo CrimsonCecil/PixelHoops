@@ -113,6 +113,14 @@
       <p class="foot" id="menu-foot">规则：2 分 / 3 分，先到目标分获胜，失分方球权，抢到对方的球要先带出三分线。</p>
       <p class="padtag hidden" id="padtag">已连接 Xbox 手柄：十字键 / 左摇杆选择，A 确认，B 返回，LB / RB 切页，右摇杆滚动</p>
     </div>
+    <div id="menutop" data-testid="menutop">
+      <button id="btn-qvol" data-testid="btn-qvol" title="音量" aria-haspopup="true" aria-expanded="false"></button>
+      <button id="btn-set" data-testid="btn-set" title="设置">设置</button>
+      <div id="qvol" class="hidden" data-testid="qvol">
+        <label class="mx"><span>总音量</span><input type="range" min="0" max="100" step="1" id="qv-range" data-testid="qv-range"><b id="qv-val"></b></label>
+        <button id="qv-mute" data-testid="qv-mute">静音</button>
+      </div>
+    </div>
   </div>
 
   <div id="picker" class="overlay hidden" data-testid="picker">
@@ -150,15 +158,16 @@
     <div class="panel small">
       <h2 id="set-title">设置</h2>
       <div class="actions col" id="set-main">
-        <button class="primary" id="btn-resume" data-testid="btn-resume">继续比赛</button>
-        <button id="btn-box5" class="hidden" data-testid="btn-box5">数据</button>
-        <button id="btn-cam" data-testid="btn-cam">镜头</button>
+        <button class="primary ingame" id="btn-resume" data-testid="btn-resume">继续比赛</button>
+        <button class="ingame hidden" id="btn-box5" data-testid="btn-box5">数据</button>
+        <button class="ingame" id="btn-cam" data-testid="btn-cam">镜头</button>
         <button id="btn-sound" data-testid="btn-sound">声音</button>
         <button id="btn-disp" data-testid="btn-disp">显示</button>
-        <button id="btn-tune2" data-testid="btn-tune2">调参台</button>
-        <button id="btn-help2" data-testid="btn-help2">操作说明</button>
-        <button id="btn-restart" data-testid="btn-restart">重新开始</button>
-        <button id="btn-quit" data-testid="btn-quit">返回主菜单</button>
+        <button class="ingame" id="btn-tune2" data-testid="btn-tune2">调参台</button>
+        <button class="ingame" id="btn-help2" data-testid="btn-help2">操作说明</button>
+        <button class="ingame" id="btn-restart" data-testid="btn-restart">重新开始</button>
+        <button class="ingame" id="btn-quit" data-testid="btn-quit">返回主菜单</button>
+        <button class="primary inmenu" id="btn-set-close" data-testid="btn-set-close">返回</button>
       </div>
       <div class="actions col hidden" id="set-sound">
         <button id="btn-music" data-testid="btn-music">音乐 开</button>
