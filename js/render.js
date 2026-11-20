@@ -195,18 +195,20 @@
   }
 
   // ---------- 像素图元 ----------
-  function brush(c, x0, y0, x1, y1, w, dark, light, top = -Infinity, rounded = false) {
+  function brush(c, x0, y0, x1, y1, w, dark, light, top = -Infinity, rounded = false, endWidth) {
     w = Math.max(1, Math.round(w));
+    endWidth = endWidth == null ? w : Math.max(1, Math.round(endWidth));
     const dx = x1 - x0, dy = y1 - y0, n = Math.max(1, Math.ceil(Math.max(Math.abs(dx), Math.abs(dy)))), h = w / 2;
     const paint = (col, size) => {
       c.fillStyle = col;
       const corner = rounded ? Math.floor(size * 0.17) : 0;
       for (let i = 0; i <= n; i++) {
-        const t = i / n, x = Math.round(x0 + dx * t - h), y = Math.round(y0 + dy * t - h), start = Math.max(y, top);
+        const t = i / n, taper = endWidth === w ? 0 : Math.round((endWidth - w) * t), width = Math.max(1, size + taper);
+        const x = Math.round(x0 + dx * t - h - taper / 2), y = Math.round(y0 + dy * t - h), start = Math.max(y, top);
         if (start < y + size) {
-          c.fillRect(x + corner, start, size - 2 * corner, y + size - start);
+          c.fillRect(x + corner, start, Math.max(1, width - 2 * corner), y + size - start);
           const middle = Math.max(start, y + corner);
-          if (corner && middle < y + size - corner) c.fillRect(x, middle, size, y + size - corner - middle);
+          if (corner && middle < y + size - corner) c.fillRect(x, middle, width, y + size - corner - middle);
         }
       }
     };
@@ -1300,11 +1302,16 @@
         px(0, h * 0.82, w, h * 0.18, hr); px(cx - w * 0.18, h * 0.73, w * 0.36, 1, hr);
       } else if (bd === 'goatee') {
         px(cx - w * 0.14, h * 0.84, w * 0.28, h * 0.16, hr);
+        if (C.smile) px(cx - w * 0.23, h * 0.72, w * 0.46, 1, hr);
       } else if (bd === 'trimmed') {
         px(w * 0.04, h * 0.72, w * 0.1, h * 0.19, hr); px(w * 0.86, h * 0.72, w * 0.1, h * 0.19, hr);
         px(w * 0.1, h * 0.87, w * 0.8, h * 0.13, hr); px(cx - w * 0.17, h * 0.73, w * 0.34, 1, hr);
       } else if (bd === 'stubble') px(0, h * 0.85, w, h * 0.15, shade(skin, 0.64));
       if (w >= 8) px(cx - w * 0.12, h * 0.79, w * 0.24, 1, fs.soft ? shade(skin, 0.81) : dark);
+      if (C.smile && w >= 8) {
+        px(cx - w * 0.27, h * 0.77, w * 0.54, h * 0.12, dark);
+        px(cx - w * 0.23, h * 0.77, w * 0.46, 1, '#fff3df');
+      }
       if (C.mouthguard) px(cx + (side < -0.45 ? -w * 0.17 : w * 0.08), h * 0.79, w * 0.14, 1, '#f4ede0');
       if (bd === 'long') {
         c.restore();
@@ -1360,18 +1367,22 @@
       const hip = J['hip' + side], knee = J['knee' + side], hem = 'hem' + side;
       if (B) J[hem] = { x: lerpN(hip.x, knee.x, 0.82), y: lerpN(hip.y, knee.y, 0.82), d: lerpN(hip.d, knee.d, 0.82) };
       const shortsEnd = B ? hem : 'knee' + side;
-      seg('hip' + side, shortsEnd, (B ? 0.21 : 0.17) * lw, C.shorts);
+      seg('hip' + side, shortsEnd, (B ? 0.21 * (B.shortsScale || 1) : 0.17) * lw, C.shorts);
       if (B) seg(hem, 'knee' + side, 0.135 * lw, C.skin);
       seg('knee' + side, 'foot' + side, (B ? 0.12 : 0.11) * lw, C.skin);
     }
     seg('footL', 'toeL', 0.12, C.shoe, -0.01); seg('footR', 'toeR', 0.12, C.shoe, -0.01);
-    seg('hipL', 'hipR', (B ? 0.23 : 0.2) * lw, C.shorts);
+    seg('hipL', 'hipR', (B ? 0.23 * (B.shortsScale || 1) : 0.2) * lw, C.shorts);
     if (B) {
       const P = J.pelvis, Q = J.chest;
       J.mid = { x: (P.x + Q.x) / 2, y: (P.y + Q.y) / 2, d: (P.d + Q.d) / 2 };
       J.neck = { x: lerpN(Q.x, J.head.x, 0.55), y: lerpN(Q.y, J.head.y, 0.55), d: Q.d };
       seg('pelvis', 'mid', 0.32 * B.waist, C.jersey, 0, shoulderTop);
       seg('mid', 'chest', 0.375 * tw, C.jersey, 0, shoulderTop);
+      if (B.taper) {
+        segs[segs.length - 2].hidden = true;
+        segs[segs.length - 1].torso = true;
+      }
       seg('chest', 'neck', 0.13 * (0.72 * lw + 0.28 * B.shoulder) * (B.neckScale || 1), C.skin, 0.02);
     } else seg('pelvis', 'chest', 0.31 * tw, C.jersey, 0, shoulderTop);
     seg('shL', 'shR', 0.12 * (B ? B.chest : 0.6 + 0.4 * fb), C.jersey, 0, shoulderTop);
@@ -1398,8 +1409,20 @@
     for (const g of segs) {
       if (g.head) {
         drawHead(sctx, C, J.head.x, J.head.y, headSize, facing);
+      } else if (g.torso) {
+        const top = Math.max(shoulderTop, Math.round(J.chest.y - 0.06 * s));
+        const bottom = Math.max(top + 1, Math.round(J.pelvis.y + 0.07 * s));
+        for (let y = top; y <= bottom; y++) {
+          const t = (y - top) / (bottom - top), width = Math.max(1, Math.round(lerpN(0.375 * tw, 0.32 * B.waist, t) * s));
+          const x = Math.round(lerpN(J.chest.x, J.pelvis.x, t) - width / 2);
+          sctx.fillStyle = C.jersey[0]; sctx.fillRect(x, y, width, 1);
+          sctx.fillStyle = C.jersey[1]; sctx.fillRect(x, y, Math.max(1, width - 1), 1);
+        }
+        if (g === lastJersey) drawJerseyNumber(sctx, C, numberTorso, s);
+      } else if (g.hidden) {
+        continue;
       } else {
-        brush(sctx, g.a.x, g.a.y, g.b.x, g.b.y, g.w, g.c[0], g.c[1], g.top, !!B && (g.c === C.jersey || g.c === C.shorts));
+        brush(sctx, g.a.x, g.a.y, g.b.x, g.b.y, g.w, g.c[0], g.c[1], g.top, !!B && (g.c === C.jersey || g.c === C.shorts), g.endWidth);
         if (g === lastJersey) drawJerseyNumber(sctx, C, numberTorso, s);
       }
     }

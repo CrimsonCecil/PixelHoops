@@ -8,9 +8,13 @@ ctx.window = ctx;
 vm.runInContext('delete Array.prototype.findLast', ctx);
 const noop = () => {};
 let numberPixels;
+let jerseyPixels;
 const canvas = () => {
   const c = new Proxy({ createImageData: (w, h) => ({ data: new Uint8ClampedArray(w * h * 4) }), measureText: () => ({ width: 8 }),
-    fillRect(x, y, w, h) { if (this.fillStyle === '#123456') numberPixels?.push([x, y, w, h]); },
+    fillRect(x, y, w, h) {
+      if (this.fillStyle === '#123456') numberPixels?.push([x, y, w, h]);
+      if (this.fillStyle === '#234567') jerseyPixels?.push([x, y, w, h]);
+    },
   }, {
     get: (obj, key) => obj[key] ?? noop,
   });
@@ -162,6 +166,38 @@ for (const key of ['lebron', 'giannis', 'zion', 'embiid', 'edwards']) {
 }
 assert(lebron.body.chest > lebron.body.waist * 1.3);
 assert(lebron.body.armThickness > lebron.body.limb * 1.3);
+const edwards = look('edwards');
+assert.equal(edwards.buildTag, 'muscular');
+assert.equal(edwards.style, 'buzz');
+assert.equal(edwards.face, 'oval');
+assert.equal(edwards.beard, 'goatee');
+assert.equal(edwards.smile, true);
+assert.equal(edwards.body.taper, 1);
+assert(edwards.body.chest > edwards.body.waist * 1.65);
+assert(edwards.body.shoulder > edwards.body.hip * 1.35);
+assert(edwards.body.armThickness > edwards.body.limb * 1.2);
+assert(edwards.body.chest > edwards.body.waist * 2.1);
+assert(edwards.body.shoulder > edwards.body.hip * 1.65);
+assert.equal(edwards.body.shortsScale, 0.7);
+const ant = game.t5.makePlayer(0, 'edwards', 'cpu');
+jerseyPixels = [];
+const antRender = render.drawPlayer({ ...ant, face: -Math.PI / 2, col: { ...ant.col, jersey: ['#234567', '#234567'] } });
+const jerseyRows = new Map();
+for (const [x, y, w, h] of jerseyPixels) for (let row = y; row < y + h; row++) {
+  const bounds = jerseyRows.get(row) || [Infinity, -Infinity];
+  jerseyRows.set(row, [Math.min(bounds[0], x), Math.max(bounds[1], x + w)]);
+}
+const paintedWidth = bounds => bounds[1] - bounds[0];
+const shoulderPixels = Math.max(...Array.from(jerseyRows.values(), paintedWidth));
+const antBase = render.proj(ant.x, ant.y, 0);
+const waistRow = Math.round(render.proj(...antRender.k.pelvis).y - (Math.round(antBase.y) - 270));
+const hemPixels = paintedWidth(jerseyRows.get(waistRow));
+assert(hemPixels / shoulderPixels <= 0.65, `Edwards hem ${hemPixels}px / shoulders ${shoulderPixels}px`);
+console.log(`PASS Edwards front-view jersey hem ${hemPixels}px / shoulders ${shoulderPixels}px <= 65%`);
+jerseyPixels = undefined;
+assert.equal(curry.smile, undefined);
+assert.equal(curry.body.taper, 0);
+assert.equal(game.lookOf({ ...game.ARCH.curry, key: 'unknown' }).smile, undefined);
 assert(look('clingan').body.chest > look('kobe').body.chest * 1.3);
 for (const key of ['curry', 'cade', 'shaq', 'jokic', 'morant', 'butler', 'kawhi']) {
   const { limb, armThickness } = look(key).body;
