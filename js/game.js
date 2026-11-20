@@ -1428,9 +1428,11 @@
       const frame = clamp((bmi - 25.4) * 0.091, -0.36, 0.55);
       const widthScale = 1 + 1.05 * Math.max(0, height / 1.95 - 1), limb = 1 + 0.59 * build;
       const shoulder = (1 + 0.32 * build) * (sig.shoulder || 1) + 0.48 * muscle;
+      const chest = 1 + 0.7 * build + 0.9 * muscle;
       const waistBuild = build - 0.5 * muscle * (build - legacyBuild);
-      const waist = Math.max(1 + 0.76 * waistBuild + (sig.waist || 0), buildTag === 'heavy' ? 1.83 : 0);
-      look.body = { height, baseHeight: a.h, shoulder, chest: (1 + 0.7 * build + 0.9 * muscle) * widthScale, waist: waist * widthScale, hip: 1 + 0.4 * build,
+      const naturalWaist = 1 + (buildTag === 'balanced' ? 0.45 : 0.76) * waistBuild;
+      const waist = buildTag === 'heavy' ? Math.max(1.83, naturalWaist + (sig.waist || 0)) : Math.min(naturalWaist, chest * 1.03);
+      look.body = { height, baseHeight: a.h, shoulder, chest: chest * widthScale, waist: waist * widthScale, hip: 1 + 0.4 * build,
         arm: span ? clamp(1 + 1.65 * (span / inches - 1.047) - 0.086 * frame, 0.87, 1.17) : look.wing,
         legs: sig.legs || clamp(1 + (inches - 78) * 0.002 - frame * 0.06, 0.96, 1.04),
         limb: limb * widthScale, armThickness: (limb + 0.82 * muscle) * widthScale, hand: hand ? clamp(hand / (0.11 * inches), 0.84, 1.18) : 1,
