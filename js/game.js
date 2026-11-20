@@ -1627,7 +1627,12 @@
     if (L.some((x) => x.pid === pl.id && x.key === key && now - x.t0 < 2.5)) return;
     L.push({ pid: pl.id, key: key, name: BADGES[key].name, t0: now }); if (L.length > 6) L.shift(); sfx('badge');
   }
-  function sfx(n) { if (PH.audio && G.mode !== 'demo') PH.audio.play(n); }
+  let audioSink = null;
+  function sfx(n) {
+    if (G.mode === 'demo') return;
+    audioSink?.('play', n);
+    if (PH.audio) PH.audio.play(n);
+  }
   // V4.6 难度表各项可调（K.dif<档><字段>）
   const DIFF_F = ['lag', 'react', 'bite', 'steal', 'timing', 'moveBite', 'shootOpen'];
   DIFF_SYNC = () => { DIFF.forEach((d, i) => { for (const f of DIFF_F) d[f] = K['dif' + i + f]; }); };
@@ -2373,10 +2378,11 @@
 
   // 球员配音：按事件随机挑一条，演示模式不播；q=忙时排队
   function vo(pl, ev, q) {
-    if (!pl || G.mode === 'demo' || !PH.audio || !PH.audio.vo) return;
+    if (!pl || G.mode === 'demo' || (!audioSink && !PH.audio?.vo)) return;
     const P = { make: 0.45, miss: 0.3, steal: 0.75, block: 0.85, ankle: 0.9, hurt: 0.7, stop: 0.45 }[ev];
     if (P != null && rnd() > P) return;
-    PH.audio.vo(pl.arch.key, ev, q);
+    audioSink?.('vo', pl.arch.key, ev, q);
+    PH.audio?.vo?.(pl.arch.key, ev, q);
   }
   // 被打的一方回嘴：等对方那句说完再接（嘴硬 / 甩锅 / 自嘲）
   function vic(pl, ev, p) { if (!pl || pl.off || rnd() > (p || 0.75)) return; setTimeout(() => vo(pl, ev, 'q'), 60); }
@@ -5454,5 +5460,6 @@
   }
   PH.game = { ptIs: ptIs, ptOf: ptOf, ibuf: ibuf, t5: T5API, G: G, HZ: HZ, HZN: HZN, zoneOf: zoneOf, hzBase: hzBase, hzLvl: hzLvl, MVX: MVX, DPKG: DPKG, DPK_OF: DPK_OF, ST: ST, GW_OUT: K.gwOut, zones: zones, K: K, TDEF: TDEF, blkTier: blkTier, blkReact: blkReact, blkMove: blkMove, _qa: { finEdge: finEdge, blockBall: blockBall, greenWidth: greenWidth, ratingOf: ratingOf, SV: SV, LVR: LVR, startDunk: startDunk, startFinish: startFinish, finPlan: finPlan, contactAdv: contactAdv, bodyPow: bodyPow }, mobOf: mobOf, winnerNow: winnerNow, moveSet: moveSet, SF: SF, dunkPkg: dunkPkg, TKD: TKD, CB: CB, TIPS: TIPS, tipsStart: tipsStart, tipsStop: tipsStop, tkType: tkType, hcMod: hcMod, lookOf: lookOf, newGame: newGame, tick: tick, toText: toText, ARCH: ARCH, ATTRS: ATTRS, BADGES: BADGES, BADGE_TIER: BADGE_TIER, TIER_CN: TIER_CN, TIER_F: TIER_F, btier: btier, bk: bk, ba: ba, ROSTER: ROSTER, NBA: TEAMS_NBA, hasB: hasB, TEAMS: TEAMS, DIFF: DIFF, CFG: CFG, CFG_DEF: CFG_DEF, isThree: isThree, distHoop: distHoop, setupCheck: setupCheck, contestInfo: contestInfo,
     _dbg: { tkStart: tkStart, tkAdd: tkAdd, startShot: startShot, releaseShot: releaseShot, greenWidth: greenWidth, startMove: startMove, startBlock: startBlock, startFinish: startFinish, startDunk: startDunk, contestOf: contestOf, contestInfo: contestInfo, finPlan: finPlan }, TIERS: TIERS, grade: grade, DIMS: DIMS, applyTrain: applyTrain, applyMatchKits: applyMatchKits, placeDummy: placeDummy, trainReset: trainReset, giveBall: giveBall, newTrainStats: newTrainStats, styOf: styOf, styK: styK, STY_NAME: STY_NAME, seed: (s) => { seed = s | 1; } };
+  PH.game.setAudioSink = (sink) => { audioSink = sink; };
   Object.defineProperty(PH.game, 'GW_OUT', { enumerable: true, configurable: true, get: () => K.gwOut });
 })();

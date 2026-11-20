@@ -242,9 +242,17 @@
   }
   const NET_STATE = ['time', 'phase', 'phaseT', 'score', 'stats', 'target', 'shotClock', 'glen', 'gclock', 'sd', 'mp', 'needClear', 'off', 'winner',
     'ball', 'banner', 'floats', 'fx', 'net', 'focus', 'camK', 'cz', 'cutin', 'hero', 'bpops', 'lastShot', 'hzV', 'clearOk', 'clearPing'];
+  const roomAudio = [];
+  function resetRoomAudio() {
+    roomAudio.length = 0;
+    GM.setAudioSink(room.role === 'host' && room.active ? (...event) => {
+      if (room.links.size) roomAudio.push(event);
+    } : null);
+  }
   function roomSnapshot() {
     const state = Object.fromEntries(NET_STATE.map((key) => [key, G[key]]));
     state.players = G.players.map(({ opp, arch, team, ...p }) => ({ ...p, oppId: opp ? opp.id : -1 }));
+    state.audio = roomAudio.splice(0);
     return JSON.parse(JSON.stringify(state));
   }
   function roomState(state) {
@@ -253,6 +261,14 @@
     for (let i = 0; i < G.players.length; i++) {
       const p = state.players[i];
       Object.assign(G.players[i], p, { opp: G.players[p.oppId] || null, ring: G.mode === 't3' && i === localSlot });
+    }
+    if (Array.isArray(state.audio)) {
+      for (const event of state.audio) {
+        if (!Array.isArray(event)) continue;
+        const [type, name, voice, mode] = event;
+        if (type === 'play') PH.audio.play(name);
+        else if (type === 'vo') PH.audio.vo(name, voice, mode);
+      }
     }
   }
   function roomAction(join) {
@@ -332,7 +348,7 @@
   function startDemo() { GM.newGame({ mode: 'demo', arch0: 'curry', arch1: 'lebron', target: 11 }); }
   function toMenu() {
     tuneClose();
-    rooms.close(); syncBackgroundMatch(); PH.T3.stop(); localSlot = -1; matchConfig = null; menuStatus(''); refreshMenu();
+    rooms.close(); resetRoomAudio(); syncBackgroundMatch(); PH.T3.stop(); localSlot = -1; matchConfig = null; menuStatus(''); refreshMenu();
     screen = 'menu'; paused = false; clearPf(); camOpen = false; camFromSet = false; show('campanel', false); pcards();
     show('menu', true); show('qvol', false); show('picker', false); show('cutin', false); show('hud', false); show('pause', false); show('over', false); show('help', false); show('touch', false); show('banner', false); show('train', false); show('shotcard', false); stage.classList.remove('panel');
     if (PH.T5) { PH.T5.stop(); PH.render5.restore(); } show('hud5', false); show('over5', false); show('tpicker', false); show('btn-cam', true); show('btn-disp', true); show('btn-box5', false); if (PH.box5 && PH.box5.isOpen()) PH.box5.close();
@@ -343,6 +359,7 @@
     tuneClose();
     PH.audio.ensure(); PH.audio.play('start'); PH.audio.startMusic();
     localSlot = slot; matchConfig = config; netFrame = 0;
+    resetRoomAudio();
     if (config.mode === 't3') PH.T3.start({ ...config, local: slot });
     else { CFG.shotClock = config.clock; GM.newGame({ ...config, mode: '2p' }); }
     PH.audio.voPreload(G.players.map((p) => p.arch.key));
