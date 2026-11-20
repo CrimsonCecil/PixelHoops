@@ -557,7 +557,7 @@
   // ---------- 球员信息卡 ----------
   const PC_SPEED = ['spd', '速度'];
   const PC_OFF = [['three', '三分'], ['mid', '中投'], ['dunk', '扣篮'], ['lay', '上篮'], ['hnd', '控球'], PC_SPEED];
-  const PC_OFF_5 = PC_OFF.map((cell) => cell[0] === 'hnd' ? ['pac', '传球准度'] : cell);
+  const PC_OFF_5 = PC_OFF.map((cell) => cell[0] === 'hnd' ? ['pac', '传球'] : cell);
   const PC_DEF = [['def', '外防'], ['intD', '内防'], ['stl', '抢断'], ['blk', '盖帽'], ['dreb', '后板'], PC_SPEED];
   function pcRating(key, r, raw, heat) {
     const v = key === 'pac' ? raw && raw.pac : Number.isFinite(r[key]) ? A99(r[key]) : null;
@@ -1090,12 +1090,15 @@
   // 比分条和左右信息卡不重叠：依次尝试 正常 → 紧凑（队名缩窄）→ 极简（只留比分和时间）
   function sbFit() {
     const hd = $('hud5'), sb = $('sb5'), a = $('pc50'), b = $('pc51'), u = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--u')) || 2;
+    hd.style.removeProperty('--pc5-width');
     const vis = (e) => { if (e.classList.contains('hidden')) return null; const r = e.getBoundingClientRect(); return r.width > 0 ? r : null; }, ra = vis(a), rb = vis(b);
+    const cardWidth = Math.max(ra ? ra.width : 0, rb ? rb.width : 0);
+    if (cardWidth) hd.style.setProperty('--pc5-width', cardWidth + 'px');
     let lv = 0;
     for (; lv < 2; lv++) {
       hd.classList.toggle('sbt1', lv === 1); hd.classList.toggle('sbt2', lv === 2);
       const r = sb.getBoundingClientRect();
-      if ((!ra || r.left >= ra.right + u * 3) && (!rb || r.right <= rb.left - u * 3)) break;
+      if ((!ra || r.left >= ra.left + cardWidth + u * 3) && (!rb || r.right <= rb.right - cardWidth - u * 3)) break;
     }
     hd.classList.toggle('sbt1', lv === 1); hd.classList.toggle('sbt2', lv === 2);
     // 换人提示放在比分条正下方

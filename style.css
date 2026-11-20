@@ -573,6 +573,8 @@ table.bx td.cw b { color: var(--text); font-weight: normal; font-size: 14px; }
 
 /* ---------- 5V5 球队模式 ---------- */
 #hud5 { position: absolute; inset: 0; pointer-events: none; }
+#hud5 .pcard { width: var(--pc5-width, auto); }
+#hud5 .pcard .pcb { width: 0; min-width: 100%; }
 #sb5 { position: absolute; top: calc(var(--u) * 4); left: 50%; transform: translateX(-50%); display: flex; align-items: stretch; border: calc(var(--u) * 1) solid var(--ink); background: var(--ink); gap: calc(var(--u) * 1); }
 .t5t { display: flex; align-items: center; background: var(--panel); border-bottom: calc(var(--u) * 1.5) solid var(--tc, #888); position: relative; }
 .t5t.ball::after { content: ''; position: absolute; top: calc(var(--u) * 1.5); width: calc(var(--u) * 3); height: calc(var(--u) * 3); background: #ee7f30; border: calc(var(--u) * 0.5) solid var(--ink); }
