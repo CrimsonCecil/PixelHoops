@@ -484,6 +484,7 @@
   $('btn-disp').addEventListener('click', () => setView('disp'));
   for (const b of document.querySelectorAll('#pause [data-back]')) b.addEventListener('click', () => setView('main'));
   $('btn-sfx').addEventListener('click', () => { PH.audio.setSfx(!PH.audio.sfxOn); setLabels(); });
+  let qvLast = 50;
   // 声音面板：总音量 / 音乐 / 音效 / 语音，50 为默认
   let mixSync = () => {};
   { const MX = [['master', '总音量'], ['music', '音乐'], ['sfx', '音效'], ['vo', '语音']];
@@ -493,7 +494,6 @@
     $('mixer').addEventListener('change', (e) => { const k = e.target.getAttribute('data-mx'); PH.audio.play(k === 'vo' ? 'ui' : k === 'music' ? 'ui' : 'swish'); if (k === 'vo' && G.players[0]) PH.audio.vo(G.players[0].arch.key, 'three', 'pri'); });
     mixSync(); }
   // 主菜单右上角：快捷音量（总音量滑条 + 静音）和设置入口（声音 / 显示）
-  let qvLast = 50;
   function qvGet() { return Math.round(PH.audio.MIX.master / 0.8 * 50); }
   function qvSet(v) { PH.audio.setMix('master', v / 50 * 0.8); mixSync(); }
   function qvSync() {
