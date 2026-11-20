@@ -3,6 +3,22 @@ const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
 
+{
+  const main = fs.readFileSync(path.join(__dirname, '../js/main.js'), 'utf8');
+  const columns = Array.from({ length: 2 }, () => ({ chips: [], appendChild(el) { this.chips.push(el); } }));
+  const players = Array.from({ length: 6 }, (_, id) => ({ tm: id < 3 ? 0 : 1, arch: { name: 'Player ' + id } }));
+  const G = { mode: 't3', time: 1, players, bpops: [{ pid: 2, key: 'pick', t0: 1 }, { pid: 5, key: 'pick', t0: 1 }] };
+  const ctx = vm.createContext({
+    G, $: (id) => columns[{ bcol0: 0, bcol1: 1 }[id]],
+    document: { createElement: () => ({ classList: { toggle() {} }, remove() {} }) },
+    bTier: () => ({ t: 1, n: 'Badge' }), bHex: () => ''
+  });
+  vm.runInContext(main.slice(main.indexOf('  const bEls ='), main.indexOf('  const bEls5 =')) + '\nbpops();', ctx);
+  assert.match(columns[0].chips[0].innerHTML, /Player 2/);
+  assert.match(columns[1].chips[0].innerHTML, /Player 5/);
+  console.log('PASS: 3V3 badge popups for slots 2 and 5 use the home and away HUD columns.');
+}
+
 function fixture(options = {}) {
   const ctx = vm.createContext({ performance: { now: () => 0 }, setTimeout: () => {} });
   ctx.window = ctx;

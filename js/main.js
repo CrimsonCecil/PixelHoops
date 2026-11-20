@@ -1016,9 +1016,12 @@
   function bpops() {
     const L = (G.bpops || []).filter((x) => G.time - x.t0 < 1.8 && G.time >= x.t0), live = new Set();
     for (const x of L) {
+      const pl = G.players[x.pid], t3 = G.mode === 't3';
+      const col = $('bcol' + (t3 ? pl?.tm : x.pid));
+      if (!col) continue;
       const id = x.pid + x.key + x.t0.toFixed(3); live.add(id);
       let el = bEls.get(id);
-      if (!el) { el = document.createElement('div'); el.className = 'bchip'; const b = bTier(x); el.className = 'bchip tr' + b.t; el.innerHTML = bHex(x.key, b.t) + '<span>' + b.n + '</span>'; $('bcol' + x.pid).appendChild(el); bEls.set(id, el); }
+      if (!el) { el = document.createElement('div'); const b = bTier(x); el.className = 'bchip tr' + b.t; el.innerHTML = bHex(x.key, b.t) + '<span>' + (t3 ? '<small>' + pl.arch.name + '</small>' : '') + b.n + '</span>'; col.appendChild(el); bEls.set(id, el); }
       el.classList.toggle('out', G.time - x.t0 > 1.5);
     }
     for (const [id, el] of bEls) if (!live.has(id)) { el.remove(); bEls.delete(id); }
