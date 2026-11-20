@@ -71,6 +71,22 @@ for (const facing of [-Math.PI / 2, Math.PI / 2]) {
   assert(numberPixels.length > 10, 'two number glyphs render on front and back');
 }
 console.log('PASS all 302 jersey numbers and team kits resolve; all 91,204 ordered matchups are distinguishable');
+const jerseyCam = { ...render.cam };
+render.setCam({ zoom: 0.8, dist: 14, height: 10 });
+// The holder at the top of the court fixes the camera at the near end of its follow range.
+render.cam.y = 2 - render.CAMV.dist;
+for (const y of [7, 15]) for (const player of homeRoster) {
+  for (const face of [-Math.PI / 2, Math.PI / 2]) {
+    numberPixels = [];
+    render.drawPlayer({ ...player, y, face, col: { ...player.col, jerseyInk: '#123456' } });
+    const columns = new Set(numberPixels.map(([x]) => x));
+    assert(columns.size >= player.col.jerseyNo.length * 2,
+      player.arch.key + ' #' + player.col.jerseyNo + ' at minimum zoom, y=' + y + ', face=' + face);
+  }
+}
+render.setCam(render.CAM_DEF);
+Object.assign(render.cam, jerseyCam);
+console.log('PASS jersey digits render on the front and back of all 302 players at minimum zoom');
 assert.deepEqual(Object.keys(measurements).sort(), Array.from(game.ROSTER).sort());
 assert.deepEqual(Object.keys(buildTags).sort(), Array.from(game.ROSTER).sort());
 const classes = ['lean', 'balanced', 'muscular', 'heavy'];
