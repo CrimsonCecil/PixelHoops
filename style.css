@@ -395,6 +395,8 @@ button.pick .pk-c { grid-row: 1 / 3; grid-column: 3; font-size: var(--fs-xs); co
 .pcard .pch u.ro { background: var(--gold); }
 .pcard .pch u.rd { background: #5ee0ff; }
 .pcard.p1 .pch { flex-direction: row-reverse; }
+.pcard .pc-id { display: inline-flex; align-items: baseline; gap: calc(var(--u) * 1.5); }
+.pcard.p1 .pc-id { flex-direction: row-reverse; }
 .pcard .pctk { display: flex; align-items: center; gap: 0.4em; margin-top: calc(var(--u) * 1); color: var(--muted); }
 .pcard.p1 .pctk { flex-direction: row-reverse; }
 .pcard .pctk s { flex: 1; height: calc(var(--u) * 2); min-height: 4px; background: rgba(255,255,255,0.12); text-decoration: none; position: relative; }
@@ -513,8 +515,6 @@ button.pick .pk-n small { color: var(--tc, var(--gold)); }
 
 /* V2.4 信息卡分区 */
 .pcard .pcg { border-top: 1px solid rgba(255, 255, 255, 0.14); padding-top: calc(var(--u) * 1); }
-.pcard .pc-speed { grid-column: 1 / -1; justify-self: start; color: var(--text); background: var(--panel); padding: 0 0.35em; }
-.pcard.p1 .pc-speed { justify-self: end; }
 #hud5 .pcard .pcg { grid-template-columns: repeat(2, 1fr); }
 .pcard .pctki { border-top: 1px solid rgba(255, 138, 42, 0.45); padding-top: calc(var(--u) * 1); }
 .pcard .pctki .tkh { display: flex; justify-content: space-between; gap: calc(var(--u) * 3); white-space: nowrap; }
