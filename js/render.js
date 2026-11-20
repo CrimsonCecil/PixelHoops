@@ -1656,6 +1656,7 @@
   }
 
   function drawCombos(G) {
+    const nameStyle = typeof location !== 'undefined' ? new URLSearchParams(location.search).get('comboname') : null;
     for (const p of G.players) {
       const c = p.dribbleCombo;
       if (!c || c.shown < 2 || p.off) continue;
@@ -1671,8 +1672,24 @@
       const line = (text, y, font, col) => { ctx.font = font; ctx.lineWidth = 3; ctx.strokeStyle = '#23102e'; ctx.strokeText(text, 0, y, W * 0.33 / scale); ctx.fillStyle = col; ctx.fillText(text, 0, y, W * 0.33 / scale); };
       line(String(c.shown), -14, 'italic 900 32px sans-serif', heat > 0.65 ? '#ff6342' : heat > 0.25 ? '#ffac32' : '#ffe66a');
       line('HITS', 8, 'italic 900 11px sans-serif', '#fff5cf');
-      line(c.name, 23, "13px 'Fusion Pixel 12px Proportional SC', sans-serif", '#ffffff');
+      if (!['1', '2', '3', '4', '5'].includes(nameStyle)) line(c.name, 23, "13px 'Fusion Pixel 12px Proportional SC', sans-serif", '#ffffff');
       ctx.restore();
+      if (['1', '2', '3', '4', '5'].includes(nameStyle)) {
+        ctx.save(); ctx.globalAlpha = fade; ctx.textAlign = 'right'; ctx.textBaseline = 'middle'; ctx.lineJoin = 'round';
+        ctx.translate(Math.round(W - 12), Math.round(H * (G.mode === 't5' ? 0.34 : 0.29) + 46 * scale + 19));
+        ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0; ctx.shadowOffsetX = ctx.shadowOffsetY = 0;
+        ctx.font = nameStyle === '3' ? "24px 'Fusion Pixel 12px Proportional SC', monospace" : "900 16px 'PingFang SC', 'Microsoft YaHei', 'Noto Sans CJK SC', sans-serif";
+        const width = Math.ceil(ctx.measureText(c.name).width);
+        if (nameStyle === '4' || nameStyle === '5') {
+          ctx.fillStyle = nameStyle === '5' ? '#ffe9a3' : '#121626';
+          ctx.beginPath(); ctx.moveTo(-width - 12, -15); ctx.lineTo(6, -15); ctx.lineTo(2, 15); ctx.lineTo(-width - 16, 15); ctx.closePath(); ctx.fill();
+        }
+        if (nameStyle !== '4' && nameStyle !== '5') {
+          ctx.strokeStyle = '#090d19'; ctx.lineWidth = nameStyle === '3' ? 2 : 4; ctx.strokeText(c.name, 0, 0);
+        }
+        ctx.fillStyle = nameStyle === '2' ? '#ffe073' : nameStyle === '5' ? '#151a2b' : '#ffffff';
+        ctx.fillText(c.name, 0, 0); ctx.restore();
+      }
     }
   }
   function render(G) {
