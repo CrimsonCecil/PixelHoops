@@ -61,8 +61,6 @@
     ['sPIdle', 'lay', '侧面上篮 无人防守系数', 0.4, 0, 1, 0.01, '倍率：附近没有防守人时概率乘这个数'],
     ['sPMax', 'lay', '侧面上篮 概率上限', 0.92, 0, 1, 0.01, '概率'],
     ['sRevAng', 'lay', '反手上篮 大角度概率', 0.5, 0, 1, 0.01, '概率：另一侧手、角度很大时改反手上篮'],
-    ['sSwapP', 'lay', '空中换手 概率', 0.6, 0, 1, 0.01, '概率：上篮/控球好的球员另一侧手时改空中换手'],
-    ['sSwapT', 'lay', '空中换手 时间点', 0.15, 0.05, 0.4, 0.01, '秒：起跳后多久换到出手手'],
     // V4.1 原地站扣（篮下持球原地 / 很慢时按扣篮键，或冲刺 + 投篮且摇杆不推向篮筐）：收球 → 双脚原地起跳 → 单手 / 双手扣
     ['sdMax', 'lay', '站扣 最大距离', 1.9, 1, 3, 0.05, '米：离筐 ≤ 这个 + 身高加成 × (身高 − 2.00) 才能站扣（结果夹在 这个 −0.4 ~ +0.3 米）'],
     ['sdMin', 'lay', '站扣 最近距离', 0.5, 0, 1.5, 0.05, '米：离筐比这更近（篮筐正下方）不站扣'],
@@ -76,7 +74,6 @@
     ['lvReachB', 'lay', '侧身上篮 被盖率', 0.8, 0.2, 1.5, 0.01, '倍率'], ['lvReachP', 'lay', '侧身上篮 命中', 0.97, 0.5, 1.2, 0.01, '倍率'], ['lvReachC', 'lay', '侧身上篮 受干扰', 0.92, 0.3, 1.5, 0.01, '倍率'],
     ['lvFarB', 'lay', '远端手上篮 被盖率', 0.78, 0.2, 1.5, 0.01, '倍率'], ['lvFarP', 'lay', '远端手上篮 命中', 0.96, 0.5, 1.2, 0.01, '倍率'], ['lvFarC', 'lay', '远端手上篮 受干扰', 0.9, 0.3, 1.5, 0.01, '倍率'],
     ['lvRevB', 'lay', '反手上篮 被盖率', 0.72, 0.2, 1.5, 0.01, '倍率'], ['lvRevP', 'lay', '反手上篮 命中', 0.95, 0.5, 1.2, 0.01, '倍率'], ['lvRevC', 'lay', '反手上篮 受干扰', 0.88, 0.3, 1.5, 0.01, '倍率'],
-    ['lvSwapB', 'lay', '空中换手 被盖率', 0.66, 0.2, 1.5, 0.01, '倍率'], ['lvSwapP', 'lay', '空中换手 命中', 0.93, 0.5, 1.2, 0.01, '倍率'], ['lvSwapC', 'lay', '空中换手 受干扰', 0.85, 0.3, 1.5, 0.01, '倍率'],
     // —— V4.3 封堵上篮：投篮条不停 + 被封堵时的上篮变体（a.cv）
     ['layNoStop', 'lay', '上篮/扣篮中不顿帧', 1, 0, 1, 1, '开关：有人上篮或扣篮还没出手时，撞人顿帧和慢动作不冻结画面，投篮条一直走'],
     ['d2lE', 'lay', '扣篮改上篮 未重按时机', 0.5, 0, 1, 0.05, '时机误差（0 完美、1 很晚）：扣篮被挡改上篮时如果扣篮键已经松开、又没再按，就在出手点按这个误差自动出手'],
@@ -89,7 +86,6 @@
     ['cvBm', 'lay', '封堵变体 降被盖强度', 1, 0, 2, 0.05, '倍率：各变体自带的被盖率减免乘这个数（1 = 默认，约减 20%~40%）'],
     ['cvHangD', 'lay', '空中滞留 出手后移', 0.1, 0, 0.25, 0.01, '秒：空中滞留变体的出手点（投篮条最佳点）往后移这么多'],
     ['cvD2L', 'lay', '扣篮改上篮 概率', 0.6, 0, 1, 0.01, '概率：起跳时正面严重封堵（干扰 ≥ 0.45）且对抗吃亏，能力强的人改成上篮（越吃亏越高）'],
-    ['cvSwT', 'lay', '空中拉杆换手 换手时刻', 0.16, 0.05, 0.4, 0.01, '秒：起跳后多久把球换到另一只手'],
     // —— V4.3 封堵对抗：进攻对抗分 − 防守对抗分 = 差值 edge，决定命中惩罚、被盖率、被盖后的结果
     ['ctStr', 'ct', '进攻 力量权重', 0.3, 0, 1, 0.01, '进攻对抗分 = 力量×此 + 终结(扣篮/上篮)×终结权重 + 弹跳×弹跳权重 + (体重−1)×体重权重 + 起跳速度×速度权重 + 徽章 − 疲劳'],
     ['ctFin', 'ct', '进攻 终结权重', 0.5, 0, 1, 0.01, '扣篮用扣篮能力，上篮用上篮能力'],
@@ -139,7 +135,7 @@
     ['ctBlkE', 'ct', '被盖率 对抗斜率', 1.0, 0, 4, 0.05, '上篮 / 扣篮被盖率 × clamp(1 − 差值×此, 0.25, 1.8)'],
     ['ctBlkH', 'ct', '严重封堵 被盖倍率', 1.0, 1, 3, 0.05, '干扰 ≥ 0.5 时上篮被盖率再乘'],
     ['ctBlkD', 'ct', '双人封堵 被盖倍率', 1.2, 1, 3, 0.05, '双人封堵时上篮被盖率再乘'],
-    ['ctEsc', 'ct', '被盖时化解 概率斜率', 1.6, 0, 4, 0.05, '本来要被盖时，差值 > 0 有 差值×此 的概率化解（上篮：拉杆躲开 / 硬挤出手；扣篮：硬扣 / 隔扣）'],
+    ['ctEsc', 'ct', '被盖时化解 概率斜率', 1.6, 0, 4, 0.05, '本来要被盖时，差值 > 0 有 差值×此 的概率化解（上篮：硬挤出手；扣篮：硬扣 / 隔扣）'],
     ['ctEscMax', 'ct', '被盖时化解 概率上限', 0.65, 0, 1, 0.01, ''],
     ['ctDkP', 'ct', '扣篮 封堵命中惩罚', 1, 0, 2, 0.05, '扣篮被干扰的命中下降 × 此（原有公式已按差值缩放）'],
     // —— V4.2 运球过人：位移倍数（乘在动作速度上 = 位移倍数）、连续过人 combo、体力衰减 ——
@@ -186,7 +182,7 @@
     ['mvEdge', 'drib', '招式 边线留白', 0.3, 0, 1, 0.01, '米：持球做招式时离边线 / 底线 / 中线不到这么多就不再往外位移（不会被招式带出界）'],
     // —— 投篮 ——
     ['shotJump', 'shot', '跳投起跳时间', 0.22, 0.1, 0.4, 0.01, '秒：按下到离地'],
-    ['clutchTi', 'shot', '拉杆上篮出手时机', 0.52, 0.3, 0.8, 0.01, '秒'],
+    ['clutchMoveT', 'shot', '拉杆上篮出手时机', 0.18, 0.12, 0.28, 0.01, '秒：空中再次按下投篮键到完美出手点'],
     ['gwLay', 'shot', '绿区倍数 上篮', 5, 1, 8, 0.1, '倍率：相对三分'], ['gwFloat', 'shot', '绿区倍数 抛投', 3, 1, 6, 0.1, '倍率'], ['gwHook', 'shot', '绿区倍数 勾手', 3.1, 1, 6, 0.1, '倍率'],
     ['gwPost', 'shot', '绿区倍数 背身后仰', 1.6, 0.5, 3, 0.05, '倍率'], ['gwMid', 'shot', '绿区倍数 中投', 1.2, 0.5, 3, 0.05, '倍率'], ['gwThree', 'shot', '绿区倍数 三分', 1, 0.5, 3, 0.05, '倍率'],
     ['gwJump', 'shot', '跳投绿区放宽', 1.12, 0.5, 2, 0.01, '倍率：所有外线跳投'],
@@ -625,7 +621,7 @@
     ['smGInLo', 'fin', '内线绿区 下限', 0.2, 0, 1, 0.01, '概率'],
     ['smSkMax', 'shot', '主宰 非绿区上限', 0.85, 0, 1, 0.01, '概率：主宰技能没按到绿区的保底上限'],
     ['smSkK', 'shot', '主宰 非绿区倍率', 1.5, 1, 3, 0.05, '倍率：× 基础命中 × 时机'],
-    ['smEsc', 'ct', '化解封盖 命中倍率', 0.8, 0, 1, 0.01, '倍率：拉杆躲帽 / 硬挤出手后的命中'],
+    ['smEsc', 'ct', '化解封盖 命中倍率', 0.8, 0, 1, 0.01, '倍率：化解封盖后出手的命中'],
     ['smMin', 'shot', '命中 下限', 0.02, 0, 0.3, 0.01, '概率'],
     // V4.6 徽章数值（金档）与档位系数（原写死，默认值不变）
     ['bgBullyP', 'rules', '推土机 身体力量倍率', 1.15, 0, 4.6, 0.01, '倍率：身体对抗力量 ×（金档数值；铜 / 银 / 名人堂按徽章档位系数缩放）'],
@@ -967,7 +963,7 @@
     if (DIFF_SYNC) DIFF_SYNC();
     if (TIER_SYNC) TIER_SYNC();
     Object.assign(BLK_K, { dunk: K.brKDunk, chase: K.brKChase, lay: K.brKLay, shot: K.brKShot }); BLK_T.t3 = K.brT3; BLK_T.t2 = K.brT2;
-    for (const [n, f] of [['reach', 'Reach'], ['far', 'Far'], ['rev', 'Rev'], ['swap', 'Swap']]) Object.assign(LSV[n], { blk: K['lv' + f + 'B'], p: K['lv' + f + 'P'], c: K['lv' + f + 'C'] });
+    for (const [n, f] of [['reach', 'Reach'], ['far', 'Far'], ['rev', 'Rev']]) Object.assign(LSV[n], { blk: K['lv' + f + 'B'], p: K['lv' + f + 'P'], c: K['lv' + f + 'C'] });
   }
   // V3.9q 体力放宽：动作固定消耗 ×0.7；疲劳惩罚从 25 以下才开始（原 40 线性），低体力门槛 25→15、20→12，扣篮最低体力 12→7，跳/动作做不出 5→3、8→5
   const ST = { cost: K.stCost, fat0: 25, low: 15, layLow: 12, dunk: 7, act: 5, jump: 3 };
@@ -2002,7 +1998,7 @@
     const escape = kind !== 'shot' && edge > 0 ? Math.min(K.ctEscMax, edge * K.ctEsc) : 0;
     if (roll < chance && roll >= chance * (1 - escape)) {
       if (kind === 'dunk') attempt.esc = true;
-      else attempt.blockEscape = sh.r.hnd >= sh.r.str || hasB(sh, 'acrobat') ? 'switch' : 'bump';
+      else attempt.blockEscape = true;
       return false;
     }
     return roll < chance * (1 - escape);
@@ -2048,7 +2044,7 @@
     else if (a.type === 'shot' && a.V.hook && a.t < K.shotJump * 1.2) {
       const h = a.hand < 0 ? k.handL : k.handR, w = sm(clamp(a.t / (K.shotJump * 1.2), 0, 1));
       hd = mid.map((v, i) => lerp(v, h[i], w));
-    } else hd = lHand(a) < 0 ? k.handL : k.handR;
+    } else hd = a.hand < 0 ? k.handL : k.handR;
     return { x: hd[0], y: hd[1], z: hd[2] + 0.1 };
   }
 
@@ -2312,7 +2308,13 @@
     if (green && three && !SK) prob *= clamp(1 - deep * K.smDeepG, K.smDeepGLo, 1);
     if (SK && !green) prob = Math.max(prob, Math.min(K.smSkMax, base * K.smSkK * timingF));
     if (LAYC && c >= (K.ctOwn > 0 ? 0.12 : 0.2)) { const gk = green ? K.ctGreen : 1; let f = 1 - c * K.ctLayP * ek * gk; if (c >= 0.5) f *= 1 - K.ctHvy * ek * gk; if (a.dbl) f *= 1 - K.ctDbl * ek * gk; prob *= clamp(f, 0.08, 1); }
-    if (a.blockEscape) { const esc = a.blockEscape; prob *= K.smEsc; if (!a.cv) { a.cv = esc; a.cvT = a.t; a.cvR = a.t; if (esc === 'switch') a.cvSw = a.t; } float(esc === 'switch' ? '拉杆躲帽' : '硬挤出手', pl, '#ffd24a', 1); }
+    if (a.blockEscape) {
+      prob *= K.smEsc;
+      if (a.clutchT == null) {
+        if (!a.cv) { a.cv = 'bump'; a.cvT = a.t; a.cvR = a.t; }
+        float('硬挤出手', pl, '#ffd24a', 1);
+      }
+    }
     if (a.thru && kind === 'lay' && !SK) prob = a.thru === 'fall' ? Math.max(prob, K.ctThruLay) : prob * (1 - K.ctThruPen);   // V4.5 顶翻
     if (LAYC) {
       const cd = ctDef(pl, df), cc = cd === df ? ci.c : contestOf(pl, cd, 'in');
@@ -2706,9 +2708,9 @@
     if (eS) return eS > 0 ? 1 : -1;
     const dx = pl.x - HOOP.x; return Math.abs(dx) < 0.5 ? (pl.hand || 1) : dx > 0 ? 1 : -1;
   }
-  // V3.9r 侧面上篮：a.side = ±1（出手点在身体哪一侧，以朝篮筐方向算，+1 右），a.lsv = 'reach' 侧身伸臂 | 'far' 远端手 | 'rev' 反手 | 'swap' 空中换手（a.swT 秒后换到 a.hand）
+  // V3.9r 侧面上篮：a.side = ±1（以朝篮筐方向算，+1 右），a.lsv = 'reach' 侧身伸臂 | 'far' 远端手 | 'rev' 反手
   // 侧翼 / 底线切入、防守人在正面或正在封盖时更倾向侧面出手，用远离防守人一侧的手；被盖率略降、命中略降
-  const LSV = { reach: { name: '侧身上篮', blk: 0.8, p: 0.97, c: 0.92 }, far: { name: '远端手上篮', blk: 0.78, p: 0.96, c: 0.9 }, rev: { name: '反手上篮', blk: 0.72, p: 0.95, c: 0.88 }, swap: { name: '空中换手上篮', blk: 0.66, p: 0.93, c: 0.85 } };
+  const LSV = { reach: { name: '侧身上篮', blk: 0.8, p: 0.97, c: 0.92 }, far: { name: '远端手上篮', blk: 0.78, p: 0.96, c: 0.9 }, rev: { name: '反手上篮', blk: 0.72, p: 0.95, c: 0.88 } };
   function laySide(pl, a, P, df, baseline) {
     a.side = 0; a.lsv = '';
     if (a.v === 'floater' || a.v === 'power' || a.v === 'back') return;
@@ -2723,14 +2725,10 @@
     if (a.v === 'reverse') lsv = 'rev';
     else if (a.hand === side) lsv = front > 0.3 || blocking ? 'far' : 'reach';
     else if (baseline || (ang > 0.9 && rnd() < K.sRevAng)) lsv = 'rev';
-    else if ((pl.r.lay >= 0.7 || pl.r.hnd >= 0.8) && rnd() < K.sSwapP) lsv = 'swap';
     else lsv = 'far';
-    a.side = side; a.lsv = lsv; a.hand = side; if (lsv === 'swap') a.swT = K.sSwapT;
+    a.side = side; a.lsv = lsv; a.hand = side;
     if (a.v !== 'reverse') { const M = LSV[lsv]; a.V = Object.assign({}, a.V, { name: M.name, blk: a.V.blk * M.blk, p: a.V.p * M.p, c: a.V.c * M.c }); }
   }
-  // 空中换手：起跳 a.swT 秒前球在另一只手
-  function lHand(a) { if (a.type === 'layup' && a.cv === 'switch' && !a.released) return a.inSteps || a.t < a.cvSw ? -a.hand : a.hand;   // V4.3 空中拉杆换手
-    return a.type === 'layup' && a.lsv === 'swap' && !a.released && (a.inSteps || a.t < (a.swT || 0.15)) ? -a.hand : a.hand; }
   // want: 'lay' | 'floater' | 'auto'(终结键：能扣就扣)
   // fast：加速 + 朝筐 + 投篮键（5V5 是 RT + X）发起的终结——按下当帧就判定：能扣就跑扣，否则立刻上篮（不再排队等跑到扣篮起跳点），上篮方式按站位 / 能力随机挑
   function startFinish(pl, inp, want, btn, fast) {
@@ -2782,7 +2780,7 @@
       if (G.forceSty) sty = G.forceSty;
     }
     const V = v === 'normal' ? Object.assign({}, LVR.normal, LSTY[sty]) : LVR[v], fl = !!V.floater;
-    const a = { type: 'layup', v: v, sty: sty, V: V, t: 0, pts: 2, released: false, relAt: -1, tap: false, btn: btn || 'a1', ideal: fl ? K.floTi : K.layTi, span: fl ? 0.45 : 0.66, meter: null, inSteps: true, si: 0, st: 0, chaseD: Math.hypot(df.x - pl.x, df.y - pl.y) * (distHoop(df) > distHoop(pl) ? 1 : 0) };
+    const a = { type: 'layup', v: v, sty: sty, V: V, t: 0, pts: 2, released: false, relAt: -1, tap: false, btn: btn || 'a1', ideal: fl ? K.floTi : K.layTi, meter: null, inSteps: true, si: 0, st: 0, chaseD: Math.hypot(df.x - pl.x, df.y - pl.y) * (distHoop(df) > distHoop(pl) ? 1 : 0) };
     a.hand = handSide(pl, v === 'euro' ? eS : 0);
     if (v === 'reverse') a.hand = pl.x >= HOOP.x ? -1 : 1;
     if (v === 'back') a.hand = backSide(pl) > 0 ? -1 : 1;
@@ -2791,8 +2789,8 @@
     hzSet(pl, a); if (pl.sk.ky > G.time) { a.ky = true; pl.sk.ky = 0; }
     { const S = gsk(pl, 'lay'); if (S && gTrig(pl, S, df)) { a.skill = S.id; pl.sk.cd = 12; G.ball.lastSk = { id: pl.id, sk: S.id }; } }
     const gwE = greenWidth(pl, ratingOf(pl, a), contestOf(pl, df, 'in') * V.c * (a.ky ? 0.5 : 1), shotKind(a), a) * V.g;
-    a.meter = { v: 0, ideal: a.ideal / a.span, gw: gwE * (fl ? 0.12 : 0.14) / a.span, done: false, color: '#fff', label: V.name };
-    a.meter.gwE = gwE; a.meter.fl = fl; layMeter(a);
+    a.meter = { v: 0, gwE: gwE, done: false, color: '#fff', label: V.name };
+    layMeter(a);
     pl.stam = Math.max(0, pl.stam - (v === 'euro' || v === 'hop' ? 8 : 5) * ST.cost);
     pl.action = a; pl.post = false; pl.animT = 0;
     float(V.name, pl, '#f6efe0', 1);
@@ -2819,15 +2817,13 @@
     return atk - dfs - K.ctBase;
   }
   // V4.3 被封堵时的上篮变体：a.cv（动作表现由 render 按这个字段做姿势），c = 干扰倍率、blk = 被盖倍率、p = 命中倍率（再按 cvCm / cvBm 缩放）
-  // 时间轴都是空中时钟（起跳 a.t = 0）：a.cvT 起点；a.cvR 计划出手点（= a.ideal）；switch 的 a.cvSw 换手时刻；bump 的 a.cvDx/cvDy（指向防守人）、a.cvK 对抗强度；hang 的 a.cvD 出手后移；出手时写 a.relT
-  const CVX = { hang: { c: 0.85, blk: 0.6, p: 0.97 }, switch: { c: 0.82, blk: 0.7, p: 0.96 }, bump: { c: 0.8, blk: 0.8, p: 0.97 }, scoop: { c: 0.86, blk: 0.62, p: 0.95 }, revAvoid: { c: 0.84, blk: 0.66, p: 0.95 }, dunk2lay: { c: 0.9, blk: 0.8, p: 0.97 } };
+  const CVX = { hang: { c: 0.85, blk: 0.6, p: 0.97 }, bump: { c: 0.8, blk: 0.8, p: 0.97 }, scoop: { c: 0.86, blk: 0.62, p: 0.95 }, revAvoid: { c: 0.84, blk: 0.66, p: 0.95 }, dunk2lay: { c: 0.9, blk: 0.8, p: 0.97 } };
   function cvOk(pl, dk) { const ab = Math.max(pl.r.lay, dk ? pl.r.dunk : 0, pl.r.dunk * 0.98); return K.cvOn > 0 && ab >= K.cvA && (hasB(pl, 'acrobat') || hasB(pl, 'bully') || hasB(pl, 'poster') || ab >= K.cvA2); }
   function cvSet(pl, a, cv) {
-    const X = CVX[cv]; a.cv = cv; a.cvT = a.inSteps ? 0 : a.t; a.lsv = '';   // 变体接管持球手：清掉侧面上篮的空中换手（swap）
+    const X = CVX[cv]; a.cv = cv; a.cvT = a.inSteps ? 0 : a.t; a.lsv = '';
     a.V = Object.assign({}, a.V, { c: a.V.c * (1 - K.cvCm * (1 - X.c)), blk: a.V.blk * (1 - K.cvBm * (1 - X.blk)), p: a.V.p * X.p });
     const df = OP(pl);
-    if (cv === 'hang') { a.cvD = K.cvHangD; a.ideal += a.cvD; if (pl.ai && pl.ai.relFor === a) pl.ai.releaseAt += a.cvD; layMeter(a); }
-    else if (cv === 'switch') { a.hand = -a.hand; if (a.side) a.side = a.hand; a.lsv = ''; a.cvSw = clamp(K.cvSwT, 0.06, a.ideal - 0.06); }
+    if (cv === 'hang') { a.ideal += K.cvHangD; if (pl.ai && pl.ai.relFor === a) pl.ai.releaseAt += K.cvHangD; }
     else if (cv === 'revAvoid' || cv === 'scoop') { const h = hoopDir(pl), lat = (df.x - pl.x) * h.y - (df.y - pl.y) * h.x; if (!df.off && Math.abs(lat) > 0.1) { a.hand = lat > 0 ? -1 : 1; if (a.side) a.side = a.hand; } a.lsv = ''; }
     else if (cv === 'bump') { const dx = df.x - pl.x, dy = df.y - pl.y, l = Math.hypot(dx, dy) || 1; a.cvDx = dx / l; a.cvDy = dy / l; a.cvK = clamp(powOf(df) / powOf(pl), 0, 1); }
     a.cvR = a.ideal;
@@ -2839,10 +2835,10 @@
     const blkA = !!(df.action && df.action.type === 'block'), heat = contestOf(pl, df, 'in') + (a.bump || 0) + (blkA ? 0.2 : 0);
     if (heat < K.cvC) return;
     const ab = Math.max(pl.r.lay, pl.r.dunk); if (rnd() >= K.cvP * clamp(0.7 + 0.5 * (pl.r.hang || 0.6), 0.8, 1.2) * clamp(0.4 + (ab - K.cvA) / 0.15, 0.4, 1) * clamp(heat / 0.5, 0.5, 1)) return;
-    const h = hoopDir(pl), lat = (df.x - pl.x) * h.y - (df.y - pl.y) * h.x, farSw = Math.abs(lat) > 0.1 && (lat > 0 ? -1 : 1) === -a.hand, acro = hasB(pl, 'acrobat') ? 1.6 : 1, d = distHoop(pl);
-    const W = { switch: (pl.r.hnd >= 0.75 ? 1 : 0.3) * acro * (farSw ? 1.5 : 0.7), revAvoid: (d < 2.4 ? 1.2 : 0.25) * acro, scoop: (reachOf(df) > reachOf(pl) + 0.04 ? 1.4 : 0.5) * (blkA ? 1.3 : 1),
+    const acro = hasB(pl, 'acrobat') ? 1.6 : 1, d = distHoop(pl);
+    const W = { revAvoid: (d < 2.4 ? 1.2 : 0.25) * acro, scoop: (reachOf(df) > reachOf(pl) + 0.04 ? 1.4 : 0.5) * (blkA ? 1.3 : 1),
       hang: ((pl.r.hang || pl.r.vert) >= 0.8 ? 1.2 : 0.3) * (blkA ? 1.6 : 1) * acro, bump: (pl.r.str >= 0.75 || hasB(pl, 'bully') ? 1.3 * clamp(powOf(pl) / powOf(df), 0.5, 1.6) : 0.15) * (a.bump ? 2 : 1) };
-    let sum = 0; for (const k in W) sum += W[k]; let x = rnd() * sum, pk = 'switch'; for (const k in W) if ((x -= W[k]) < 0) { pk = k; break; }
+    let sum = 0; for (const k in W) sum += W[k]; let x = rnd() * sum, pk = 'revAvoid'; for (const k in W) if ((x -= W[k]) < 0) { pk = k; break; }
     cvSet(pl, a, pk);
   }
   // 扣篮改上篮（被挡 / 起跳时判断扣不过去）：动作换成上篮，投篮条从这里开始照常走。扣篮键还按着 = 继续按住、松手判定；已经松开 = 再按一次再松开判定（a.rearm），一直不按就在出手点按 d2lE 自动出手
@@ -2926,24 +2922,38 @@
   }
   // 上篮投篮条：按下当帧就出现，收球步伐（inSteps）也算在条里——t0 = −步伐总时长
   // V4.1 显示改成非线性，让指针位置和判定一致：条的上半段 = 判定窗口 ±1 个单位（上篮 0.14 秒 / 抛投 0.12 秒；稍早/稍晚 = 半格内，约 75% 高度以上），
-  // 下半段 = 窗口外更早的时间（按下那一刻是空条）；绿区高度按同一映射换算。拉杆第二峰同理（单位 0.1 秒）。渲染不变：fill = 1 − |v − 峰| / ideal
-  const LM_S = 0.5, LM_2 = 0.9;
+  // 下半段 = 窗口外更早的时间（按下那一刻是空条）；绿区高度按同一映射换算。
+  const LM_S = 0.5;
+  const layUnit = (a) => a.clutchT != null ? 0.1 : a.V.floater ? 0.12 : 0.14;
   function layMeter(a) {
     const m = a.meter; if (!m || m.gwE == null) return;
     let Ts = 0; for (const w of a.wp || []) Ts += w.T || 0;
-    const mT0 = -Ts, mSp = (m.fl ? K.floTi + 0.16 : K.clutchTi + (a.cvD || 0) + 0.12) - mT0;
-    m.t0 = mT0; m.span = mSp; m.ideal = LM_S; m.gw = 0.5 * m.gwE * LM_S;
-    if (!m.fl) { m.ideal2 = LM_S * (1 + LM_2); m.gw2 = 0.5 * 0.75 * m.gwE * LM_S; }
+    m.t0 = a.clutchT ?? -Ts; m.ideal = LM_S; m.gw = 0.5 * m.gwE * LM_S;
   }
   // 动作时刻 t（起跳为 0，步伐中为负）→ 投篮条显示值
   function layDisp(a, t) {
-    const m = a.meter, U = m.fl ? 0.12 : 0.14, d = t - a.ideal;
-    if (!m.fl && t >= a.ideal + 0.1) { const e2 = (t - K.clutchTi - (a.cvD || 0)) / 0.1; return m.ideal2 + Math.sign(e2) * 0.5 * Math.min(Math.abs(e2), 2) * LM_S; }
+    const m = a.meter, U = layUnit(a), d = t - a.ideal;
     const ad = Math.abs(d), D = ad <= U ? 0.5 * ad / U : 0.5 + 0.5 * clamp((ad - U) / Math.max(0.05, a.ideal - m.t0 - U), 0, 1);
     return m.ideal + (d < 0 ? -D : D) * LM_S;
   }
   // 按判定的 e 摆指针（出手后冻结在判定位置）
-  function layDispE(a, e, two) { const m = a.meter; return (two ? m.ideal2 : m.ideal) + Math.sign(e) * 0.5 * Math.min(1, Math.abs(e)) * LM_S; }
+  function layDispE(a, e) { return a.meter.ideal + clamp(e, -1, 1) * 0.5 * LM_S; }
+
+  function startClutch(pl, a, t0, dt) {
+    const airLeft = (pl.vz + Math.sqrt(pl.vz * pl.vz + 2 * GP * pl.z)) / GP;
+    const duration = Math.min(K.clutchMoveT, airLeft - dt);
+    if (duration < 0.1) return;
+    a.clutchT = t0;
+    a.clutchFrom = a.hand < 0 ? mir(pl.pose) : Object.assign({}, pl.pose);
+    a.ideal = a.clutchT + duration;
+    a.tap = false; a.tapAt = null; a.tapV = null; a.relAt = -1; a.rearm = false;
+    a.btn = 'a1'; a.cv = ''; a.lsv = '';
+    const V = a.V, C = LVR.clutch;
+    a.V = Object.assign({}, V, { name: C.name, c: V.c * C.c, g: V.g * C.g, p: V.p * C.p, blk: V.blk * C.blk });
+    a.meter.label = C.name; a.meter.gwE *= C.g;
+    layMeter(a);
+    float(C.name, pl, '#5ee0ff', 1);
+  }
   function stepUpdate(pl, a, inp, dt) {
     let lmT = null;
     if (a.type === 'layup' && a.meter) { layMeter(a); let e = a.st + dt; for (let i = 0; i < a.si && i < a.wp.length; i++) e += a.wp[i].T || 0; lmT = e + a.meter.t0; if (a.tapAt == null) a.meter.v = layDisp(a, lmT); }
@@ -3020,11 +3030,9 @@
   const CLUTCH_TUCK = { lean: 0.43, tilt: -0.32, yaw: 0.38, lA: 0.67, lB: 1.38, rA: 1.22, rB: 1.62, aRp: 0.17, aRq: -0.09, aRe: 1.08, aLp: 0.69, aLq: -0.23, aLe: 1.14 };
   const CLUTCH_FINISH = { lean: 0.21, tilt: 0.3, yaw: -0.29, lA: -0.29, lB: 0.56, rA: 0.84, rB: 0.86, aRp: 2.56, aRq: 0.19, aRe: 0.11, aLp: 0.45, aLq: 0.58, aLe: 0.65 };
   function clutchPose(a) {
-    const start = a.ideal + 0.015, end = K.clutchTi + (a.cvD || 0);
-    const release = a.released ? (a.relT ?? end) : a.t;
-    const normal = Object.assign({}, LAY_LAND, kf(LKF[a.sty] || LKF.tip, 1), { yaw: 0 });
-    const u = clamp((release - start) / Math.max(0.08, end - start), 0, 1);
-    const o = kf([[0, normal], [0.44, CLUTCH_TUCK], [1, CLUTCH_FINISH]], u);
+    const release = a.released ? (a.relT ?? a.t) : a.t;
+    const u = clamp((release - a.clutchT) / (a.ideal - a.clutchT), 0, 1);
+    const o = kf([[0, a.clutchFrom], [0.44, CLUTCH_TUCK], [1, CLUTCH_FINISH]], u);
     if (a.released) {
       const w = sm(clamp((a.t - release - 0.03) / 0.18, 0, 1));
       for (const k in LAY_LAND) o[k] = lerp(o[k], LAY_LAND[k], w);
@@ -3117,12 +3125,7 @@
       if (TWOH[a.v]) w = 0.5;
       else if (a.v === '360' || a.v === 'reverse' || a.v === 'pump') w = lerp(0.5, w, sm(clamp((u - 0.5) / 0.24, 0, 1)));
       rim = sm(clamp((u - 0.75) / 0.21, 0, 1)) * (a.stall ? 1 - sm(clamp((distHoop(pl) - 0.8) / 0.65, 0, 1)) : 1);
-    } else if (a.v === 'power') w = 0.5;
-    else if (a.cv === 'switch' || a.lsv === 'swap') {
-      const t = a.cv === 'switch' ? a.cvSw : a.swT || 0.15;
-      const u = a.inSteps ? 0 : sm(clamp((a.t - t + 0.07) / 0.14, 0, 1));
-      w = lerp(1 - w, w, u);
-    }
+    } else if (a.v === 'power') w = a.clutchT == null ? 0.5 : lerp(0.5, w, sm(clamp((a.t - a.clutchT) / 0.12, 0, 1)));
     let gather = pl.grip && pl.grip.gather;
     const b = G.ball;
     if (!pl.grip && b.state === 'held' && b.holder === pl.id) {
@@ -3537,8 +3540,8 @@
       + K.stlFarT * Math.max(0, d - 1) + K.stlRiskT * (read ? read.risk : 0) - (read && read.timed ? K.stlGoodT * read.ballSide : 0));
   }
 
-  function updateAction(pl, inp, dt) {
-    const a = pl.action, df = OP(pl);
+  function updateAction(pl, inp, dt, shootPress) {
+    const a = pl.action, df = OP(pl), t0 = a.t;
     a.t += dt; a.vt = (a.vt || 0) + dt; // vt：执行后真实经过的时间（5V5 接球即投的 cs 加成只加在 a.t 上）
     if (a.type === 'dive') { diveTick(pl, a, dt); return; }
     if (a.type === 'shot') {
@@ -3570,27 +3573,26 @@
     } else if (a.type === 'layup') {
       if (a.inSteps) { stepUpdate(pl, a, inp, dt); return; }
       if (!a.released) {
-        const hum = pl.ctrl !== 'cpu', U = a.V.floater ? 0.12 : 0.14;
+        const hum = pl.ctrl !== 'cpu';
+        if (shootPress && hum && pl.hasBall && pl.z > 0 && a.clutchT == null && !a.V.floater) startClutch(pl, a, t0, dt);
+        const U = layUnit(a);
         if (a.tapAt == null) a.meter.v = layDisp(a, a.t);
-        if (a.rearm && btnHeld(pl, a, inp)) a.rearm = false;
+        const held = btnHeld(pl, a, inp);
+        if (a.rearm && held) a.rearm = false;
         if (a.cv === 'hang' && a.t > (a.cvT || 0) + 0.18 && a.t < a.ideal) { pl.vz = Math.max(pl.vz, 0); pl.vx *= 0.9; pl.vy *= 0.9; }   // V4.3 空中滞留：压住下落等防守人先落地
-        if (!btnHeld(pl, a, inp) && a.relAt < 0 && !a.tap && !a.rearm) { if (a.t < 0.13) { a.tap = true; if (hum) { a.tapAt = a.t; a.tapV = layDisp(a, a.t); } } else a.relAt = a.t; }
+        if (!held && a.relAt < 0 && !a.tap && !a.rearm) {
+          if (a.clutchT == null && a.t < 0.13) { a.tap = true; if (hum) { a.tapAt = a.t; a.tapV = a.meter.v; } }
+          else a.relAt = a.t;
+        }
         if (a.tapAt != null) a.meter.v = a.tapV != null ? a.tapV : layDispE(a, clamp((a.tapAt - a.ideal) / U, -1, 1));   // 点按：指针冻结在松手那一刻（V4.5 停在松手那帧的位置，不再跳）
-        const clutch = () => { a.V = LVR.clutch; a.v = 'clutch'; };
-        // V4.1 点按出手：人类按真实松手时刻判定（以前固定 e = 0.72“很晚”，指针却停在绿区）；电脑仍是 0.72
-        const tapE = () => (hum && a.tapAt != null ? clamp((a.tapAt - a.ideal) / U, -1, 1) : 0.72);
-        const rel = (e, two) => { a.relT = a.t; releaseShot(pl, e, 'lay'); if (a.meter) a.meter.v = a.tap && a.tapV != null ? a.tapV : layDispE(a, e, two); };
-        const LT = a.ideal, CT = K.clutchTi + (a.cvD || 0);   // V4.3 变体（空中滞留）把出手点往后移：判定和指针都按 a.ideal
-        if (a.V.floater) {
-          if (a.relAt >= 0) rel(clamp((a.relAt - K.floTi) / 0.12, -1, 1));
-          else if (a.tap && a.t >= K.floTi) rel(tapE());
-          else if (a.t >= K.floTi + 0.14) rel(1);
-        } else if (a.relAt >= 0) {
-          if (a.relAt < LT + 0.1) rel(clamp((a.relAt - LT) / 0.14, -1, 1));
-          else { clutch(); rel(clamp((a.relAt - CT) / 0.1, -1, 1), true); }
-        } else if (a.tap && a.t >= LT) rel(tapE());
-        else if (a.rearm && a.t >= LT) rel(K.d2lE);
-        else if (a.t >= CT + 0.1) { clutch(); rel(1, true); }
+        const error = (t) => clamp((t - a.ideal) / U, -1, 1);
+        const rel = (e) => { a.relT = a.t; releaseShot(pl, e, 'lay'); a.meter.v = a.tap && a.tapV != null ? a.tapV : layDispE(a, e); };
+        const landing = pl.z + pl.vz * dt <= 0;
+        // 拉杆松手判定用实际时刻；太早松手也先做完收球再伸手出球。
+        if (a.relAt >= 0 && (a.clutchT == null || a.t >= a.ideal || landing)) rel(error(a.relAt));
+        else if (a.tap && a.t >= a.ideal) rel(hum && a.tapAt != null ? error(a.tapAt) : 0.72);
+        else if (a.rearm && a.t >= a.ideal) rel(K.d2lE);
+        else if (landing || a.t >= a.ideal + (a.V.floater ? 0.14 : U)) rel(1);
       } else if (pl.z <= 0) pl.action = null;
     } else if (a.type === 'dunk') {
       if (a.inSteps) { stepUpdate(pl, a, inp, dt); return; }
@@ -3822,6 +3824,7 @@
     // 开了输入缓冲：边沿按原始按键算（硬直中按的键交给缓冲；一直按住穿过硬直不会在结束时凭空多出一次）
     const src = IB && !frozen ? raw : inp;
     const pr = { a1: src.a1 && !pl.prev.a1, a2: src.a2 && !pl.prev.a2, a3: src.a3 && !pl.prev.a3 };
+    const shootPress = G.phase === 'live' && !G.ball.dead && pl.stun <= 0 && (G.mode === 't5' ? inp.shootPress : pr.a1);
     pl.prev.a1 = src.a1; pl.prev.a2 = src.a2; pl.prev.a3 = src.a3;
     let ibTap = null, ibHd = null, ibHesi = null;
     if (IB) {
@@ -3896,7 +3899,7 @@
         else { pr.a1 = pr.a1 || B.a1; pr.a2 = pr.a2 || B.a2; }
       }
     }
-    if (pl.action) updateAction(pl, inp, dt);
+    if (pl.action) updateAction(pl, inp, dt, shootPress);
     else if (!frozen && pl.stun <= 0) {
       tryStart(pl, inp, pr);
       // 缓冲的投篮键执行时已经松开了：记下的实际按住时长交给 a.vh 回放（点按 = 假投，按得久 = 按对应条位出手）；上篮/扣篮本来就有点按逻辑
@@ -4111,7 +4114,7 @@
     else if (an === 'layup') {
       const v = a ? a.v : 'normal', rel = a && a.released, M = a && a.hand < 0 ? (o) => set(mir(o)) : set;
       const flow = a && !a.cv && (v === 'euro' || (v === 'normal' && (SCOOP_STYLES.has(a.sty) || a.sty === 'glass')));
-      const clutch = a && (v === 'clutch' || (!a.cv && !a.V.floater && (a.relT ?? a.t) > a.ideal + 0.015));
+      const clutch = a && a.clutchT != null;
       if (v === 'floater') M({ lean: 0.06, lA: 0.3, lB: 0.7, rA: 0.6, rB: 0.9, aRp: rel ? 2.7 : 2.3, aRe: rel ? 0.15 : 0.8, aRq: 0.05, aLp: 0.9, aLe: 0.9 });
       else if (clutch) M(clutchPose(a));
       else if (v === 'power') set({ lean: 0.04, lA: 0.45, lB: 0.85, rA: 0.45, rB: 0.85, lS: 0.12, rS: 0.12, aRp: rel ? 2.85 : 2.6, aRe: rel ? 0.1 : 0.4, aRq: 0.1, aLp: rel ? 2.3 : 2.5, aLe: 0.4, aLq: 0.1 });
@@ -4771,9 +4774,7 @@
       if (a && (a.type === 'shot' || a.type === 'layup')) {
         if (ai.relFor !== a) {
           ai.relFor = a; const lay = a.type === 'layup', c0 = contestOf(pl, opp, lay ? 'in' : 'shot');
-          let ideal = a.ideal;
-          if (lay && !a.V.floater && opp.action && opp.action.type === 'block' && rnd() < 0.25 + 0.2 * G.diff) ideal = K.clutchTi + (a.cvD || 0);
-          ai.releaseAt = ai.fakeNext ? 0.08 : ideal + (rnd() + rnd() + rnd() - 1.5) * 1.15 * D.timing * (lay ? K.aiRelLay : 1) * (1 + K.aiRelC * c0) * (c0 < 0.2 ? K.aiRelOpen : 1) * (K.aiRelR0 - K.aiRelRK * ratingOf(pl, a));
+          ai.releaseAt = ai.fakeNext ? 0.08 : a.ideal + (rnd() + rnd() + rnd() - 1.5) * 1.15 * D.timing * (lay ? K.aiRelLay : 1) * (1 + K.aiRelC * c0) * (c0 < 0.2 ? K.aiRelOpen : 1) * (K.aiRelR0 - K.aiRelRK * ratingOf(pl, a));
           ai.fakeNext = false;
         }
         o[a.btn || 'a1'] = a.t < ai.releaseAt;
