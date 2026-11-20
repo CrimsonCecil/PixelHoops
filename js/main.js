@@ -773,7 +773,7 @@
       const on = screen === 'play' && opts.info === 'show' && pl && !pl.dummy && !(G.mode === 'train' && i === 1 && TR.dummy === 'none');
       el.classList.toggle('hidden', !on); if (!on) continue;
       const S = G.stats && G.stats[pl.id];
-      const html = cardHTML(pl, G.mode === 't3' ? pl.hasBall : G.off === i, S && G.mode !== 'train' ? { pts: G.mode === 't3' ? S.pts || 0 : G.score[i], fg: S.fg, fga: S.fga, reb: S.reb, blk: S.blk, stl: S.stl } : null);
+      const html = cardHTML(pl, G.off === (G.mode === 't3' ? pl.tm : i), S && G.mode !== 'train' ? { pts: G.mode === 't3' ? S.pts || 0 : G.score[i], fg: S.fg, fga: S.fga, reb: S.reb, blk: S.blk, stl: S.stl } : null);
       el.classList.toggle('tk', pl.tkOn > 0);
       if (el._h !== html) { el._h = html; el.innerHTML = html; }
     }
@@ -1096,7 +1096,8 @@
     if (c !== lastClock) { lastClock = c; $('clock').textContent = c; $('clock').classList.toggle('low', CFG.shotClock > 0 && G.shotClock <= 5); }
     { const gl = G.glen > 0 && G.mode !== 'train', gc = Math.ceil(G.gclock || 0), tt = G.sd ? '加时 · 下一球胜' : (gl ? Math.floor(gc / 60) + ':' + String(gc % 60).padStart(2, '0') + ' · ' : '') + (G.mp >= 0 ? '赛点' : '先到 ' + G.target + ' 分');
       if (tt !== lastTB2) { lastTB2 = tt; const el = $('target'); el.textContent = tt; el.classList.toggle('mp', G.mp >= 0 || !!G.sd); el.classList.toggle('low', gl && gc <= 10); } }
-    show('notice', G.needClear && G.phase === 'live' && G.ball.state === 'held' && (t3 ? !!(local && local.tm === G.off) : G.players[G.off].ctrl !== 'cpu'));
+    const teamOff = t3 && !!local && local.tm === G.off;
+    show('notice', G.needClear && G.phase === 'live' && G.ball.state === 'held' && (t3 ? teamOff : G.players[G.off].ctrl !== 'cpu'));
     $('notice').classList.toggle('ping', G.time - (G.clearPing || -9) < 0.45);
     if (train && frameN % 12 === 0) {
       const S = TR.stats, t = TR.role === 'def' ? '自由训练 · 练防守 · 电脑得分 <b>' + G.score[1] + '</b>' : '自由训练 · 出手 <b>' + S.n + '</b> 命中 <b>' + S.made + '</b> 命中率 <b>' + (S.n ? Math.round((S.made / S.n) * 100) + '%' : '—') + '</b>';
@@ -1104,17 +1105,19 @@
       if (panelOpen && trTab === 'stats') statsDyn();
     }
     // 操作提示
-    const two = G.mode === '2p' && !matchConfig, off = matchConfig ? !!(local && local.hasBall) : G.off === 0, post = off && local.post;
-      const key = (two ? '2' : '1') + (off ? 'o' : 'd') + (post ? 'p' : '') + (hasPad ? 'g' : '') + (train ? 't' : '') + (t3 ? '3' : '');
+    const two = G.mode === '2p' && !matchConfig, off = t3 ? teamOff : matchConfig ? !!(local && local.hasBall) : G.off === 0;
+    const offBall = teamOff && !local.hasBall, post = off && !offBall && local.post;
+    const key = (two ? '2' : '1') + (offBall ? 'b' : off ? 'o' : 'd') + (post ? 'p' : '') + (hasPad ? 'g' : '') + (train ? 't' : '') + (t3 ? '3' : '');
     if (key !== hintKey) {
       hintKey = key;
       const kb = hasPad ? { a1: 'X', a2: 'Y', a3: 'A', po: 'LT', sp: 'RT', st: 'LT', d1: 'Y', d2: 'X' } : { a1: 'J', a2: 'K', a3: 'L', po: 'Q', sp: 'Shift', st: '按住 L', d1: 'J', d2: 'K' };
       const O = '<b>' + kb.a1 + '</b> 投篮/突破上篮 <b>' + kb.a2 + '</b> 扣篮/终结 <b>' + kb.a3 + '</b>+方向 运球动作／中立按住 犹豫步 <b>' + kb.po + '</b> 背打 <b>' + kb.sp + '</b> 加速';
+      const B = '<b>' + kb.d1 + '</b> 抢篮板 <b>' + kb.st + '</b> 卡位 <b>' + kb.sp + '</b> 加速';
       const P = '背打中　<b>' + kb.a1 + '</b> 勾手 / 按住后方向后仰 <b>' + kb.a2 + '</b> 转身终结　松开时按左右 转身';
       const D = '<b>' + kb.d1 + '</b> 封盖 <b>' + kb.d2 + '</b> 抢断 <b>' + kb.st + '</b> 举手干扰 <b>' + kb.sp + '</b> 加速';
       show('hint', train || !!(t3 && local) || opts.fb === 'detail');
-      $('hint').innerHTML = two ? '玩家 1：WASD + J K L，Q 背打　玩家 2：方向键 + 小键盘 1 2 3，O 背打' : (post ? P : off ? '进攻　' + O : '防守　' + D) + (t3 && local ? '　<b>' + (hasPad ? 'B' : 'E') + '</b> 传球 / 要球' : '') + (train ? '　<b>' + (hasPad ? 'View' : 'Tab') + '</b> 参数 <b>R</b> 重置' : '');
-      if (isTouch) { $('tb1').textContent = off ? '投篮' : '盖帽'; $('tb2').textContent = off ? '终结' : '抢断'; $('tb3').textContent = off ? '运球' : '姿态'; $('tbalt').textContent = '背打'; show('tbalt', off); }
+      $('hint').innerHTML = two ? '玩家 1：WASD + J K L，Q 背打　玩家 2：方向键 + 小键盘 1 2 3，O 背打' : (post ? P : off ? '进攻　' + (offBall ? B : O) : '防守　' + D) + (t3 && local ? '　<b>' + (hasPad ? 'B' : 'E') + '</b> 传球 / 要球' : '') + (train ? '　<b>' + (hasPad ? 'View' : 'Tab') + '</b> 参数 <b>R</b> 重置' : '');
+      if (isTouch) { $('tb1').textContent = offBall ? '篮板' : off ? '投篮' : '盖帽'; $('tb2').textContent = offBall ? '扑球' : off ? '终结' : '抢断'; $('tb3').textContent = offBall ? '卡位' : off ? '运球' : '姿态'; $('tbalt').textContent = '背打'; show('tbalt', off && !offBall); }
     }
     // 终结提示（脚下）
     for (let i = 0; i < 2; i++) {

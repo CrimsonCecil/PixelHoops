@@ -34,6 +34,52 @@ function fixture(options = {}) {
 }
 
 {
+  const { G, Gm, T3, api } = fixture({
+    slots: ['curry', 'edwards', 'jokic', 'lebron', 'durant', 'giannis'].map((arch, id) => ({
+      arch, role: id === 0 ? 'human' : id === 2 ? 'remote' : 'cpu'
+    }))
+  });
+  assert.equal(T3.holder().id, 0);
+  assert.equal(G.players[2].hasBall, false);
+  const main = fs.readFileSync(path.join(__dirname, '../js/main.js'), 'utf8');
+  const els = new Map(), noop = () => {};
+  const $ = (id) => {
+    if (!els.has(id)) els.set(id, { style: {}, classList: { toggle: noop, add: noop, contains: () => true } });
+    return els.get(id);
+  };
+  const ctx = vm.createContext({
+    G, GM: Gm, CFG: Gm.CFG, $, stage: $('stage'), cues: [$('cue0'), $('cue1')], screen: 'play',
+    matchConfig: { mode: 't3' }, localSlot: 2, opts: { info: 'show' }, TR: {}, hasPad: true, isTouch: true,
+    frameN: 9, hintKey: '', lastClock: '', lastTB2: '', lastS0: -1, lastS1: -1,
+    TT: {}, pcRatings: noop, bList: () => [], fitBadgePops: noop, pcards5: noop, bpops: noop, drawFloats: noop,
+    show: noop, shotCard: noop
+  });
+  vm.runInContext(main.slice(main.indexOf('  function cardHTML('), main.indexOf('  function fitBadgePops(')) +
+    main.slice(main.indexOf('  function pcards()'), main.indexOf('  // V3.9g 5V5 信息卡')) +
+    main.slice(main.indexOf('  function hud()'), main.indexOf('  // ---------- 结算面板')) + '\nlet overShown = false;', ctx);
+  G.banner = null;
+  vm.runInContext('hud()', ctx);
+  assert.match($('pc0').innerHTML, /<u class="ro">进攻<\/u>/);
+  assert.match($('pc1').innerHTML, /<u class="rd">防守<\/u>/);
+  assert.match($('hint').innerHTML, /^进攻.*<b>Y<\/b> 抢篮板/);
+  assert.equal($('tb1').textContent, '篮板');
+
+  T3.holder().hasBall = false;
+  api.pickup(G.players[2]);
+  vm.runInContext('hud()', ctx);
+  assert.match($('hint').innerHTML, /^进攻.*<b>X<\/b> 投篮/);
+  assert.equal($('tb1').textContent, '投篮');
+
+  T3.holder().hasBall = false;
+  api.pickup(G.players[3]);
+  vm.runInContext('frameN = 19; hud()', ctx);
+  assert.match($('pc0').innerHTML, /<u class="rd">防守<\/u>/);
+  assert.match($('hint').innerHTML, /^防守.*封盖/);
+  assert.equal($('tb1').textContent, '盖帽');
+  console.log('PASS: an off-ball 3V3 guest gets offensive card and control hints until their team loses possession.');
+}
+
+{
   const { G, Gm, T3, api, run } = fixture({ human: 1, target: 5 });
   assert.equal(G.players.length, 6);
   assert.equal(T3.holder().id, 1);
