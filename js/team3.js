@@ -68,7 +68,7 @@
         move: rating(p, 'iq', 60), help: rating(p, 'hlp', 71), read: rating(p, 'ppc', 67), shot: rating(p, 'siq', 70) };
       p.nextCut = 1 + i % 3; return p;
     });
-    Object.assign(T, { on: true, pass: null, clock: o.clock == null ? 24 : o.clock, next: 0, prev: {}, inputs: {}, request: null });
+    Object.assign(T, { on: true, replay: o.replay !== false, pass: null, clock: o.clock == null ? 24 : o.clock, next: 0, prev: {}, inputs: {}, request: null });
     A.begin(players, { half: true, clock: T.clock, target: o.target || 21, diff: o.diff, hooks: {
       pickup: gotBall, score,
       turnover: (to, msg) => lost(G.players[G.ball.lastTouch], msg, G.players[to] && G.players[to].tm),
@@ -171,6 +171,7 @@
   }
   function tick(dt, inputs) {
     if (!T.on) return;
+    if (G.replay) { A.replayTick(dt); return; }
     T.inputs = inputs || {};
     const h = holder();
     if (G.phase === 'live') {
@@ -186,6 +187,8 @@
     }
     const current = holder();
     if (!A.step(G.players.map((p) => p.ctrl === 'cpu' ? cpu(p, current, dt) : T.inputs[p.id] || A.zeroInp()), dt)) return;
+    if (T.replay && G.vopt.replay) A.trackReplay();
+    if (G.replay) return;
     if (G.phase === 'check' || G.phase === 'dead') {
       G.phaseT -= dt;
       if (G.phaseT <= 0) {

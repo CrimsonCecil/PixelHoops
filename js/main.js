@@ -361,7 +361,7 @@
     PH.audio.ensure(); PH.audio.play('start'); PH.audio.startMusic();
     localSlot = slot; matchConfig = config; netFrame = 0;
     resetRoomAudio();
-    if (config.mode === 't3') PH.T3.start({ ...config, local: slot });
+    if (config.mode === 't3') PH.T3.start({ ...config, local: slot, replay: !room.active });
     else { CFG.shotClock = config.clock; GM.newGame({ ...config, mode: '2p' }); }
     PH.audio.voPreload(G.players.map((p) => p.arch.key));
     screen = 'play'; paused = false; panelOpen = false; overShown = false; PH.input.clearSys(); clearPf(); camShift();

@@ -46,6 +46,7 @@
   const LINE = LV.map((k) => packHex('#f6efe0', k));
   // V3.9：5V5 的 2K 镜头复用这套渲染，可临时换油漆区颜色和广告牌文字；setTheme(null) 还原 1V1 默认
   const WORDS_DEF = ['PIXEL HOOPS', '1 ON 1', '像素斗牛', 'HALF COURT'];
+  const WORDS_3 = WORDS_DEF.map((word) => word === '1 ON 1' ? '3 ON 3' : word);
   let WORDS = WORDS_DEF, themeKey = '';
   function setTheme(th) {
     const key = th ? th.paint + '|' + th.k1 + th.k2 + '|' + th.words.join(',') : '';
@@ -57,7 +58,7 @@
   const APR = [packHex('#1a2342'), packHex('#1e294c')];
   const BAYER = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5];
 
-  let cv, ctx, fcv, fctx, fimg, fbuf, back, backB, spr, sctx, sil, silx;
+  let cv, ctx, fcv, fctx, fimg, fbuf, back, backB, back3, spr, sctx, sil, silx;
   let rowY = new Float32Array(H + 1), rowS = new Float32Array(H + 1);
 
   function bufs() {
@@ -79,7 +80,7 @@
   }
 
   // ---------- 看台背景 ----------
-  function buildBackdrop(up) {
+  function buildBackdrop(up, words = WORDS, startX = 14) {
     const back = document.createElement('canvas'); back.width = BW; back.height = 170;
     const b = back.getContext('2d');
     b.fillStyle = '#070a16'; b.fillRect(0, 0, BW, 170);
@@ -113,9 +114,8 @@
     b.fillStyle = '#12183a'; b.fillRect(0, 146, BW, 20);
     b.fillStyle = '#2b3a80'; b.fillRect(0, 145, BW, 1); b.fillRect(0, 166, BW, 1);
     b.font = "12px 'Fusion Pixel 12px Proportional SC', monospace"; b.textBaseline = 'top';
-    const words = WORDS;
     const cols = ['#ffd24a', '#5ee0ff', '#ff6b6b', '#7dff8a'];
-    let x = 14, i = 0;
+    let x = startX, i = 0;
     while (x < BW) { b.fillStyle = cols[i % 4]; const w = words[i % words.length]; b.fillText(w, x, 150); x += Math.ceil(b.measureText(w).width) + 34; i++; }
     return back;
   }
@@ -1654,7 +1654,7 @@
       ctx.save(); ctx.globalAlpha = fade; ctx.textAlign = 'right'; ctx.textBaseline = 'middle'; ctx.lineJoin = 'round';
       ctx.translate(Math.round(W - 12), Math.round(H * (G.mode === 't5' ? 0.34 : 0.29) + 46 * scale + 19));
       ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0; ctx.shadowOffsetX = ctx.shadowOffsetY = 0;
-      ctx.font = "900 16px 'Microsoft YaHei', 'PingFang SC', 'Noto Sans CJK SC', sans-serif";
+      ctx.font = "900 16px 'Microsoft YaHei', 'PingFang SC', 'Noto Sans CJK SC', 'Fusion Pixel 12px Proportional SC', sans-serif";
       ctx.strokeStyle = '#090d19'; ctx.lineWidth = 4; ctx.strokeText(c.name, 0, 0);
       ctx.fillStyle = '#ffe073'; ctx.fillText(c.name, 0, 0); ctx.restore();
     }
@@ -1676,7 +1676,7 @@
     // 禁区推近（可关）：持球接近篮下时镜头沿纵向前推、机位压低。只用平滑过的 camK，不读球员实时位置，不做额外取景修正
     const pk = RP || cz || !CAMV.push ? 0 : (G.camK || 0);
     if (pk > 0.001) { const e = pk * pk * (3 - 2 * pk); cam.y += CAMV.pin * 5 * e; cam.z -= (cam.z - 1.2) * CAMV.pin * CAMV.plow * e; }
-    if (G.mode === 't3') {
+    if (G.mode === 't3' && !RP) {
       cam.x = 0; cam.y = -12; cam.z = 9; cam.F = 400;
       const fit = proj(8.6, -1.1, 2.5);
       cam.F *= Math.min(1, (W / 2 - 18) / (fit.x - W / 2));
@@ -1686,7 +1686,7 @@
     if (F.shake > 0.3) { const h = hash((G.time * 60) | 0); ctx.setTransform(1, 0, 0, 1, Math.round(((h & 255) / 255 - 0.5) * F.shake), Math.round((((h >>> 8) & 255) / 255 - 0.5) * F.shake)); }
     const first = drawFloor();
     const bx = Math.round(W / 2 - BW / 2 - cam.x * 14);
-    ctx.drawImage(back, bx, first - 170);
+    ctx.drawImage(G.mode === 't3' ? back3 || (back3 = buildBackdrop(false, WORDS_3, 58)) : back, bx, first - 170);
     drawCrowdFx(G, bx, first - 170);
     ctx.drawImage(fcv, 0, 0);
     draw3pt(G);

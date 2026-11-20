@@ -29,7 +29,7 @@ function fixture(options = {}) {
   const { game, T3 } = ctx.PH;
   game.seed(7);
   const slots = ['curry', 'edwards', 'jokic', 'lebron', 'durant', 'giannis'].map((arch, i) => ({ arch, role: options.human === i ? 'human' : 'cpu' }));
-  T3.start({ slots, target: 21, clock: 14, ...options });
+  T3.start({ slots, target: 21, clock: 14, replay: false, ...options });
   return { G: game.G, Gm: game, api: game.t5, T3, run: (count, inputs) => { for (let i = 0; i < count; i++) T3.tick(1 / 60, inputs); } };
 }
 
@@ -171,6 +171,57 @@ function fixture(options = {}) {
   assert(G.shotClock >= 14);
   console.log('PASS: a shot released before expiration stays live through a miss and rebound.');
 }
+
+{
+  const { G, T3, api, run } = fixture({ human: 2, replay: true });
+  run(155);
+  api.scoreBy(T3.holder().id, 3, 'shot');
+  for (let i = 0; i < 150 && !G.replay; i++) run(1);
+  assert.equal(G.replay.q.pid, 2);
+  run(25);
+  assert.equal(G.replay.view.players.length, 6);
+  const main = fs.readFileSync(path.join(__dirname, '../js/main.js'), 'utf8');
+  const skip = main.match(/^  const REPLAY_MIN = .*;$|^  function skipReplay\(\).*/gm).join('\n');
+  const ctx = vm.createContext({ G, screen: 'play', paused: false });
+  vm.runInContext(skip + '\nskipReplay();', ctx);
+  assert.equal(G.replay.skip, false);
+  run(37);
+  vm.runInContext('skipReplay()', ctx);
+  assert.equal(G.replay.skip, true);
+  run(1);
+  assert.equal(G.replay, null);
+  run(75);
+  assert.equal(G.off, 1);
+  assert.equal(G.score[0], 3);
+  console.log('PASS: a 3V3 three-pointer replays all six players and can be skipped after one second.');
+}
+
+for (const human of [0, -1]) {
+  const slots = ['kyrie', 'edwards', 'jokic', 'lebron', 'durant', 'giannis'].map((arch, id) => ({
+    arch, role: id < 3 && human < 0 ? 'cpu' : 'human'
+  }));
+  const { G, Gm, T3, api, run } = fixture({ slots, replay: false });
+  const p = G.players[0], d = G.players[3];
+  G.phase = 'live';
+  for (const q of G.players) Object.assign(q, { x: q.id % 2 ? -6 : 6, y: 2 + q.id });
+  Object.assign(p, { x: 0.5, y: api.HOOP.y - 2.5, face: Math.PI / 2, vx: 0, vy: 4, speed: 4 });
+  if (human < 0) {
+    Object.assign(d, { x: 0.95, y: p.y + 1.4 });
+    Gm.K.cvP = 1; Gm.K.cvC = 0; Gm.K.cvA = 0; Gm.K.cvA2 = 0;
+  }
+  assert.equal(T3.holder(), p);
+  assert(Gm._dbg.startFinish(p, api.zeroInp(), 'lay', 'a1'));
+  const a = p.action;
+  for (let i = 0; i < 70 && (a.inSteps || a.t < 0.1); i++) run(1);
+  if (human >= 0) run(1, { 0: { ...api.zeroInp(), a1: true } });
+  for (let i = 0; i < 60 && !a.released; i++) {
+    const hold = human >= 0 && a.t + 1 / 60 < a.ideal;
+    run(1, { 0: { ...api.zeroInp(), a1: hold } });
+  }
+  assert(a.clutchT != null && a.released, 'Timed double clutch should release for ' + (human < 0 ? 'CPU' : 'human'));
+  assert.equal(G.lastShot.name, '拉杆上篮');
+}
+console.log('PASS: human and CPU 3V3 players use the shared timed double-clutch layup.');
 
 {
   const { G, run } = fixture();

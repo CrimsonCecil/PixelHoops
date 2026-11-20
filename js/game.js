@@ -2472,6 +2472,10 @@
     if (tier >= 1) { G.fx.cheer = Math.max(G.fx.cheer, 1.5 + tier); sfx(tier >= 2 ? 'cheer2' : 'cheer'); led(kind === 'dunk' ? 'SLAM DUNK  ' + (name || '暴扣') + '  +2' : '3 POINTS  三分命中  +3', col, 2); }
     if (hot) { led('ON FIRE  手感火热  连中 ' + G.streak[id] + ' 球', '#ff6b5e', 2.6); if (G.streak[id] === 3) float('手感火热', pl, '#ff8a2a', 1); }
     vo(pl, kind === 'dunk' ? 'dunk' : pts === 3 ? 'three' : hot && G.streak[id] === 3 ? 'hot' : 'make');
+    if (G.mode === 't3' && (tier >= 1 || pa?.clutchT != null || winsWith(id, pts))) {
+      const s = tier >= 2 || winsWith(id, pts) ? 85 : 60;
+      if (!G.hlQ || s >= G.hlQ.s) G.hlQ = { s, t: G.time, pid: id, x: HOOP.x, y: HOOP.y, z: HOOP.z };
+    }
     if (G.h5) G.h5.score(pl, pts, kind, name);
   }
   function pickup(pl) {
@@ -3581,7 +3585,7 @@
       if (a.inSteps) { stepUpdate(pl, a, inp, dt); return; }
       if (!a.released) {
         const hum = pl.ctrl !== 'cpu';
-        if (shootPress && hum && pl.hasBall && pl.z > 0 && a.clutchT == null && !a.V.floater) startClutch(pl, a, t0, dt);
+        if (shootPress && (hum || G.mode === 't3') && pl.hasBall && pl.z > 0 && a.clutchT == null && !a.V.floater) startClutch(pl, a, t0, dt);
         const U = layUnit(a);
         if (a.tapAt == null) a.meter.v = layDisp(a, a.t);
         const held = btnHeld(pl, a, inp);
@@ -4784,6 +4788,17 @@
           ai.releaseAt = ai.fakeNext ? 0.08 : a.ideal + (rnd() + rnd() + rnd() - 1.5) * 1.15 * D.timing * (lay ? K.aiRelLay : 1) * (1 + K.aiRelC * c0) * (c0 < 0.2 ? K.aiRelOpen : 1) * (K.aiRelR0 - K.aiRelRK * ratingOf(pl, a));
           ai.fakeNext = false;
         }
+        const clutchLay = G.mode === 't3' && a.type === 'layup' && !a.V.floater && pl.r.lay >= 0.75;
+        if (clutchLay && a.clutchT != null) {
+          o.a1 = a.t + dt < a.ideal;
+          return o;
+        }
+        if (clutchLay && !a.inSteps && pl.z > 0 && a.t < a.ideal - 0.05 &&
+            (a.cpuClutch || contestOf(pl, opp, 'in') > 0.3)) {
+          a.cpuClutch = true;
+          o.a1 = a.t >= 0.1 && !pl.prev.a1;
+          return o;
+        }
         o[a.btn || 'a1'] = a.t < ai.releaseAt;
         if (a.type === 'layup' && a.v === 'normal' && a.inSteps && a.si === 0 && a.btn === 'a1' && G.time - (ai.spinLay || -9) < 0.6) o.a1 = !!a.tap;
         return o;
@@ -5181,7 +5196,7 @@
   }
   function replayTick(dt) {
     const R = G.replay;
-    PH.input.endTick(); R.age = (R.age || 0) + dt;
+    R.age = (R.age || 0) + dt;
     if (R.skip || R.rt >= R.t1) { G.replay = null; G.rec = []; return; }
     const dq = R.rt - R.q.t, near = dq > -1.0 && dq < 0.5, MK = R.q.mk, dm = MK ? R.rt - MK.t : 9, nearM = Math.abs(dm) < 0.35;
     R.rt += dt * (nearM ? K.rpSpM : near ? K.rpSpH : K.rpSpN);   // V4.5 顶翻：接触那一刻前后 0.35 秒 ×0.25 慢放
@@ -5206,6 +5221,11 @@
     const F = G.fx;
     R.view = { players: f.p, ball: f.b, net: f.net, time: f.t, focus: R.fc, cz: { x: R.kx, y: R.ky, z: R.kz, k: 1, u: R.ku },
       fx: Object.assign({}, F, { shake: 0, flash: 0, slow: 1, hit: 0, board: 0, parts: f.parts, rings: f.rings, led: f.led, cheer: f.cheer }) };
+  }
+  function trackReplay() {
+    recFrame();
+    if (G.hlQ && (!G.vopt.replay || G.time - G.hlQ.t > 10)) G.hlQ = null;
+    if (G.hlQ && !G.tips && G.time - G.hlQ.t > 0.8 && ((G.phase === 'dead' && G.phaseT < 1.0) || G.phase === 'check' || G.phase === 'over')) startReplay();
   }
   // 两人身体碰撞（1V1 / 5V5 共用）
   function collide(a, c) {
@@ -5281,7 +5301,7 @@
   }
   function tick(dt, humanInput) {
     if (G.state !== 'play') return;
-    if (G.replay) { replayTick(dt); return; }
+    if (G.replay) { PH.input.endTick(); replayTick(dt); return; }
     const F = G.fx;
     if (G.cutin) { G.cutin.t += dt; G.skSlow = 0; if (G.cutin.t >= Math.max(G.cutin.T, PH.ci ? PH.ci.dur(G.cutin) : 0)) G.cutin = null; }   // V3.9o 半屏插屏：不冻结、不慢放，只推进面板计时
     fxUpdate(dt); hzView();
@@ -5363,11 +5383,7 @@
     const CV = PH.render.CAMV, sx = 3.4 + Math.max(0, CV.zoom - 1) * 6, tx = clamp(fx * CV.follow, -sx, sx), ty = clamp(fy - CV.dist, 2 - CV.dist, 9 - CV.dist), kc = Math.min(1, dt * K.camFolK);
     G.focus.cx = lerp(G.focus.cx, tx, kc); G.focus.cy = lerp(G.focus.cy, ty, kc);
     if (!(b.state === 'held' && G.phase === 'live')) G.camK = (G.camK || 0) * Math.max(0, 1 - dt * K.camRimOut);
-    if (!humanInput && G.mode !== 'demo' && G.mode !== 'train') {
-      recFrame();
-      if (G.hlQ && (!G.vopt.replay || G.time - G.hlQ.t > 10)) G.hlQ = null;
-      if (G.hlQ && !G.tips && G.time - G.hlQ.t > 0.8 && ((G.phase === 'dead' && G.phaseT < 1.0) || G.phase === 'check' || G.phase === 'over')) startReplay();
-    }
+    if (!humanInput && G.mode !== 'demo' && G.mode !== 'train') trackReplay();
   }
 
   function toText() {
@@ -5426,7 +5442,7 @@
     if (G.banner) { G.banner.t += dt; if (G.banner.t > G.banner.dur) G.banner = null; }
     return true;
   }
-  const T5API = { begin: t5begin, end: t5end, step: t5step, makePlayer: makePlayer, aiInput: aiInput, zeroInp: zeroInp, newStats: newStats, contestOf: contestOf, contestInfo: contestInfo,
+  const T5API = { begin: t5begin, end: t5end, step: t5step, trackReplay, replayTick, makePlayer: makePlayer, aiInput: aiInput, zeroInp: zeroInp, newStats: newStats, contestOf: contestOf, contestInfo: contestInfo,
     distHoop: distHoop, isThree: isThree, finPlan: finPlan, OP: OP, TM: TM, pickup: pickup, float: float, led: led, sfx: sfx, vo: vo, burst: burst, part: part, hasB: hasB, powOf: powOf,
     knock: knock, bpop: bpop, tkAdd: tkAdd, fxReset: fxReset, rebBall: rebBall, hustle: hustle, HOOP: HOOP, cold: cold, scoreBy: scoreBy, banner: banner };
   // V4.0 区域可视化（调参台打开时 render.js 画）：单位米。lay / float / dunk / euro 以篮筐地面投影为圆心，表示“从这个圈内开始收球能做出该终结”（= 起跳上限 + 两步步幅）；

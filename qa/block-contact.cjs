@@ -140,6 +140,7 @@ for (const outcome of ['make', 'miss', 'cleared', 'no-stats']) {
   gm.G.train.stats = gm.newTrainStats(); df.off = true;
   ctx.Math.random = () => 0.999999;
   gm._dbg.startShot(sh, { mx: 0, my: 0 }, 'a1');
+  gm.seed(outcome === 'miss' ? 1901 : 1);
   gm._dbg.releaseShot(sh, outcome === 'miss' ? 1 : 0, 'shot');
   const s = gm.G.ball.shot, S = gm.G.train.stats;
   assert.equal(S.n, 1); assert.equal(S.made, outcome === 'miss' ? 0 : 1);
@@ -183,7 +184,8 @@ console.log('PASS block multipliers: dunk double tap has no effect; double-cover
   ctx.GM = ctx.PH.game;
   ctx.IC = { svg: () => '', has: () => false };
   const help = source.slice(source.indexOf('  const K = (t, c)'), source.indexOf('  let helpTab ='));
-  vm.runInContext(help + '\nwindow.helpHTML = helpBody("moves");', ctx);
+  const replayMin = source.match(/^  const REPLAY_MIN = .*;$/m)[0];
+  vm.runInContext(replayMin + '\n' + help + '\nwindow.helpHTML = helpBody("moves");', ctx);
   for (const text of ['投篮键（三分线内外）', '盖帽判定', '身体对抗与体力', '灵活度', '进攻节奏博弈']) assert(ctx.helpHTML.includes(text), `missing help group: ${text}`);
   for (const key of ['lebron', 'gobert', 'wemby', 'ad']) assert(ctx.GM.ARCH[key].skill.eff.startsWith('手碰到球即必定盖帽'));
   assert(ctx.GM.ARCH.lebron.skill.eff.endsWith('，把球钉在篮板上'));
