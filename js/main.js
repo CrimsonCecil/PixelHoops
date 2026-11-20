@@ -110,7 +110,7 @@
   PH.attrG = attrGroups; PH.attrGN = AGRP.map((g) => g[1]); PH.vcl = vcl;
   // 球员详情分页（参考 2K：概览 / 属性六大类 / 徽章四大类 / 动作与热区）；LB·RB 或点页签切换，右摇杆上下滚动
   const PK_TABS = [['ov', '概览'], ['at', '属性'], ['bd', '徽章'], ['mv', '动作 · 热区']];
-  const BCAT = [['终结', ['acrobat', 'poster', 'launch', 'bully', 'dream']], ['投篮', ['limitless', 'deadeye', 'quick', 'clutch', 'fade', 'stepper', 'cs']], ['组织', ['ankle', 'tight', 'dimer', 'needle', 'bailout', 'breaker', 'postpm']], ['防守 / 篮板', ['rim', 'pick', 'clamps', 'motor', 'hustle', 'brick', 'dodger', 'intercept', 'anchor', 'chaser', 'boxout']]];
+  const BCAT = [['终结', ['acrobat', 'poster', 'launch', 'bully', 'dream']], ['投篮', ['limitless', 'deadeye', 'quick', 'clutch', 'fade', 'stepper', 'cs', 'pullup']], ['组织', ['ankle', 'tight', 'dimer', 'needle', 'bailout', 'breaker', 'postpm']], ['防守 / 篮板', ['rim', 'pick', 'clamps', 'motor', 'hustle', 'brick', 'dodger', 'intercept', 'anchor', 'chaser', 'boxout']]];
   let pkTab = 'ov';
   function pkTabStep(d) { const i = PK_TABS.findIndex((t) => t[0] === pkTab); pkTab = PK_TABS[(i + d + PK_TABS.length) % PK_TABS.length][0]; pkDetail(pkShown || pkSel); $('pk-detail').scrollTop = 0; PH.audio.play('ui'); }
   function pkDetail(key) {
