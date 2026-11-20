@@ -555,55 +555,27 @@
   $('tr-exit').addEventListener('click', toMenu);
   $('tr-reset-pos').addEventListener('click', () => GM.trainReset());
   // ---------- 球员信息卡 ----------
-  const PC_WEIGHTS = {
-    shooting: { three: 42, mid: 28, close: 15, fade: 10, ocon: 5 },
-    finishing: { lay: 42, dunk: 18, flo: 13, post: 10, sdunk: 5, hook: 5, leap: 4, hang: 3 },
-    athleticism: { spd: 25, acc: 20, vert: 15, str: 15, sta: 10, leap: 5, rej: 5, hus: 5 },
-    defense: { def: 30, lat: 10, intD: 28, blk: 17, stl: 12, dcon: 3 },
-    rebounding: { dreb: 50, oreb: 35, vert: 10, rej: 5 },
-  };
-  const PC_WEIGHTS_5 = {
-    ...PC_WEIGHTS,
-    shooting: { three: 37, mid: 23, close: 15, fade: 10, siq: 10, ocon: 5 },
-    playmaking: { hnd: 25, spdB: 10, pac: 22, piq: 15, vis: 13, hands: 10, iq: 5 },
-    defense: { def: 25, lat: 10, intD: 22, stl: 13, blk: 13, hlp: 10, ppc: 5, dcon: 2 },
-  };
-  const PC_SHOOT = ['shooting', '投篮'], PC_FINISH = ['finishing', '终结'], PC_ATH = ['athleticism', '运动'];
-  const PC_GUARD = ['defense', '防守'], PC_REB = ['rebounding', '篮板'];
-  const PC_STEAL = ['stl', '抢断'], PC_BLOCK = ['blk', '盖帽'];
   const PC_SPEED = ['spd', '速度'];
   const PC_OFF = [['three', '三分'], ['mid', '中投'], ['dunk', '扣篮'], ['lay', '上篮'], ['hnd', '控球'], PC_SPEED];
-  const PC_DEF = [['def', '外防'], ['intD', '内防'], PC_STEAL, PC_BLOCK, ['dreb', '后板'], PC_SPEED];
-  const PC_OFF_5 = [PC_SHOOT, PC_FINISH, ['playmaking', '组织'], PC_ATH];
-  function pcRating(key, r, raw, weights, heat) {
-    const value = (k) => {
-      const v = Number.isFinite(r[k]) ? A99(r[k]) : raw && raw[k];
-      if (!Number.isFinite(v)) return null;
-      return Math.min(99, Math.max(0, Math.round(v) + (k === 'three' || k === 'mid' ? heat : 0)));
-    };
-    if (!weights[key]) return value(key);
-    let total = 0, used = 0;
-    for (const [k, weight] of Object.entries(weights[key])) {
-      const v = value(k);
-      if (v != null) { total += v * weight; used += weight; }
-    }
-    return used ? Math.round(total / used) : null;
+  const PC_OFF_5 = PC_OFF.map((cell) => cell[0] === 'hnd' ? ['pac', '传球准度'] : cell);
+  const PC_DEF = [['def', '外防'], ['intD', '内防'], ['stl', '抢断'], ['blk', '盖帽'], ['dreb', '后板'], PC_SPEED];
+  function pcRating(key, r, raw, heat) {
+    const v = key === 'pac' ? raw && raw.pac : Number.isFinite(r[key]) ? A99(r[key]) : null;
+    if (!Number.isFinite(v)) return null;
+    return Math.min(99, Math.max(0, Math.round(v) + (key === 'three' || key === 'mid' ? heat : 0)));
   }
   function pcCell(name, v, d) {
     const change = d > 0 ? '<sup>↑' + d + '</sup>' : d < 0 ? '<sup>↓' + (-d) + '</sup>' : '';
     return '<span>' + name + '<i class="' + vcl(v) + (d > 0 ? ' up' : d < 0 ? ' dn' : '') + '">' + (v == null ? '—' : v) + change + '</i></span>';
   }
   function pcRatings(pl, isOff, is5) {
-    const weights = is5 ? PC_WEIGHTS_5 : PC_WEIGHTS;
-    const base = pl.rBase || pl.r, raw = is5 ? r5Raw(pl.arch, pl) : null;
+    const base = pl.rBase || pl.r, raw = is5 && pl.r5 ? pl.r5.raw : null;
     const heat = is5 ? 0 : Math.round(GM.hcMod(pl) * 99);
-    const keys = is5
-      ? (isOff ? PC_OFF_5 : [PC_GUARD, PC_REB, PC_ATH, A99(base.stl) >= A99(base.blk) ? PC_STEAL : PC_BLOCK])
-      : (isOff ? PC_OFF : PC_DEF);
+    const keys = isOff ? (is5 ? PC_OFF_5 : PC_OFF) : PC_DEF;
     return keys.map(([k, name]) => {
-      if (k === 'spd') return pcCell(name, pcRating(k, base, null, weights, 0), 0);
-      const v = pcRating(k, pl.r, raw, weights, heat);
-      const original = base !== pl.r || heat ? pcRating(k, base, raw, weights, 0) : v;
+      if (k === 'spd') return pcCell(name, pcRating(k, base, null, 0), 0);
+      const v = pcRating(k, pl.r, raw, heat);
+      const original = base !== pl.r || heat ? pcRating(k, base, raw, 0) : v;
       return pcCell(name, v, v != null && original != null ? v - original : 0);
     }).join('');
   }
@@ -618,7 +590,7 @@
     const brow = bl.length ? '<div class="pcb" data-testid="pc-badges">' + bl.map((x) => '<span class="tr' + x[1] + (hot.has(x[0]) ? ' hot' : '') + '" title="' + GM.BADGES[x[0]].name + '">' + bHex(x[0], x[1]) + '</span>').join('') + '</div>' : '';
     const name = '<b>' + a.name + '</b>', ovr = '<em class="t' + TT[a.tier] + '">' + a.ovr + '</em>';
     const role = '<u class="' + (isOff ? 'ro' : 'rd') + '">' + (isOff ? '进攻' : '防守') + '</u>';
-    const head = is5 ? name + role + ovr : '<span class="pc-id">' + name + ovr + '</span>' + role;
+    const head = '<span class="pc-id">' + name + ovr + '</span>' + role;
     return '<div class="pch">' + head + '</div>' + sl + '<div class="pcg">' + cells + '</div>' + brow + tkl + '<div class="pctk' + (tkOn ? ' on' : '') + '"><span>主宰</span><s><b style="width:' + Math.round(pl.tk) + '%"></b></s></div>';
   }
   function pcards() {

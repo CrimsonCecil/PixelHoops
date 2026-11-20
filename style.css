@@ -515,7 +515,6 @@ button.pick .pk-n small { color: var(--tc, var(--gold)); }
 
 /* V2.4 信息卡分区 */
 .pcard .pcg { border-top: 1px solid rgba(255, 255, 255, 0.14); padding-top: calc(var(--u) * 1); }
-#hud5 .pcard .pcg { grid-template-columns: repeat(2, 1fr); }
 .pcard .pctki { border-top: 1px solid rgba(255, 138, 42, 0.45); padding-top: calc(var(--u) * 1); }
 .pcard .pctki .tkh { display: flex; justify-content: space-between; gap: calc(var(--u) * 3); white-space: nowrap; }
 .pcard.p1 .pctki .tkh { flex-direction: row-reverse; }
