@@ -5,9 +5,13 @@ const vm = require('node:vm');
 
 const ctx = vm.createContext({ console, performance: { now: () => 0 } });
 ctx.window = ctx;
+vm.runInContext('delete Array.prototype.findLast', ctx);
 const noop = () => {};
+let numberPixels;
 const canvas = () => {
-  const c = new Proxy({ createImageData: (w, h) => ({ data: new Uint8ClampedArray(w * h * 4) }), measureText: () => ({ width: 8 }) }, {
+  const c = new Proxy({ createImageData: (w, h) => ({ data: new Uint8ClampedArray(w * h * 4) }), measureText: () => ({ width: 8 }),
+    fillRect(x, y, w, h) { if (this.fillStyle === '#123456') numberPixels?.push([x, y, w, h]); },
+  }, {
     get: (obj, key) => obj[key] ?? noop,
   });
   return { getContext: () => c };
@@ -20,6 +24,69 @@ for (const name of ['tune', 'render', 'roster', 'measurements', 'r5', 'game', 'b
 
 const { game, render, rig, measurements, buildTags, T5 } = ctx.PH;
 render.init(canvas());
+const rgb = hex => hex.slice(1).match(/../g).map(c => parseInt(c, 16));
+const distance = (a, b) => Math.hypot(...rgb(a).map((v, i) => v - rgb(b)[i]));
+const jerseyOf = p => game.NBA[p.arch.team === 'LEG' ? 'LAL' : p.arch.team].jersey;
+const homeRoster = game.ROSTER.map(key => game.t5.makePlayer(0, key, 'p1'));
+const awayRoster = game.ROSTER.map(key => game.t5.makePlayer(1, key, 'cpu'));
+for (const home of homeRoster) {
+  for (const away of awayRoster) {
+    game.applyMatchKits([home, away]);
+    assert.equal(home.col.jersey[1], jerseyOf(home));
+    const clash = distance(jerseyOf(home), jerseyOf(away)) < 120;
+    assert.equal(away.col.jersey[1], clash
+      ? distance(jerseyOf(home), '#eeeae0') >= 120 ? '#eeeae0' : game.NBA[away.arch.team].shorts
+      : jerseyOf(away));
+    assert(distance(home.col.jersey[1], away.col.jersey[1]) >= 120, home.arch.key + ' vs ' + away.arch.key);
+  }
+}
+for (const p of [...homeRoster, ...awayRoster]) {
+  assert.match(p.col.jerseyNo, /^\d{1,2}$/);
+  assert.equal(p.col.jerseyNo, String(p.arch.num));
+  assert.equal(p.col.ringCol, game.TEAMS[p.id].css);
+}
+for (const key of ['oneale', 'clarkson', 'scoot']) {
+  assert.equal(homeRoster.find(p => p.arch.key === key).col.jerseyNo, '00');
+}
+game.newGame({ mode: 'cpu', arch0: 'curry', arch1: 'lillard' });
+assert.equal(game.G.players[0].col.jerseyNo, '30');
+assert.equal(game.G.players[1].col.jerseyNo, '0');
+game.newGame({ mode: 'train', arch0: 'lebron', arch1: 'maxey' });
+const [trainee, dummy] = game.G.players;
+assert.equal(trainee.col.jersey[1], game.NBA.PHI.jersey);
+assert.equal(dummy.col.jersey[1], '#eeeae0');
+assert.equal(trainee.col.jerseyNo, '23');
+assert.equal(dummy.col.jerseyNo, '0');
+dummy.arch = game.ARCH.lillard;
+game.applyMatchKits(game.G.players);
+assert.equal(dummy.col.jersey[1], game.NBA.POR.jersey);
+dummy.arch = game.ARCH.curry;
+game.applyMatchKits(game.G.players);
+assert.equal(dummy.col.jerseyNo, '30');
+trainee.col.jerseyInk = '#123456';
+for (const facing of [-Math.PI / 2, Math.PI / 2]) {
+  numberPixels = [];
+  trainee.face = facing;
+  render.drawPlayer(trainee);
+  assert(numberPixels.length > 10, 'two number glyphs render on front and back');
+}
+console.log('PASS all 302 jersey numbers and team kits resolve; all 91,204 ordered matchups are distinguishable');
+const jerseyCam = { ...render.cam };
+render.setCam({ zoom: 0.8, dist: 14, height: 10 });
+// The holder at the top of the court fixes the camera at the near end of its follow range.
+render.cam.y = 2 - render.CAMV.dist;
+for (const y of [7, 15]) for (const player of homeRoster) {
+  for (const face of [-Math.PI / 2, Math.PI / 2]) {
+    numberPixels = [];
+    render.drawPlayer({ ...player, y, face, col: { ...player.col, jerseyInk: '#123456' } });
+    const columns = new Set(numberPixels.map(([x]) => x));
+    assert(columns.size >= player.col.jerseyNo.length * 2,
+      player.arch.key + ' #' + player.col.jerseyNo + ' at minimum zoom, y=' + y + ', face=' + face);
+  }
+}
+render.setCam(render.CAM_DEF);
+Object.assign(render.cam, jerseyCam);
+console.log('PASS jersey digits render on the front and back of all 302 players at minimum zoom');
 assert.deepEqual(Object.keys(measurements).sort(), Array.from(game.ROSTER).sort());
 assert.deepEqual(Object.keys(buildTags).sort(), Array.from(game.ROSTER).sort());
 const classes = ['lean', 'balanced', 'muscular', 'heavy'];

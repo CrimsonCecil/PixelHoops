@@ -783,7 +783,7 @@
       '<div class="tl">其他</div><div class="st-last"><span>平均受干扰 ' + (S.n ? Math.round((S.sumC / S.n) * 100) : 0) + '%</span><span>被盖 ' + S.blocked + ' 次</span></div>' +
       '<div class="tl">最近出手</div>' + (S.last.length ? S.last.map((x) => '<div class="st-last ' + (x.made ? 'ok' : 'no') + '"><span>' + x.name + ' · ' + x.tl + '</span><span>' + (x.made ? '命中' : '未进') + ' ' + Math.round(x.prob * 100) + '%</span></div>').join('') : '<div class="tnote">还没有出手</div>');
   }
-  function copyArch(pl, key) { const a = GM.ARCH[key]; Object.assign(pl.r, a, { badges: a.badges.slice(), sig: Object.assign({}, a.sig) }); pl.h = a.h; pl.arch = a; pl.sk.cd = 0; pl.sk.ready = false; pl.sk.streak = 0; Object.assign(pl.col, GM.lookOf(a)); }
+  function copyArch(pl, key) { const a = GM.ARCH[key]; Object.assign(pl.r, a, { badges: a.badges.slice(), sig: Object.assign({}, a.sig) }); pl.h = a.h; pl.arch = a; pl.sk.cd = 0; pl.sk.ready = false; pl.sk.streak = 0; Object.assign(pl.col, GM.lookOf(a)); GM.applyMatchKits(G.players); }
   $('tr-tabs').addEventListener('click', (e) => { const t = e.target.getAttribute && e.target.getAttribute('data-t'); if (t) { trTab = t; buildPanel(); $('tr-body').scrollTop = 0; } });
   $('tr-body').addEventListener('input', (e) => {
     const i = e.target.getAttribute('data-c'); if (i == null) return;
