@@ -2418,11 +2418,14 @@
     if (p.id !== C.id) { const s = G.players[C.id]; if (C.sd == null) C.sd = p.x >= s.x ? 1 : -1; const dx = s.x + C.sd * 1.6 - p.x, dy = s.y + 0.15 - p.y, d = Math.hypot(dx, dy); if (d > 0.3) { const k = Math.min(1, d) * 0.75; o.mx = dx / d * k; o.my = dy / d * k; } }
     return o;
   }
-  function scoreBy(id, pts, kind, name) {
+  function queueScoreReplay(id, s) {
+    if (!G.hlQ || s >= G.hlQ.s) G.hlQ = { s, t: G.time, pid: id, x: HOOP.x, y: HOOP.y, z: HOOP.z };
+  }
+  function scoreBy(id, pts, kind, name, attempt) {
     if (G.mode === 't5') { scoreT5(id, pts, kind, name); return; }
     // 没出三分线就出手：进了也不算，违例，球权交给对方
     if ((G.illId === id && G.mode !== 'train') || (G.mode === 't3' && G.needClear)) { G.illId = -1; G.ball.dead = true; G.net = 1; sfx(kind === 'dunk' ? 'dunk' : 'swish'); float('没出三分线 · 违例', G.players[id], '#ff5a4a', 1); G.streak[id] = 0; turnover(G.mode === 't3' ? OP(G.players[id]).id : 1 - id, '没出三分线 · 违例'); return; }
-    if (G.mode === 't3') { scoreT5(id, pts, kind, name); return; }
+    if (G.mode === 't3') { scoreT5(id, pts, kind, name, attempt); return; }
     const st = G.stats[id]; st.fg++; if (pts === 3) st.tp++; if (kind === 'dunk') st.dunk++; if (kind === 'dunk' || kind === 'lay') st.inm++;
     const pl = G.players[id], t = pl.team, train = G.mode === 'train' && G.train.role === 'off';
     G.lastScorer = id; G.net = 1; G.ball.dead = true; G.streak[id]++; cold(1 - id);
@@ -2446,6 +2449,7 @@
     if (win) { hs += 20; tier = buzzer ? 3 : 2; ledT = buzzer ? 'GAME WINNER  绝杀' : 'GAME POINT  致胜一击'; }
     if (kind === 'dunk') F.board = Math.max(F.board, 0.6);
     hype(tier, pl, { x: hx, y: hy, z: hz - (kind === 'dunk' ? 0 : 0.3), col: kind === 'dunk' ? '#ff8a2a' : pts === 3 ? '#ffd24a' : t.css, cols: kind === 'dunk' ? ['#ffd24a', '#ff8a2a', '#ffffff'] : pts === 3 ? ['#ffd24a', '#5ee0ff', '#ffffff'] : ['#ffffff', '#f6efe0'], led: ledT, hs: hs, hero: buzzer ? ['绝杀', pl.arch.name + ' · ' + (name || (pts === 3 ? '三分' : '两分'))] : null });
+    if (G.mode !== 'demo' && G.mode !== 'train' && kind === 'lay' && (attempt ?? pa)?.clutchT != null) queueScoreReplay(id, 60);
     if (tier === 0) led(ledT, t.css, 1.6);
     if (hot) { led('ON FIRE  手感火热  连中 ' + G.streak[id] + ' 球', '#ff6b5e', 2.6); if (G.streak[id] === 3) float('手感火热', pl, '#ff8a2a'); }
     if (lsk) { led(lsk === 'curry' ? 'NIGHT NIGHT  夜夜晚安' : pl.arch.skill.en + '  ' + pl.arch.skill.name, '#ffd24a', 3); flash('#ffd24a', 0.2); shake(6); G.fx.cheer = 3; }
@@ -2458,7 +2462,7 @@
   }
 
   // 5V5 得分：投篮统计 / 连中 / 主宰能量 / 音效 / LED 和 1V1 一样，比分、发球、换边交给 team5
-  function scoreT5(id, pts, kind, name) {
+  function scoreT5(id, pts, kind, name, attempt) {
     const st = G.stats[id], pl = G.players[id]; st.fg++; if (pts === 3) st.tp++; if (kind === 'dunk') st.dunk++; if (kind === 'dunk' || kind === 'lay') st.inm++;
     G.lastScorer = id; G.net = 1; G.ball.dead = true; G.streak[id]++; for (const p of G.players) if (TM(p) !== TM(pl)) G.streak[p.id] = 0;
     G.ball.lastSk = null;
@@ -2472,9 +2476,8 @@
     if (tier >= 1) { G.fx.cheer = Math.max(G.fx.cheer, 1.5 + tier); sfx(tier >= 2 ? 'cheer2' : 'cheer'); led(kind === 'dunk' ? 'SLAM DUNK  ' + (name || '暴扣') + '  +2' : '3 POINTS  三分命中  +3', col, 2); }
     if (hot) { led('ON FIRE  手感火热  连中 ' + G.streak[id] + ' 球', '#ff6b5e', 2.6); if (G.streak[id] === 3) float('手感火热', pl, '#ff8a2a', 1); }
     vo(pl, kind === 'dunk' ? 'dunk' : pts === 3 ? 'three' : hot && G.streak[id] === 3 ? 'hot' : 'make');
-    if (G.mode === 't3' && (tier >= 1 || pa?.clutchT != null || winsWith(id, pts))) {
-      const s = tier >= 2 || winsWith(id, pts) ? 85 : 60;
-      if (!G.hlQ || s >= G.hlQ.s) G.hlQ = { s, t: G.time, pid: id, x: HOOP.x, y: HOOP.y, z: HOOP.z };
+    if (G.mode === 't3' && (tier >= 1 || (kind === 'lay' && (attempt ?? pa)?.clutchT != null) || winsWith(id, pts))) {
+      queueScoreReplay(id, tier >= 2 || winsWith(id, pts) ? 85 : 60);
     }
     if (G.h5) G.h5.score(pl, pts, kind, name);
   }
@@ -4393,7 +4396,7 @@
         }
         if (s.mk && !s.mk.done) { s.mk.t = (s.mk.t || 0) + dt; if (s.mk.miss && !s.mk.seg.length) { s.mk.done = true; sfx('rim'); G.fx.rim = 1; } else if (mkTick(b, s.mk)) s.mk.done = true; else return; }
         if (s.attempt) shotForm(G.players[s.shooter], s.attempt, s.kind, s.made);
-        if (s.made) { b.x = HOOP.x; b.y = HOOP.y; b.z = HOOP.z - 0.1; b.vx = 0; b.vy = -0.5; b.vz = -3.2; b.state = 'loose'; b.under = true; scoreBy(s.shooter, s.pts, s.kind, s.name); }
+        if (s.made) { b.x = HOOP.x; b.y = HOOP.y; b.z = HOOP.z - 0.1; b.vx = 0; b.vy = -0.5; b.vz = -3.2; b.state = 'loose'; b.under = true; scoreBy(s.shooter, s.pts, s.kind, s.name, s.attempt); }
         else {
           // 篮板反弹：近距离出手软着弹（1~2 米），越远弹得越远；方向以球场一侧为主
           const sd = s.d || 5, O = s.mk && s.mk.out, hs = O ? O.hs : s.kind === 'lay' ? rr(0.4, 1.25) : rr(0.7, 1.0 + 0.2 * sd), an = O ? O.an : -Math.PI / 2 + rr(-1.15, 1.15);
