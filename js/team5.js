@@ -100,10 +100,14 @@
     { k: 't5_clk_heave', g: 't5', cat: 't5', sub: '时间管理', gm: '5v5', label: '时间紧迫 无论位置强投', v: 1.5, min: 0, max: 4, step: 0.1, note: '秒。剩余 ≤ 这个：无论在哪都马上出手（超远三分 / 抛投）' },
     { k: 't5_clk_rel', g: 't5', cat: 't5', sub: '时间管理', gm: '5v5', label: '时间紧迫 强制出手点', v: 0.3, min: 0, max: 1, step: 0.05, note: '秒。投篮动作中剩余 ≤ 这个就立刻出手，保证球在计时结束前离手' },
     { k: 't5_clk_hold', g: 't5', cat: 't5', sub: '时间管理', gm: '5v5', label: '小节末 领先耗时到', v: 7, min: 0, max: 24, step: 0.5, note: '秒。小节时间少于进攻时间、领先或平分时，电脑先运球耗时，到剩这么多秒再进攻（最后一攻，仍必须在小节结束前出手）；0 = 不耗' },
-    { k: 't5_pass_spd', g: 't5', cat: 'pass', sub: '传球', gm: '5v5', label: '传球 球速差距', v: 0.45, min: 0, max: 1, step: 0.05, note: '倍率。球速 × (1 + 这个 × 传球准确偏离)，传球准确 pac 85 约 +18%、55 约 −16%（以前 0.2）' },
+    { k: 't5_pass_spd', g: 't5', cat: 'pass', sub: '传球', gm: '5v5', label: '传球 球速差距', v: 0.45, min: 0, max: 1, step: 0.05, note: '倍率。球速 × (1 + 这个 × 传球准确偏离)，pac 90 约 +23%、50 约 −21%' },
+    { k: 't5_pass_wFast', g: 't5', cat: 'pass', sub: '传球', gm: '5v5', label: '传球 精英出手时间', v: 0.06, min: 0, max: 0.3, step: 0.01, note: '秒。pac 高端的推球准备时间；发球和跳传不等待' },
+    { k: 't5_pass_wSlow', g: 't5', cat: 'pass', sub: '传球', gm: '5v5', label: '传球 低能力出手时间', v: 0.2, min: 0, max: 0.5, step: 0.01, note: '秒。pac 低端的准备时间，与精英时间按能力插值' },
+    { k: 't5_pass_leadLow', g: 't5', cat: 'pass', sub: '传球', gm: '5v5', label: '传球 低能力提前量', v: 0.45, min: 0, max: 1.5, step: 0.05, note: '倍率。低能力预判接球人跑动的比例；高能力趋近 1，误差计入接球质量' },
+    { k: 't5_pass_leadRnd', g: 't5', cat: 'pass', sub: '传球', gm: '5v5', label: '传球 提前量波动', v: 0.15, min: 0, max: 0.5, step: 0.05, note: '倍率。低能力提前量的随机正负波动，随 pac 提高减小' },
     { k: 't5_pass_arc', g: 't5', cat: 'pass', sub: '传球', gm: '5v5', label: '传球 弧线差距', v: 1.4, min: 0, max: 2, step: 0.05, note: '倍率。胸前 / 长传的弧度 × (1 − 这个 × 传球准确偏离)：能力高的球更直，能力低的更飘' },
     { k: 't5_pass_er', g: 't5', cat: 'pass', sub: '传球', gm: '5v5', label: '传球 落点误差', v: 1.2, min: 0, max: 3, step: 0.05, note: '米。落点误差 = 这个 × max(0, 误差起点 − 传球准确偏离) × 距离 / 类型系数（以前斜率 0.6）' },
-    { k: 't5_pass_er0', g: 't5', cat: 'pass', sub: '传球', gm: '5v5', label: '传球 误差起点', v: 0.25, min: -0.5, max: 0.5, step: 0.01, note: '传球准确偏离高于这个（约 pac 79）就没有落点误差' },
+    { k: 't5_pass_er0', g: 't5', cat: 'pass', sub: '传球', gm: '5v5', label: '传球 误差起点', v: 0.25, min: -0.5, max: 0.5, step: 0.01, note: '传球准确偏离高于这个（约 pac 79）就没有随机落点误差；跑动提前量不足仍计入接球质量' },
     { k: 't5_pass_trk', g: 't5', cat: 'pass', sub: '传球', gm: '5v5', label: '传球 偏球修正', v: 0.8, min: 0.2, max: 3, step: 0.05, note: '米。球飞行中向接球人手上修正的速度 × (1 − 落点误差 / 这个)：越小越难修正，偏球会真的偏到身后 / 脚下' },
     { k: 't5_pass_bh', g: 't5', cat: 'pass', sub: '传球', gm: '5v5', label: '传球 偏到身后概率', v: 0.65, min: 0, max: 1, step: 0.05, note: '概率。接球人在跑动时，落点误差偏到他身后的概率（要停下来回身接）' },
     { k: 't5_pass_feet', g: 't5', cat: 'pass', sub: '传球', gm: '5v5', label: '传球 偏到脚下概率', v: 0.35, min: 0, max: 1, step: 0.05, note: '概率。落点误差 > 0.3 米时球偏低、到脚下（低位接球，不能接球即投）' },
@@ -744,9 +748,10 @@
     const kd = (kind === 'bounce' ? TV.t5_pass_kdB : kind === 'skip' ? TV.t5_pass_kdS : kind === 'lob' ? TV.t5_pass_kdL : kind === 'alley' ? TV.t5_pass_kdA : 0) + (bl0 ? TV.t5_pass_kdN : 0) + (p.jpNow ? TV.t5_pass_kdJ : 0);
     const kf = !T.plPassing && T.phase !== 'inb' && kd > 0 && rnd() < TV.t5_pass_kf * kd * clamp(TV.t5_pass_kfS - ua - 0.5 * uh, 0, 1);
     if (kf) T.cnt.ps_kf = (T.cnt.ps_kf || 0) + 1;
-    // 传球准确 pac：球速 ±10%，落点误差 0~0.6 米（距离越远、高吊 / 长传越大）
+    const skill = clamp(ua + 0.5, 0, 1), windup = T.phase === 'inb' || p.jpNow ? 0 : lerp(TV.t5_pass_wSlow, TV.t5_pass_wFast, skill);
     const d0 = dist(p, m), Tt = Math.max(0.22, d0 / (K.v * (1 + TV.t5_pass_spd * ua + 0.06 * (U(p, 'vis') + U(p, 'iq'))) * (p.jpNow ? TV.t5_pass_jpV : 1) * (kf ? 0.85 : 1))) * (kind === 'lob' || kind === 'alley' ? TV.t5_pass_lobT : 1);   // V3.9q 跳传更慢；球商高的人出球更快
-    let tx = m.x + (m.vx || 0) * Tt * 0.6, ty = m.y + (m.vy || 0) * Tt * 0.6;
+    const lead = lerp(TV.t5_pass_leadLow + rr(-TV.t5_pass_leadRnd, TV.t5_pass_leadRnd), 1, skill), H = handPt(m, b);
+    let tx = H[0] + (m.vx || 0) * (Tt + windup) * lead, ty = H[1] + (m.vy || 0) * (Tt + windup) * lead;
     // V4.2 落点误差：传球准确越低越偏（失手的高难度传球再偏 0.9~1.8 米）；接球人在跑动时多半偏到身后，偏得多的有时偏到脚下
     const er = TV.t5_pass_er * Math.max(0, TV.t5_pass_er0 - ua) * (0.5 + d0 / 14) * (kind === 'skip' || kind === 'lob' || kind === 'alley' ? 1.4 : 1) * Math.sqrt(rnd()) + (kf ? rr(0.9, 1.8) : 0);
     let ea = rnd() * 6.2832; if ((m.speed || 0) > 1.2 && rnd() < TV.t5_pass_bh) ea = Math.atan2(-(m.vy || 0), -(m.vx || 0)) + rr(-0.7, 0.7);
@@ -760,7 +765,8 @@
     if (kind === 'alley' || kind === 'lob') { const hl = dHoop(m); if (hl < 5.5) { tx = lerp(tx, 0, 0.35); ty = lerp(ty, HY - 0.6, 0.35); } }
     tx = clamp(tx, -7.4, 7.4); ty = clamp(ty, -13.8, 13.8);
     b.state = 'pass'; b.holder = -1; p.hasBall = false; b.lastTouch = p.id; b.wasShot = false; b.shot = null; b.trail = null;
-    T.ps = { from: p, to: m, kind: kind, x0: b.x, y0: b.y, z0: Math.max(0.6, b.z), tx: tx, ty: ty, t: 0, T: Tt, int: null, bnc: false, inb: T.phase === 'inb', er: er, v: d0 / Tt, ua: ua, kf: kf,
+    const catchEr = er + hyp(m.vx || 0, m.vy || 0) * (Tt + windup) * Math.abs(1 - lead);
+    T.ps = { from: p, to: m, kind: kind, x0: b.x, y0: b.y, z0: Math.max(0.6, b.z), tx: tx, ty: ty, t: -windup, windup: windup, lead: lead, T: Tt, int: null, bnc: false, inb: T.phase === 'inb', er: catchEr, v: d0 / Tt, ua: ua, kf: kf,
       ap: kind === 'chest' || kind === 'skip' ? K.ap * Math.max(0.05, 1 - TV.t5_pass_arc * ua) : K.ap, feet: er > 0.3 && kind !== 'lob' && kind !== 'alley' && rnd() < TV.t5_pass_feet };   // V4.2 能力高的球更直、能力低的更飘
     // 预判拦截：路线上最先碰到球的防守人
     // V3.9h 2K 手感：开阔线路的短传几乎不丢；被断主要来自线路上有人且抢断/传球预判高、传得远、盲传（背身/侧身传）、传球属性低
@@ -795,11 +801,20 @@
     const b = G.ball, P = T.ps;
     if (T.phase === 'inb' && b.state === 'loose') { T.phase = 'live'; G.shotClock = 24; }   // 发球没接住 / 被碰掉：直接转入活球抢球
     if (b.state !== 'pass' || !P) return;
+    const prevT = P.t;
     P.t += dt; const r = P.to, K = PASS[P.kind] || PASS.chest;
+    if (prevT < 0) {
+      const p = P.from, w = clamp(1 + P.t / P.windup, 0, 1);
+      p.face = Math.atan2(P.ty - p.y, P.tx - p.x);
+      if (p.pose) Object.assign(p.pose, { aLp: 0.9 + 0.4 * w, aRp: 0.9 + 0.4 * w, aLe: 1.3 - 0.7 * w, aRe: 1.3 - 0.7 * w });
+      const H = handPt(p, b);
+      b.x = P.x0 = H[0]; b.y = P.y0 = H[1]; b.z = P.z0 = H[2]; b.vx = b.vy = b.vz = 0;
+      if (P.t < 0) return;
+    }
     if (r && dt > 0) { if (P.rpx != null) P.rsp = lerp(P.rsp || 0, hyp(r.x - P.rpx, r.y - P.rpy) / dt, 0.35); P.rpx = r.x; P.rpy = r.y; }   // V3.9j 接球人移动速度（判“移动中接球”）
     // 球追着接球人走一点（不是瞬移）
     // 球追着接球人走一点（不是瞬移）——P.tx / P.ty 是接球人要去的落点（身体）
-    if (r && P.t < P.T * 0.85 && !P.lin) { const dx = r.x - P.tx, dy = r.y - P.ty, l = hyp(dx, dy), mv = Math.min(l, (P.kind === 'bounce' ? 4 : 2.5) * dt); if (l > 0.01) { P.tx += dx / l * mv; P.ty += dy / l * mv; } }
+    if (r && P.t < P.T * 0.85 && !P.lin) { const rem = Math.max(0, P.T - P.t) * (P.lead == null ? 0.6 : P.lead), dx = r.x + (r.vx || 0) * rem - P.tx, dy = r.y + (r.vy || 0) * rem - P.ty, l = hyp(dx, dy), mv = Math.min(l, (P.kind === 'bounce' ? 4 : 2.5) * dt); if (l > 0.01) { P.tx += dx / l * mv; P.ty += dy / l * mv; } }
     // V3.9m 球的终点 P.ex / ey / ez 对准接球人的手（双手中点），一直跟到最后；后 35% 跟得更快，保证到达那一刻球就在手上
     if (P.ex == null) { P.ex = P.tx; P.ey = P.ty; P.ez = K.tz; }
     if (r && !P.lin) {
