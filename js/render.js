@@ -1663,7 +1663,11 @@
       ctx.fillStyle = '#ffe073'; ctx.fillText(c.name, 0, 0); ctx.restore();
     }
   }
-  function camera3(G, dt) {
+  function nameFoot(p, t3) {
+    const q = proj(p.x, p.y - (t3 ? 0 : 0.25), 0);
+    return { x: q.x, y: q.y + 0.34 * q.s * (t3 ? 0.62 : 1) };
+  }
+  function camera3(G, dt, hintY) {
     const b = G.ball, p = b.state === 'held' ? G.players[b.holder] : null;
     const x = p ? p.x + p.vx * 0.28 : b.x + (b.state === 'pass' ? 0 : b.vx * 0.12);
     const y = p ? p.y + p.vy * 0.28 + 1.3 : b.state === 'shot' ? b.y * 0.65 + HOOP.y * 0.35 : b.y;
@@ -1681,13 +1685,30 @@
     const left = Math.min(rim.x, board.x, q.x, feet.x, head.x), right = Math.max(rim.x, board.x, q.x, feet.x, head.x);
     const top = Math.min(board.y, q.y, head.y), bottom = Math.max(rim.y, q.y, feet.y);
     const zx = right - left, zy = bottom - top;
-    const zoom = Math.min(1, zx ? (W - 84) / zx : 1, zy ? (H - 54) / zy : 1);
+    let zoom = Math.min(1, zx ? (W - 84) / zx : 1, zy ? (H - 54) / zy : 1);
+    const center = H / 2 + cam.oy;
+    const scaledY = (y) => center + (y - center) * zoom;
+    const local = hintY != null && G.players.find((pl) => pl.ring && !pl.off);
+    let clearTop, nameAnchor, footLimit, nameLimit;
+    if (hintY != null) {
+      clearTop = Math.min(rim.y, q.y, head.y, local ? proj(local.x, local.y, local.z + local.h).y : H);
+      footLimit = hintY - 4;
+      if (local) {
+        nameAnchor = nameFoot(local, true).y;
+        nameLimit = footLimit - (STB.h1 + STB.gap + 16);
+      }
+      if (bottom > clearTop) zoom = Math.min(zoom, (footLimit - 32) / (bottom - clearTop));
+      if (nameAnchor > clearTop) zoom = Math.min(zoom, (nameLimit - 32) / (nameAnchor - clearTop));
+    }
     cam.F *= zoom;
     offsetX3 = Math.max(42 - (W / 2 + (left - W / 2) * zoom), Math.min(0, W - 42 - (W / 2 + (right - W / 2) * zoom)));
-    const center = H / 2 + cam.oy;
-    offsetY3 = Math.max(24 - (center + (top - center) * zoom), Math.min(0, H - 30 - (center + (bottom - center) * zoom)));
+    offsetY3 = Math.max(24 - scaledY(top), Math.min(0, H - 30 - scaledY(bottom)));
+    if (hintY != null) {
+      const limit = Math.min(footLimit - scaledY(bottom), local ? nameLimit - scaledY(nameAnchor) : Infinity);
+      if (offsetY3 > limit) offsetY3 = Math.max(32 - scaledY(clearTop), limit);
+    }
   }
-  function render(G, dt = 1 / 60) {
+  function render(G, dt = 1 / 60, hintY) {
     // 回放时用录下来的画面快照代替实时状态
     const RP = G.replay && G.replay.view;
     if (RP) G = Object.assign(Object.create(G), RP);
@@ -1705,7 +1726,7 @@
     // 禁区推近（可关）：持球接近篮下时镜头沿纵向前推、机位压低。只用平滑过的 camK，不读球员实时位置，不做额外取景修正
     const pk = RP || cz || !CAMV.push ? 0 : (G.camK || 0);
     if (pk > 0.001) { const e = pk * pk * (3 - 2 * pk); cam.y += CAMV.pin * 5 * e; cam.z -= (cam.z - 1.2) * CAMV.pin * CAMV.plow * e; }
-    if (G.mode === 't3' && !RP) camera3(G, dt);
+    if (G.mode === 't3' && !RP) camera3(G, dt, hintY);
     else follow3 = null;
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.fillStyle = '#070a16'; ctx.fillRect(0, 0, W, H);
@@ -1738,7 +1759,7 @@
     // 脚下体力条（V4.4 30×2 + 刻度 + 阈值 + 残影，见 stamBar）
     for (const p of G.players) {
       if (!p.ring || p.off) continue;
-      const q = proj(p.x, p.y - 0.25, 0), w = STB.w1, x = Math.round(q.x - w / 2), y = Math.min(H - 13 - (STB.h1 + STB.gap), Math.round(q.y + 0.34 * q.s) + 3);   // 靠底线时整组（条 + 名字）上移，不叠
+      const q = nameFoot(p, G.mode === 't3' && !RP), w = STB.w1, x = Math.round(q.x - w / 2), y = Math.min(H - 13 - (STB.h1 + STB.gap), Math.round(q.y) + 3);   // 靠底线时整组（条 + 名字）上移，不叠
       stamBar(ctx, x, y, w, STB.h1, p.stam, 'g' + p.id, G.time);
     }
     // 运球（没在做动作）时球总画在持球人身前，背对镜头时也不会被身体挡住
@@ -1762,7 +1783,7 @@
     { const tags = [];
       for (const p of G.players) {
         if (!(p.ring || curOn(p, G)) || p.off || !p.arch || RP || p.dummy) continue;
-        const q = proj(p.x, p.y - 0.25, 0), hp = heads[p.id]; let y = p.ring ? Math.min(H - 13 - (STB.h1 + STB.gap), Math.round(q.y + 0.34 * q.s) + 3) + STB.h1 + STB.gap : Math.round(q.y + 0.34 * q.s) + 3;   // 有体力条：在条（含下方阈值短刻度）下面
+        const q = nameFoot(p, G.mode === 't3'); let y = p.ring ? Math.min(H - 13 - (STB.h1 + STB.gap), Math.round(q.y) + 3) + STB.h1 + STB.gap : Math.round(q.y) + 3;   // 有体力条：在条（含下方阈值短刻度）下面
         // V4.0 名字一律在脚下（用户：名称都在脚下显示就好，不用担心遮挡），只夹在画面内，不再挪到头顶
         if (y < 2) continue; y = Math.min(H - 13, y);
         for (const o of tags) if (Math.abs(o.y0 - y) < 12 && Math.abs((o.x0 + o.x1) / 2 - q.x) < 40) y = o.y0 > y ? o.y0 - 13 : o.y1 + 1;

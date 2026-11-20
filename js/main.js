@@ -1665,7 +1665,9 @@
     PH.audio.setPaused((screen === 'play' || screen === 'play5') && paused);
     musicPick();
     if (screen === 'play5') { PH.render5.render(PH.T5.T, manual ? 0.05 : 1 / Math.max(30, fps)); hud5(); cutin(); return; }
-    R.render(G, dt); hud(); cutin();
+    const hint = screen === 'play' && G.mode === 't3' && !G.replay ? $('hint') : null;
+    const hintY = hint?.offsetHeight ? hint.offsetTop / scale : undefined;
+    R.render(G, dt, hintY); hud(); cutin();
     const dbg = $('debug');
     if (debug) { dbg.classList.remove('hidden'); dbg.textContent = 'FPS ' + fps.toFixed(0) + ' · ' + G.phase + ' · 进攻 ' + G.off + ' · 球 ' + G.ball.state; } else dbg.classList.add('hidden');
   }

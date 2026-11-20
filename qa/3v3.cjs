@@ -34,11 +34,14 @@ function fixture(options = {}) {
 }
 
 {
-  const { ctx, G, T3 } = fixture({ human: 0 });
+  const { ctx, G, T3 } = fixture({ human: 0, local: 0 });
+  const nameRows = [], staminaRows = [];
   const canvas = () => {
     const c = new Proxy({
       createImageData: (w, h) => ({ data: new Uint8ClampedArray(w * h * 4) }),
       measureText: () => ({ width: 8 }),
+      fillText(text, x, y) { if (text === T3.holder()?.arch.name) nameRows.push(y + 12); },
+      fillRect(x, y, w, h) { if (w === 32 && h === 4 && this.fillStyle === '#15101f') staminaRows.push(y + h); },
     }, { get: (obj, key) => obj[key] ?? (() => {}) });
     return { getContext: () => c };
   };
@@ -55,6 +58,16 @@ function fixture(options = {}) {
   move(0, 6);
   R.render(G);
   assert(feet().s > 30, '3V3 uses close framing at the arc');
+  const hintY = 253;
+  move(3.3, 6.25);
+  R.render(G, 1);
+  const scale = feet().s;
+  nameRows.length = staminaRows.length = 0;
+  R.render(G, 0, hintY);
+  assert.equal(feet().s, scale, 'the normal wing angle clears the hints without zooming out');
+  assert(nameRows.length && Math.max(...nameRows) < hintY);
+  assert(staminaRows.length && Math.max(...staminaRows) < hintY);
+  assert(visible(feet()) && visible(rim()));
   const origin = R.cam.x;
   move(7.4, 1);
   R.render(G, 1 / 60);
@@ -63,9 +76,11 @@ function fixture(options = {}) {
   R.render(G, 1);
   assert(origin < first && first < R.cam.x, 'the camera pans rather than jumping to the handler');
   G.ball = { ...G.ball, state: 'shot', holder: -1, x: -4, y: 7, z: 6 };
-  R.render(G);
+  R.render(G, 1 / 60, hintY);
   assert(visible(R.proj(G.ball.x, G.ball.y, G.ball.z)) && visible(rim()), 'follow a shot from the snapshot ball');
+  assert(feet().y < hintY, 'keep the controlled player clear while the camera follows the shot');
   console.log('PASS: closer 3V3 camera pans and frames the rim, sideline handler and airborne ball.');
+  console.log('PASS: 3V3 player, name tag and stamina bar clear the control hints without losing the rim or wing zoom.');
 }
 
 {
