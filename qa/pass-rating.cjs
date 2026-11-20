@@ -18,7 +18,7 @@ function fixture(baseline = false, human = -1, seed = 7) {
       ? cp.execFileSync('git', ['show', '3bb7f5f95408c797f8aae8018ac3210f7cb664e9:js/team5.js'], { cwd: path.join(__dirname, '..'), encoding: 'utf8' })
       : fs.readFileSync(path.join(__dirname, '../js', name + '.js'), 'utf8');
     if (name === 'team5') {
-      code = code.replace('doPass: doPass,', 'doPass: doPass, qaPassUpdate: passUpdate, qaHand: handPt,');
+      code = code.replace('doPass: doPass,', 'doPass: doPass, qaPassUpdate: passUpdate, qaHand: handPt, qaHumanInp: humanInp, qaThree: three,');
       code = code.replace('T.ps.rec = rec;', 'rec.qaWindup = Math.max(0, -T.ps.t); T.ps.rec = rec;');
     }
     vm.runInContext(code, ctx, { filename: name + '.js' });
@@ -75,6 +75,26 @@ const avg = pac => {
   return Object.fromEntries(Object.keys(rows[0]).map(k => [k, rows.reduce((s, r) => s + r[k], 0) / rows.length]));
 };
 const high = avg(90), low = avg(50);
+{
+  const { t5, G } = fixture(false, 0), T = t5.T, p = T.ctl, r = T.tm[0].on.find(q => q !== p);
+  Object.assign(T, { phase: 'live', R: { lx: 0, ly: 0, rx: 0, ry: 0 }, E: {} });
+  Object.assign(G, { phase: 'live', off: 0 });
+  Object.assign(p, { hasBall: true, action: null, face: 0 });
+  p.r5.pac = 0.5;
+  Object.assign(r, { x: 6.65, y: 12, vx: 0, vy: 0, speed: 0, pose: null });
+  Object.assign(G.ball, { state: 'held', holder: p.id, x: p.x, y: p.y, z: 1.2, dead: false });
+  assert(t5.qaThree(r.x, r.y));
+  assert(t5.doPass(p, r, 'chest'));
+  assert.deepEqual([T.ps.tx, T.ps.ty], [r.x, r.y]);
+  const o = t5.qaHumanInp(r);
+  assert.equal(o.mx, 0); assert.equal(o.my, 0);
+  assert(t5.qaThree(r.x, r.y));
+  t5.qaPassUpdate(T.ps.windup);
+  t5.qaPassUpdate(1 / 120);
+  const H = t5.qaHand(r, G.ball);
+  assert(Math.hypot(T.ps.ex - H[0], T.ps.ey - H[1]) < 0.35);
+}
+console.log('Corner receiver: stationary foot target preserved outside arc; ball endpoint tracks hands passed.');
 assert(high.windup < low.windup * 0.5);
 assert(high.speed > low.speed * 1.2);
 assert(high.miss < low.miss * 0.5);

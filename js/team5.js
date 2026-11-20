@@ -751,8 +751,8 @@
     if (kf) T.cnt.ps_kf = (T.cnt.ps_kf || 0) + 1;
     const skill = clamp(ua + 0.5, 0, 1), windup = T.phase === 'inb' || p.jpNow ? 0 : lerp(TV.t5_pass_wSlow, TV.t5_pass_wFast, skill);
     const d0 = dist(p, m), Tt = Math.max(0.22, d0 / (K.v * (1 + TV.t5_pass_spd * ua + 0.06 * (U(p, 'vis') + U(p, 'iq'))) * (p.jpNow ? TV.t5_pass_jpV : 1) * (kf ? 0.85 : 1))) * (kind === 'lob' || kind === 'alley' ? TV.t5_pass_lobT : 1);   // V3.9q 跳传更慢；球商高的人出球更快
-    const lead = lerp(TV.t5_pass_leadLow + rr(-TV.t5_pass_leadRnd, TV.t5_pass_leadRnd), 1, skill), H = handPt(m, b);
-    let tx = H[0] + (m.vx || 0) * (Tt + windup) * lead, ty = H[1] + (m.vy || 0) * (Tt + windup) * lead;
+    const lead = lerp(TV.t5_pass_leadLow + rr(-TV.t5_pass_leadRnd, TV.t5_pass_leadRnd), 1, skill);
+    let tx = m.x + (m.vx || 0) * (Tt + windup) * lead, ty = m.y + (m.vy || 0) * (Tt + windup) * lead;
     // V4.2 落点误差：传球准确越低越偏（失手的高难度传球再偏 0.9~1.8 米）；接球人在跑动时多半偏到身后，偏得多的有时偏到脚下
     const er = TV.t5_pass_er * Math.max(0, TV.t5_pass_er0 - ua) * (0.5 + d0 / 14) * (kind === 'skip' || kind === 'lob' || kind === 'alley' ? 1.4 : 1) * Math.sqrt(rnd()) + (kf ? rr(0.9, 1.8) : 0);
     let ea = rnd() * 6.2832; if ((m.speed || 0) > 1.2 && rnd() < TV.t5_pass_bh) ea = Math.atan2(-(m.vy || 0), -(m.vx || 0)) + rr(-0.7, 0.7);
