@@ -89,7 +89,7 @@ const high = avg(90), low = avg(50);
   assert(t5.doPass(p, r, 'chest'));
   assert.deepEqual([T.ps.tx, T.ps.ty], [r.x, r.y]);
   const o = t5.qaHumanInp(r);
-  assert.equal(o.mx, 0); assert.equal(o.my, 0);
+  assert(o.mx === 0 && o.my === 0);
   assert(t5.qaThree(r.x, r.y));
   t5.qaPassUpdate(T.ps.windup);
   t5.qaPassUpdate(1 / 120);
@@ -115,11 +115,25 @@ for (const enters of [true, false]) {
     assert.equal(P.int.d, d);
     assert(P.int.u > 0 && P.int.u < 1);
     P.int.ch = 1;
-    t5.qaPassUpdate(P.T * P.int.u);
+    t5.qaPassUpdate(P.T * (P.int.u + 1e-6));
     assert.equal(P.rec.res, 'int');
   } else assert.equal(P.int, null);
 }
 console.log('Release interception: defender entering lane can intercept; defender leaving lane is excluded passed.');
+for (const type of ['shot', 'layup', 'dunk']) {
+  const { t5, G } = fixture(false, 0), T = t5.T, p = T.ctl, r = T.tm[0].on.find(q => q !== p);
+  const button = ['A', 'B', 'X', 'Y', 'LT'][r.slot];
+  Object.assign(T, { phase: 'live', R: { RB: true, lx: 0, ly: 0, rx: 0, ry: 0 }, E: { [button]: true } });
+  Object.assign(G, { phase: 'live', off: 0 });
+  Object.assign(p, { hasBall: true, jpNow: 0, action: { type, t: 0.1, released: false, done: false } });
+  Object.assign(G.ball, { state: 'held', holder: p.id, x: p.x, y: p.y, z: 1.8, dead: false });
+  t5.qaHumanInp(p);
+  assert.equal(p.action, null);
+  assert.equal(T.ps.to, r);
+  assert.equal(T.ps.windup, 0);
+  assert(T.ps.t === 0);
+}
+console.log('Icon bailout: unreleased shot/layup/dunk cancels skip windup passed.');
 assert(high.windup < low.windup * 0.5);
 assert(high.speed > low.speed * 1.2);
 assert(high.miss < low.miss * 0.5);

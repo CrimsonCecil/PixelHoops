@@ -762,6 +762,7 @@
   }
   function doPass(p, m, kind) {
     if (!m || !canPass(p)) return false;
+    const cancelShot = p.action && (p.action.type === 'shot' || p.action.type === 'layup' || p.action.type === 'dunk');
     if (p.action) p.action = null;
     const b = G.ball, K = PASS[kind] || PASS.chest, ua = U(p, 'pac');
     // V4.2 传球能力差异化：高难度传球（击地 / 过顶长传 / 高吊 / 空中接力 / 背后 No-look / 跳传）按传球准确 pac + 控球 hnd 判失手
@@ -769,7 +770,7 @@
     const kd = (kind === 'bounce' ? TV.t5_pass_kdB : kind === 'skip' ? TV.t5_pass_kdS : kind === 'lob' ? TV.t5_pass_kdL : kind === 'alley' ? TV.t5_pass_kdA : 0) + (bl0 ? TV.t5_pass_kdN : 0) + (p.jpNow ? TV.t5_pass_kdJ : 0);
     const kf = !T.plPassing && T.phase !== 'inb' && kd > 0 && rnd() < TV.t5_pass_kf * kd * clamp(TV.t5_pass_kfS - ua - 0.5 * uh, 0, 1);
     if (kf) T.cnt.ps_kf = (T.cnt.ps_kf || 0) + 1;
-    const skill = clamp(ua + 0.5, 0, 1), windup = T.phase === 'inb' || p.jpNow ? 0 : lerp(TV.t5_pass_wSlow, TV.t5_pass_wFast, skill);
+    const skill = clamp(ua + 0.5, 0, 1), windup = T.phase === 'inb' || p.jpNow || cancelShot ? 0 : lerp(TV.t5_pass_wSlow, TV.t5_pass_wFast, skill);
     const d0 = dist(p, m), Tt = Math.max(0.22, d0 / (K.v * (1 + TV.t5_pass_spd * ua + 0.06 * (U(p, 'vis') + U(p, 'iq'))) * (p.jpNow ? TV.t5_pass_jpV : 1) * (kf ? 0.85 : 1))) * (kind === 'lob' || kind === 'alley' ? TV.t5_pass_lobT : 1);   // V3.9q 跳传更慢；球商高的人出球更快
     const lead = lerp(TV.t5_pass_leadLow + rr(-TV.t5_pass_leadRnd, TV.t5_pass_leadRnd), 1, skill);
     let tx = m.x + (m.vx || 0) * (Tt + windup) * lead, ty = m.y + (m.vy || 0) * (Tt + windup) * lead;
