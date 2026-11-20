@@ -422,11 +422,12 @@
   function stop() { if (T.on) { T.on = false; if (A5) A5.end(); } }
 
   // ---------- 场上状态工具 ----------
-  function place(p, x, y, face) { p.x = x; p.y = y; p.z = 0; p.vx = p.vy = p.vz = 0; p.action = null; p.stun = 0; p.hasBall = false; p.post = false; if (face != null) p.face = face; p.ai.om = null; p.ai.dm = null; p.ai.t = 0; }
+  function place(p, x, y, face) { p.x = x; p.y = y; p.z = 0; p.vx = p.vy = p.vz = 0; p.action = null; p.stun = 0; p.hasBall = false; p.post = false; if (p.pose) delete p.pose.passHands; if (face != null) p.face = face; p.ai.om = null; p.ai.dm = null; p.ai.t = 0; }
   function flipAll() {
     const neg = (o, ks) => { for (const k of ks) if (typeof o[k] === 'number') o[k] = -o[k]; };
     for (const p of ps()) {
       neg(p, ['x', 'y', 'vx', 'vy']); p.face += Math.PI;
+      if (p.pose && p.pose.passHands) for (const side of ['L', 'R']) { const h = p.pose.passHands[side]; h[0] = -h[0]; h[1] = -h[1]; }
       if (p.ai) { neg(p.ai, ['hx', 'hy', 'cdx', 'cdy']); p.ai.om = null; p.ai.dm = null; p.ai.t = 0; }
       if (p.action && /shot|layup|dunk|post|fake|dive/.test(p.action.type)) p.action = null;
       if (p.ghosts) for (const g of p.ghosts) { g.x = -g.x; g.y = -g.y; g.face += Math.PI; }
@@ -437,7 +438,11 @@
     for (const q of G.fx.parts) neg(q, ['x', 'y', 'vx', 'vy']);
     for (const r of G.fx.rings) neg(r, ['x', 'y']);
     for (const f of G.floats) neg(f, ['x', 'y']);
-    if (T.ps) neg(T.ps, ['x0', 'y0', 'tx', 'ty']);
+    if (T.ps) {
+      neg(T.ps, ['x0', 'y0', 'tx', 'ty']);
+      for (const key of ['gather', 'handAxis']) if (T.ps[key]) { T.ps[key][0] = -T.ps[key][0]; T.ps[key][1] = -T.ps[key][1]; }
+      if (T.ps.face0 != null) T.ps.face0 += Math.PI;
+    }
   }
   function setOff(t) { if (G.off !== t) { G.off = t; flipAll(); } T.off = t; }
   const ptIs5 = (p, id) => !!(PH.game && PH.game.ptIs && PH.game.ptIs(p, id));

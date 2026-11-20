@@ -18,7 +18,7 @@ function fixture(baseline = false, human = -1, seed = 7, camera = false) {
       ? cp.execFileSync('git', ['show', '3bb7f5f95408c797f8aae8018ac3210f7cb664e9:js/team5.js'], { cwd: path.join(__dirname, '..'), encoding: 'utf8' })
       : fs.readFileSync(path.join(__dirname, '../js', name + '.js'), 'utf8');
     if (name === 'team5') {
-      code = code.replace('doPass: doPass,', 'doPass: doPass, qaGatherPoint: typeof gatherPoint === "function" ? gatherPoint : null, qaPassUpdate: passUpdate, qaHand: handPt, qaHumanInp: humanInp, qaThree: three,');
+      code = code.replace('doPass: doPass,', 'doPass: doPass, qaFlipAll: flipAll, qaGatherPoint: typeof gatherPoint === "function" ? gatherPoint : null, qaPassUpdate: passUpdate, qaHand: handPt, qaHumanInp: humanInp, qaThree: three,');
       code = code.replace('function releasePass(P) {', 'function releasePass(P) { P.qaReleases = (P.qaReleases || 0) + 1;');
       code = code.replace('T.ps.rec = rec;', 'rec.qaWindup = Math.max(0, -T.ps.t); T.ps.rec = rec;');
     }
@@ -57,6 +57,29 @@ function fixture(baseline = false, human = -1, seed = 7, camera = false) {
   assert.equal(render5.qaWp(p, 1).pose, p.pose);
 }
 console.log('Pass camera: Broadcast in both directions and rotated 2K hand targets match the transformed rig without mutating court coordinates passed.');
+
+for (const activePass of [false, true]) {
+  const { t5, G, rig } = fixture(false, 0), p = t5.T.ctl, r = t5.T.tm[0].on.find(q => q !== p);
+  Object.assign(t5.T, { phase: 'live' }); Object.assign(G, { phase: 'live', off: 0 });
+  Object.assign(p, { x: -3, y: 4, hasBall: true, action: null });
+  Object.assign(r, { x: 3, y: 4, vx: 0, vy: 0 });
+  Object.assign(G.ball, { state: 'held', holder: p.id, x: p.x, y: p.y, z: 1.2, dead: false });
+  if (activePass) assert(t5.doPass(p, r, 'chest'));
+  else { const k = rig(p); p.pose.passHands = { L: k.handL.slice(), R: k.handR.slice(), follow: 0.14 }; }
+  const before = rig(p);
+  for (const side of ['L', 'R']) before['hand' + side] = before['hand' + side].slice();
+  t5.qaFlipAll();
+  const after = rig(p);
+  for (const side of ['L', 'R']) {
+    const h = before['hand' + side], expected = [-h[0], -h[1], h[2]];
+    assert(Math.hypot(...after['hand' + side].map((v, i) => v - expected[i])) < 1e-9);
+  }
+  if (activePass) {
+    t5.qaPassUpdate(t5.T.ps.windup);
+    const H = t5.qaHand(p, G.ball);
+    assert(Math.hypot(H[0] - G.ball.x, H[1] - G.ball.y, H[2] - G.ball.z) <= 0.08);
+  }
+}
 
 function inputStateAudit(postSource, blind = false, blindMultiplier = 1.6) {
   const { t5, G, game, b5 } = fixture(), T = t5.T;
@@ -171,7 +194,7 @@ const high = avg(90), low = avg(50);
 }
 console.log('Corner receiver: stationary foot target preserved outside arc; ball endpoint tracks hands passed.');
 for (const enters of [true, false]) {
-  const { t5, G } = fixture(false, 0), T = t5.T, p = T.ctl, r = T.tm[0].on.find(q => q !== p), d = T.tm[1].on[0];
+  const { t5, G, rig } = fixture(false, 0), T = t5.T, p = T.ctl, r = T.tm[0].on.find(q => q !== p), d = T.tm[1].on[0];
   Object.assign(T, { phase: 'live' }); Object.assign(G, { phase: 'live', off: 0 });
   for (const q of G.players) Object.assign(q, { hasBall: false, x: -7, y: -12 });
   Object.assign(p, { x: -3, y: 0, face: 0, hasBall: true, action: null });
@@ -188,11 +211,18 @@ for (const enters of [true, false]) {
     assert.equal(P.int.d, d);
     assert(P.int.u > 0 && P.int.u < 1);
     P.int.ch = 1;
+    P.T = 0.02;
+    t5.TV.t5_int_grab = 10;
     t5.qaPassUpdate(P.T * (P.int.u + 1e-6));
     assert.equal(P.rec.res, 'int');
+    assert.equal(G.off, d.tm);
+    assert(p.pose.passHands, 'Interception must occur while follow-through is still active');
+    const k = rig(p);
+    for (const side of ['L', 'R']) assert(Math.hypot(k['hand' + side][0] - p.x, k['hand' + side][1] - p.y) < 2, 'Possession flip must not stretch the arms across the court');
   } else assert.equal(P.int, null);
 }
 console.log('Release interception: defender entering lane can intercept; defender leaving lane is excluded passed.');
+console.log('Pass possession flip: gather and follow-through targets rotate with the passer; actual interception preserves nearby hands passed.');
 for (const type of ['shot', 'layup', 'dunk']) {
   const { t5, G } = fixture(false, 0), T = t5.T, p = T.ctl, r = T.tm[0].on.find(q => q !== p);
   const button = ['A', 'B', 'X', 'Y', 'LT'][r.slot];
