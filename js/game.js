@@ -1205,7 +1205,7 @@
     bridges: A({ key: 'bridges', tier: 'mid', name: '布里奇斯', full: '米卡尔·布里奇斯', pos: '小前锋', num: 25, desc: '铁人锋线，长臂防守与中距离', h: 1.98, bw: 0.84, wing: 1.16,
       three: 0.8, mid: 0.84, lay: 0.8, dunk: 0.65, spd: 0.78, acc: 0.74, hnd: 0.7, str: 0.6, def: 0.85, blk: 0.55, stl: 0.7, vert: 0.7, sta: 1,
       badges: ['motor', 'clamps', 'hustle'], skin: '#6b4530', hair: '#120c08', style: 'buzz', beard: 'stubble' }),
-    herb: A({ key: 'herb', tier: 'mid', name: '琼斯', full: '赫伯特·琼斯', pos: '小前锋', num: 5, desc: '防守尖兵，臂展惊人，抢断和干扰一流', h: 2.03, bw: 0.84, wing: 1.2,
+    herb: A({ key: 'herb', tier: 'mid', name: '琼斯', full: '赫伯特·琼斯', pos: '小前锋', num: 2, desc: '防守尖兵，臂展惊人，抢断和干扰一流', h: 2.03, bw: 0.84, wing: 1.2,
       three: 0.7, mid: 0.65, lay: 0.75, dunk: 0.72, spd: 0.78, acc: 0.76, hnd: 0.62, str: 0.65, def: 0.95, blk: 0.72, stl: 0.9, vert: 0.76, sta: 0.85,
       badges: ['clamps', 'pick'], skin: '#5e3c2a', hair: '#120c08', style: 'short', beard: 'goatee' }),
     kessler: A({ key: 'kessler', tier: 'mid', name: '凯斯勒', full: '沃克·凯斯勒', pos: '中锋', num: 14, desc: '护框大闸，篮下盖帽与空接', h: 2.13, bw: 1.28, wing: 1.08,
@@ -1215,10 +1215,10 @@
     gafford: A({ key: 'gafford', tier: 'avg', name: '加福德', full: '丹尼尔·加福德', pos: '中锋', num: 21, desc: '蓝领中锋，空接扣篮和护框，几乎不投篮', h: 2.08, bw: 1.18, wing: 1.08,
       three: 0.1, mid: 0.3, lay: 0.8, dunk: 0.92, spd: 0.66, acc: 0.62, hnd: 0.3, str: 0.82, def: 0.5, blk: 0.88, stl: 0.4, vert: 0.86, sta: 0.78,
       badges: ['rim', 'poster'], skin: '#4e3324', hair: '#0f0b08', style: 'short', beard: 'goatee' }),
-    joe: A({ key: 'joe', tier: 'avg', name: '以赛亚·乔', full: '以赛亚·乔', pos: '得分后卫', num: 11, desc: '定点射手，接球就投，其他能力一般', h: 1.93, bw: 0.8, wing: 1.0,
+    joe: A({ key: 'joe', tier: 'avg', name: '以赛亚·乔', full: '以赛亚·乔', pos: '得分后卫', num: 17, desc: '定点射手，接球就投，其他能力一般', h: 1.93, bw: 0.8, wing: 1.0,
       three: 0.88, mid: 0.76, lay: 0.6, dunk: 0.4, spd: 0.76, acc: 0.74, hnd: 0.62, str: 0.35, def: 0.6, blk: 0.3, stl: 0.6, vert: 0.66, sta: 0.8,
       badges: ['deadeye'], skin: '#7a4a2e', hair: '#120c08', style: 'short', beard: 'stubble' }),
-    dosunmu: A({ key: 'dosunmu', tier: 'avg', name: '多孙姆', full: '阿约·多孙姆', pos: '后卫', num: 12, desc: '突破型后卫，喜欢冲击篮筐', h: 1.96, bw: 0.92, wing: 1.02,
+    dosunmu: A({ key: 'dosunmu', tier: 'avg', name: '多孙姆', full: '阿约·多孙姆', pos: '后卫', num: 13, desc: '突破型后卫，喜欢冲击篮筐', h: 1.96, bw: 0.92, wing: 1.02,
       three: 0.66, mid: 0.7, lay: 0.82, dunk: 0.62, spd: 0.84, acc: 0.82, hnd: 0.76, str: 0.55, def: 0.72, blk: 0.4, stl: 0.65, vert: 0.74, sta: 0.82,
       badges: ['acrobat'], skin: '#5e3c2a', hair: '#120c08', style: 'short', beard: 'stubble' }),
     // 新秀与替补档
@@ -1367,6 +1367,30 @@
     { name: '蓝队', css: '#4aa3ff', jersey: '#3b8cf0', shorts: '#2459b8', trim: '#ffffff', shoe: '#f4f0e0' },
     { name: '红队', css: '#ff6b5e', jersey: '#e8483e', shorts: '#a82a2a', trim: '#ffe14a', shoe: '#2a2740' },
   ];
+  const kitRGB = hex => [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16));
+  const kitDistance = (a, b) => {
+    const x = kitRGB(a), y = kitRGB(b);
+    return Math.hypot(...x.map((v, i) => v - y[i]));
+  };
+  const kitLuma = hex => {
+    const [r, g, b] = kitRGB(hex);
+    return 0.3 * r + 0.59 * g + 0.11 * b;
+  };
+  function applyMatchKits(players) {
+    const [home, away] = players.map(p => TEAMS_NBA[p.arch.team === 'LEG' ? 'LAL' : p.arch.team] || TEAMS[p.id]);
+    let awayKit = away;
+    if (kitDistance(home.jersey, away.jersey) < 120) {
+      const white = '#eeeae0';
+      awayKit = kitDistance(home.jersey, white) >= 120
+        ? { jersey: white, shorts: '#d6d2c8', trim: away.jersey }
+        : { jersey: away.shorts, shorts: away.shorts, trim: away.jersey };
+    }
+    players.forEach((p, i) => {
+      const kit = i === 0 ? home : awayKit, light = kitLuma(kit.jersey) > 150;
+      const jerseyInk = Math.abs(kitLuma(kit.trim) - kitLuma(kit.jersey)) >= 105 ? kit.trim : light ? '#15101f' : '#f4f0e0';
+      Object.assign(p.col, { jersey: pair(kit.jersey), shorts: pair(kit.shorts), trim: kit.trim, jerseyInk, jerseyNo: p.arch.num == null ? null : String(p.arch.num) });
+    });
+  }
   const DIFF = [
     { name: '简单', lag: 5, react: 0.34, bite: 0.6, steal: 0.12, timing: 0.2, moveBite: 0.55, shootOpen: 0.7 },
     { name: '普通', lag: 8.5, react: 0.23, bite: 0.4, steal: 0.26, timing: 0.14, moveBite: 0.38, shootOpen: 0.85 },
@@ -1505,6 +1529,7 @@
     const c0 = G.mode === 'demo' ? 'cpu' : 'p1', c1 = G.mode === '2p' ? 'p2' : 'cpu';
     if (G.mode === 'cpu' || G.mode === 'train') G.aiPlay = {};
     G.players = [makePlayer(0, ARCH[o.arch0] ? o.arch0 : 'dosunmu', c0), makePlayer(1, ARCH[o.arch1] ? o.arch1 : 'joe', c1)]; G.cutin = null;
+    if (G.mode !== 'demo') applyMatchKits(G.players);
     G.ball = { x: 0, y: 4, z: 1, vx: 0, vy: 0, vz: 0, state: 'held', holder: 0, spin: 0, shot: null, lastTouch: 0, noPick: 0, dead: false, under: false, trail: null };
     G.score = [0, 0]; G.floats = []; G.banner = null; G.net = 0; G.time = 0; G.winner = -1; G.lastShot = null; G.streak = [0, 0]; G.scout = [{}, {}]; G.lastScorer = 0; G.hz = [{}, {}];
     G.stats = [newStats(), newStats()];
@@ -5365,6 +5390,6 @@
     syncK();
   }
   PH.game = { ptIs: ptIs, ptOf: ptOf, ibuf: ibuf, t5: T5API, G: G, HZ: HZ, HZN: HZN, zoneOf: zoneOf, hzBase: hzBase, hzLvl: hzLvl, MVX: MVX, DPKG: DPKG, DPK_OF: DPK_OF, ST: ST, GW_OUT: K.gwOut, zones: zones, K: K, TDEF: TDEF, blkTier: blkTier, blkReact: blkReact, blkMove: blkMove, _qa: { finEdge: finEdge, blockBall: blockBall, greenWidth: greenWidth, ratingOf: ratingOf, SV: SV, LVR: LVR, startDunk: startDunk, startFinish: startFinish, finPlan: finPlan, contactAdv: contactAdv, bodyPow: bodyPow }, mobOf: mobOf, winnerNow: winnerNow, moveSet: moveSet, SF: SF, dunkPkg: dunkPkg, TKD: TKD, CB: CB, TIPS: TIPS, tipsStart: tipsStart, tipsStop: tipsStop, tkType: tkType, hcMod: hcMod, lookOf: lookOf, newGame: newGame, tick: tick, toText: toText, ARCH: ARCH, ATTRS: ATTRS, BADGES: BADGES, BADGE_TIER: BADGE_TIER, TIER_CN: TIER_CN, TIER_F: TIER_F, btier: btier, bk: bk, ba: ba, ROSTER: ROSTER, NBA: TEAMS_NBA, hasB: hasB, TEAMS: TEAMS, DIFF: DIFF, CFG: CFG, CFG_DEF: CFG_DEF, isThree: isThree, distHoop: distHoop, setupCheck: setupCheck, contestInfo: contestInfo,
-    _dbg: { tkStart: tkStart, tkAdd: tkAdd, startShot: startShot, releaseShot: releaseShot, greenWidth: greenWidth, startMove: startMove, startBlock: startBlock, startFinish: startFinish, startDunk: startDunk, contestOf: contestOf, contestInfo: contestInfo, finPlan: finPlan }, TIERS: TIERS, grade: grade, DIMS: DIMS, applyTrain: applyTrain, placeDummy: placeDummy, trainReset: trainReset, giveBall: giveBall, newTrainStats: newTrainStats, styOf: styOf, styK: styK, STY_NAME: STY_NAME, seed: (s) => { seed = s | 1; } };
+    _dbg: { tkStart: tkStart, tkAdd: tkAdd, startShot: startShot, releaseShot: releaseShot, greenWidth: greenWidth, startMove: startMove, startBlock: startBlock, startFinish: startFinish, startDunk: startDunk, contestOf: contestOf, contestInfo: contestInfo, finPlan: finPlan }, TIERS: TIERS, grade: grade, DIMS: DIMS, applyTrain: applyTrain, applyMatchKits: applyMatchKits, placeDummy: placeDummy, trainReset: trainReset, giveBall: giveBall, newTrainStats: newTrainStats, styOf: styOf, styK: styK, STY_NAME: STY_NAME, seed: (s) => { seed = s | 1; } };
   Object.defineProperty(PH.game, 'GW_OUT', { enumerable: true, configurable: true, get: () => K.gwOut });
 })();

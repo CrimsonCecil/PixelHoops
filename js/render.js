@@ -1279,6 +1279,25 @@
     return top + h * 0.49;
   }
 
+  const JERSEY_DIGITS = [
+    [7, 5, 5, 5, 7], [2, 6, 2, 2, 7], [7, 1, 7, 4, 7], [7, 1, 7, 1, 7], [5, 5, 7, 1, 1],
+    [7, 4, 7, 1, 7], [7, 4, 7, 5, 7], [7, 1, 1, 2, 2], [7, 5, 7, 5, 7], [7, 5, 7, 1, 7],
+  ];
+  function drawJerseyNumber(c, C, torso, s) {
+    const num = C.jerseyNo, width = num.length * 4 - 1;
+    const scale = Math.min(Math.floor((Math.round(torso.w) - 1) / width), Math.max(1, Math.floor(s / 24)));
+    if (scale < 1) return;
+    const x = Math.round(lerpN(torso.a.x, torso.b.x, 0.66) - width * scale / 2);
+    const y = Math.max(torso.top, Math.round(lerpN(torso.a.y, torso.b.y, 0.2) - 2.5 * scale));
+    c.fillStyle = C.jerseyInk;
+    for (let i = 0; i < num.length; i++) {
+      const rows = JERSEY_DIGITS[num[i]];
+      for (let r = 0; r < rows.length; r++) for (let col = 0; col < 3; col++) {
+        if (rows[r] & (4 >> col)) c.fillRect(x + (4 * i + col) * scale, y + r * scale, scale, scale);
+      }
+    }
+  }
+
   function drawPlayer(pl, opts) {
     const k = visualRig(pl), J = {};
     const base = proj(pl.x, pl.y, 0);
@@ -1323,13 +1342,19 @@
     segs.push({ head: true, d: J.head.d - 0.02 });
     segs.sort((a, b) => b.d - a.d);
     const facing = pl.face + (pl.pose.yaw || 0), away = Math.sin(facing);
+    const numberTorso = C.jerseyNo != null && Math.abs(away) > 0.55
+      ? segs.find(g => g.a === (J.mid || J.pelvis) && g.b === J.chest) : null;
+    const lastJersey = numberTorso && segs.findLast(g => g.c === C.jersey);
     for (const g of segs) {
       if (g.head) {
         drawHead(sctx, C, J.head.x, J.head.y, headSize, facing);
-      } else brush(sctx, g.a.x, g.a.y, g.b.x, g.b.y, g.w, g.c[0], g.c[1], g.top, !!B && (g.c === C.jersey || g.c === C.shorts));
+      } else {
+        brush(sctx, g.a.x, g.a.y, g.b.x, g.b.y, g.w, g.c[0], g.c[1], g.top, !!B && (g.c === C.jersey || g.c === C.shorts));
+        if (g === lastJersey) drawJerseyNumber(sctx, C, numberTorso, s);
+      }
     }
     // 球衣号码色块
-    if (s > 20 && Math.abs(away) > 0.3) {
+    if (C.jerseyNo == null && s > 20 && Math.abs(away) > 0.3) {
       const mx = Math.round((J.pelvis.x + J.chest.x) / 2), my = Math.round((J.pelvis.y * 0.35 + J.chest.y * 0.65));
       sctx.fillStyle = C.trim; sctx.fillRect(mx - 2, my, 3, Math.max(3, Math.round(0.14 * s)));
       if (pl.id === 1) sctx.fillRect(mx + 2, my, 1, Math.max(3, Math.round(0.14 * s)));
