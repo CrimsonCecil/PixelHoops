@@ -2459,6 +2459,14 @@
     pl.drib = 0; pl.gotT = G.time;
     const change = !isO(pl), keepClk = G.mode === 't5' && !change && !b.wasShot, clk0 = G.shotClock, wasShot = b.wasShot, train = G.mode === 'train' && G.train.role === 'off';
     if (change) { if (playCPU(pl)) { pl.ai.call = null; pl.ai.su = null; } G.illId = -1; G.off = TM(pl); G.needClear = !train && !T5() && !isThree(pl.x, pl.y); if (!train && !T5()) float(G.needClear ? '球权转换 · 先出三分线' : '球权转换', pl, '#5ee0ff', 0); }
+    if (wasShot) {
+      pl.ib = pl.buf = pl.finQ = null; pl.jbuf = 0;
+      // 手柄 X/Y 在拿球后换用途；已按住的键不能算一次新的投篮或终结。
+      if (!T5() && pl.ctrl !== 'cpu') {
+        const held = PH.input.read(pl.ctrl === 'p1' ? 0 : 1, true, G.mode !== '2p');
+        pl.prev.a1 = held.a1; pl.prev.a2 = held.a2;
+      }
+    }
     if (b.wasShot && !change) { pl.orebT = G.time; pl.ai.pb = null; }
     if (b.wasShot) { G.stats[pl.id].reb++; G.stats[pl.id][change ? 'dreb' : 'oreb']++; tkAdd(pl, change ? 3 : 5); if (!change && !train) { const o = OP(pl), hot = !o.off && Math.hypot(o.x - pl.x, o.y - pl.y) < 1.6; float('进攻篮板', pl, '#7dff8a'); bigPlay('oreb', pl, b.x, b.y, Math.max(0.5, b.z), hot ? 1 : 0); } }
     b.wasShot = false;
@@ -3734,7 +3742,7 @@
       if (t - e.ta > CFG.ibufT || t - e.t > CFG.ibufMax) { p.ib = null; return null; }
       if (e.hb && !p.hasBall) { p.ib = null; return null; } // 带球时按的，球已经没了
       if (!e.catch && e.off !== G.off) { p.ib = null; return null; } // 换攻防
-      if (!e.hb && p.hasBall && (!e.catch || e.off !== G.off)) { p.ib = null; return null; } // 没球时按的：只有己方保持球权（进攻篮板补篮）才在拿球后执行；防守板 / 抢断导致球权转换的一律丢弃
+      if (!e.hb && p.hasBall && (!e.catch || e.off !== G.off)) { p.ib = null; return null; } // 没球时按的：保持球权时可用于接球；篮板在 pickup 时单独清空
       if (p.hasBall && G.needClear && e.k !== 'a3') { p.ib = null; return null; } // 要先带出三分线：缓冲绝不放出投篮 / 终结 / 扣篮
       return e;
     },
