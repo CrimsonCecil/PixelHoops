@@ -443,16 +443,16 @@ button.pick .pk-c { grid-row: 1 / 3; grid-column: 3; font-size: var(--fs-xs); co
 .pkb .bdg > div { background: none; border: 0; padding: 0; }
 .bhx { flex: none; width: calc(var(--u) * 10); height: calc(var(--u) * 11); min-width: 20px; min-height: 22px; display: grid; place-items: center; background: linear-gradient(160deg, #fff1a8, #e2ad2a 55%, #8a5a00); color: #2a1a00; clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%); font-size: calc(var(--u) * 6); }
 /* V4.5 徽章图标统一（弹出芯片 / 信息卡徽章行 / 选人能力卡）：六边形底色按档位 .tr1 铜 / .tr2 银 / .tr3 金 / .tr4 名人堂；
-   9×9 像素图标按整数倍放大（--bpx / --bps / --bpk 由 main.js layout 按缩放取整），保持像素清晰 */
+   9×9 像素图标按整数倍放大（--bpx / --bpk 由 main.js layout 按缩放取整），保持像素清晰 */
 .bhex { --tc: #f2c14e; --q: var(--bpx, 4px); flex: none; box-sizing: border-box; width: calc(var(--q) * 13); height: calc(var(--q) * 14); min-width: 0; min-height: 0; padding: 0; display: grid; place-items: center; font-style: normal; color: #1a1408; font-size: calc(var(--q) * 6); line-height: 1; clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%); background: linear-gradient(160deg, color-mix(in srgb, var(--tc) 50%, #fff), var(--tc) 55%, color-mix(in srgb, var(--tc) 55%, #000)); }
 .bhex.tr1 { --tc: #c8834a; } .bhex.tr2 { --tc: #c9d2dc; } .bhex.tr3 { --tc: #f2c14e; } .bhex.tr4 { --tc: #c86bff; }
 .bhex .pxi { width: calc(var(--q) * 9); height: calc(var(--q) * 9); color: #1a1408; vertical-align: 0; image-rendering: pixelated; }
 .bhex.tr4 .pxi { color: #1c0830; }
 .bchip .bhex { filter: drop-shadow(0 0 1px var(--tc)); }
-.pcard .pcb { display: flex; flex-wrap: wrap; gap: calc(var(--bps, 2px) * 1); margin-top: calc(var(--u) * 1); padding-top: calc(var(--u) * 1); border-top: 1px solid rgba(255, 255, 255, 0.1); }
+.pcard .pcb { display: flex; flex-wrap: wrap; width: 0; min-width: 100%; gap: var(--bps, 2px); margin-top: calc(var(--u) * 1); padding-top: calc(var(--u) * 1); border-top: 1px solid rgba(255, 255, 255, 0.1); }
 .pcard.p1 .pcb { justify-content: flex-end; }
 .pcard .pcb > span { display: block; line-height: 0; }
-.pcard .pcb .bhex { --q: var(--bps, 2px); }
+.pcard .pcb .bhex { --q: var(--bpk, 2px); }
 .pcard .pcb > span.hot .bhex { filter: brightness(1.35) drop-shadow(0 0 2px var(--tc)); animation: bhot 0.3s steps(2) infinite; }
 @keyframes bhot { 50% { filter: brightness(1) drop-shadow(0 0 0 var(--tc)); } }
 .pkb .bdg .bhex { --q: var(--bpk, 3px); }
@@ -574,7 +574,6 @@ table.bx td.cw b { color: var(--text); font-weight: normal; font-size: 14px; }
 /* ---------- 5V5 球队模式 ---------- */
 #hud5 { position: absolute; inset: 0; pointer-events: none; }
 #hud5 .pcard { width: var(--pc5-width, auto); }
-#hud5 .pcard .pcb { width: 0; min-width: 100%; }
 #sb5 { position: absolute; top: calc(var(--u) * 4); left: 50%; transform: translateX(-50%); display: flex; align-items: stretch; border: calc(var(--u) * 1) solid var(--ink); background: var(--ink); gap: calc(var(--u) * 1); }
 .t5t { display: flex; align-items: center; background: var(--panel); border-bottom: calc(var(--u) * 1.5) solid var(--tc, #888); position: relative; }
 .t5t.ball::after { content: ''; position: absolute; top: calc(var(--u) * 1.5); width: calc(var(--u) * 3); height: calc(var(--u) * 3); background: #ee7f30; border: calc(var(--u) * 0.5) solid var(--ink); }

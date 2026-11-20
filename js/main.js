@@ -21,7 +21,7 @@
     scale = s;
     stage.style.width = Math.round(R.W * s) + 'px'; stage.style.height = Math.round(R.H * s) + 'px';
     document.documentElement.style.setProperty('--u', s + 'px');
-    // V4.5 徽章图标 9×9 像素按整数倍放大：弹出 --bpx（约为原来 1.5 倍）、信息卡 / 能力卡 --bps
+    // 徽章图标 9×9 像素按整数倍放大：弹出 --bpx、信息卡 / 能力卡 --bpk；信息卡间距 --bps
     document.documentElement.style.setProperty('--bpx', Math.max(3, Math.round(s * 1.25)) + 'px');
     document.documentElement.style.setProperty('--bps', Math.max(2, Math.round(s * 0.75)) + 'px');
     document.documentElement.style.setProperty('--bpk', Math.max(2, Math.round(s)) + 'px');
