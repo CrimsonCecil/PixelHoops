@@ -714,7 +714,7 @@
   // ---------- V3.9s 盖帽人起跳 / 钉板 + 侧面上篮出手（只画姿态；起跳高度、接触点由逻辑层定） ----------
   // 盖帽：block action 上 ba.pin = { t: 接触时 G.time, x, y, z: 篮板接触点, hold: 贴板停顿秒数 }
   //   上升中身体舒展、小腿收起（手臂过头 / 伸向球仍由 poseTarget 的 IK 负责）→ 拍到球后手跟着球到 pin 点（IK）→ 手贴板停顿 → 收手下落
-  // 侧面上篮：layup action 上 a.side = ±1（出手点在身体哪一侧，+1 右）、a.lsv = 'reach' | 'far' | 'rev' | 'swap'
+  // 侧面上篮：layup action 上 a.side = ±1（出手点在身体哪一侧，+1 右）、a.lsv = 'reach' | 'far' | 'rev'
   //   防守人在 -side 一侧：上身转开、肩 / 肘顶向防守人护球，出手手伸到 side 一侧
   const PB = (function () {
     const cl = (v, a, b) => Math.max(a, Math.min(b, v)), lp = (a, b, u) => a + (b - a) * u, sm = (u) => { u = cl(u, 0, 1); return u * u * (3 - 2 * u); };
@@ -776,26 +776,18 @@
       if (s < 0) { [o.rA, o.lA] = [o.lA, o.rA]; [o.rB, o.lB] = [o.lB, o.rB]; [o.rS, o.lS] = [o.lS, o.rS]; }
       for (const k in o) T[k] = lp(T[k] || 0, o[k], blend);
     }
-    function layS(pl, T, a) {
+    function layS(T, a) {
       const s = a.side > 0 ? 1 : -1, v = a.lsv || 'reach', rel = a.released, I = a.ideal || 0.34;
       if (v === 'reach' || v === 'far') return layReach(T, a, s, v === 'far');
       const u = rel ? 1 : cl(a.t / I, 0, 1), pr = rel ? cl((a.t - (a.relAt > 0 ? a.relAt : I)) / 0.25, 0, 1) : 0;
-      const w = sm(a.t / 0.08) * (1 - (rel ? 0.6 * pr : 0)) * (1 - sm(((a.relT ?? a.t) - I - 0.015) / 0.07)), Hh = pl.h / 1.95;
+      const w = sm(a.t / 0.08) * (1 - (rel ? 0.6 * pr : 0)) * (1 - sm(((a.relT ?? a.t) - I - 0.015) / 0.07));
       const o = {};
       // 护球：防守人那侧的手臂横在胸前、肘外顶；上身转开；身体往出手侧倾
-      const bar = { p: 1.25, q: 0.95, e: 1.5 };
       if (v === 'rev') {
         // 反手：背对防守人从篮下穿过去，手过头往后、腕子往回拨
         Object.assign(o, { yaw: -1.15 * s, tilt: 0.2 * s, lean: lp(0.1, -0.22, u) });
         const A = { p: lp(2.3, 3.35, u), q: lp(0.3, 0.55, u), e: lp(0.7, 0.2, u) + (rel ? 0.35 * pr : 0) }; setA(T, s, A, w);
         setA(T, -s, { p: 1.5, q: 1.1, e: 0.9 }, w);
-      } else if (v === 'swap') {
-        // 空中换手：swT 前双手抱球在防守人那侧胸前 → swT 前后 0.12s 把球甩过身体 → 出手手伸向外侧
-        const sw = a.swT != null ? a.swT : I * 0.45, c = sm((a.t - sw + 0.05) / 0.12);   // 换手对齐逻辑层 a.swT（球在这一刻换到 a.hand）
-        Object.assign(o, { yaw: lp(0.35 * s, -0.55 * s, c), tilt: lp(-0.12 * s, 0.32 * s, c), lean: 0.14 });
-        const hold = { p: 1.25, q: -0.35, e: 1.3 }, A = arm(T, s, s * 0.6, 0.3, 1.25, Hh); A.e = 0.15;
-        setA(T, s, { p: lp(hold.p, A.p, c), q: lp(hold.q, A.q, c), e: lp(hold.e, A.e, c) }, w);
-        setA(T, -s, { p: lp(1.3, bar.p, c), q: lp(0.55, bar.q, c), e: lp(1.2, bar.e, c) }, w);
       }
       for (const k in o) T[k] = lp(T[k] || 0, o[k], w);
       // 起跳腿：出手侧的膝抬高（同侧起跳摆腿），防守侧腿往外撑
@@ -805,7 +797,7 @@
     function pose(pl, T, an, a) {
       if (!a) return;
       if (a.type === 'block' && an === 'block') block(pl, T, a);
-      else if (a.type === 'layup' && an === 'layup' && a.side && !a.cv && !a.inSteps && a.v !== 'floater' && a.v !== 'power' && a.v !== 'clutch') layS(pl, T, a);
+      else if (a.type === 'layup' && an === 'layup' && a.side && !a.cv && !a.inSteps && a.v !== 'floater' && a.v !== 'power' && a.clutchT == null) layS(T, a);
     }
     return { pose: pose, arm: arm };
   })();
@@ -814,8 +806,8 @@
   // ---------- V4.3 被封堵的上篮变体（layup action 上 a.cv；1V1 / 5V5 共用 gait.post） ----------
   // 字段（input_buffer_builder 约定）：a.t 空中时钟（起跳清零）；a.cvT 变体起点；a.cvR 计划出手（hang 已含 a.cvD）；
   //   a.relT 实际出手；a.hand 最终出手手（左手球员 = -1，整套镜像）；a.side 出手侧；
-  //   switch：a.cvSw 换手时刻（之前球在 -a.hand）；bump：a.cvDx/cvDy 指向防守人、a.cvK 强度；dunk2lay：a.cvTr 过渡时长
-  // 只改姿势：起跳高度、滞空、球位（lHand）、命中都在 game.js
+  //   bump：a.cvDx/cvDy 指向防守人、a.cvK 强度；dunk2lay：a.cvTr 过渡时长
+  // 只改姿势：起跳高度、滞空、球位、命中都在 game.js
   const CVP = (function () {
     const cl = (v, a, b) => Math.max(a, Math.min(b, v)), lp = (a, b, u) => a + (b - a) * u, sm = (u) => { u = cl(u, 0, 1); return u * u * (3 - 2 * u); };
     const setA = (T, side, o, w) => { const k = side > 0 ? 'aR' : 'aL'; T[k + 'p'] = lp(T[k + 'p'], o.p, w); T[k + 'q'] = lp(T[k + 'q'], o.q, w); T[k + 'e'] = lp(T[k + 'e'], o.e, w); };
@@ -827,8 +819,7 @@
       if (!a || a.type !== 'layup' || !a.cv || a.inSteps || an !== 'layup') return;
       const PBm = PH.blkP; if (!PBm) return;
       const t = a.t || 0, t0 = a.cvT || 0, rel = !!a.released, Hh = pl.h / 1.95;
-      // 持球手 = game.js lHand：残留的侧面换手（lsv 'swap'）在 swT 前球还在另一只手，姿势跟着球走
-      const s = (a.hand < 0 ? -1 : 1) * (a.cv !== 'switch' && a.lsv === 'swap' && !rel && t < (a.swT || 0.15) ? -1 : 1);
+      const s = a.hand < 0 ? -1 : 1;
       const I = rel && a.relT != null ? a.relT : a.cvR != null ? a.cvR : a.ideal || 0.34;
       const span = I - t0 < 0.1 ? 0.18 : I - t0;   // 出手那一刻才补的化解变体（cvT = cvR）：动作在出手后 0.18s 内做完
       const u = cl((t - t0) / span, 0, 1), pr = rel ? cl((t - (a.relT != null ? a.relT : I)) / 0.25, 0, 1) : 0;
@@ -844,17 +835,6 @@
         const hold = arm(s, s * 0.1, 0.3, 1.3), up = { p: 2.75, q: 0.3, e: 0.12 };
         setA(T, s, rel ? up : lA(hold, up, hv), w);
         setA(T, -s, rel ? { p: 1.6, q: 0.9, e: 0.8 } : lA(arm(-s, -s * 0.04, 0.34, 1.38), { p: 2.2, q: 0.6, e: 0.5 }, hv), w);
-      } else if (v === 'switch') {
-        // 空中拉杆换手：先在起始手（-s）一侧把球举高 → 拉到腰前、从身体前面划到另一侧（cvSw）→ 出手手（s）再往上伸
-        const sw = a.cvSw != null ? a.cvSw : t0 + 0.45 * (I - t0), uS = cl((sw - t0) / span, 0.15, 0.85);
-        const p2 = sm((u - uS * 0.6) / (uS * 0.4 + 0.08)), p3 = sm((u - uS - 0.08) / Math.max(0.05, 1 - uS - 0.08));
-        Object.assign(o, { lean: lp(lp(-0.05, 0.28, p2), 0.08, p3), tilt: lp(lp(-0.25 * s, 0.1 * s, p2), 0.32 * s, p3), yaw: lp(lp(0.45 * s, 0, p2), -0.45 * s, p3), bob: 0 });
-        legs(o, s, lp(0.6, 1.2, p2), lp(0.8, 1.4, p2), lp(0.5, 0.75, p2), lp(0.7, 1.2, p2));
-        const hi = { p: 2.75, q: 0.45, e: 0.3 }, lowS = arm(-s, s * 0.05, 0.42, 0.72), lowF = arm(s, s * 0.2, 0.4, 0.7), out = arm(s, s * 0.62, 0.36, 1.36); out.e = 0.12;
-        // 起始手：高 → 腰前（球经过身体中线）→ 撤回身侧护球
-        setA(T, -s, p3 > 0 ? lA(lowS, { p: 1.25, q: 0.95, e: 1.5 }, p3) : lA(hi, lowS, p2), w);
-        // 出手手：先垂在身侧 → 到腰前接球 → 伸到外侧高处
-        setA(T, s, p3 > 0 ? lA(lowF, out, p3) : lA({ p: 0.5, q: 0.5, e: 0.5 }, lowF, p2), w);
       } else if (v === 'bump') {
         // 身体对抗硬挤：撞的一下肩膀 / 上身往防守人那边顶（前顶 + 侧倾），对抗手肘外顶护球，出手手短促往上推；两腿分开撑住
         const f = pl.face, dx = a.cvDx || 0, dy = a.cvDy || 0, fw = Math.cos(f) * dx + Math.sin(f) * dy, sdv = Math.sin(f) * dx - Math.cos(f) * dy;
@@ -1013,12 +993,11 @@
     const sideScoop = a.lsv === 'reach' || a.lsv === 'far';
     const scoop = a.cv ? a.cv === 'scoop' : a.side ? sideScoop :
       a.v === 'euro' || (a.v === 'normal' && (a.sty === 'tip' || a.sty === 'glide' || a.sty === 'roll' || a.sty === 'scoop'));
-    const clutchEnd = PH.game.K.clutchTi + (a.cvD || 0);
     const t = a.relT ?? a.t;
-    const clutch = !a.cv && !a.V.floater && t > a.ideal + (clutchEnd - a.ideal) * 0.44;
+    const clutch = a.clutchT != null;
     if (!scoop && !clutch) return;
-    const end = clutch ? clutchEnd : a.ideal;
-    const start = clutch ? a.ideal + (end - a.ideal) * 0.56 : end * 0.33;
+    const end = a.ideal;
+    const start = clutch ? lerpN(a.clutchT, end, 0.56) : end * 0.33;
     const ease = (v) => { const u = Math.max(0, Math.min(1, v)); return u * u * (3 - 2 * u); };
     const w = ease((t - start) / Math.max(0.05, (end - start) * 0.78))
       * (clutch ? 1 : 1 - ease((t - end - 0.015) / 0.065))
@@ -1586,19 +1565,18 @@
   const clampR = (v, a, b) => Math.max(a, Math.min(b, v));
   function drawMeter(pl, hp) {
     const a = pl.action; if (!a || !a.meter) return;
-    // 投篮条：只显示判定区间附近的一段时间，所以绿区高度直接等于真实窗口；上篮的蓝色区是“拉杆”第二出手点
+    // 投篮条：涨到顶 = 最佳出手点；空中按下拉杆后才换成蓝区。
     const x = Math.round(hp.x + 0.42 * hp.s) + 3, h = Math.round(clampR(hp.s * 0.75, 24, 44)), wd = Math.round(clampR(hp.s * 0.09, 3, 5)), y = Math.round(hp.y - h * 0.55);
     const m = a.meter;
     ctx.fillStyle = '#15101f'; ctx.fillRect(x - 1, y - 1, wd + 2, h + 2);
     ctx.fillStyle = '#2a2740'; ctx.fillRect(x, y, wd, h);
-    // 2K 式：条往上涨，涨到顶 = 最佳出手点（顶端就是绿区），过了顶会自己往下掉；上篮的拉杆点是第二次涨到顶（蓝色）
-    const S = Math.max(0.05, m.ideal), v = m.v, two = m.ideal2 && v > (m.ideal + m.ideal2) / 2;
-    const pk = two ? m.ideal2 : m.ideal, f = clampR(1 - Math.abs(v - pk) / S, 0, 1), fh = Math.round(f * h);
-    const gH = Math.max(2, Math.round((two ? m.gw2 : m.gw) / S * h));
-    ctx.fillStyle = two ? '#1f6f8a' : '#1f8a3c'; ctx.fillRect(x, y, wd, gH);
+    const S = Math.max(0.05, m.ideal), v = m.v, clutch = a.clutchT != null;
+    const pk = m.ideal, f = clampR(1 - Math.abs(v - pk) / S, 0, 1), fh = Math.round(f * h);
+    const gH = Math.max(2, Math.round(m.gw / S * h));
+    ctx.fillStyle = clutch ? '#1f6f8a' : '#1f8a3c'; ctx.fillRect(x, y, wd, gH);
     const fall = v > pk && !m.done;
     ctx.fillStyle = m.done ? m.color : fall ? '#e0a63a' : '#ffd24a'; ctx.fillRect(x + 1, y + h - fh, wd - 2, fh);
-    ctx.fillStyle = two ? '#5ee0ff' : '#7dff8a'; ctx.fillRect(x - 1, y, wd + 2, 1);
+    ctx.fillStyle = clutch ? '#5ee0ff' : '#7dff8a'; ctx.fillRect(x - 1, y, wd + 2, 1);
     ctx.fillStyle = '#ffffff'; if (fh > 0) ctx.fillRect(x, y + h - fh, wd, 1);
   }
 
