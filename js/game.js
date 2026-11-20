@@ -1444,7 +1444,7 @@
     brunson: { style: 'braids', face: 'round', skin: '#a97759', beard: 'boxed', shoulder: 1.05 },
     haliburton: { style: 'curlfade', face: 'oval', skin: '#b68a6a', beard: 'goatee', legs: 1.05 },
     maxey: { style: 'locks', face: 'round', beard: '' },
-    bane: { style: 'fade', face: 'square', skin: '#c88e70', beard: 'goatee', build: 0.12, shoulder: 1.12 },
+    bane: { style: 'fade', face: 'square', skin: '#a87050', beard: 'goatee', build: 0.12, shoulder: 1.12 },
     white: { style: 'bald', face: 'oval', skin: '#a07256', beard: 'boxed' },
     fox: { style: 'fade', face: 'long', beard: '' },
     sengun: { style: 'swept', face: 'wide', beard: 'boxed' },
@@ -1459,7 +1459,7 @@
     sabonis: { style: 'swept', face: 'square', beard: 'boxed' },
     bam: { style: 'fade', face: 'square', beard: 'goatee', shoulder: 1.07 },
     flagg: { style: 'swept', face: 'long', beard: '' },
-    kessler: { style: 'crop', hair: '#30251f' },
+    kessler: { style: 'crop', hair: '#30251f', build: 0.15, shoulder: 1.08, muscle: 0.14 },
   };
   const BUILD_RANGES = { lean: [-0.42, -0.12], balanced: [-0.1, 0.325], muscular: [0.335, 1.075], heavy: [0.9, 2.05] };
   function lookOf(a) {
