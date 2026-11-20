@@ -10,14 +10,16 @@
   // 镜头参数：zoom 拉近倍数、height 机位高度、dist 与持球人的前后距离、follow 左右跟随
   const CAM_DEF = { zoom: 1.32, height: 5.8, dist: 8.8, follow: 0.7, push: 1, pin: 0.26, plow: 0.3 };
   const CAMV = Object.assign({}, CAM_DEF);
-  const SIDE3 = -0.18;
   let follow3 = null;
-  let skew3 = 0, offsetX3 = 0, offsetY3 = 0;
+  let offsetX3 = 0, offsetY3 = 0;
+  function setPitch(dy, dz) {
+    const L = Math.hypot(dy, dz);
+    cam.fy = dy / L; cam.fz = dz / L; cam.uy = -cam.fz; cam.uz = cam.fy;
+  }
   function setCam(o) {
     Object.assign(CAMV, o || {});
     cam.F = 400 * CAMV.zoom; cam.z = CAMV.height;
-    const dy = CAMV.dist + 2.4, dz = 1.0 - cam.z, L = Math.hypot(dy, dz);
-    cam.fy = dy / L; cam.fz = dz / L; cam.uy = -cam.fz; cam.uz = cam.fy;
+    setPitch(CAMV.dist + 2.4, 1 - cam.z);
   }
   setCam();
 
@@ -26,8 +28,8 @@
     const zc = Math.max(0.5, dy * cam.fy + dz * cam.fz);
     const yc = dy * cam.uy + dz * cam.uz;
     const s = cam.F / zc;
-    if (skew3 && PH.game.G.mode === 't3') return { x: W / 2 + offsetX3 + (dx + dy * skew3) * s, y: H / 2 + cam.oy + offsetY3 - yc * s, s: s, d: zc };
-    return { x: W / 2 + dx * s, y: H / 2 + cam.oy - yc * s, s: s, d: zc };
+    const endOn = (offsetX3 || offsetY3) && PH.game.G.mode === 't3';
+    return { x: W / 2 + dx * s + (endOn ? offsetX3 : 0), y: H / 2 + cam.oy - yc * s + (endOn ? offsetY3 : 0), s: s, d: zc };
   }
 
   // ---------- 颜色 ----------
@@ -149,7 +151,7 @@
       const lw = Math.max(0.05, 0.6 * inv);
       const prev = sy > 0 && rowY[sy - 1] < 1e8 ? (mir && rowY[sy - 1] < 0 ? -rowY[sy - 1] : rowY[sy - 1]) : wy + inv * 3;
       const lwy = Math.max(0.05, 0.6 * Math.abs(prev - wy));
-      let wx = cam.x + (0.5 - W / 2 - offsetX3) * inv - (wy0 - cam.y) * skew3;
+      let wx = cam.x + (0.5 - W / 2 - offsetX3) * inv;
       const row = sy * W, by = (sy & 3) * 4;
       const dyr = wy - HOOP.y, dyf = wy - 8.2;
       const yIn = wy > -lwy && wy < 14 + lwy;
@@ -1672,12 +1674,14 @@
     const x = p ? p.x + p.vx * 0.28 : b.x + (b.state === 'pass' ? 0 : b.vx * 0.12);
     const y = p ? p.y + p.vy * 0.28 + 1.3 : b.state === 'shot' ? b.y * 0.65 + HOOP.y * 0.35 : b.y;
     const tx = Math.max(-7.5, Math.min(7.5, x)), ty = Math.max(0, Math.min(14, y));
-    if (follow3?.players !== G.players) follow3 = { players: G.players, x: tx, y: ty };
+    const fresh = follow3?.players !== G.players;
+    if (fresh) follow3 = { players: G.players, x: tx, y: ty, zoom: 1 };
     const k = 1 - Math.exp(-4.5 * dt);
     follow3.x += (tx - follow3.x) * k; follow3.y += (ty - follow3.y) * k;
-    cam.y = Math.max(-8, Math.min(-1.5, follow3.y - 10.4));
-    cam.x = follow3.x * 0.65 + (9 - cam.y) * SIDE3;
-    cam.z = 7; cam.F = 475; skew3 = SIDE3;
+    cam.y = Math.max(-8.8, Math.min(-3.8, follow3.y - 10.8));
+    cam.x = follow3.x * 0.55;
+    cam.z = 8.2; cam.F = 530;
+    setPitch(1, -0.54);
 
     const rim = proj(HOOP.x, HOOP.y, HOOP.z), board = proj(0, BOARD_Y, 3.95);
     const q = proj(b.x, b.y, b.z);
@@ -1687,30 +1691,30 @@
     const localHead = local && local !== p ? proj(local.x, local.y, local.z + local.h) : head;
     const left = Math.min(rim.x, board.x, q.x, feet.x, head.x, localFeet.x, localHead.x);
     const right = Math.max(rim.x, board.x, q.x, feet.x, head.x, localFeet.x, localHead.x);
-    const top = Math.min(board.y, rim.y, q.y, head.y, localHead.y);
+    const top = Math.min(rim.y, q.y, head.y, localHead.y);
     const bottom = Math.max(rim.y, q.y, feet.y, localFeet.y);
-    const zx = right - left, zy = bottom - top;
-    let zoom = Math.min(1, zx ? (W - 84) / zx : 1, zy ? (H - 54) / zy : 1);
+    const footLimit = Math.min(H - 30, (hintY ?? H) - 4);
+    const nameAnchor = hintY != null && local ? nameFoot(local, true).y : bottom;
+    const nameLimit = hintY != null && local ? hintY - (STB.h1 + STB.gap + 20) : footLimit;
+    const fit = (span, room) => span > 0 ? room / span : 1;
+    const frameZoom = (pad) => Math.min(1,
+      fit(right - left, W - 84 - 2 * pad),
+      fit(Math.max(rim.x - left, right - rim.x), W * 0.62 - 42 - pad),
+      fit(bottom - top, footLimit - 16 - pad),
+      fit(bottom - board.y, footLimit - 36 - pad),
+      fit(nameAnchor - top, nameLimit - 16 - pad),
+      fit(nameAnchor - board.y, nameLimit - 36 - pad));
+    const targetZoom = frameZoom(6);
+    // Smooth the padded framing; the outer fit still catches a sudden snapshot or pass.
+    const zoom = fresh ? targetZoom : Math.min(frameZoom(0), follow3.zoom + (targetZoom - follow3.zoom) * k);
+    follow3.zoom = zoom;
     const center = H / 2 + cam.oy;
     const scaledY = (y) => center + (y - center) * zoom;
-    let clearTop, nameAnchor, footLimit, nameLimit;
-    if (hintY != null) {
-      clearTop = Math.min(rim.y, q.y, head.y, localHead.y);
-      footLimit = hintY - 4;
-      if (local) {
-        nameAnchor = nameFoot(local, true).y;
-        nameLimit = footLimit - (STB.h1 + STB.gap + 16);
-      }
-      if (bottom > clearTop) zoom = Math.min(zoom, (footLimit - 32) / (bottom - clearTop));
-      if (nameAnchor > clearTop) zoom = Math.min(zoom, (nameLimit - 32) / (nameAnchor - clearTop));
-    }
     cam.F *= zoom;
-    offsetX3 = Math.max(42 - (W / 2 + (left - W / 2) * zoom), Math.min(0, W - 42 - (W / 2 + (right - W / 2) * zoom)));
-    offsetY3 = Math.max(24 - scaledY(top), Math.min(0, H - 30 - scaledY(bottom)));
-    if (hintY != null) {
-      const limit = Math.min(footLimit - scaledY(bottom), local ? nameLimit - scaledY(nameAnchor) : Infinity);
-      if (offsetY3 > limit) offsetY3 = Math.max(32 - scaledY(clearTop), limit);
-    }
+    offsetX3 = Math.max(42 - W / 2 - (left - W / 2) * zoom,
+      Math.min((W / 2 - rim.x) * zoom, W / 2 - 42 - (right - W / 2) * zoom));
+    offsetY3 = Math.max(36 - scaledY(board.y), 16 - scaledY(top),
+      Math.min(40 - scaledY(board.y), footLimit - scaledY(bottom), nameLimit - scaledY(nameAnchor)));
   }
   function render(G, dt = 1 / 60, hintY) {
     // 回放时用录下来的画面快照代替实时状态
@@ -1718,7 +1722,7 @@
     if (RP) G = Object.assign(Object.create(G), RP);
     // 相机
     const b = G.ball, foc = G.focus, F = G.fx;
-    skew3 = offsetX3 = offsetY3 = 0;
+    offsetX3 = offsetY3 = 0;
     cam.x = foc.cx + (G.camShift || 0); cam.y = foc.cy; cam.z = CAMV.height; cam.F = 400 * CAMV.zoom;
     // 特写：镜头沿视线朝高光点推近（目标点在画面中位置基本不变、被放大），同时横向对准
     const cz = G.cz;
@@ -1731,7 +1735,7 @@
     const pk = RP || cz || !CAMV.push ? 0 : (G.camK || 0);
     if (pk > 0.001) { const e = pk * pk * (3 - 2 * pk); cam.y += CAMV.pin * 5 * e; cam.z -= (cam.z - 1.2) * CAMV.pin * CAMV.plow * e; }
     if (G.mode === 't3' && !RP) camera3(G, dt, hintY);
-    else follow3 = null;
+    else if (follow3) { follow3 = null; setPitch(CAMV.dist + 2.4, 1 - CAMV.height); }
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.fillStyle = '#070a16'; ctx.fillRect(0, 0, W, H);
     if (F.shake > 0.3) { const h = hash((G.time * 60) | 0); ctx.setTransform(1, 0, 0, 1, Math.round(((h & 255) / 255 - 0.5) * F.shake), Math.round((((h >>> 8) & 255) / 255 - 0.5) * F.shake)); }

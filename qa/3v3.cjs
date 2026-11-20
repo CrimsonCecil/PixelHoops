@@ -48,6 +48,7 @@ function fixture(options = {}) {
   ctx.document = { createElement: canvas };
   const R = ctx.PH.render, p = T3.holder();
   R.init(canvas());
+  const defaultPitch = R.cam.fz;
   const visible = (q) => q.x > 12 && q.x < R.W - 12 && q.y > 12 && q.y < R.H - 12;
   const rim = () => R.proj(R.HOOP.x, R.HOOP.y, R.HOOP.z);
   const feet = () => R.proj(p.x, p.y, 0);
@@ -58,13 +59,15 @@ function fixture(options = {}) {
   move(0, 6);
   R.render(G);
   assert(feet().s > 30, '3V3 uses close framing at the arc');
+  assert(R.cam.fz < defaultPitch, 'elevated end-on camera looks downward more than 1V1');
+  assert.equal(R.proj(0, 2, 0).x, rim().x, 'court centerline points straight to the hoop');
+  assert(R.proj(0, 2, 0).y > R.proj(0, 10, 0).y, 'offense attacks up the screen');
   const hintY = 253;
   move(3.3, 6.25);
   R.render(G, 1);
-  const scale = feet().s;
   nameRows.length = staminaRows.length = 0;
   R.render(G, 0, hintY);
-  assert.equal(feet().s, scale, 'the normal wing angle clears the hints without zooming out');
+  assert(feet().s > 30, 'keep close framing when clearing the hints at the wing');
   assert(nameRows.length && Math.max(...nameRows) < hintY);
   assert(staminaRows.length && Math.max(...staminaRows) < hintY);
   assert(visible(feet()) && visible(rim()));
@@ -75,12 +78,13 @@ function fixture(options = {}) {
   assert(visible(feet()) && visible(rim()), 'keep the rim and sideline handler in frame during the pan');
   R.render(G, 1);
   assert(origin < first && first < R.cam.x, 'the camera pans rather than jumping to the handler');
+  assert(Math.abs(rim().x - R.W / 2) <= R.W * 0.12 && rim().y < R.H / 3, 'keep the hoop near top-center while panning');
   G.ball = { ...G.ball, state: 'shot', holder: -1, x: -4, y: 7, z: 6 };
   R.render(G, 1 / 60, hintY);
   assert(visible(R.proj(G.ball.x, G.ball.y, G.ball.z)) && visible(rim()), 'follow a shot from the snapshot ball');
   assert(feet().y < hintY, 'keep the controlled player clear while the camera follows the shot');
-  console.log('PASS: closer 3V3 camera pans and frames the rim, sideline handler and airborne ball.');
-  console.log('PASS: 3V3 player, name tag and stamina bar clear the control hints without losing the rim or wing zoom.');
+  console.log('PASS: end-on 3V3 camera attacks upward and pans with the ball while keeping the rim near top-center.');
+  console.log('PASS: 3V3 player, name tag and stamina bar clear the hints with close wing framing.');
 
   const guest = G.players[2];
   p.ring = false;
@@ -103,10 +107,18 @@ function fixture(options = {}) {
   assert([guestFeet(), guestHead(), ball(), rim()].every(visible), 'frame the off-ball guest, receiver and rim even without a control hint');
   const minX = Math.min(guestFeet().x, guestHead().x, ball().x), maxX = Math.max(guestFeet().x, guestHead().x, ball().x);
   assert(maxX - minX > R.W - 95, 'use the available width instead of zooming farther out');
+  const wideZoom = R.cam.F;
+  guest.x = 6.8;
+  R.render(G, 1 / 60);
+  assert(wideZoom < R.cam.F && ball().s < close, 'zoom back in gradually as the local player approaches the ball');
+  guest.x = -7.4;
   G.ball = { ...G.ball, state: 'pass', holder: -1, z: 2 };
   R.render(G, 1 / 60, hintY);
   assert([guestFeet(), guestHead(), ball(), rim()].every(visible) && guestFeet().y < hintY, 'keep the off-ball guest framed when following the pass');
   console.log('PASS: off-ball local slot 2, ball, and rim stay framed across the court; zoom remains close when the local player is near the ball.');
+  G.replay = { view: {} };
+  R.render(G);
+  assert.equal(R.cam.fz, defaultPitch, 'replay restores the existing camera pitch');
 }
 
 {
