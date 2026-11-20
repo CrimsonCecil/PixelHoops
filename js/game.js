@@ -1388,7 +1388,7 @@
   const SIGNATURE_LOOK = {
     curry: { style: 'curlfade', face: 'youthful', skin: '#be8b66', beard: '', eyes: 'open', mouthguard: true, build: -0.2, shoulder: 0.94 },
     lebron: { style: 'receding', beard: 'boxed', brow: 'heavy', build: 0.22, muscle: 0.65, shoulder: 1.13, sleeve: 'L' },
-    luka: { style: 'swept', beard: 'stubble', brow: 'soft', build: 0.04 },
+    luka: { style: 'swept', beard: 'stubble', brow: 'soft', build: 0.04, frameBuild: 0.4 },
     giannis: { style: 'curlfade', face: 'long', skin: '#6a4430', build: 0.26, muscle: 0.48, shoulder: 1.16, legs: 1.07 },
     durant: { style: 'receding', face: 'long', beard: 'goatee', build: -0.28, shoulder: 0.94, legs: 1.08 },
     wemby: { style: 'bald', face: 'oval', beard: 'goatee', build: -0.14, shoulder: 0.96, legs: 1.09 },
@@ -1398,6 +1398,7 @@
     shaq: { build: 0.18, waist: 0.18, shoulder: 1.16, brow: 'heavy', legs: 0.95 },
     kobe: { style: 'buzz', beard: 'goatee', brow: 'heavy', sleeve: 'R' },
     kyrie: { style: 'curlfade', face: 'tapered', beard: 'trimmed', band: '', brow: 'soft', build: -0.27 },
+    lillard: { face: 'long', beardFit: 'close' },
     harden: { style: 'braids', beard: 'long', face: 'oval' },
     kawhi: { style: 'braids', beard: 'goatee', face: 'long', skin: '#88543f', brow: 'soft' },
     sga: { style: 'braids', face: 'long', band: '#f4f0e0', build: -0.11, legs: 1.06 },
@@ -1431,7 +1432,7 @@
     const sig = SIGNATURE_LOOK[a.key] || {};
     const m = PH.measurements && PH.measurements[a.key];
     const buildTag = PH.buildTags?.[a.key] || 'balanced';
-    const look = { skin: pair(sig.skin || a.skin), hair: a.hair, style: sig.style || a.style, beard: sig.beard ?? a.beard ?? '', band: sig.band ?? a.band ?? '',
+    const look = { skin: pair(sig.skin || a.skin), hair: a.hair, style: sig.style || a.style, beard: sig.beard ?? a.beard ?? '', beardFit: sig.beardFit, band: sig.band ?? a.band ?? '',
       bw: a.bw || 1, wing: a.wing || 1, face: sig.face || FACE[a.key] || 'square', brow: sig.brow, eyes: sig.eyes, mouthguard: sig.mouthguard, sleeve: sig.sleeve, buildTag };
     if (m) {
       const [inches, pounds, span, hand] = m, height = inches * 0.0254;
@@ -1445,16 +1446,18 @@
       const belowHeavy = clamp((28.9 - bmi) / 3, 0, 1);
       const solid = clamp((bmi - 24.1) / 0.45, 0, 1);
       const broadFrame = 0.4 * Math.max(0, look.bw - 1);
-      const measuredBuild = weightBuild + signatureBuild + belowHeavy * (solid * (0.2 - 0.5 * Math.min(0, signatureBuild)) + broadFrame);
+      const measuredBuild = weightBuild + signatureBuild + (sig.frameBuild || 0) + belowHeavy * (solid * (0.2 - 0.5 * Math.min(0, signatureBuild)) + broadFrame);
       const [minBuild, maxBuild] = BUILD_RANGES[buildTag];
       const build = clamp(measuredBuild, minBuild, maxBuild);
       // 骨架比例保留测量值，胸腰与四肢粗细单独放大。
       const frame = clamp((bmi - 25.4) * 0.091, -0.36, 0.55);
       const widthScale = 1 + 1.05 * Math.max(0, height / 1.95 - 1), limb = 1 + 0.59 * build;
       const shoulder = (1 + 0.32 * build) * (sig.shoulder || 1) + 0.48 * muscle;
+      const chest = 1 + 0.7 * build + 0.9 * muscle;
       const waistBuild = build - 0.5 * muscle * (build - legacyBuild);
-      const waist = Math.max(1 + 0.76 * waistBuild + (sig.waist || 0), buildTag === 'heavy' ? 1.83 : 0);
-      look.body = { height, baseHeight: a.h, shoulder, chest: (1 + 0.7 * build + 0.9 * muscle) * widthScale, waist: waist * widthScale, hip: 1 + 0.4 * build,
+      const naturalWaist = 1 + (buildTag === 'balanced' ? 0.45 : 0.76) * waistBuild;
+      const waist = buildTag === 'heavy' ? Math.max(1.83, naturalWaist + (sig.waist || 0)) : Math.min(naturalWaist, chest * 1.03);
+      look.body = { height, baseHeight: a.h, shoulder, chest: chest * widthScale, waist: waist * widthScale, hip: 1 + 0.4 * build,
         arm: span ? clamp(1 + 1.65 * (span / inches - 1.047) - 0.086 * frame, 0.87, 1.17) : look.wing,
         legs: sig.legs || clamp(1 + (inches - 78) * 0.002 - frame * 0.06, 0.96, 1.04),
         limb: limb * widthScale, armThickness: (limb + 0.82 * muscle) * widthScale, hand: hand ? clamp(hand / (0.11 * inches), 0.84, 1.18) : 1,

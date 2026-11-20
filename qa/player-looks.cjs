@@ -104,9 +104,10 @@ console.log('PASS every rostered player renders; 302 measured-height profiles, s
 
 const widths = Object.fromEntries(classes.map(tag => [tag, []]));
 for (const key of game.ROSTER) {
-  const { height, waist, limb } = look(key).body;
+  const { height, chest, waist, limb } = look(key).body;
   const scale = 1 + 1.05 * Math.max(0, height / 1.95 - 1);
   widths[buildTags[key]].push({ waist: waist / scale, limb: limb / scale });
+  if (buildTags[key] !== 'heavy') assert(0.32 * waist <= 0.9 * 0.375 * chest, key);
 }
 const max = (tag, part) => Math.max(...widths[tag].map(body => body[part]));
 const min = (tag, part) => Math.min(...widths[tag].map(body => body[part]));
@@ -114,6 +115,25 @@ assert(classes.every(tag => widths[tag].length > 0));
 assert(max('lean', 'limb') < min('balanced', 'limb'));
 assert(max('balanced', 'limb') < min('muscular', 'limb'));
 assert(max('muscular', 'waist') < min('heavy', 'waist'));
+const lillard = look('lillard');
+assert.equal(lillard.buildTag, 'balanced');
+assert.equal(lillard.beard, 'full');
+assert.equal(lillard.beardFit, 'close');
+const lillardFaceRows = [];
+const lillardContext = canvas().getContext();
+lillardContext.rect = (x, y, w) => lillardFaceRows.push(w);
+render.drawHead(lillardContext, lillard, 16, 16, 16, -Math.PI / 2);
+assert(Math.max(...lillardFaceRows) < lillardFaceRows.length * 0.75, 'Lillard has a narrow, elongated face');
+assert(lillardFaceRows.at(-3) < Math.max(...lillardFaceRows), 'Lillard has a tapered jaw');
+console.log('PASS Lillard has a slim face and a close-fitting full beard');
+assert(lillard.body.waist < lillard.body.chest * 0.95);
+assert(lillard.body.limb > curry.body.limb && lillard.body.limb < look('holiday').body.limb);
+console.log('PASS only heavy builds can add belly volume; Lillard stays compact with his full beard');
+const luka = look('luka');
+assert.equal(luka.buildTag, 'muscular');
+assert(luka.body.shoulder >= 1.28 && luka.body.limb > lillard.body.limb * 1.25);
+assert(luka.body.waist < 1.8);
+console.log('PASS Luka retains a broad frame without the heavy-build waist');
 for (const key of ['kdunn', 'curry', 'wemby']) assert.equal(buildTags[key], 'lean', key);
 assert.equal(buildTags.holiday, 'muscular');
 for (const part of ['shoulder', 'chest', 'waist', 'armThickness', 'limb']) {
