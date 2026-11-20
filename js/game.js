@@ -357,8 +357,24 @@
     ['stlBdPick', 'def', '抢断 扒窃徽章倍率', 1.5, 1, 3, 0.05, '倍率：防守人有“扒窃”徽章（按徽章等级插值）'],
     ['stlBdTight', 'def', '抢断 紧密运球徽章倍率', 0.5, 0, 1, 0.05, '倍率：持球人有“紧密运球”徽章（按徽章等级插值）'],
     ['stlSafe', 'def', '抢断 安全招式减成', 1, 0, 2, 0.05, '概率：持球人在做安全招式（背后、转身护球等）时扣掉这么多（默认 1 = 基本掏不到）'],
-    ['stlTbb', 'def', '抢断 胯下背后加成', 0.35, 0, 1, 0.01, '概率：持球人在做胯下 + 背后连招时额外加成'],
-    ['stlMove', 'def', '抢断 运球招式加成', 0.1, 0, 0.5, 0.01, '概率：持球人在做其他运球招式时额外加成'],
+    ['stlTbb', 'def', '抢断 胯下背后加成', 0.35, 0, 1, 0.01, '概率：胯下 + 背后连招露球关键帧的额外加成'],
+    ['stlMove', 'def', '抢断 运球招式加成', 0.1, 0, 0.5, 0.01, '概率：其他非安全运球招式露球关键帧的额外加成'],
+    ['stlWin0', 'def', '抢断 露球窗口起点', 0.28, 0, 1, 0.01, '比例：普通变向动作的露球起始帧'],
+    ['stlWin1', 'def', '抢断 露球窗口终点', 0.68, 0, 1, 0.01, '比例：普通变向动作的露球结束帧'],
+    ['stlLeg0', 'def', '抢断 胯下窗口起点', 0.4, 0, 1, 0.01, '比例：基础胯下露球起始帧'],
+    ['stlLeg1', 'def', '抢断 胯下窗口终点', 0.58, 0, 1, 0.01, '比例：基础胯下露球结束帧'],
+    ['stlHesi0', 'def', '抢断 犹豫窗口起点', 0.35, 0, 1, 0.01, '比例：犹豫停球的露球起始帧'],
+    ['stlHesi1', 'def', '抢断 犹豫窗口终点', 0.8, 0, 1, 0.01, '比例：犹豫停球的露球结束帧'],
+    ['stlTimed', 'def', '抢断 时机加成', 0.28, 0, 1, 0.01, '概率：命中露球关键帧的额外加成'],
+    ['stlSide', 'def', '抢断 持球侧加成', 0.2, 0, 0.5, 0.01, '概率：从球侧伸手的最大加成'],
+    ['stlAcross', 'def', '抢断 隔身惩罚', 0.04, 0, 0.6, 0.01, '概率：从护球侧隔身够球的最大扣减；不影响落空失位惩罚'],
+    ['stlTrail', 'def', '抢断 追身掏球加成', 0.08, 0, 0.5, 0.01, '概率：从侧后方球侧追掏的额外加成'],
+    ['stlBack', 'def', '抢断 背面惩罚', 0.08, 0, 0.5, 0.01, '概率：正后方无角度伸手的扣减'],
+    ['stlRiskT', 'def', '抢断 冒险失位时长', 0.5, 0, 2, 0.01, '秒：风险越高落空后追加的收手时间'],
+    ['stlGoodT', 'def', '抢断 好时机落空减罚', 0.18, 0, 0.5, 0.01, '秒：好时机球侧伸手落空减少的收手时间'],
+    ['stlAiWindow', 'def', '抢断 电脑时机偏好', 8, 0, 16, 0.1, '倍率增量：困难电脑预判露球窗口，中等减半，简单随机'],
+    ['stlAiBad', 'def', '抢断 电脑坏角度抑制', 0.75, 0, 1, 0.05, '比例：困难电脑减少非窗口和隔身伸手，中等减半'],
+    ['stlAiReact', 'def', '抢断 电脑读招伸手', 1, 0, 1, 0.01, '概率：每次可读运球招式安排一次伸手，乘难度、抢断能力和角度；简单不预判'],
     ['stlShot', 'def', '抢断 投篮 / 假投加成', 0.14, 0, 0.5, 0.01, '概率：持球人脚在地上做投篮 / 假投动作时加成'],
     ['stlLowSt', 'def', '抢断 对手低体力加成', 0.08, 0, 0.3, 0.01, '概率：持球人体力低于“疲劳线”时加成'],
     ['stlPost', 'def', '抢断 背打倍率', 0.5, 0, 1, 0.05, '倍率：持球人在背打时'],
@@ -3380,6 +3396,31 @@
     blendHeldBall();
     return true;
   }
+  function stealRead(pl, df, ahead = 0) {
+    const a = df.action, moving = a && a.type === 'move';
+    const m = moving && (a.mv ? MVX[a.mv] : MV[a.kind]);
+    const safe = !!(m && m.safe);
+    let timed = false, windowStart = 0, windowEnd = 0;
+    if (moving && !safe) {
+      const u = (a.t + ahead) / a.T;
+      const legs = a.kind === 'legs' && a.mv !== 'legsx', hesi = a.kind === 'hesi';
+      const lo = legs ? K.stlLeg0 : hesi ? K.stlHesi0 : K.stlWin0;
+      const hi = legs ? K.stlLeg1 : hesi ? K.stlHesi1 : K.stlWin1;
+      windowStart = lo * a.T; windowEnd = hi * a.T;
+      timed = u >= lo && u <= hi;
+    }
+    const dx = pl.x - df.x, dy = pl.y - df.y, dd = Math.hypot(dx, dy) || 1;
+    const fx = Math.cos(df.face), fy = Math.sin(df.face);
+    const front = (dx * fx + dy * fy) / dd;
+    const ballX = moving ? a.kind === 'hesi' ? a.h0 : movePath(a, clamp((a.t + ahead) / a.T, 0, 1))[0] : df.handX;
+    const side = (dx * fy - dy * fx) / dd * Math.sign(ballX);
+    const across = Math.max(0, -side), ballSide = Math.max(0, side);
+    const poor = Math.max(0, -front) * (1 - ballSide);
+    const risk = clamp((across + poor + (moving && !timed ? 1 : 0) + clamp(dd / K.stlR, 0, 1)) / 3 - (timed ? ballSide * 0.4 : 0), 0, 1);
+    const bonus = ballSide * K.stlSide - across * K.stlAcross - poor * K.stlBack + ballSide * Math.max(0, -front) * K.stlTrail;
+    return { timed, safe, moving, bonus, risk, ballSide, across, windowStart, windowEnd };
+  }
+
   function updateAction(pl, inp, dt) {
     const a = pl.action, df = OP(pl);
     a.t += dt; a.vt = (a.vt || 0) + dt; // vt：执行后真实经过的时间（5V5 接球即投的 cs 加成只加在 a.t 上）
@@ -3523,7 +3564,9 @@
         if (df.hasBall && dd < K.stlR && G.phase === 'live') {
           let ch = (K.stlB0 + K.stlBS * pl.r.stl - K.stlBH * df.r.hnd) * bk(pl, 'pick', K.stlBdPick) * bk(df, 'tight', K.stlBdTight);
           const da = df.action;
-          if (da && da.type === 'move') ch += (da.mv ? MVX[da.mv].safe : MV[da.kind].safe) ? -K.stlSafe : da.mv === 'tbb' ? K.stlTbb : K.stlMove;
+          const read = stealRead(pl, df);
+          ch += read.bonus;
+          if (read.moving) ch += read.safe ? -K.stlSafe : read.timed ? K.stlTimed + (da.mv === 'tbb' ? K.stlTbb : K.stlMove) : 0;
           if (da && (da.type === 'shot' || da.type === 'fake') && df.z <= 0) ch += K.stlShot;
           if (df.stam < ST.low) ch += K.stlLowSt;
           if (df.post) ch *= K.stlPost;
@@ -3538,9 +3581,9 @@
             playLoss(df); df.action = null; df.stun = K.stlStun; df.stunK = 'off'; df.stunT0 = K.stlStun; df.post = false;
             looseBall({ x: bx, y: by, z: 0.6 }, ux * K.stlBallV + rr(-K.stlBallR, K.stlBallR), uy * K.stlBallV + rr(-K.stlBallR, K.stlBallR), K.stlBallZ, pl.id);
             G.ball.noPick = K.stlNoPick; G.stats[pl.id].stl++; G.stats[df.id].tov++; vo(pl, 'steal'); vic(df, 'stolen'); a.T = K.stlRecT;
-            float('抢断', pl, '#7dff8a', 1); tkAdd(pl, 14); tkAdd(df, -10); bigPlay('steal', pl, bx, by, 0.7, stTier); bpop(pl, 'pick');
-          } else { reachTo(pl, { x: G.ball.x, y: G.ball.y, z: Math.max(0.3, G.ball.z) }, K.stlMissReach, K.stlMissReachT); a.T = K.stlMissT; float('抢断落空', pl, '#9aa3c0'); bpop(df, 'tight'); }
-        } else a.T = K.stlFarT;
+            float(read.timed ? '时机抢断' : '掏球', pl, '#7dff8a', 1); tkAdd(pl, 14); tkAdd(df, -10); bigPlay('steal', pl, bx, by, 0.7, stTier); bpop(pl, 'pick');
+          } else { reachTo(pl, { x: G.ball.x, y: G.ball.y, z: Math.max(0.3, G.ball.z) }, K.stlMissReach, K.stlMissReachT); a.T = Math.max(a.t, K.stlMissT + K.stlRiskT * read.risk - (read.timed ? K.stlGoodT * read.ballSide : 0)); float(read.risk > 0.5 ? '伸手失位' : '抢断落空', pl, '#9aa3c0', read.risk > 0.5 ? 1 : 0); bpop(df, 'tight'); }
+        } else { a.T = K.stlFarT + K.stlRiskT; float('伸手失位', pl, '#9aa3c0', 1); }
       }
       if (a.t >= a.T) pl.action = null;
     }
@@ -4972,7 +5015,18 @@
         if (!(opt && opt.noJump) && ai.willJump && dd < K.aiJmpD && (oa.type !== 'fake' || rnd() < D.bite * (oa.jf ? 0.85 : 1)) && !(oa.released)) o.a1 = true; // 起跳假投诱导略弱
       }
     } else { ai.jumpAt = -1; if (!oa) ai.seenAct = null; }
-    if (D.steal > 0 && dd < K.aiStlD && ai.stealCd <= 0 && !oa && rnd() < D.steal * dt * 1.6 * (pl.dummy ? 1 : DM.gamble) * (0.6 + 0.8 * pl.r.stl)) { o.a2 = true; ai.stealCd = rr(K.aiStlCd0, K.aiStlCd1); }
+    const sr = stealRead(pl, opp, K.stlHitT), awareness = clamp(G.diff / 2, 0, 1);
+    const seek = 1 + awareness * (sr.timed ? K.stlAiWindow : -K.stlAiBad * (sr.moving ? 1 : sr.across));
+    const angle = 1 + awareness * (sr.ballSide - sr.across * K.stlAiBad);
+    const ready = D.steal > 0 && dd < K.aiStlD && ai.stealCd <= 0 && !pl.action && pl.stun <= 0 && pl.cd <= 0 && pl.z <= 0;
+    if (ai.stealPlan && (ai.stealPlan.move !== oa || oa.t + K.stlHitT > sr.windowEnd)) ai.stealPlan = null;
+    if (ready && awareness > 0 && sr.moving && !sr.safe && ai.stealSeen !== oa && oa.t + K.stlHitT <= sr.windowEnd) {
+      ai.stealSeen = oa;
+      if (rnd() < K.stlAiReact * awareness * (0.6 + 0.8 * pl.r.stl) * angle) ai.stealPlan = { move: oa, at: Math.max(oa.t, sr.windowStart - K.stlHitT) };
+    }
+    if (ready && ai.stealPlan && oa.t >= ai.stealPlan.at) {
+      o.a2 = true; ai.stealPlan = null; ai.stealCd = rr(K.aiStlCd0, K.aiStlCd1);
+    } else if (!ai.stealPlan && ready && (!oa || oa.type === 'move') && rnd() < D.steal * dt * 1.6 * seek * angle * (pl.dummy ? 1 : DM.gamble) * (0.6 + 0.8 * pl.r.stl)) { o.a2 = true; ai.stealCd = rr(K.aiStlCd0, K.aiStlCd1); }
     return o;
   }
 
