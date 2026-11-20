@@ -1248,8 +1248,9 @@
       }
       const bd = C.beard === true ? 'full' : C.beard;
       if (bd === 'full' || bd === 'boxed' || bd === 'long') {
-        const cheek = bd === 'boxed' ? 0.16 : 0.22;
-        px(0, h * 0.62, w * cheek, h * 0.38, hr); px(w * (1 - cheek), h * 0.62, w * cheek, h * 0.38, hr);
+        const close = bd === 'full' && C.beardFit === 'close';
+        const cheek = close ? 0.12 : bd === 'boxed' ? 0.16 : 0.22, cheekTop = close ? 0.67 : 0.62;
+        px(0, h * cheekTop, w * cheek, h * (1 - cheekTop), hr); px(w * (1 - cheek), h * cheekTop, w * cheek, h * (1 - cheekTop), hr);
         px(0, h * 0.82, w, h * 0.18, hr); px(cx - w * 0.18, h * 0.73, w * 0.36, 1, hr);
       } else if (bd === 'goatee') {
         px(cx - w * 0.14, h * 0.84, w * 0.28, h * 0.16, hr);
