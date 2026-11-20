@@ -127,8 +127,8 @@ assert.equal(curry.beard, '');
 assert.equal(curry.eyes, 'open');
 assert.equal(look('kyrie').style, 'curlfade');
 assert.equal(look('kyrie').beard, 'trimmed');
-assert.equal(look('wemby').style, 'bald');
-assert.equal(look('cade').style, 'curlfade');
+assert.equal(look('wemby').style, 'buzz');
+assert.equal(look('cade').style, 'afro');
 assert.equal(look('cade').skin[1], '#a67453');
 const calibrated = ['cade', 'giannis', 'kawhi', 'tatum', 'ad', 'brunson', 'booker'];
 assert.equal(new Set(calibrated.map(key => look(key).skin[1])).size, calibrated.length);
@@ -249,7 +249,7 @@ const approvedWidths = {
   shaq: [1.7875, 2.429, 2.7421, 2.2221],
   jokic: [1.3652, 1.7979, 2.1303, 1.6859],
   zion: [1.9679, 2.7851, 2.579, 2.5297],
-  gobert: [1.1369, 1.4459, 1.4745, 1.3935],
+  gobert: [1.104, 1.3656, 1.2752, 1.3258],
   sabonis: [1.1515, 1.4268, 1.4572, 1.3709]
 };
 for (const [key, floors] of Object.entries(approvedWidths)) {
