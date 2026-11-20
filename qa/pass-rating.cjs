@@ -4,7 +4,7 @@ const path = require('node:path');
 const vm = require('node:vm');
 const cp = require('node:child_process');
 
-function fixture(baseline = false, human = -1, seed = 7) {
+function fixture(baseline = false, human = -1, seed = 7, camera = false) {
   const ctx = vm.createContext({ performance: { now: () => 0 }, setTimeout() {}, clearTimeout() {} });
   ctx.window = ctx;
   ctx.addEventListener = () => {};
@@ -26,8 +26,37 @@ function fixture(baseline = false, human = -1, seed = 7) {
   }
   ctx.PH.game.seed(seed);
   ctx.PH.T5.start({ home: 'LAL', away: 'BOS', human });
-  return { t5: ctx.PH.T5, G: ctx.PH.game.G, game: ctx.PH.game, b5: ctx.PH.B5, rig: ctx.PH.rig };
+  if (camera) {
+    const code = fs.readFileSync(path.join(__dirname, '../js/render5.js'), 'utf8').replace('PH.render5 = {', 'PH.render5 = { qaWp: wp, qaPoseInView: poseInView,');
+    vm.runInContext(code, ctx, { filename: 'render5.js' });
+  }
+  return { t5: ctx.PH.T5, G: ctx.PH.game.G, game: ctx.PH.game, b5: ctx.PH.B5, rig: ctx.PH.rig, render5: ctx.PH.render5 };
 }
+
+{
+  const { t5, rig, render5 } = fixture(false, 0, 7, true), p = t5.T.ctl, natural = rig(p);
+  p.pose.passHands = { L: natural.handL.map((v, i) => v + (i === 2 ? -0.2 : 0.1)), R: natural.handR.map((v, i) => v + (i === 2 ? -0.2 : 0.1)), follow: 0.14 };
+  const before = JSON.stringify(p.pose), k = rig(p);
+  for (const d of [-1, 1]) {
+    const view = rig(render5.qaWp(p, d));
+    for (const side of ['L', 'R']) {
+      const h = k['hand' + side], expected = [d * h[1], -d * h[0], h[2]];
+      assert(Math.hypot(...view['hand' + side].map((v, i) => v - expected[i])) < 1e-9);
+    }
+  }
+  for (const angle of [0.3, 1.7, Math.PI]) {
+    const c = Math.cos(angle), s = Math.sin(angle), xy = (x, y) => [c * x - s * y, s * x + c * y];
+    const q = Object.assign({}, p, { x: xy(p.x, p.y)[0], y: xy(p.x, p.y)[1], face: p.face + angle, pose: render5.qaPoseInView(p, xy) }), view = rig(q);
+    for (const side of ['L', 'R']) {
+      const h = k['hand' + side], expected = [...xy(h[0], h[1]), h[2]];
+      assert(Math.hypot(...view['hand' + side].map((v, i) => v - expected[i])) < 1e-9);
+    }
+  }
+  assert.equal(JSON.stringify(p.pose), before, 'Camera proxies must not mutate simulation hand targets');
+  delete p.pose.passHands;
+  assert.equal(render5.qaWp(p, 1).pose, p.pose);
+}
+console.log('Pass camera: Broadcast in both directions and rotated 2K hand targets match the transformed rig without mutating court coordinates passed.');
 
 function inputStateAudit(postSource, blind = false, blindMultiplier = 1.6) {
   const { t5, G, game, b5 } = fixture(), T = t5.T;
