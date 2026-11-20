@@ -1423,6 +1423,8 @@
     kobe: { style: 'buzz', beard: 'goatee', brow: 'heavy', sleeve: 'R' },
     kyrie: { style: 'curlfade', face: 'tapered', beard: 'trimmed', band: '', brow: 'soft', build: -0.27 },
     lillard: { face: 'long', beardFit: 'close' },
+    dosunmu: { style: 'longbraids', hair: '#191311', headScale: 0.97, neckScale: 0.94 },
+    jwells: { style: 'afro', hair: '#211b1b', face: 'tapered', headScale: 1.05, neckScale: 1.05 },
     harden: { style: 'braids', beard: 'long', face: 'oval' },
     kawhi: { style: 'braids', beard: 'goatee', face: 'long', skin: '#88543f', brow: 'soft' },
     sga: { style: 'braids', face: 'long', band: '#f4f0e0', build: -0.11, legs: 1.06 },
@@ -1456,7 +1458,7 @@
     const sig = SIGNATURE_LOOK[a.key] || {};
     const m = PH.measurements && PH.measurements[a.key];
     const buildTag = PH.buildTags?.[a.key] || 'balanced';
-    const look = { skin: pair(sig.skin || a.skin), hair: a.hair, style: sig.style || a.style, beard: sig.beard ?? a.beard ?? '', beardFit: sig.beardFit, band: sig.band ?? a.band ?? '',
+    const look = { skin: pair(sig.skin || a.skin), hair: sig.hair || a.hair, style: sig.style || a.style, beard: sig.beard ?? a.beard ?? '', beardFit: sig.beardFit, band: sig.band ?? a.band ?? '',
       bw: a.bw || 1, wing: a.wing || 1, face: sig.face || FACE[a.key] || 'square', brow: sig.brow, eyes: sig.eyes, mouthguard: sig.mouthguard, sleeve: sig.sleeve, buildTag };
     if (m) {
       const [inches, pounds, span, hand] = m, height = inches * 0.0254;
@@ -1485,7 +1487,8 @@
         arm: span ? clamp(1 + 1.65 * (span / inches - 1.047) - 0.086 * frame, 0.87, 1.17) : look.wing,
         legs: sig.legs || clamp(1 + (inches - 78) * 0.002 - frame * 0.06, 0.96, 1.04),
         limb: limb * widthScale, armThickness: (limb + 0.82 * muscle) * widthScale, hand: hand ? clamp(hand / (0.11 * inches), 0.84, 1.18) : 1,
-        headScale: 0.92 + 0.08 * Math.min(1.4, 1 + 0.7 * legacyBuild + 0.9 * muscle) };
+        headScale: (0.92 + 0.08 * Math.min(1.4, 1 + 0.7 * legacyBuild + 0.9 * muscle)) * (sig.headScale || 1),
+        neckScale: sig.neckScale || 1 };
     }
     return look;
   }

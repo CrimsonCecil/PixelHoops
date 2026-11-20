@@ -1150,7 +1150,10 @@
     tapered: { w: 1, h: 1.14, r: 0.33, rb: 0.34, chin: 0.13 },
     youthful: { w: 1.03, h: 1.07, r: 0.34, rb: 0.42, chin: 0.04, soft: true } };
   const headHeight = (face, size) => Math.max(5, Math.round(size * (FACES[face] || FACES.square).h));
-  const HAIRLINE = { buzz: 0.14, receding: 0.14, crop: 0.23, fade: 0.23, curlfade: 0.22, braids: 0.24, wispy: 0.2 };
+  const HAIRLINE = { buzz: 0.14, receding: 0.14, crop: 0.23, fade: 0.23, curlfade: 0.22, braids: 0.24, longbraids: 0.24, wispy: 0.2 };
+  const HAIR_NAPE = { buzz: 0.73, receding: 0.68, crop: 0.72, fade: 0.7, curlfade: 0.76, braids: 0.8, longbraids: 0.84,
+    afro: 0.84, curly: 0.79, locks: 0.84, long: 0.82, swept: 0.77, wispy: 0.68 };
+  const NAPE_TAPER = { buzz: 0.12, receding: 0.055, crop: 0.07, fade: 0.24, curlfade: 0.17, short: 0.1 };
   function drawHead(c, C, x, y, size, facing) {
     const fs = FACES[C.face] || FACES.square;
     const w = Math.max(5, Math.round(size * fs.w)), h = headHeight(C.face, size);
@@ -1165,13 +1168,21 @@
     if (!profile || side > 0) px(-earW, earY, earW, h * 0.22, dark);
     if (!profile || side < 0) px(w, earY, earW, h * 0.22, dark);
     if (st === 'afro') {
-      px(0, -2 * crown, w, crown, hr); px(-earW, -crown, w + 2 * earW, 3 * crown, hr);
+      const brim = Math.round(w * 0.19), span = w + 2 * brim, step = Math.max(1, Math.round(span / 11));
+      for (let i = 0; i < span; i += step) {
+        const curve = Math.sin(Math.PI * (i + 0.5) / span);
+        const lift = h * (0.06 + 0.22 * curve) + (i / step % 3 === 1 ? 1 : 0);
+        px(i - brim, -lift, Math.min(step, span - i), lift + h * (0.32 + 0.24 * curve), hr);
+      }
     }
     if (st === 'curly' || st === 'locks' || st === 'wispy') {
       const step = Math.max(2, Math.floor(w / 5));
       for (let i = 0; i < w; i += step) {
-        const lift = st === 'wispy' ? (i % 3 + 1) * 0.6 : crown * (i === 0 ? 0.6 : 1.3);
-        px(i, -lift, Math.min(step, w - i), h * 0.2 + lift, hr);
+        const width = Math.min(step, w - i), curve = Math.sin(Math.PI * (i + width / 2) / w);
+        const lift = st === 'wispy' ? (i % 3 + 1) * 0.6
+          : away || profile ? crown * (0.38 + curve * (st === 'curly' ? 1.17 : 0.68)) + (i / step % 2 ? 1 : 0)
+          : crown * (i === 0 ? 0.6 : 1.3);
+        px(i, -lift, width, h * 0.2 + lift, hr);
       }
     }
     if (st === 'curlfade') {
@@ -1182,13 +1193,27 @@
       }
     }
     if (st === 'swept') {
-      px(w * 0.17, -crown, w * 0.59, crown, hr); px(0, -crown * 0.45, w * 0.89, crown, hr);
+      const part = away ? 0.24 : 0.17;
+      px(w * part, -crown, w * 0.59, crown, hr); px(0, -crown * 0.45, w * 0.89, crown, hr);
     }
+    const longBraids = () => {
+      const stride = Math.max(2, Math.round(w / 4.5)), strand = Math.max(1, stride - 1);
+      for (let i = -1; i < w + 1; i += stride) {
+        const u = (i + strand / 2) / w;
+        if (away || (!profile && (u < 0.16 || u > 0.84)) || (profile && (side > 0 ? u < 0.34 : u > 0.66))) {
+          const end = h * (1.34 + 0.16 * Math.sin((i + 1) * 2));
+          px(i, h * 0.31, strand, end - h * 0.31, hr);
+          px(i + (side > 0 ? -1 : 1), end, strand, h * 0.12, hr);
+          if (strand >= 2) for (let y = Math.round(h * 0.53); y < end; y += 3) px(i + (y % 2), y, 1, 1, bh);
+        }
+      }
+    };
+    if (st === 'longbraids') longBraids();
     if (st === 'locks' || st === 'long' || (st === 'braids' && away)) {
       const stride = Math.max(2, Math.round(w / 4));
       for (let i = 0; i < w + stride; i += stride) {
         const lx = Math.min(w, i) - 1;
-        if (away || i === 0 || i >= w) px(lx, h * 0.16, Math.max(1, stride - 1), h * (st === 'locks' ? 0.71 : 0.66) - i % 3, hr);
+        if (away || i === 0 || i >= w) px(lx, h * 0.16, Math.max(1, stride - 1), h * (st === 'locks' ? 0.9 : 0.66) - i % 3, hr);
       }
     }
     c.save(); c.beginPath();
@@ -1204,10 +1229,10 @@
     if (st === 'bald') px(w * 0.25, h * 0.12, w * 0.26, 1, shade(skin, 1.18));
     else {
       const hairline = HAIRLINE[st] || 0.3;
-      const faded = st === 'fade' || st === 'crop' || st === 'curlfade';
       const close = st === 'buzz' || st === 'receding';
-      const nape = st === 'locks' || st === 'long' || st === 'braids' ? 0.82 : 0.74;
-      const hairColor = close ? shade(skin, 0.55) : hr, fadeColor = faded ? shade(hr, 1.65) : hairColor;
+      const nape = HAIR_NAPE[st] || 0.74, taper = NAPE_TAPER[st];
+      const hairColor = close ? shade(skin, st === 'buzz' ? 0.53 : 0.44) : hr;
+      const fadeColor = close ? shade(skin, 0.71) : shade(hr, st === 'fade' ? 2.23 : 1.63);
       const braidStart = Math.max(1, Math.round(w / 6)), braidStep = Math.max(2, Math.round(w / 4));
       const rear = Math.max(0, back * 2.25);
       const profileMix = clampR(Math.min((back + 0.75) / 0.45, (0.45 - back) / 0.1), 0, 1);
@@ -1217,17 +1242,29 @@
         const temple = clampR((0.43 - distanceFromNape) / 0.18, 0, 1);
         const crownDepth = Math.min(1, Math.max(rear, (1 + back) / 2 + side * (0.5 - u)));
         const towardNape = lerpN(crownDepth, temple, profileMix);
-        const depth = Math.round(h * lerpN(hairline, nape, towardNape));
-        const braid = st === 'braids' && i >= braidStart && i < w - 1 && (i - braidStart) % braidStep === 0;
-        const fadeStart = faded && towardNape > 0.2 ? Math.max(1, depth - Math.max(1, Math.round(h * 0.16))) : depth;
+        const contour = away ? nape - 0.055 * Math.abs(2 * u - 1) : Math.max(0.74, nape);
+        const depth = Math.max(away ? Math.ceil(0.63 * h) : 1, Math.round(h * lerpN(hairline, contour, towardNape)));
+        const braid = (st === 'braids' || st === 'longbraids') && i >= braidStart && i < w - 1 && (i - braidStart) % braidStep === 0;
+        const fadeStart = taper && towardNape > 0.24 ? Math.max(1, depth - Math.max(1, Math.round(h * taper))) : depth;
         px(i, 0, 1, fadeStart, braid ? bh : hairColor);
         if (fadeStart < depth) px(i, fadeStart, 1, depth - fadeStart, fadeColor);
+        if ((away || (profile && towardNape > 0.6)) && !close && !braid && depth >= 5) {
+          if ((st === 'afro' || st === 'curly' || st === 'curlfade' || st === 'locks' || st === 'wispy') && i % 3 !== 2) {
+            const y = 1 + (i * 5 + Math.floor(i / 3)) % Math.max(1, fadeStart - 2);
+            if (y < fadeStart) px(i, y, 1, 1, i % 3 ? bh : shade(hr, 1.4));
+          }
+          if ((st === 'swept' || st === 'short') && i >= w * 0.17 && i < w * 0.8) {
+            const y = Math.round(h * (st === 'swept' ? 0.09 + 0.2 * u : 0.18 + 0.13 * Math.abs(u - 0.5)));
+            if (y < fadeStart) px(i, y, 1, 1, shade(hr, st === 'swept' ? 1.75 : 1.4));
+          }
+        }
       }
       if (!away && st === 'receding') px(w * 0.33, h * 0.08, w * 0.34, h * 0.12, hr);
       if (!away && st === 'swept') {
         px(w * 0.04, h * 0.19, w * 0.55, h * 0.12, hr);
         px(w * 0.16, h * 0.07, w * 0.48, 1, bh);
       }
+      if (st === 'longbraids') longBraids();
     }
     if (C.band) {
       px(0, h * 0.22, w, h * 0.1, C.band);
@@ -1335,7 +1372,7 @@
       J.neck = { x: lerpN(Q.x, J.head.x, 0.55), y: lerpN(Q.y, J.head.y, 0.55), d: Q.d };
       seg('pelvis', 'mid', 0.32 * B.waist, C.jersey, 0, shoulderTop);
       seg('mid', 'chest', 0.375 * tw, C.jersey, 0, shoulderTop);
-      seg('chest', 'neck', 0.13 * lw, C.skin, 0.02);
+      seg('chest', 'neck', 0.13 * (0.72 * lw + 0.28 * B.shoulder) * (B.neckScale || 1), C.skin, 0.02);
     } else seg('pelvis', 'chest', 0.31 * tw, C.jersey, 0, shoulderTop);
     seg('shL', 'shR', 0.12 * (B ? B.chest : 0.6 + 0.4 * fb), C.jersey, 0, shoulderTop);
     for (const side of ['L', 'R']) {
