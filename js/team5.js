@@ -740,6 +740,17 @@
     }
     return best;
   }
+  function gatherPoint(points) {
+    for (let i = 0; i < points.length; i++) for (let j = i + 1; j < points.length; j++) {
+      const c = points[i].map((v, k) => (v + points[j][k]) / 2), radius = Math.hypot(...points[i].map((v, k) => v - c[k]));
+      if (points.every(p => Math.hypot(...p.map((v, k) => v - c[k])) <= radius + 1e-9)) return c;
+    }
+    const a = points[0], u = points[1].map((v, i) => v - a[i]), v = points[2].map((v, i) => v - a[i]);
+    const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+    const n = cross(u, v), un = Math.hypot(...u) ** 2, vn = Math.hypot(...v) ** 2, nn = Math.hypot(...n) ** 2;
+    const x = cross(v, n), y = cross(n, u);
+    return a.map((v, i) => v + (un * x[i] + vn * y[i]) / (2 * nn));
+  }
   function releasePass(P) {
     const p = P.from, m = P.to, kind = P.kind, ua = P.ua, kf = P.kf, tx = P.tx, ty = P.ty, d0 = hyp(tx - P.x0, ty - P.y0);
     // 预判拦截：路线上最先碰到球的防守人
@@ -794,6 +805,11 @@
       T.ps.pose0 = Object.assign({}, p.pose); T.ps.face0 = p.face;
       const H = PH.rig(p), axis = H.handR.map((v, i) => v - H.handL[i]), span = Math.hypot(...axis) || 1;
       T.ps.handAxis = axis.map(v => v / span * 0.108);
+      const points = [[b.x, b.y, b.z], H.handL.map((v, i) => v + T.ps.handAxis[i]), H.handR.map((v, i) => v - T.ps.handAxis[i])];
+      T.ps.gather = gatherPoint(points);
+      const radius = Math.max(...points.map(q => Math.hypot(...q.map((v, i) => v - T.ps.gather[i]))));
+      T.ps.gatherSpeed = Math.max(7.2, radius / windup);
+      p.pose.passHands = { L: H.handL.slice(), R: H.handR.slice(), follow: 0.14 };
     }
     T.ps.playPass = !!T.plPassing;
     const blind = ((m.x - p.x) * Math.cos(p.face) + (m.y - p.y) * Math.sin(p.face)) / (d0 || 1) < -0.2;
@@ -846,12 +862,17 @@
         const pose = { aLp: 0.2 + 1.1 * lift, aRp: 0.2 + 1.1 * lift, aLe: 0.6, aRe: 0.6, aLq: 0.18, aRq: 0.18, yaw: 0, lean: 0.08, tilt: 0 }, blend = w * w * (3 - 2 * w);
         for (const k in pose) p.pose[k] = lerp((P.pose0 && P.pose0[k]) || 0, pose[k], blend);
       }
-      const H = handPt(p, b, false), rem = -prevT, step = Math.min(dt, rem);
-      const dx = H[0] - b.x, dy = H[1] - b.y, dz = H[2] - b.z, d = Math.hypot(dx, dy, dz), move = Math.min(step / rem, 7.2 * step / (d || 1));
+      const H = P.gather || handPt(p, b, false), rem = -prevT, step = Math.min(dt, rem), cap = (P.gatherSpeed || 7.2) * step;
+      const dx = H[0] - b.x, dy = H[1] - b.y, dz = H[2] - b.z, d = Math.hypot(dx, dy, dz), move = Math.min(step / rem, cap / (d || 1));
       b.x += dx * move; b.y += dy * move; b.z += dz * move;
       if (p.pose) {
-        const center = [b.x, b.y, b.z], axis = P.handAxis;
-        p.pose.passHands = { L: center.map((v, i) => v - axis[i]), R: center.map((v, i) => v + axis[i]), follow: 0.14 };
+        const Q = p.pose.passHands, axis = P.handAxis;
+        for (const side of ['L', 'R']) {
+          const target = H.map((v, i) => v + (side === 'L' ? -axis[i] : axis[i])), delta = target.map((v, i) => v - Q[side][i]);
+          const move = Math.min(step / rem, cap / (Math.hypot(...delta) || 1));
+          Q[side] = Q[side].map((v, i) => v + delta[i] * move);
+        }
+        Q.follow = 0.14;
       }
       P.x0 = b.x; P.y0 = b.y; P.z0 = b.z; b.vx = b.vy = b.vz = 0;
       P.t = Math.min(P.t, 0);

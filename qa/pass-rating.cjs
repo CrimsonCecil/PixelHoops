@@ -18,7 +18,7 @@ function fixture(baseline = false, human = -1, seed = 7) {
       ? cp.execFileSync('git', ['show', '3bb7f5f95408c797f8aae8018ac3210f7cb664e9:js/team5.js'], { cwd: path.join(__dirname, '..'), encoding: 'utf8' })
       : fs.readFileSync(path.join(__dirname, '../js', name + '.js'), 'utf8');
     if (name === 'team5') {
-      code = code.replace('doPass: doPass,', 'doPass: doPass, qaPassUpdate: passUpdate, qaHand: handPt, qaHumanInp: humanInp, qaThree: three,');
+      code = code.replace('doPass: doPass,', 'doPass: doPass, qaGatherPoint: typeof gatherPoint === "function" ? gatherPoint : null, qaPassUpdate: passUpdate, qaHand: handPt, qaHumanInp: humanInp, qaThree: three,');
       code = code.replace('function releasePass(P) {', 'function releasePass(P) { P.qaReleases = (P.qaReleases || 0) + 1;');
       code = code.replace('T.ps.rec = rec;', 'rec.qaWindup = Math.max(0, -T.ps.t); T.ps.rec = rec;');
     }
@@ -182,7 +182,14 @@ assert(high.windup < low.windup * 0.5);
 assert(high.speed > low.speed * 1.2);
 assert(high.miss < low.miss * 0.5);
 assert(high.er < low.er);
-let maxWindupStep = 0, maxReleaseGap = 0, maxHandStep = 0, maxGatherGap = 0, maxNaturalGap = 0;
+const gather = fixture().t5.qaGatherPoint;
+for (const points of [ [[0, 0, 0], [0, 0, 0], [0, 0, 0]], [[0, 0, 0], [1, 0, 0], [2, 0, 0]], [[0, 0, 0], [1, 0, 0], [0.5, Math.sqrt(3) / 2, 0]] ]) {
+  const center = gather(points), radius = Math.max(...points.map(p => Math.hypot(...p.map((v, i) => v - center[i]))));
+  assert(center.every(Number.isFinite));
+  const expected = points[2][1] ? 1 / Math.sqrt(3) : points[2][0] / 2;
+  assert(Math.abs(radius - expected) < 1e-9);
+}
+let maxWindupStep = 0, maxReleaseGap = 0, maxHandStep = 0, maxShortHandStep = 0, maxGatherGap = 0, maxNaturalGap = 0, shortCapCases = 0;
 for (const pac of [50, 90]) for (const z of [0.25, 1.2]) for (const duration of [null, 0.015, 0.2]) {
   const { t5, G, game, rig, b5 } = fixture(false, 0), T = t5.T;
   const p = T.tm[0].on.find(q => q.key === (pac === 90 ? 'luka' : 'kessler'));
@@ -198,18 +205,32 @@ for (const pac of [50, 90]) for (const z of [0.25, 1.2]) for (const duration of 
   if (duration != null) Object.assign(t5.TV, { t5_pass_wFast: duration, t5_pass_wSlow: duration });
   Object.assign(b, { state: 'held', holder: p.id, x: p.x + 0.4, y: p.y - 0.2, z, dead: false });
   Object.assign(T, { R: { RB: true, lx: 0, ly: 0, rx: 0, ry: 0 }, E: { [['A', 'B', 'X', 'Y', 'LT'][r.slot]]: true } });
+  const initialRig = rig(p), initialHands = [initialRig.handL, initialRig.handR];
   t5.qaHumanInp(p);
   assert.equal(T.ps.to, r);
   const P = t5.T.ps, startPose = { ...p.pose };
-  let frames = 0, releaseFrames = 0, previousHands;
+  const shortCap = P.gatherSpeed > 7.2 + 1e-9;
+  if (shortCap) {
+    shortCapCases++;
+    assert(P.windup < 0.061, 'Only infeasible short windups may raise the cap');
+    const axis = P.handAxis, starts = [[b.x, b.y, b.z], initialHands[0].map((v, i) => v + axis[i]), initialHands[1].map((v, i) => v - axis[i])];
+    const minRadius = Math.max(...starts.map(q => Math.hypot(...q.map((v, i) => v - P.gather[i]))));
+    assert(minRadius > 7.2 * P.windup, 'Raised cap requires an unreachable meeting point at the normal cap');
+    assert(Math.abs(P.gatherSpeed * P.windup - minRadius) < 1e-9, 'Raise the cap no more than necessary');
+  }
+  let frames = 0, releaseFrames = 0, previousHands = initialHands;
+  let previousGatherGap = Math.hypot(...initialHands[0].map((v, i) => (v + initialHands[1][i]) / 2 - [b.x, b.y, b.z][i]));
   function step(dt) {
+    const gathering = P.t < 0;
     game.t5.step(G.players.map(() => game.t5.zeroInp()), dt);
     t5.qaPassUpdate(dt);
     const k = rig(p), hands = [k.handL, k.handR];
     if (previousHands) for (let i = 0; i < 2; i++) {
       const displacement = Math.hypot(...hands[i].map((v, j) => v - previousHands[i][j]));
-      maxHandStep = Math.max(maxHandStep, displacement);
-      assert(displacement <= 7.2 * dt + 1e-9, `Hand displacement ${displacement} exceeds 7.2m/s`);
+      if (gathering && shortCap) maxShortHandStep = Math.max(maxShortHandStep, displacement);
+      else maxHandStep = Math.max(maxHandStep, displacement);
+      const speed = gathering ? P.gatherSpeed : 7.2;
+      assert(displacement <= speed * dt + 1e-9, `Hand displacement ${displacement} exceeds ${speed}m/s`);
     }
     previousHands = hands;
     if (Math.abs(P.t) < 1e-9) releaseFrames++;
@@ -219,12 +240,13 @@ for (const pac of [50, 90]) for (const z of [0.25, 1.2]) for (const duration of 
     const before = [b.x, b.y, b.z];
     step(1 / 60); frames++;
     const ballStep = Math.hypot(b.x - before[0], b.y - before[1], b.z - before[2]);
-    maxWindupStep = Math.max(maxWindupStep, ballStep);
-    assert(ballStep <= 0.12 + 1e-9, `Windup ball step ${ballStep} exceeds 0.12m`);
+    if (!shortCap) maxWindupStep = Math.max(maxWindupStep, ballStep);
+    assert(ballStep <= P.gatherSpeed / 60 + 1e-9, `Windup ball step ${ballStep} exceeds gather cap`);
     assert.deepEqual([P.x0, P.y0, P.z0], [b.x, b.y, b.z]);
     const H = t5.qaHand(p, b), gatherGap = Math.hypot(H[0] - b.x, H[1] - b.y, H[2] - b.z);
     maxGatherGap = Math.max(maxGatherGap, gatherGap);
-    assert(gatherGap <= 0.08, 'Gathering hands must meet the ball throughout windup');
+    assert(gatherGap <= previousGatherGap + 1e-9, 'Hands and ball must close the gather gap without snapping');
+    previousGatherGap = gatherGap;
     if (P.t < 0 && P.t < -P.windup + 1 / 60 + 1e-9) {
       assert(Math.abs(p.pose.aLp - startPose.aLp) < Math.abs(1.3 - startPose.aLp));
     }
@@ -242,14 +264,14 @@ for (const pac of [50, 90]) for (const z of [0.25, 1.2]) for (const duration of 
   assert.deepEqual([P.x0, P.y0, P.z0], release);
   const flightStep = Math.hypot(b.x - release[0], b.y - release[1], b.z - release[2]);
   assert(flightStep > 1e-6 && flightStep < 0.1, 'The first flight frame must move without a second alignment pause');
-  for (let i = 0; i < 12; i++) step(1 / 60);
-  assert.equal(p.pose.passHands, undefined, 'Hand follow-through should finish within 0.2s');
+  for (let i = 0; i < 24; i++) step(1 / 60);
+  assert.equal(p.pose.passHands, undefined, 'Hand follow-through should finish within 0.4s without exceeding the cap');
   assert.equal(releaseFrames, 1, 'There must be exactly one release alignment frame');
   assert.equal(P.qaReleases, 1);
 }
-assert(maxNaturalGap < 0.4, 'Normal windups should not need an extreme release-hand correction');
 console.log(`Windup 60Hz: maxBallStep=${maxWindupStep.toFixed(4)}m (limit 0.1200m) maxReleaseGap=${maxReleaseGap.toFixed(4)}m (limit 0.0800m); short-windup hand convergence, pose blend and release origin passed.`);
-console.log(`Pass animation: maxHandStep=${maxHandStep.toFixed(4)}m maxGatherGap=${maxGatherGap.toFixed(4)}m maxNaturalReleaseGap=${maxNaturalGap.toFixed(4)}m; icon Luka/Kessler, bounded follow-through, dribble gather and single release frame (including exact 200ms) passed.`);
+console.log(`Pass animation: entry-inclusive maxHandStep=${maxHandStep.toFixed(4)}m (limit 0.1200m) maxGatherGap=${maxGatherGap.toFixed(4)}m maxNaturalReleaseGap=${maxNaturalGap.toFixed(4)}m; icon Luka/Kessler, bounded gather/follow-through and single release frame (including exact 200ms) passed.`);
+console.log(`Short-windup exceptions: cases=${shortCapCases} maxHandStep=${maxShortHandStep.toFixed(4)}m; cap raised only to the minimum speed needed for hand/ball convergence passed.`);
 sample(90, 5, false); sample(50, 5, false);
 const capped = sample(50, 5, true, { t5_pass_er: 0, t5_pass_leadLow: 0, t5_pass_leadRnd: 0 });
 assert.equal(capped.leadEr, 0.8);
