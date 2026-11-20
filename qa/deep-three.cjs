@@ -20,14 +20,14 @@ function load(before) {
   return ctx;
 }
 
-function shot(ctx, rating, badge, distance, error, mode = '2p', variant = 'set', seed = 7) {
+function shot(ctx, rating, badge, distance, error, mode = '2p', variant = 'set', seed = 7, pullup = true) {
   const gm = ctx.PH.game;
   gm.seed(seed);
   gm.newGame({ mode: '2p', arch0: 'curry', arch1: 'gobert', target: 9999 });
   gm.G.mode = mode; gm.G.phase = 'live'; gm.G.needClear = false;
   const [pl, df] = gm.G.players;
   Object.assign(pl, { x: 0, y: ctx.PH.render.HOOP.y - distance, vx: 0, vy: 0, speed: 0, hasBall: true });
-  Object.assign(pl.r, { three: rating / 100, badges: badge ? ['limitless'] : [] });
+  Object.assign(pl.r, { three: rating / 100, badges: (badge ? ['limitless'] : []).concat(pullup ? ['pullup'] : []) });
   pl.arch = { ...pl.arch, key: 'qa', three: rating / 100, _bt: {} };
   pl.sk.ready = false;
   df.off = true;
@@ -43,7 +43,7 @@ function shot(ctx, rating, badge, distance, error, mode = '2p', variant = 'set',
 }
 
 const before = load(true), after = load(false);
-console.log('Open set shot; non-green timing error = 0.35; probability %, before -> after');
+console.log('Open set shot with pull-up immunity; non-green timing error = 0.35; probability %, before -> after');
 console.log('Shooter       Dist    Green             Non-green');
 for (const [label, rating, badge, tier] of [['75 none', 75, false, 0], ['Bronze', 84, true, 1], ['Silver', 86, true, 2], ['Gold', 90, true, 3], ['HOF', 95, true, 4]]) {
   for (const distance of [7, 8, 8.5, 9, 9.5]) {
@@ -73,3 +73,11 @@ for (const e of [0, 0.35]) {
   assert.equal(shot(after, 75, false, 7.5, e, '2p', 'stepback').prob, shot(before, 75, false, 7.5, e, '2p', 'stepback').prob);
 }
 console.log('PASS deep-three targets, all badge tiers, normal-range/stepback preservation, floors, miss reason, and shared 5V5 release');
+for (const distance of [7, 8.5, 15]) for (const error of [0, 0.35]) {
+  const immune = shot(after, 75, false, distance, error);
+  const ordinary = shot(after, 75, false, distance, error, '2p', 'set', 7, false);
+  const expected = Math.max(after.PH.game.K.smMin, immune.prob - 0.05 * Math.min(1, immune.prob / 0.5));
+  assert(Math.abs(ordinary.prob - expected) < 1e-9, 'pull-up penalty preserves deep-three scaling/floor');
+  assert.equal(ordinary.gw, immune.gw);
+}
+console.log('PASS non-badge pull-up penalty layered over normal/deep shot probabilities without changing green widths');

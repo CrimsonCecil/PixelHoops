@@ -1137,7 +1137,7 @@
     motor: { name: '永动机', desc: '体力消耗 -35%，鱼跃扑球距离 +0.2 米' },
     dream: { name: '梦幻舞步', desc: '背身转身位移更大、更容易转过人，转身贴身时能把防守人撞开' },
     hustle: { name: '拼抢狂人', desc: '鱼跃扑球距离 +0.6 米、扑球手更长、抢地板球更凶，鱼跃体力消耗 -40%' },
-    cs: { name: '接球投篮', five: true, desc: '5V5：接传球后 0.75 秒内出手且未运球，命中率最多 +3 个百分点' },
+    cs: { name: '接球投篮', five: true, desc: '5V5：接球 0.6 秒内出手命中更高、绿区更宽、出手更快（铜 / 银 / 金 / 名人堂）；战术跑出、掩护后或空位接球再加成' },
     dimer: { name: '妙传', five: true, desc: '5V5：接到你传球 1.5 秒内的跳投 / 上篮命中更高、绿区更宽' },
     needle: { name: '穿针引线', five: true, desc: '5V5：传球更难被截（截下概率和防守人够球范围都下降）' },
     bailout: { name: '空中分球', five: true, desc: '5V5：跳传和突破分球更准、更难被截' },
@@ -1154,7 +1154,7 @@
   // 1V1 徽章持有名单是手配的，这里只算档位（持有者最低铜档）；其余 5V5 徽章的分配在 js/b5.js
   const T4 = (v, a, b, c, d) => (v >= d ? 4 : v >= c ? 3 : v >= b ? 2 : v >= a ? 1 : 0), T3 = (v, b, c, d) => Math.max(1, T4(v * 99, 0, b, c, d));
   const BADGE_TIER = {
-    cs: (a) => ['curry', 'durant', 'klay', 'drobinson', 'joe', 'gallen', 'hauser', 'strus'].includes(a.key) ? 3 : 0,
+    cs: (a) => T4(a.three * 99, 78, 83, 88, 93),
     limitless: (a) => T3(a.three, 85, 88, 93), deadeye: (a) => T3(a.three, 84, 87, 92), quick: (a) => T3(Math.max(a.three, a.mid), 80, 85, 92),
     clutch: (a) => T3((a.ovr || 80) / 99, 86, 91, 95), fade: (a) => T3(a.fade || 0, 72, 80, 92), stepper: (a) => T3((a.three + a.hnd) / 2, 80, 85, 90),
     ankle: (a) => T3(a.hnd, 87, 91, 95), tight: (a) => T3(a.hnd, 85, 90, 95), acrobat: (a) => T3(a.lay, 84, 88, 93), poster: (a) => T3(a.dunk, 87, 91, 95),
@@ -2311,11 +2311,10 @@
       prob = Math.min(prob, 1 - w * (1 - cap));
     }
     if (kind === 'shot' && !V.hook && !SK) {
-      const cs = a.catchShot && catchShot(pl), bonus = cs && BADGE_TIER.cs(pl.arch) > 0;
-      const delta = bonus ? 0.03 : !cs && !hasB(pl, 'pullup') ? -0.05 : 0;
+      const cs = a.catchShot;
+      const delta = !cs && !hasB(pl, 'pullup') ? -0.05 : 0;
       prob += delta * Math.min(1, prob / 0.5);
       info.shotStyle = cs ? 'catch' : 'pullup'; info.styleDelta = delta;
-      if (delta) float(bonus ? '接球投加成' : '持球投衰减', pl, bonus ? '#ffd24a' : '#f6efe0', 1);
     }
     prob = clamp(prob, K.smMin, 1);
     const made = G.tips && G.tips.mk && pl.id === 0 ? true : rnd() < prob;
@@ -2323,6 +2322,7 @@
     const tl = green ? '完美' : e < 0 ? (ae > 0.5 ? '很早' : '稍早') : (ae > 0.5 ? '很晚' : '稍晚');
     const colr = green ? '#7dff8a' : ae > 0.5 ? '#ff6b5e' : '#ffd24a';
     G.floats = G.floats.filter((f) => f.pid !== pl.id);
+    if (info.styleDelta < 0) float('持球投衰减', pl, '#f6efe0', 1);
     G.floats.push({ text: tl, sub: cl,   // V3.9r 反馈只显示干扰程度，不再带动作名（LED 上的动作名保留）
     shot: true, pid: pl.id, x: pl.x, y: pl.y, z: pl.h + pl.z * 0.5 + 0.55, t: 0, color: colr, subColor: SK ? '#ffcf5a' : c < 0.2 ? '#7dff8a' : c < 0.5 ? '#ffd24a' : '#ff6b5e' }); if (G.floats.length > 5) G.floats.shift();
     if (green) { st.green++; sfx('green'); flash('#7dff8a', 0.1); tkAdd(pl, 5); }
@@ -2532,7 +2532,7 @@
   function backTurn(pl) { const t = G.time; return !pl.post && pl.hasBall && faceHoop(pl) < -0.2 && (t - (pl.postAt || -9) < 0.7 || ((pl.lastMove === 'spin' || pl.lastMove === 'postspin') && t - pl.lastMoveT < 0.9)); }
   function canPullupCancel(pl, a) { return pl.r.hnd >= K.pcHnd || hasB(pl, 'ankle') || hasB(pl, 'tight') || (a.kind === 'stepback' && hasB(pl, 'stepper')); }
   function catchShot(pl) {
-    return G.mode === 't5' && pl.passCatchT != null && G.time - pl.passCatchT >= 0 && G.time - pl.passCatchT <= 0.75 && !pl.catchDribbled;
+    return G.mode === 't5' && pl.passCatchT != null && G.time - pl.passCatchT >= 0 && G.time - pl.passCatchT <= 0.6 && !pl.catchDribbled;
   }
   function startShot(pl, inp, btn, cancelVariant) {
     const d = distHoop(pl), q = inDir(pl, inp), df = OP(pl);

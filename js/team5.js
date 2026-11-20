@@ -65,6 +65,19 @@
     { k: 't5_cs_base', g: 't5', cat: 'pass', sub: '接球即投', gm: '5v5', label: '空位接球 基础出手率', v: 0.72, min: 0, max: 1, step: 0.01, note: '空位且投射达标时的接球就投概率起点' },
     { k: 't5_cs_atkV', g: 't5', cat: 'pass', sub: '接球即投', gm: '5v5', label: '一步过人 扑防速度', v: 4, min: 1, max: 8, step: 0.1, note: '米/秒。防守人扑过来的速度超过这个值，会突破的人才考虑一步过人' },
     { k: 't5_cs_keep', g: 't5', cat: 'pass', sub: '接球即投', gm: '5v5', label: '空位接球 不放弃距离', v: 2.2, min: 0.5, max: 5, step: 0.1, note: '米。接球时这么空的跳投在 0.6 秒内不会被否决' },
+    { k: 't5_csb_g1', g: 't5', cat: 'shot', sub: '徽章', gm: '5v5', label: '接球投篮徽章 铜 绿区', v: 0.08, min: 0, max: 1, step: 0.01, note: '绿区加宽比例（0.25 = 宽 25%）' },
+    { k: 't5_csb_p1', g: 't5', cat: 'shot', sub: '徽章', gm: '5v5', label: '接球投篮徽章 铜 命中', v: 0.02, min: 0, max: 0.3, step: 0.005, note: '命中率加成比例' },
+    { k: 't5_csb_t1', g: 't5', cat: 'shot', sub: '徽章', gm: '5v5', label: '接球投篮徽章 铜 出手提速', v: 0.02, min: 0, max: 0.2, step: 0.005, note: '秒。出手动作提前' },
+    { k: 't5_csb_g2', g: 't5', cat: 'shot', sub: '徽章', gm: '5v5', label: '接球投篮徽章 银 绿区', v: 0.15, min: 0, max: 1, step: 0.01, note: '绿区加宽比例（0.25 = 宽 25%）' },
+    { k: 't5_csb_p2', g: 't5', cat: 'shot', sub: '徽章', gm: '5v5', label: '接球投篮徽章 银 命中', v: 0.035, min: 0, max: 0.3, step: 0.005, note: '命中率加成比例' },
+    { k: 't5_csb_t2', g: 't5', cat: 'shot', sub: '徽章', gm: '5v5', label: '接球投篮徽章 银 出手提速', v: 0.035, min: 0, max: 0.2, step: 0.005, note: '秒。出手动作提前' },
+    { k: 't5_csb_g3', g: 't5', cat: 'shot', sub: '徽章', gm: '5v5', label: '接球投篮徽章 金 绿区', v: 0.25, min: 0, max: 1, step: 0.01, note: '绿区加宽比例（0.25 = 宽 25%）' },
+    { k: 't5_csb_p3', g: 't5', cat: 'shot', sub: '徽章', gm: '5v5', label: '接球投篮徽章 金 命中', v: 0.055, min: 0, max: 0.3, step: 0.005, note: '命中率加成比例' },
+    { k: 't5_csb_t3', g: 't5', cat: 'shot', sub: '徽章', gm: '5v5', label: '接球投篮徽章 金 出手提速', v: 0.05, min: 0, max: 0.2, step: 0.005, note: '秒。出手动作提前' },
+    { k: 't5_csb_g4', g: 't5', cat: 'shot', sub: '徽章', gm: '5v5', label: '接球投篮徽章 名人堂 绿区', v: 0.36, min: 0, max: 1, step: 0.01, note: '绿区加宽比例（0.25 = 宽 25%）' },
+    { k: 't5_csb_p4', g: 't5', cat: 'shot', sub: '徽章', gm: '5v5', label: '接球投篮徽章 名人堂 命中', v: 0.075, min: 0, max: 0.3, step: 0.005, note: '命中率加成比例' },
+    { k: 't5_csb_t4', g: 't5', cat: 'shot', sub: '徽章', gm: '5v5', label: '接球投篮徽章 名人堂 出手提速', v: 0.065, min: 0, max: 0.2, step: 0.005, note: '秒。出手动作提前' },
+    { k: 't5_csb_xg', g: 't5', cat: 'shot', sub: '徽章', gm: '5v5', label: '接球投篮 空位/掩护额外绿区', v: 0.04, min: 0, max: 0.3, step: 0.01, note: '空位或掩护后接球时额外加宽的绿区比例' },
     { k: 't5_fat_up', g: 't5', cat: 'stam', sub: '消耗', gm: '5v5', syn: ['l1_stFat0'], label: '长期疲劳 累积', v: 24, min: 0, max: 80, step: 1, mode: 'int', note: '每 7 分钟（12 分钟一节的比例）在场活球时间累积的疲劳点数，高速跑动时再乘高速倍率。1V1 对应：l1_stFat0（疲劳起点）是短时体力的疲劳影响，这里是 5V5 的长期疲劳，两层叠加' },
     { k: 't5_fat_dn', g: 't5', cat: 'stam', sub: '恢复', gm: '5v5', label: '长期疲劳 板凳恢复', v: 35, min: 0, max: 120, step: 1, mode: 'int', note: '每 4 分钟（按节长比例）在板凳上恢复的疲劳点数，死球时减半' },
     { k: 't5_fat_max', g: 't5', cat: 'stam', sub: '疲劳影响', gm: '5v5', syn: ['l1_stFat0'], label: '长期疲劳 上限', v: 60, min: 10, max: 100, step: 1, mode: 'int', note: '疲劳最多累积到这个值（体力上限 = 100 − 疲劳）。1V1 对应：l1_stFat0' },
@@ -913,11 +926,28 @@
     }
   }
   // 接球即投：接球 0.5 秒内起跳的跳投出手更快（跳过一段收球），准备好的接球（面向篮筐、原地 / 移动 / hop 接球）有节奏加成，难接的球没有加成且稍差
-
+  // V3.9m 接球投篮徽章（类 2K Catch & Shoot）：接球 0.6 秒内出手 → 命中 / 绿区 / 出手速度按档加成；
+  // 配合收益：战术跑出来的接球（f5.playT，C2 战术写入）、挡拆或无球掩护后（自己是掩护人 / 自己的防守人刚被挡）、空位接球（最近防守人 > 1.8 米）再加一层
+  const CSB = { p: [0, 0.02, 0.035, 0.055, 0.075], g: [0, 0.08, 0.15, 0.25, 0.36], t: [0, 0.02, 0.035, 0.05, 0.065] };
+  function csBadge(p, a) {
+    const k = p.csT || 0; if (!k) return;
+    const now = T.time, play = (p.f5.playT || -9) > now - 3;
+    const scr = (T.pick && T.pick.s === p) || !!p.f5.scrSet || (p.f5.setT || -9) > now - 2 || defs().some((d) => (d.opp === p || d.mark === p) && d.f5.scr > now - 1.5);
+    let nd = 9; for (const d of defs()) nd = Math.min(nd, dist(d, p));
+    const x = scr || nd > 1.8, xp = x ? (play ? 0.006 : 0.012) + 0.004 * k : 0, xg = x ? TV.t5_csb_xg : 0;
+    a.t += CSB.t[k];
+    a.V = Object.assign({}, a.V, { p: (a.V.p || 1) * (1 + CSB.p[k] + xp), g: (a.V.g || 1) * (1 + CSB.g[k] + xg) });
+    T.cnt.csB = (T.cnt.csB || 0) + 1; if (x) T.cnt.csBx = (T.cnt.csBx || 0) + 1;
+    a.csB = k;
+    if (G.mode !== 'demo') {
+      const L = G.bpops || (G.bpops = []);
+      const gt = G.time; if (!L.some((y) => y.pid === p.id && y.key === 'cs' && gt - y.t0 < 2.5)) { L.push({ pid: p.id, key: 'cs', name: '接球投篮', tier: k, t0: gt }); if (L.length > 6) L.shift(); if (PH.audio) PH.audio.play('badge'); }   // V3.9r 档位不写字，tier 交给飘字按徽章颜色区分
+    }
+  }
   function csTick() {
     for (const p of ps()) {
       const a = p.action; if (!a || a.type !== 'shot' || a.released || a.csK) continue;
-      a.csK = 1; const ct = T.time - (p.catchT ?? -9); if (ct > 0.6 || !p.hasBall || !a.catchShot || p.catchDribbled) continue;
+      a.csK = 1; const ct = T.time - (p.catchT ?? -9); if (ct < 0 || ct > 0.6 || !p.hasBall || !a.catchShot || p.catchDribbled) continue;
       const c = p.f5.ck, rdy = !c || c.rdy || c.k === 'cs';
       if (ct <= 0.5) {
         const q = rdy ? 0.04 + 0.04 * clamp((p.r.three - 0.6) / 0.35, 0, 1) : 0; a.t += q;
@@ -927,7 +957,7 @@
         if (p.f5.pq != null && p.f5.pqT === p.catchT) { const dq = p.f5.pq - TV.t5_pass_q0; a.t += TV.t5_pass_csT * dq; a.V = Object.assign({}, a.V, { p: a.V.p * (1 + TV.t5_pass_csP * dq), g: a.V.g * clamp(1 + TV.t5_pass_csG * dq, 0.3 / Math.max(1, TV.t5_pass_csG), 2 * Math.max(1, TV.t5_pass_csG)) }); }   // V4.2 传球质量 → 接球投篮绿区 / 命中 / 节奏
         const L = T.lastPass; if (L && L.to === p && L.rec) L.rec.cs = 1;
       }
-
+      csBadge(p, a);
     }
     for (const p of ps()) { const a = p.action; if (a && a.V && (a.type === 'shot' || a.type === 'layup' || a.type === 'dunk') && !a.pmD && p.pmT != null && T.time - p.pmT < 1) { a.pmD = 1; a.V = Object.assign({}, a.V, { p: (a.V.p || 1) * 1.03 }); } }
   }
@@ -2304,10 +2334,11 @@
     setCtl: setCtl, sub: sub, unsub: unsub, CAMS: CAMS, setCam: setCam, resetCam: resetCam, stick: function (x, y) { return stick(x, y); }, toW: toW, fromW: fromW, ICON: ICON, holder: holder, doPass: doPass, callPick: callPick, PASS: PASS, SPOT: SPOT };
   // V3.9r 挡拆加强（render.js PH.scr.hit 读这里）：分档门槛下调 → 中档 / 重档更多；停滞 dK、stun sK ×1.4；重档弹开 ×1.15，中档也往后顶一点
   PH.T5.scrCfg = { TH: [0.5, 1.0, 1.9], dK: 1.4, sK: 1.4, pK: 1.15, p2: 0.5 };
-  PH.T5.TV = TV; PH.T5.T5REG = T5REG;
+  PH.T5.CSB = CSB; PH.T5.TV = TV; PH.T5.T5REG = T5REG;   // V4.0 b5.js 读 CSB.g 算总上限
   // V4.0 TUNE → 对象表（原地改，render.js / b5.js 持有的引用不变）
   function t5Sync() {
     for (const z in K5) { const k = K5[z]; k.c = TV['t5_k5_' + z + '_c']; k.p = TV['t5_k5_' + z + '_p']; k.blk = TV['t5_k5_' + z + '_blk']; }
+    for (let i = 1; i <= 4; i++) { CSB.g[i] = TV['t5_csb_g' + i]; CSB.p[i] = TV['t5_csb_p' + i]; CSB.t[i] = TV['t5_csb_t' + i]; }
     for (const k in PASS) PASS[k].v = TV['t5_pv_' + k];
     ISO_K.s = TV.t5_iso_s; ISO_K.h = TV.t5_iso_h; ISO_K.b = TV.t5_iso_b; ISO_K.c = TV.t5_iso_c;
     ACC5.up = TV.t5_acc_up; ACC5.upA = TV.t5_acc_upA; ACC5.dn = TV.t5_acc_dn;
