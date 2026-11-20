@@ -769,6 +769,7 @@
     const leadEr = Math.min(TV.t5_pass_leadCap, hyp(m.vx || 0, m.vy || 0) * (Tt + windup) * Math.abs(1 - lead));
     T.ps = { from: p, to: m, kind: kind, x0: b.x, y0: b.y, z0: Math.max(0.6, b.z), tx: tx, ty: ty, t: -windup, windup: windup, lead: lead, T: Tt, int: null, bnc: false, inb: T.phase === 'inb', er: er, leadEr: leadEr, v: d0 / Tt, ua: ua, kf: kf,
       ap: kind === 'chest' || kind === 'skip' ? K.ap * Math.max(0.05, 1 - TV.t5_pass_arc * ua) : K.ap, feet: er > 0.3 && kind !== 'lob' && kind !== 'alley' && rnd() < TV.t5_pass_feet };   // V4.2 能力高的球更直、能力低的更飘
+    if (windup > 0 && p.pose) T.ps.pose0 = Object.assign({}, p.pose);
     // 预判拦截：路线上最先碰到球的防守人
     // V3.9h 2K 手感：开阔线路的短传几乎不丢；被断主要来自线路上有人且抢断/传球预判高、传得远、盲传（背身/侧身传）、传球属性低
     // 击地传球球在膝盖高度、线路低，防守人够得到的范围和截下概率都打折（同条件被断率不高于普通传球的 1.3 倍）
@@ -807,10 +808,16 @@
     if (prevT < 0) {
       const p = P.from, w = clamp(1 + P.t / P.windup, 0, 1);
       p.face = Math.atan2(P.ty - p.y, P.tx - p.x);
-      if (p.pose) Object.assign(p.pose, { aLp: 0.9 + 0.4 * w, aRp: 0.9 + 0.4 * w, aLe: 1.3 - 0.7 * w, aRe: 1.3 - 0.7 * w });
+      if (p.pose) {
+        const pose = { aLp: 0.9 + 0.4 * w, aRp: 0.9 + 0.4 * w, aLe: 1.3 - 0.7 * w, aRe: 1.3 - 0.7 * w }, blend = w * w * (3 - 2 * w);
+        for (const k in pose) p.pose[k] = lerp((P.pose0 && P.pose0[k]) || 0, pose[k], blend);
+      }
       const H = handPt(p, b);
-      b.x = P.x0 = H[0]; b.y = P.y0 = H[1]; b.z = P.z0 = H[2]; b.vx = b.vy = b.vz = 0;
-      if (P.t < 0) return;
+      const dx = H[0] - b.x, dy = H[1] - b.y, dz = H[2] - b.z, d = Math.hypot(dx, dy, dz), move = Math.min(1, 6 * Math.min(dt, -prevT) / (d || 1));
+      b.x += dx * move; b.y += dy * move; b.z += dz * move;
+      P.x0 = b.x; P.y0 = b.y; P.z0 = b.z; b.vx = b.vy = b.vz = 0;
+      P.t = Math.min(P.t, 0);
+      return;
     }
     if (r && dt > 0) { if (P.rpx != null) P.rsp = lerp(P.rsp || 0, hyp(r.x - P.rpx, r.y - P.rpy) / dt, 0.35); P.rpx = r.x; P.rpy = r.y; }   // V3.9j 接球人移动速度（判“移动中接球”）
     // 球追着接球人走一点（不是瞬移）

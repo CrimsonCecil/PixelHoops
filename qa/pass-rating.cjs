@@ -50,8 +50,7 @@ function sample(pac, seed, moving = true, tune = {}) {
     t5.qaPassUpdate(windup / 2);
     assert.equal(P.t < 0, true);
     assert.equal(interception.done, false);
-    const H = t5.qaHand(p, b);
-    assert(Math.hypot(b.x - H[0], b.y - H[1]) < 1e-9);
+    assert.deepEqual([P.x0, P.y0, P.z0], [b.x, b.y, b.z]);
     r.y += r.vy * windup / 2;
   }
   let miss;
@@ -80,6 +79,34 @@ assert(high.windup < low.windup * 0.5);
 assert(high.speed > low.speed * 1.2);
 assert(high.miss < low.miss * 0.5);
 assert(high.er < low.er);
+let maxWindupStep = 0;
+for (const pac of [50, 90]) for (const z of [0.25, 1.2]) {
+  const { t5, G } = fixture(false, 0), p = t5.T.ctl, r = t5.T.tm[0].on.find(q => q !== p), b = G.ball;
+  Object.assign(t5.T, { phase: 'live' });
+  Object.assign(G, { phase: 'live', off: 0 });
+  Object.assign(p, { hasBall: true, action: null, face: 0 });
+  p.r5.pac = Math.max(-0.5, Math.min(0.5, (pac - 69) / 40));
+  Object.assign(b, { state: 'held', holder: p.id, x: p.x + 0.4, y: p.y - 0.2, z, dead: false });
+  assert(t5.doPass(p, r, 'chest'));
+  const P = t5.T.ps, startPose = { ...p.pose };
+  P.int = null;
+  while (P.t < 0) {
+    const before = [b.x, b.y, b.z];
+    t5.qaPassUpdate(1 / 60);
+    const step = Math.hypot(b.x - before[0], b.y - before[1], b.z - before[2]);
+    maxWindupStep = Math.max(maxWindupStep, step);
+    assert(step <= 0.1 + 1e-9, `Windup ball step ${step} exceeds 0.1m`);
+    assert.deepEqual([P.x0, P.y0, P.z0], [b.x, b.y, b.z]);
+    if (P.t < -P.windup + 1 / 60 + 1e-9) {
+      assert(Math.abs(p.pose.aLp - startPose.aLp) < Math.abs(1.3 - startPose.aLp));
+    }
+  }
+  const release = [b.x, b.y, b.z];
+  t5.qaPassUpdate(1 / 600);
+  assert.deepEqual([P.x0, P.y0, P.z0], release);
+  assert(Math.hypot(b.x - release[0], b.y - release[1], b.z - release[2]) < 0.1);
+}
+console.log(`Windup 60Hz: maxBallStep=${maxWindupStep.toFixed(4)}m (limit 0.1000m); pose blend and release origin passed.`);
 sample(90, 5, false); sample(50, 5, false);
 const capped = sample(50, 5, true, { t5_pass_er: 0, t5_pass_leadLow: 0, t5_pass_leadRnd: 0 });
 assert.equal(capped.leadEr, 0.8);
