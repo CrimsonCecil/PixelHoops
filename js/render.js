@@ -1676,8 +1676,10 @@
       ctx.translate(Math.round(W - 12), Math.round(H * (G.mode === 't5' ? 0.34 : 0.29) + 46 * scale + 19));
       ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0; ctx.shadowOffsetX = ctx.shadowOffsetY = 0;
       ctx.font = "900 16px 'Microsoft YaHei', 'PingFang SC', 'Noto Sans CJK SC', sans-serif";
-      ctx.strokeStyle = '#090d19'; ctx.lineWidth = 4; ctx.strokeText(c.name, 0, 0);
-      ctx.fillStyle = '#ffe073'; ctx.fillText(c.name, 0, 0); ctx.restore();
+      const width = Math.ceil(ctx.measureText(c.name).width);
+      ctx.fillStyle = '#121626';
+      ctx.beginPath(); ctx.moveTo(-width - 12, -15); ctx.lineTo(6, -15); ctx.lineTo(2, 15); ctx.lineTo(-width - 16, 15); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = '#ffffff'; ctx.fillText(c.name, 0, 0); ctx.restore();
     }
   }
   function render(G) {
