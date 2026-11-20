@@ -1040,6 +1040,11 @@
   function hPickup(pl, change, wasShot) {
     if (T.phase === 'inb') T.phase = 'live';
     T.ps = null; T.holdT = 0; pl.f5.hold = 0; pl.f5.dec = T.time + rr(0.3, 0.7);
+    if (wasShot) {
+      pl.cq = null;
+      // 抢板后可能自动切人；之前按住的 X（抢断/扑球）必须先松开。
+      if (pl.tm === T.hum) T.reboundX = !!(T.R && T.R.X);
+    }
     const LP = T.lostPass; T.lostPass = null;
     if (LP && T.time - LP.t < 3 && !wasShot) {
       if (LP.rec) LP.rec.rec = change ? 'def' : 'off';
@@ -1126,7 +1131,8 @@
       if (jumpPass(p, E.B ? 'bounce' : E.Y ? 'lob' : 'chest', pickTarget(p, L))) { T.aDown = null; T.yDown = null; return o; }
     }
     if (p.hasBall) {
-      o.a1 = R.X;
+      const X = R.X && !T.reboundX;
+      o.a1 = X;
       // V3.9j 接球缓冲统一进 ibuf：接球即投（a1）由 game.js 自己在拿到球那帧放出（点按 = 自动出手）；接球即传（cp）/ 接球即招式（cm）这里取
       const IB = PH.game.ibuf;
       if (IB.wc && p.ib && (p.ib.k === 'cp' || p.ib.k === 'cm') && T.time - (p.catchT || -9) < 0.45) {
@@ -1142,7 +1148,7 @@
         }
       }
       // 2K：RT + X 突破中 = 扣篮（1V1 的扣篮键 a2）
-      if (R.X && R.RT && dHoop(p) < 6.5 && p.speed > 2.5) { o.a2 = true; o.a1 = false; }
+      if (X && R.RT && dHoop(p) < 6.5 && p.speed > 2.5) { o.a2 = true; o.a1 = false; }
       if (p.f5.alley > T.time - 0.35) { o.a2 = true; o.sprint = true; }
       if (rsM > 0.5) { o.a3 = true; o.dx = RS.x / rsM; o.dy = RS.y / rsM; }
       if (R.hesi) o.a3 = o.hesi = true;
@@ -2239,6 +2245,7 @@
     if (!T.on) { PH.input.endTick(); return; }
     dt = Math.min(dt, 0.05);
     const R = PH.input.read5(); PH.input.endTick();
+    if (!R.X) T.reboundX = false;
     const E = {}; for (const k of ['A', 'B', 'X', 'Y', 'LB', 'RB', 'LT', 'RT']) E[k] = R[k] && !T.prev[k];
     T.prev = R; T.R = R; T.E = E; T.dt = dt;
     uiTick();   // V3.9m C2 十字键战术呼叫
