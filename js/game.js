@@ -370,8 +370,8 @@
     ['stlAcross', 'def', '抢断 隔身惩罚', 0.04, 0, 0.6, 0.01, '概率：从护球侧隔身够球的最大扣减；不影响落空失位惩罚'],
     ['stlTrail', 'def', '抢断 追身掏球加成', 0.08, 0, 0.5, 0.01, '概率：从侧后方球侧追掏的额外加成'],
     ['stlBack', 'def', '抢断 背面惩罚', 0.08, 0, 0.5, 0.01, '概率：正后方无角度伸手的扣减'],
-    ['stlRiskT', 'def', '抢断 冒险失位时长', 0.5, 0, 2, 0.01, '秒：风险越高落空后追加的收手时间'],
-    ['stlGoodT', 'def', '抢断 好时机落空减罚', 0.18, 0, 0.5, 0.01, '秒：好时机球侧伸手落空减少的收手时间'],
+    ['stlRiskT', 'def', '抢断 冒险失位时长', 0.1, 0, 2, 0.01, '秒：隔身、坏角度等风险追加的收手时间，距离和能力为主要因素'],
+    ['stlGoodT', 'def', '抢断 好时机落空减罚', 0.04, 0, 0.5, 0.01, '秒：好时机球侧伸手落空减少的收手时间'],
     ['stlAiWindow', 'def', '抢断 电脑时机偏好', 8, 0, 16, 0.1, '倍率增量：困难电脑预判露球窗口，中等减半，简单随机'],
     ['stlAiBad', 'def', '抢断 电脑坏角度抑制', 0.75, 0, 1, 0.05, '比例：困难电脑减少非窗口和隔身伸手，中等减半'],
     ['stlAiReact', 'def', '抢断 电脑读招伸手', 1, 0, 1, 0.01, '概率：每次可读运球招式安排一次伸手，乘难度、抢断能力和角度；简单不预判'],
@@ -392,8 +392,11 @@
     ['stlRecT', 'def', '抢断成功 收手时长', 0.2, 0.02, 1, 0.01, '秒：成功后动作提前结束'],
     ['stlMissReach', 'def', '抢断落空 伸手距离', 1.3, 0.5, 3, 0.05, '米'],
     ['stlMissReachT', 'def', '抢断落空 伸手时长', 0.12, 0.02, 0.6, 0.01, '秒'],
-    ['stlMissT', 'def', '抢断落空 收手时长', 0.62, 0.1, 2, 0.01, '秒：落空后整段动作时长（硬直）'],
-    ['stlFarT', 'def', '抢断够不着 动作时长', 0.5, 0.1, 2, 0.01, '秒：离太远直接落空时的动作时长'],
+    ['stlMissT', 'def', '抢断落空 基础时长', 0.22, 0.1, 2, 0.01, '秒：从伸手起算的基础动作时长，再加距离、低抢断能力和风险修正'],
+    ['stlMissDistT', 'def', '抢断落空 距离代价', 0.28, 0, 1, 0.01, '秒：乘（距离 / 够得着距离）的平方，越远越难收手'],
+    ['stlMissWeakT', 'def', '抢断落空 能力代价', 0.24, 0, 1, 0.01, '秒：乘（1 − 防守人抢断能力），高手近身掏球收手快'],
+    ['stlMissDistMax', 'def', '抢断落空 距离上限', 2, 1, 4, 0.1, '倍：距离代价最多按够得着距离的这么多倍计算'],
+    ['stlFarT', 'def', '抢断够不着 额外代价', 0.16, 0, 2, 0.01, '秒：超出够得着距离后，每多一倍距离追加的动作时长'],
     // V4.5 盖帽公式 / 起跳 / 被盖球飞行（原写死，默认值不变）
     ['bkQ0', 'def', '盖帽 起跳时机基础', 0.62, 0, 1.5, 0.01, '倍率：时机系数 = 基础 + 增益 × 起跳到最高点的比例'],
     ['bkQ1', 'def', '盖帽 起跳时机增益', 0.5, 0, 1.5, 0.01, '倍率'],
@@ -3481,6 +3484,12 @@
     return { timed, safe, moving, bonus, risk, ballSide, across, windowStart, windowEnd };
   }
 
+  function stealMissTime(pl, dd, read) {
+    const d = clamp(dd / K.stlR, 0, K.stlMissDistMax);
+    return Math.max(K.stlHitT, K.stlMissT + K.stlMissDistT * d * d + K.stlMissWeakT * (1 - clamp(pl.r.stl, 0, 1))
+      + K.stlFarT * Math.max(0, d - 1) + K.stlRiskT * (read ? read.risk : 0) - (read && read.timed ? K.stlGoodT * read.ballSide : 0));
+  }
+
   function updateAction(pl, inp, dt) {
     const a = pl.action, df = OP(pl);
     a.t += dt; a.vt = (a.vt || 0) + dt; // vt：执行后真实经过的时间（5V5 接球即投的 cs 加成只加在 a.t 上）
@@ -3621,10 +3630,10 @@
       if (!a.done && a.t >= K.stlHitT) {
         a.done = true;
         const dd = Math.hypot(df.x - pl.x, df.y - pl.y);
+        const read = df.hasBall ? stealRead(pl, df) : null;
         if (df.hasBall && dd < K.stlR && G.phase === 'live') {
           let ch = (K.stlB0 + K.stlBS * pl.r.stl - K.stlBH * df.r.hnd) * bk(pl, 'pick', K.stlBdPick) * bk(df, 'tight', K.stlBdTight);
           const da = df.action;
-          const read = stealRead(pl, df);
           ch += read.bonus;
           if (read.moving) ch += read.safe ? -K.stlSafe : read.timed ? K.stlTimed + (da.mv === 'tbb' ? K.stlTbb : K.stlMove) : 0;
           if (da && (da.type === 'shot' || da.type === 'fake') && df.z <= 0) ch += K.stlShot;
@@ -3642,8 +3651,8 @@
             looseBall({ x: bx, y: by, z: 0.6 }, ux * K.stlBallV + rr(-K.stlBallR, K.stlBallR), uy * K.stlBallV + rr(-K.stlBallR, K.stlBallR), K.stlBallZ, pl.id);
             G.ball.noPick = K.stlNoPick; G.stats[pl.id].stl++; G.stats[df.id].tov++; vo(pl, 'steal'); vic(df, 'stolen'); a.T = K.stlRecT;
             float(read.timed ? '时机抢断' : '掏球', pl, '#7dff8a', 1); tkAdd(pl, 14); tkAdd(df, -10); bigPlay('steal', pl, bx, by, 0.7, stTier); bpop(pl, 'pick');
-          } else { reachTo(pl, { x: G.ball.x, y: G.ball.y, z: Math.max(0.3, G.ball.z) }, K.stlMissReach, K.stlMissReachT); a.T = Math.max(a.t, K.stlMissT + K.stlRiskT * read.risk - (read.timed ? K.stlGoodT * read.ballSide : 0)); float(read.risk > 0.5 ? '伸手失位' : '抢断落空', pl, '#9aa3c0', read.risk > 0.5 ? 1 : 0); bpop(df, 'tight'); }
-        } else { a.T = K.stlFarT + K.stlRiskT; float('伸手失位', pl, '#9aa3c0', 1); }
+          } else { reachTo(pl, { x: G.ball.x, y: G.ball.y, z: Math.max(0.3, G.ball.z) }, K.stlMissReach, K.stlMissReachT); a.T = Math.max(a.t, stealMissTime(pl, dd, read)); float(read.risk > 0.5 ? '伸手失位' : '抢断落空', pl, '#9aa3c0', read.risk > 0.5 ? 1 : 0); bpop(df, 'tight'); }
+        } else { a.T = Math.max(a.t, stealMissTime(pl, dd, read)); float('伸手失位', pl, '#9aa3c0', 1); }
       }
       if (a.t >= a.T) pl.action = null;
     }

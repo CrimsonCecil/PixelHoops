@@ -2,6 +2,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
+const { execFileSync } = require('node:child_process');
 
 // Optional baseline source: STEAL_BASELINE=/path/to/original-game.js node qa/steal-timing.cjs
 function fixture(source) {
@@ -157,6 +158,50 @@ for (const hand of [-1, 1]) {
   }
   assert.equal(rows.length, 4);
   console.log('Crossover source hand ' + hand + ': ' + rows.join('; '));
+}
+
+{
+  const oldSource = execFileSync('git', ['show', (process.env.STEAL_RECOVERY_BASE || '3bb7f5f') + ':js/game.js'], { cwd: path.join(__dirname, '..'), encoding: 'utf8' });
+  const old = fixture(oldSource), current = fixture();
+  old.CFG.stealMul = 0; current.CFG.stealMul = 0;
+  const ranges = [['close', 0.25], ['mid', 0.6], ['far', 0.95], ['out', 1.3]];
+  const rows = [];
+  console.log('Miss action duration seconds, from reach start (old -> new); distance / stlR: close=.25 mid=.60 far=.95 out=1.30');
+  console.log('stl     close           mid             far             out-of-range');
+  for (const rating of [0.3, 0.6, 0.9]) {
+    old.G.players[1].r.stl = rating; current.G.players[1].r.stl = rating;
+    const cells = ranges.map(([, fraction]) => {
+      const opts = { type: null, range: fraction * current.K.stlR };
+      const before = sample(old, opts).recovery, after = sample(current, opts).recovery;
+      const team = sample(current, { ...opts, mode: 't5' }).recovery;
+      assert.equal(after, team, '1V1 and 5V5 share miss recovery');
+      return { before, after };
+    });
+    for (let i = 1; i < cells.length; i++) assert(cells[i].after > cells[i - 1].after, 'farther reaches recover more slowly, including out of range');
+    if (rows.length) cells.forEach((cell, i) => assert(cell.after < rows.at(-1)[i].after, 'better defender steal rating recovers faster'));
+    rows.push(cells);
+    console.log(rating.toFixed(1) + '     ' + cells.map(c => c.before.toFixed(3) + ' -> ' + c.after.toFixed(3)).join('  '));
+  }
+  const average = cells => cells.reduce((sum, c) => sum + c, 0) / cells.length;
+  const oldAverage = average(rows[1].map(c => c.before)), newAverage = average(rows[1].map(c => c.after));
+  assert(newAverage < oldAverage * 0.75, 'average defender recovery should be clearly shorter');
+  assert(rows[2][0].after < 0.35, 'elite close reach misses recover quickly');
+  console.log('Average defender (stl .6), mean over distances: ' + oldAverage.toFixed(3) + ' -> ' + newAverage.toFixed(3) + 's');
+  for (const rating of [0.3, 0.6, 0.9]) {
+    current.G.players[1].r.stl = rating;
+    let previous = 0;
+    for (const fraction of [0, 0.25, 0.6, 0.99, 1, 1.01, 1.3, 2, 10]) {
+      const value = sample(current, { type: null, range: fraction * current.K.stlR }).recovery;
+      assert(Number.isFinite(value) && value >= current.K.stlHitT);
+      assert(value >= previous, 'recovery stays monotonic across the range boundary and caps safely');
+      previous = value;
+    }
+  }
+  current.G.players[0].hasBall = false;
+  current.G.players[1].action = { type: 'steal', t: current.K.stlHitT, T: current.K.stlT };
+  current._qa.updateAction(current.G.players[1], current.t5.zeroInp(), 0);
+  assert(Number.isFinite(current.G.players[1].action.T), 'missing ball handler still produces finite recovery');
+  console.log('PASS distance/rating recovery scaling, shorter average, range boundary, absent ball, and shared 5V5 recovery');
 }
 
 if (process.env.STEAL_BASELINE) {
