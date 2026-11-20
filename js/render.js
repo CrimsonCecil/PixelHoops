@@ -1629,6 +1629,26 @@
     ctx.restore();
   }
 
+  function drawCombos(G) {
+    for (const p of G.players) {
+      const c = p.dribbleCombo;
+      if (!c || c.shown < 2 || p.off) continue;
+      const end = c.end == null ? c.last + 1.5 : c.end, fade = Math.max(0, Math.min(1, 1 - (G.time - end)));
+      if (!fade) continue;
+      const age = G.time - c.last, heat = Math.min(1, (c.shown - 2) / 6), pop = Math.max(0, 1 - age / 0.22);
+      const scale = 0.6 * (1 + heat * 0.45) * (1 + Math.sin(pop * Math.PI * 0.8) * 0.28);
+      ctx.save(); ctx.globalAlpha = fade;
+      ctx.translate(W - 10 + pop * 8, H * 0.38);
+      ctx.translate(Math.sin(age * 110) * pop * 2, Math.cos(age * 90) * pop);
+      ctx.scale(scale, scale); ctx.textAlign = 'right'; ctx.textBaseline = 'middle'; ctx.lineJoin = 'round';
+      ctx.shadowColor = '#140d29'; ctx.shadowBlur = 0; ctx.shadowOffsetX = 2; ctx.shadowOffsetY = 3;
+      const line = (text, y, font, col) => { ctx.font = font; ctx.lineWidth = 3; ctx.strokeStyle = '#23102e'; ctx.strokeText(text, 0, y); ctx.fillStyle = col; ctx.fillText(text, 0, y); };
+      line(String(c.shown), -14, 'italic 900 32px sans-serif', heat > 0.65 ? '#ff6342' : heat > 0.25 ? '#ffac32' : '#ffe66a');
+      line('HITS', 8, 'italic 900 11px sans-serif', '#fff5cf');
+      line(c.name, 23, "13px 'Fusion Pixel 12px Proportional SC', sans-serif", '#ffffff');
+      ctx.restore();
+    }
+  }
   function render(G) {
     // 回放时用录下来的画面快照代替实时状态
     const RP = G.replay && G.replay.view;
@@ -1722,6 +1742,7 @@
       ctx.fillStyle = r.col;
       for (let i = 0; i < n; i++) { const an = i / n * Math.PI * 2; ctx.fillRect(Math.round(c.x + Math.cos(an) * rad), Math.round(c.y + Math.sin(an) * rad * 0.62), sz, sz); }
     }
+    drawCombos(G);
     for (const p of G.players) if (heads[p.id]) { drawMeter(p, heads[p.id]); p.headScreen = heads[p.id]; }
     // 晃晕冒星 / 晃倒小鸟
     for (const p of G.players) if (heads[p.id] && p.stun > 0 && !p.knock && (p.stunK === 'daze' || p.stunK === 'fall' || p.stunK === 'spin')) {   // 顶翻（knock）不冒星
@@ -1744,5 +1765,5 @@
 
   PH.render = { init: init, resize: resize, get W() { return W; }, get H() { return H; }, render: render, setTheme: setTheme, proj: proj, cam: cam, CAMV: CAMV, CAM_DEF: CAM_DEF, setCam: setCam, HOOP: HOOP, BOARD_Y: BOARD_Y, BALL_R: BALL_R, curCol: curCol,
     // 5V5 全场模式复用的绘制图元（不影响 1V1）
-    drawMeter: (pl, hp) => drawMeter(pl, hp), drawPlayer: drawPlayer, drawHead: drawHead, drawBall: drawBall, shadow: shadow, ellipse: ellipse, ring: ring, brush: brush, getCtx: () => ctx, BAYER: BAYER };
+    drawCombos: drawCombos, drawMeter: (pl, hp) => drawMeter(pl, hp), drawPlayer: drawPlayer, drawHead: drawHead, drawBall: drawBall, shadow: shadow, ellipse: ellipse, ring: ring, brush: brush, getCtx: () => ctx, BAYER: BAYER };
 })();
