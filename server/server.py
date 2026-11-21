@@ -5,6 +5,7 @@
 """
 import json, os, sqlite3, time, re, threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from urllib.parse import unquote
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
 DATA = os.path.join(ROOT, 'data'); os.makedirs(DATA, exist_ok=True)
@@ -14,6 +15,8 @@ LOCK = threading.Lock()
 db = sqlite3.connect(DB, check_same_thread=False)
 db.execute('CREATE TABLE IF NOT EXISTS profiles (id TEXT PRIMARY KEY, name TEXT NOT NULL, data TEXT NOT NULL, updated REAL NOT NULL)')
 db.execute('CREATE TABLE IF NOT EXISTS meta (k TEXT PRIMARY KEY, v TEXT)')
+db.execute('CREATE TABLE IF NOT EXISTS replays (id TEXT PRIMARY KEY, name TEXT UNIQUE NOT NULL, meta TEXT, size INT, created REAL)')
+db.execute('CREATE TABLE IF NOT EXISTS replay_chunks (id TEXT, seq INT, data TEXT, PRIMARY KEY(id,seq))')
 db.commit()
 
 def export():
@@ -48,9 +51,9 @@ class H(BaseHTTPRequestHandler):
         self.send_header('Access-Control-Allow-Headers', 'Content-Type')
         self.send_header('Content-Length', str(len(b)))
         self.end_headers(); self.wfile.write(b)
-    def _body(self):
+    def _body(self, limit=512 * 1024):
         n = int(self.headers.get('Content-Length') or 0)
-        if n > 512 * 1024: raise ValueError('too large')
+        if n < 0 or n > limit: raise ValueError('too large')
         return json.loads(self.rfile.read(n) or b'{}')
     def _path(self):
         p = self.path.split('?')[0]
@@ -60,6 +63,16 @@ class H(BaseHTTPRequestHandler):
     def do_OPTIONS(self): self._send(204, {})
     def do_GET(self):
         p = self._path()
+        if p == '/api/replays' or p.startswith('/api/replays/'):
+            with LOCK:
+                if p == '/api/replays':
+                    rows = db.execute('SELECT * FROM replays ORDER BY created DESC').fetchall()
+                    return self._send(200, {'replays': [dict(id=r[0], name=r[1], meta=json.loads(r[2]), size=r[3], created=r[4]) for r in rows]})
+                key = unquote(p[len('/api/replays/'):])
+                r = db.execute('SELECT * FROM replays WHERE id=? OR name=? ORDER BY (id=?) DESC LIMIT 1', (key, key, key)).fetchone()
+                if not r: return self._send(404, {'error': 'not found'})
+                data = ''.join(c[0] for c in db.execute('SELECT data FROM replay_chunks WHERE id=? ORDER BY seq', (r[0],)))
+                return self._send(200, dict(id=r[0], name=r[1], meta=json.loads(r[2]), size=r[3], created=r[4], data=data))
         if p in ('/api/profiles', '/api/export'):
             with LOCK: return self._send(200, export())
         if p == '/api/health': return self._send(200, {'ok': True, 'frozen': frozen()})
@@ -69,6 +82,8 @@ class H(BaseHTTPRequestHandler):
             return self._send(200, {'history': [{'id': r[0], 'name': r[1], 'data': json.loads(r[2]), 'updated': r[3], 'op': r[4]} for r in rows]})
         self._send(404, {'error': 'not found'})
     def do_PUT(self):
+        if self._path().startswith('/api/replays/'):
+            return self._replay_write(False)
         p = self._path(); m = re.match(r'^/api/profiles/([^/]+)$', p)
         if frozen(): return self._send(503, {'error': 'frozen', 'msg': '正在发布新版本，请稍后再保存'})
         if not m or not ID_RE.match(m.group(1)) or m.group(1) == 'official': return self._send(400, {'error': 'bad id'})
@@ -83,6 +98,8 @@ class H(BaseHTTPRequestHandler):
             db.execute('INSERT INTO history VALUES (?,?,?,?,?)', (m.group(1), name, js, now, 'put')); db.commit()
             return self._send(200, export())
     def do_DELETE(self):
+        if self._path().startswith('/api/replays/'):
+            return self._replay_write(True)
         p = self._path(); m = re.match(r'^/api/profiles/([^/]+)$', p)
         if not m: return self._send(404, {'error': 'not found'})
         if frozen(): return self._send(503, {'error': 'frozen', 'msg': '正在发布新版本，请稍后再操作'})
@@ -93,6 +110,29 @@ class H(BaseHTTPRequestHandler):
             d = db.execute("SELECT v FROM meta WHERE k='default'").fetchone()
             if d and d[0] == m.group(1): db.execute("DELETE FROM meta WHERE k='default'")
             db.commit(); return self._send(200, export())
+    def _replay_write(self, delete):
+        if frozen(): return self._send(503, {'error': 'frozen'})
+        id = self._path()[len('/api/replays/'):]
+        if not ID_RE.fullmatch(id): return self._send(400, {'error': 'bad id'})
+        if not delete:
+            try: b = self._body(90 * 1024 * 1024)
+            except Exception: return self._send(400, {'error': 'bad body'})
+            if not isinstance(b, dict): return self._send(400, {'error': 'bad body'})
+            name = b.get('name'); data = b.get('data')
+            if not isinstance(name, str) or not 1 <= len(name.strip()) <= 40: return self._send(400, {'error': 'bad name'})
+            name = name.strip()
+            if not isinstance(data, str): return self._send(400, {'error': 'bad data'})
+        with LOCK:
+            if not delete and db.execute('SELECT 1 FROM replays WHERE name=? AND id<>?', (name, id)).fetchone(): return self._send(409, {'error': 'name taken'})
+            with db:
+                db.execute('DELETE FROM replay_chunks WHERE id=?', (id,))
+                if delete:
+                    db.execute('DELETE FROM replays WHERE id=?', (id,))
+                else:
+                    row = dict(id=id, name=name, meta=b.get('meta'), size=len(data.encode('utf-8')), created=time.time())
+                    db.execute('INSERT OR REPLACE INTO replays VALUES (?,?,?,?,?)', (id, name, json.dumps(row['meta'], ensure_ascii=False), row['size'], row['created']))
+                    db.executemany('INSERT INTO replay_chunks VALUES (?,?,?)', [(id, n // 900000, data[n:n+900000]) for n in range(0, len(data), 900000)])
+            return self._send(200, {'ok': True} if delete else row)
     def do_POST(self):
         p = self._path()
         if p == '/api/freeze':

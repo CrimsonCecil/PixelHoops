@@ -1688,6 +1688,7 @@
     G.state = 'play';
     if (G.mode === 'train') { G.train.stats = newTrainStats(); G.train.ret = 0; applyTrain(); setupCheck(0, null); G.phaseT = 0.3; if (G.train.role === 'off') placeDummy(); }
     else setupCheck(0, G.mode === 'demo' ? null : '开球');
+    if (PH.TAPE) PH.TAPE.start(G);
     const CV = PH.render && PH.render.CAMV;
     if (CV) { const fp0 = G.players[G.off], sx = 3.4 + Math.max(0, CV.zoom - 1) * 6; G.focus = { cx: clamp(fp0.x * CV.follow, -sx, sx), cy: clamp(fp0.y - CV.dist, 2 - CV.dist, 9 - CV.dist) }; }
   }
@@ -5925,6 +5926,7 @@
     const F = G.fx, b = G.ball, R = G.rec, last = R[R.length - 1], dense = !last || (R.length & 1);
     R.push({ t: G.time, p: G.players.map(snapP), b: { x: b.x, y: b.y, z: b.z, spin: b.spin, under: b.under, state: b.state, holder: b.holder }, net: G.net,
       parts: dense ? F.parts.map((q) => Object.assign({}, q)) : last.parts, rings: F.rings ? F.rings.map((q) => Object.assign({}, q)) : [], led: F.led ? Object.assign({}, F.led) : null, cheer: F.cheer });
+    if (PH.TAPE) PH.TAPE.record(G, R[R.length - 1], { score: G.score.slice(), phase: G.phase, gclock: G.gclock, off: G.off });
     while (R.length && R[0].t < G.time - K.rpKeep) R.shift();
   }
   function startReplay() {
@@ -5968,6 +5970,7 @@
   }
   function trackReplay() {
     recFrame();
+    if (G.mode === 'train' || (G.mode === 't3' && PH.T3 && !PH.T3.T.replay)) return;
     if (G.hlQ && (!G.vopt.replay || G.time - G.hlQ.t > 10)) G.hlQ = null;
     if (G.hlQ && !G.tips && replayReady() && G.time - G.hlQ.t > 0.8 && ((G.phase === 'dead' && G.phaseT < 1.0) || G.phase === 'check' || G.phase === 'over')) startReplay();
   }
@@ -6159,7 +6162,7 @@
     const CV = PH.render.CAMV, sx = 3.4 + Math.max(0, CV.zoom - 1) * 6, tx = clamp(fx * CV.follow, -sx, sx), ty = clamp(fy - CV.dist, 2 - CV.dist, 9 - CV.dist), kc = Math.min(1, dt * K.camFolK);
     G.focus.cx = lerp(G.focus.cx, tx, kc); G.focus.cy = lerp(G.focus.cy, ty, kc);
     if (!(b.state === 'held' && G.phase === 'live')) G.camK = (G.camK || 0) * Math.max(0, 1 - dt * K.camRimOut);
-    if (!humanInput && G.mode !== 'demo' && G.mode !== 'train') trackReplay();
+    if (G.mode !== 'demo') { if (humanInput) recFrame(); else trackReplay(); }
   }
 
   function toText() {
