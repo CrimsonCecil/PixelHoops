@@ -3528,7 +3528,7 @@
   function spinRot(a) {
     if (a.rot != null) return a.rot;
     const end = Math.atan2(a.dy, a.dx), sd = a.sd || 1; let m = sd * (end - a.f0); m = ((m % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
-    if (a.kind === 'spin') a.rot = m < Math.PI ? -sd * (2 * Math.PI - m) : sd * m;
+    if (a.kind === 'spin') a.rot = sd * m;
     else a.rot = m > Math.PI * 1.5 ? -sd * (2 * Math.PI - m) : sd * m;
     return a.rot;
   }
@@ -3575,8 +3575,14 @@
         if (MVX[id] && !(MVX[id].req ? MVX[id].req.f(pl.r) : true) && (SIG_MV[pl.arch.key] || []).indexOf(id) < 0) id = defK[slot] || (slot === 'FD' || slot === 'BD' ? (MVX[PK.m[latSlot]] ? defK[latSlot] : PK.m[latSlot] || defK[latSlot]) : defK[latSlot]);
         mvx = MVX[id] ? id : null; kind = mvx ? MVX[id].kind : id;
         const X = mvx ? MVX[mvx] : null, dir = X && X.dir;
-        // V4.2 转身往摇杆那一侧转出（摇杆基本朝正前时才按防守人不在的一侧）
-        if (kind === 'spin') { const sS = Math.abs(q.lat) >= 0.25 ? ls : openS; dx = hx * 0.8 - hy * sS * 0.6; dy = hy * 0.8 + hx * sS * 0.6; pl.hand = sS > 0 ? -1 : 1; }
+        if (kind === 'spin') {
+          const fx = Math.cos(pl.face), fy = Math.sin(pl.face);
+          const right = df.off ? 0 : ((df.x - pl.x) * fy - (df.y - pl.y) * fx) / (dd || 1);
+          const lateral = -fy * (inp.mx || 0) + fx * (inp.my || 0);
+          const side = Math.abs(right) > 0.15 ? Math.sign(right) : Math.abs(lateral) > 0.25 ? Math.sign(lateral) : h0;
+          dx = fx * 0.8 - fy * side * 0.6; dy = fy * 0.8 + fx * side * 0.6;
+          pl.hand = -side;
+        }
         else if (kind === 'cross' || kind === 'legs' || kind === 'behind') {
           pl.hand = ls > 0 ? -1 : 1;
           if (dir === 'fd') { const f = mvx === 'shoulder' ? 0.9 : 0.62, s = mvx === 'shoulder' ? 0.45 : 0.78; dx = -hy * ls * s + hx * f; dy = hx * ls * s + hy * f; }
@@ -3603,9 +3609,8 @@
     const sp = (PS ? PS.sp : 1) * M.sp * dK / tK * (kind === 'stepback' ? bk(pl, 'stepper', K.bgStepD) : 1) * (kySk ? 1.2 : 1) * (1 - K.mvFat * fat(pl)) * dmOf(kind, mvx) * cbF;
     // 控球决定动作的"前后摇"：控球好 → 动作更短、更早能接下一招或直接出手（取消窗口早）、收招硬直短；控球差 → 动作拖沓、要等快做完才能接、收招还有硬直
     const hnd = pl.r.hnd, tS = tK * (1 + 0.25 * fat(pl)), MT = M.T * tS * (CBk ? CBk.T : 1);
-    // 运球转身：球在哪只手决定转向（右手持球顺时针、往左转出；左手持球逆时针、往右转出）。按转出方向先把球放到对的那只手，收招换到另一只手
     // V4.2 胯下接背后：最后一下背后换到摇杆那一侧的手（先胯下换走、再背后换回）
-    let spH0 = mvx === 'tbb' ? pl.hand : h0; if (kind === 'spin') { const sL = hx * dy - hy * dx; if (Math.abs(sL) > 0.05) pl.hand = sL > 0 ? -1 : 1; spH0 = -pl.hand; }
+    let spH0 = mvx === 'tbb' ? pl.hand : h0; if (kind === 'spin') spH0 = -pl.hand;
     pl.action = { type: 'move', kind: kind, cb: cb, t: 0, T: MT, cw: clamp(0.95 - 0.55 * hnd, 0.4, 0.9), dx: dx, dy: dy, sp: sp * (CBk ? CBk.sp : 1), name: CBk ? CBk.name : M.name, mv: mvx, bp: X ? X.bp : null, f0: pl.face, sd: pl.hand, hx: hx, hy: hy, os: openS, h0: spH0, h1: pl.hand, v0x: pl.vx, v0y: pl.vy };
     // 连续过人越往后越累：每多一招、每接上一段都加价；运球如丝 / 脚踝终结者 只让加出来的那部分放缓
     const chainX = (1 + K.cbStep * (pl.combo - 1)) * (1 + K.cbCost * pl.dcn) - 1, chainBg = Math.max(0, Math.min(bk(pl, 'tight', K.bgChainSt), bk(pl, 'ankle', K.bgChainSt)));
