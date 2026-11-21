@@ -106,7 +106,7 @@ function possessions(gm, label) {
     const { G } = gm;
     G.players.forEach(p => { p.ctrl = 'cpu'; });
     // Start after the check-ball, with both CPUs otherwise using real game decisions.
-    if (G.phase === 'check') G.phaseT = 0;
+    if (G.phase === 'check' && gm.t5.checkStep(9)) G.phase = 'live';
     let live = false, ended = false, previous = null;
     for (let i = 0; i < 2400; i++) {
       gm.tick(dt);

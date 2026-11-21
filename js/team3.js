@@ -41,6 +41,7 @@
     G.ball = { x: h.x, y: h.y, z: 1, vx: 0, vy: 0, vz: 0, state: 'held', holder: h.id, spin: 0, shot: null, lastTouch: h.id, noPick: 0, dead: false, under: false, trail: null };
     matchups();
     A.banner(message || '弧顶交换球', GM.TEAMS[team].name + '球权', GM.TEAMS[team].css, 0.9);
+    def[0].y = h.y + 1.9; A.checkBall(def[0], h);
   }
   function lost(by, text, receiving) {
     if (by) G.stats[by.id].tov++;
@@ -191,7 +192,7 @@
     if (G.replay) return;
     if (G.phase === 'check' || G.phase === 'dead') {
       G.phaseT -= dt;
-      if (G.phaseT <= 0) {
+      if (G.phase === 'check' ? A.checkStep(dt) : G.phaseT <= 0) {
         if (G.phase === 'check') G.phase = 'live';
         else if (G.winner >= 0) { G.phase = 'over'; G.phaseT = 0; A.sfx('win'); }
         else check(T.next);
