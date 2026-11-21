@@ -307,7 +307,7 @@
         const local = G.players.find(p => p.ring && p.ctrl !== 'cpu');
         G.stats[d.id].stl++; G.stats[from.id].tov++;
         A.passIntercept(d, local ? local.tm : null);
-        A.pickup(d, 'intercept'); A.float('抢断传球', d, '#7dff8a', 1); return;
+        A.pickup(d, 'intercept'); A.float('抢断传球', d, '#7dff8a', 1); A.vo(d, 'steal', 'pri'); if (A.vic) A.vic(from, 'stolen'); return;
       }
     }
     if (u === 1) {

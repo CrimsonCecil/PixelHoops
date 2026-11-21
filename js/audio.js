@@ -297,7 +297,15 @@
   function vo(key, ev, mode) {
     if (!voOn || !sfxOn || !voM || pauseOn) return null;
     const pri = mode === 'pri';
-    if (mode === 'q' && performance.now() < voBusy) { const w = voBusy - performance.now(); if (w < 2500) setTimeout(() => vo(key, ev), w - 300); return null; }
+    if (mode === 'q' && performance.now() < voBusy) {
+      const w = voBusy - performance.now();
+      if (w < 6000) {
+        if (voQTimer) clearTimeout(voQTimer);
+        const qSeq = voSeq;
+        voQTimer = setTimeout(() => { voQTimer = null; if (voSeq === qSeq) vo(key, ev, 'pri'); }, Math.max(80, w - 120));
+      }
+      return null;
+    }
     const V = voM[key]; let L = V && V.lines && V.lines[ev];
     if ((!L || !L.length) && V && V.lines) { const fb = VO_FB[ev]; L = fb && V.lines[fb]; }
     if (!L || !L.length) return null;
@@ -305,23 +313,24 @@
     const lk = key + ev; let i = Math.floor(Math.random() * L.length); if (L.length > 1 && i === voLast[lk]) i = (i + 1) % L.length; voLast[lk] = i;
     const it = L[i];
     if (!ensure()) return null;
+    if (voQTimer) { clearTimeout(voQTimer); voQTimer = null; }
     if (voCur && pri) { try { voCur.stop(); } catch (e) { /* 已停 */ } voCur = null; }
     const seq = ++voSeq;
     voBuf(it.f).then((buf) => { if (!buf || !voOn || pauseOn || seq !== voSeq) return; if (ac.state === 'suspended') ac.resume(); const src = ac.createBufferSource(); src.buffer = buf; src.connect(voGain); src.start(0, 0.1); voCur = src; }).catch(() => {});
-    voBusy = now + ((it.d || 1.5) * 1000) + 500;
+    voBusy = now + ((it.d || 1.5) * 1000) + 250;
     return it;
   }
   // 指定一条语音（开场对话用）：voLine 按序号取条目，voSay 打断当前语音直接播
   function voLine(key, ev, i) { const L = voM && voM[key] && voM[key].lines && voM[key].lines[ev]; return L && L.length ? L[(i || 0) % L.length] : null; }
-  function voStop() { voSeq++; voSayF = ''; if (voCur) { try { voCur.stop(); } catch (e) { /* 已停 */ } voCur = null; } voBusy = 0; }
+  function voStop() { voSeq++; voSayF = ''; if (voQTimer) { clearTimeout(voQTimer); voQTimer = null; } if (voCur) { try { voCur.stop(); } catch (e) { /* 已停 */ } voCur = null; } voBusy = 0; }
   function voSay(it) {
     if (!it || !voOn || !sfxOn || pauseOn || !ensure()) return;
     voStop(); const want = it.f, seq = ++voSeq; voSayF = want;
     voBuf(it.f).then((buf) => { if (!buf || !voOn || pauseOn || voSayF !== want || seq !== voSeq) return; if (ac.state === 'suspended') ac.resume(); const src = ac.createBufferSource(); src.buffer = buf; src.connect(voGain); src.start(0, 0.1); voCur = src; }).catch(() => {});
-    voBusy = performance.now() + ((it.d || 1.5) * 1000) + 500;
+    voBusy = performance.now() + ((it.d || 1.5) * 1000) + 250;
   }
   function voWhenReady(cb) { if (voM) cb(); else voReady.then(() => { if (voM) cb(); }); }
-  let voSayF = '', voSeq = 0;
+  let voSayF = '', voSeq = 0, voQTimer = null;
   // 离线混音测量：用 OfflineAudioContext 按当前总线增益渲染一段（音乐 / 某个音效 / 某条语音），返回采样
   // name 为音乐场景名（加 '!' 后缀 = 关键时刻强度全开）；空名 = 1V1 比赛音乐
   async function mixRender(kind, name, secs) {
