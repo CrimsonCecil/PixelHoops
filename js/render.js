@@ -1576,7 +1576,7 @@
 
   const clampR = (v, a, b) => Math.max(a, Math.min(b, v));
   function drawMeter(pl, hp) {
-    const a = pl.action; if (!a || !a.meter) return;
+    const a = pl.action; if (!a || !a.meter || a.alley) return;
     // 投篮条：涨到顶 = 最佳出手点；空中按下拉杆后才换成蓝区。
     const x = Math.round(hp.x + 0.42 * hp.s) + 3, h = Math.round(clampR(hp.s * 0.75, 24, 44)), wd = Math.round(clampR(hp.s * 0.09, 3, 5)), y = Math.round(hp.y - h * 0.55);
     const m = a.meter;

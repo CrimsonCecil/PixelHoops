@@ -934,7 +934,7 @@
     if (u >= 1) {
       T.ps = null;
       // 手感 hands：低于中位数的人接快球 / 偏球会脱手（最多约 8%~13%）
-      const fum = P.inb ? 0 : Math.max(0, -U(r, 'hands')) * TV.t5_pass_fum0 * (P.rec && P.rec.lane > 1.5 ? 0.5 : 1) * (P.v > 11 ? 1.3 : 1) * (P.er > 0.4 ? 1.3 : 1) + (P.inb ? 0 : TV.t5_pass_fum * clamp((P.er || 0) - 0.35, 0, 1.5) * clamp(0.6 - U(r, 'hands'), 0, 1.1));   // V4.2 偏球漏接
+      const fum = P.inb || P.kind === 'alley' ? 0 : Math.max(0, -U(r, 'hands')) * TV.t5_pass_fum0 * (P.rec && P.rec.lane > 1.5 ? 0.5 : 1) * (P.v > 11 ? 1.3 : 1) * (P.er > 0.4 ? 1.3 : 1) + TV.t5_pass_fum * clamp((P.er || 0) - 0.35, 0, 1.5) * clamp(0.6 - U(r, 'hands'), 0, 1.1);   // V4.2 偏球漏接
       if (r && dist(r, b) < 1.9 && r.stun <= 0.3 && !r.hasBall && G.players[r.id] === r && rnd() < fum) { T.cnt.fumble++; if (r.rk) r.rk.st.drop++; if (P.rec) P.rec.res = 'fum'; T.lostPass = { t: T.time, from: P.from, to: r, by: null, rec: P.rec }; b.state = 'loose'; b.vz = 1.2; b.vx = rr(-1.5, 1.5); b.vy = rr(-1.5, 1.5); b.lastTouch = r.id; b.noPick = 0.2; A5.sfx('bounce'); }
       else if (r && dist(r, b) < 1.9 && r.stun <= 0.3 && !r.hasBall && G.players[r.id] === r) { if (P.rec) P.rec.res = 'ok'; catchBall(r, P); }
       // 传偏 / 接球人慢半步：2.6 米内没被撞倒的接球人伸手够球（以前直接变活球，被对方捡走就是莫名其妙的失误）

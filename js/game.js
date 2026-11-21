@@ -2141,7 +2141,7 @@
       if (df.action.chase) fireSkill(df);
       if (!info) {
         G.stats[sh.id].fga++; G.stats[sh.id].ina++;
-        info = { who: sh.id, name: a.name || a.V.name, pts: 2, dist: distHoop(sh), contest: c, zone: 'lay', green: false, prob: 0 };
+        info = { who: sh.id, name: a.alley ? a.type === 'dunk' ? '空接暴扣' : '空接上篮' : a.name || a.V.name, pts: 2, dist: distHoop(sh), contest: c, zone: 'lay', green: false, prob: 0 };
       }
       blockBall(df, sh, hp, blockFx(df, hp, sh, kind));
       sh.hasBall = false;
@@ -2424,7 +2424,7 @@
       }
     }
     const zone = kind === 'lay' ? 'lay' : three ? 'three' : 'mid';
-    const info = { who: pl.id, name: a.alley ? '空接上篮' : V.name, pts: a.pts, dist: d, contest: c, src: c > 0.04 ? ci.src : '', e: e, zone: zone, stamLow: pl.stam < ST.low, green: false, made: false, blocked: false, prob: 0, tl: '', reason: '' };
+    const info = { who: pl.id, name: a.alley ? '空接上篮' : V.name, pts: a.pts, dist: d, contest: c, src: c > 0.04 ? ci.src : '', e: a.alley ? null : e, zone: zone, stamLow: pl.stam < ST.low, green: false, made: false, blocked: false, prob: 0, tl: '', reason: '' };
     // V4.3 封堵对抗（上篮 / 抛投）：差值 edge 决定被盖率和命中惩罚；本来要被盖时，差值占优有机会化解（拉杆躲开 / 硬挤出手）
     const LAYC = kind === 'lay' && !SK && !df.off, edge = LAYC ? finEdge(pl, df, a, false) : 0, ek = clamp(1 - K.ctLayE * edge, K.ctLo, K.ctHi);
     if (contactBlock(pl, a, hp, kind, info)) return;
@@ -2476,8 +2476,8 @@
     prob = alleyProb(a, clamp(prob, K.smMin, 1));
     const made = G.tips && G.tips.mk && pl.id === 0 ? true : rnd() < prob;
     const cl = SK ? '无视干扰' : c < 0.2 ? '空位' : c < 0.5 ? '轻微干扰' : '严重干扰';
-    const tl = green ? '完美' : e < 0 ? (ae > 0.5 ? '很早' : '稍早') : (ae > 0.5 ? '很晚' : '稍晚');
-    const colr = green ? '#7dff8a' : ae > 0.5 ? '#ff6b5e' : '#ffd24a';
+    const tl = a.alley ? '自动终结' : green ? '完美' : e < 0 ? (ae > 0.5 ? '很早' : '稍早') : (ae > 0.5 ? '很晚' : '稍晚');
+    const colr = a.alley ? '#ffd24a' : green ? '#7dff8a' : ae > 0.5 ? '#ff6b5e' : '#ffd24a';
     G.floats = G.floats.filter((f) => f.pid !== pl.id);
     if (info.styleDelta < 0) float('持球投衰减', pl, '#f6efe0', 1);
     G.floats.push({ text: tl, sub: cl,   // V3.9r 反馈只显示干扰程度，不再带动作名（LED 上的动作名保留）
@@ -2494,6 +2494,7 @@
         info.reason = prob > 0.62 ? '运气不佳（本次命中率 ' + Math.round(prob * 100) + '%）' : L[0][1];
       }
     } else info.reason = green ? '完美出手' : '命中率 ' + Math.round(prob * 100) + '%';
+    if (a.alley) info.reason = '自动终结，命中率 ' + Math.round(prob * 100) + '%';
     const air = !made && ae > 0.85 && kind !== 'lay';
     const ARCF = { low: 0.86, mid: 1, high: 1.12 }[arcOf(pl)] || 1;
     const T = kind === 'lay' ? (V.floater ? 0.72 : 0.34) : V.hook ? 0.62 + d * 0.04 : (0.6 + d * 0.065) * ARCF;
@@ -2923,7 +2924,7 @@
   function sdScore(pl) { return pl.r.sdunk + K.sdH * (pl.h - 1.98) / 0.1 + K.sdStr * (pl.r.str - 0.5) - 0.3 * Math.max(0, (pl.r.bw || 1) - 1) - 0.3 * fat(pl); }
   function sdOk(pl) { return pl.stam > ST.dunk && sdScore(pl) >= K.sdReq; }
   // V3.9r 上篮 / 反篮 / 抛投最远起跳距离整体缩 10%（K.layK，调参台 zone 组）
-  function finPlan(pl, fvMin) {
+  function finPlan(pl, fvMin, aerial) {
     const d = distHoop(pl), h = hoopDir(pl);
     const fv = Math.max(0, pl.vx * h.x + pl.vy * h.y, fvMin || 0);   // fvMin：只给 zones() 预览跑速用
     const run = clamp(fv / K.runV, 0, 1);
@@ -2935,7 +2936,7 @@
     const ath = 0.6 * (pl.r.leap || pl.r.vert) + 0.25 * pl.r.spd + 0.15 * pl.r.acc, dR = dunkR(pl, run), dk = clamp((dR - 0.5) / 0.5, 0, 1);
     const reach = dR < 0.5 ? 0 : clamp(K.dunkBase + K.dunkAth * dk * Math.pow(ath, 1.5) * (0.4 + 0.6 * run) + (pl.h - 1.95) * 1.2 - heavy * 0.6 + ba(pl, 'launch', K.bgLaunch) - 0.9 * fat(pl), K.dunkMin, K.dunkMax);
     const tko = d - K.stepN * L;
-    const inside = pl.y < HOOP.y + 0.3 && d > 0.45;
+    const inside = pl.y < HOOP.y + 0.3 && (d > 0.45 || !!aerial);
     const back = pl.y >= HOOP.y + 0.3 && d > 0.45 && d < 6;
     const dunk = inside && reach > 0 && pl.stam > ST.dunk && Math.max(tko, 1.0) <= reach;
     return { d: d, h: h, fv: fv, run: run, L: L, adv: adv, reach: reach, tko: tko, inside: inside, back: back, dunk: dunk, lay: (inside || back) && tko <= K.layMax * K.layK, flo: inside && tko <= K.floMax * K.layK * K.floK && d > K.floMin };
@@ -3064,8 +3065,8 @@
   }
   // want: 'lay' | 'floater' | 'auto'(终结键：能扣就扣)
   // fast：加速 + 朝筐 + 投篮键（5V5 是 RT + X）发起的终结——按下当帧就判定：能扣就跑扣，否则立刻上篮（不再排队等跑到扣篮起跳点），上篮方式按站位 / 能力随机挑
-  function startFinish(pl, inp, want, btn, fast) {
-    const P = finPlan(pl), q = inDir(pl, inp, want === 'stick'), df = OP(pl);
+  function startFinish(pl, inp, want, btn, fast, aerial) {
+    const P = finPlan(pl, 0, aerial), q = inDir(pl, inp, want === 'stick'), df = OP(pl);
     if (!P.inside && !(P.back && P.lay)) { if (pl.ctrl !== 'cpu' && !pl.finQ) float(P.back ? '太远' : pl.y >= HOOP.y ? '在篮板后' : '太近', pl, '#ff6b5e', 1); return false; }
     if (want === 'auto' && P.dunk && !(pl.ctrl === 'cpu' && !df.off && contestOf(pl, df, 'in') > 0.45 && dunkAtk(pl, dunkR(pl, P.run)) - rimDef(df) < -0.04 && rnd() < 0.75)) return startDunk(pl, P, btn || 'a2'), true;
     // 人类玩家：扣篮键按早了就先记住，跑到起跳点自动起步（最多 1 秒）
@@ -3177,7 +3178,7 @@
   // 扣篮改上篮（被挡 / 起跳时判断扣不过去）：动作换成上篮，投篮条从这里开始照常走。扣篮键还按着 = 继续按住、松手判定；已经松开 = 再按一次再松开判定（a.rearm），一直不按就在出手点按 d2lE 自动出手
   function d2l(f, a, bump, now) {
     const btn = a.btn || 'a2', held = !a.rel; f.action = null;
-    const ok = startFinish(f, { mx: 0, my: 0, dx: 0, dy: 0 }, 'lay', btn);
+    const ok = startFinish(f, { mx: 0, my: 0, dx: 0, dy: 0 }, 'lay', btn, false, !!a.alley);
     if (!ok || !f.action || f.action.type !== 'layup') { f.action = a; return false; }
     const na = f.action; na.alley = a.alley; na.cHit = true; na.bump = Math.max(na.bump || 0, bump); na.run0 = a.run0; na.dk0 = a.name;
     if (now) { na.wp.length = 0; layMeter(na); }
@@ -5915,7 +5916,9 @@
     a.error = (rnd() * 2 - 1) * K.alleyCpu * (1.5 - skill);
     const error = a.error == null ? Infinity : Math.abs(a.error), grade = error <= w.width ? 'green' : error <= w.width * K.alleyOk ? 'ok' : 'bad';
     a.grade = grade; a.width = w.width; a.pressure = w.pressure;
-    if (grade === 'bad' && rnd() < w.pressure * K.alleyFumble) {
+    let catchContest = 0;
+    for (const d of G.players) if (!d.off && TM(d) !== TM(p)) catchContest = Math.max(catchContest, contestOf(p, d, 'in'));
+    if (grade === 'bad' && rnd() < Math.min(w.pressure, catchContest) * K.alleyFumble) {
       G.stats[P.from.id].tov++;
       p.hasBall = false; p.ib = null;
       looseBall({ x: G.ball.x, y: G.ball.y, z: G.ball.z }, G.ball.vx * 0.2, G.ball.vy * 0.2, 0, p.id);
@@ -5923,10 +5926,10 @@
     }
     if (p.action || p.stun || distHoop(p) >= 4.2 || G.needClear) return false;
     p.ib = null; p.cq = null;
-    if (!startFinish(p, { ...zeroInp(), my: 1, sprint: true }, grade === 'bad' ? 'lay' : 'auto', 'a2', true)) return false;
+    if (!startFinish(p, { ...zeroInp(), my: 1, sprint: true }, grade === 'bad' ? 'lay' : 'auto', 'a2', true, true)) return false;
     p.action.alley = { grade, error: a.error, quality };
     if (p.action.type === 'layup') p.action.rearm = true;
-    float(grade === 'green' ? '完美空接' : grade === 'ok' ? '空接' : '勉强空接', p, grade === 'green' ? '#7dff8a' : grade === 'ok' ? '#ffd24a' : '#ff6b5e', 1);
+    float(grade === 'bad' ? '勉强空接' : '空接终结', p, grade === 'green' ? '#7dff8a' : grade === 'ok' ? '#ffd24a' : '#ff6b5e', 1);
     return true;
   }
   function alleyProb(a, prob) {

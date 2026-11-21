@@ -90,6 +90,9 @@ function fixture(five = false) {
     }
     for (let i = 0; i < 240 && !G.lastShot; i++) api.step(G.players.map(() => api.zeroInp()), 1 / 60);
     assert(G.lastShot, 'automatic layup/dunk must complete without input');
+    assert.equal(G.lastShot.e, null, 'automatic grades must not be published as player release errors');
+    assert(!/很早|稍早|很晚|稍晚|完美|松手|绿区/.test(G.lastShot.tl + G.lastShot.reason));
+    assert(!G.floats.some(f => /很早|稍早|很晚|稍晚|完美/.test(f.text)));
     if (G.lastShot.made) { counts[mode]++; assert.match(G.lastShot.name, /^空接(暴扣|上篮)$/); }
     assert(!G.floats.some(f => f.alleyPrompt));
   }
@@ -124,6 +127,97 @@ function fixture(five = false) {
   }
   assert(fumbles > 0 && fumbles < 128);
   console.log('PASS: pressure, lob type and tuning still affect automatic grade thresholds; contested weak catches can fumble.');
+}
+
+{
+  const { G, api, p, reset } = fixture(true);
+  for (const cpu of [false, true]) for (let seed = 1; seed <= 16; seed++) {
+    const P = reset(seed, cpu);
+    Object.assign(p, { x: 0.1, y: api.HOOP.y - 0.15 });
+    assert(!api.startFinish(p, api.zeroInp(), 'auto', 'a2', true), 'grounded finishing keeps its minimum range');
+    assert(api.alleyFinish(P, 0.9), 'aerial catches directly under the rim can finish');
+    assert(p.action.alley);
+    reset(seed, cpu); p.y = api.HOOP.y - 5;
+    assert(!api.alleyFinish({ kind: 'alley', from: G.players[0], to: p }, 0.9), 'distant catches still cannot force a finish');
+  }
+  for (let seed = 1; seed <= 32; seed++) {
+    const P = reset(seed);
+    p.y = api.HOOP.y - 4;
+    Object.assign(G.players[5], { x: 0, y: api.HOOP.y });
+    Object.assign(p.r, { dunk: 0.1, vert: 0.1, hnd: 0.1 });
+    api.alleyFinish(P, 0.1);
+    assert(p.hasBall, 'a defender camping the rim cannot fumble an uncontested catch four metres away');
+  }
+  let fumbles = 0;
+  for (let seed = 1; seed <= 128; seed++) {
+    const P = reset(seed), d = G.players[5];
+    Object.assign(d, { x: p.x, y: p.y });
+    Object.assign(p.r, { dunk: 0.1, vert: 0.1, hnd: 0.1 });
+    api.alleyFinish(P, 0.1);
+    if (!p.hasBall) {
+      assert.equal(P.finish.grade, 'bad');
+      assert(api.contestOf(p, d, 'in') > 0);
+      fumbles++;
+    }
+  }
+  assert(fumbles > 0 && fumbles < 128, '5V5 bad grades under actual contest can still fumble');
+  console.log('PASS: close aerial catches bypass only the grounded minimum range; distant catches remain rejected; 5V5 fumbles require a bad grade and catch contest, not rim-only pressure.');
+}
+
+{
+  const totals = {};
+  const N = 32;
+  for (const scenario of ['rolling', 'contested']) {
+    const count = totals[scenario] = { passes: 0, finishes: 0, shots: 0, fumbles: 0, close: 0 };
+    for (let seed = 1; seed <= N; seed++) {
+      const { G, game, T5, api, events } = load(true);
+      game.seed(seed * 7919);
+      T5.start({ home: 'LAL', away: 'BOS', human: 0 });
+      const T = T5.T, from = T.tm[0].on[0], to = T.tm[0].on[4];
+      Object.assign(T, { phase: 'live', phaseT: 1, time: 5, trans: false, prev: {}, yDown: null });
+      Object.assign(G, { phase: 'live', time: 5, off: 0, needClear: false, shotClock: 24 });
+      for (const p of G.players) Object.assign(p, { x: (p.slot % 2 ? 1 : -1) * (4 + p.slot * 0.2), y: 5 + p.slot, hasBall: false, action: null, stun: 0, z: 0, vz: 0, vx: 0, vy: 0 });
+      Object.assign(from, { x: -3, y: 6, hasBall: true, face: 1 });
+      Object.assign(to, { x: scenario === 'rolling' ? 2 : 1, y: scenario === 'rolling' ? 6.8 : 9.2, vy: 3, speed: 3 });
+      to.f5.cut = { tx: 0, ty: 11.4, until: 8 };
+      if (scenario === 'contested') Object.assign(T.tm[1].on[4], { x: 1.5, y: 9.5 });
+      Object.assign(G.ball, { state: 'held', holder: from.id, x: from.x, y: from.y, z: 1.2, dead: false });
+      T5.setCtl(from, 'manual');
+      let P, finished = false;
+      const finish = api.alleyFinish;
+      api.alleyFinish = (pass, quality) => {
+        if (api.distHoop(pass.to) < 0.45) count.close++;
+        const ok = finish(pass, quality);
+        if (ok) { count.finishes++; finished = true; }
+        if (!pass.to.hasBall) {
+          count.fumbles++;
+          assert.equal(pass.finish.grade, 'bad');
+          assert(G.players.some(p => p.tm !== pass.to.tm && !p.off && api.contestOf(pass.to, p, 'in') > 0));
+        }
+        return ok;
+      };
+      const tick = () => { T5.tick(1 / 120); if (T.ps) P = T.ps; };
+      events.keydown({ code: 'KeyI' }); tick();
+      events.keyup({ code: 'KeyI' }); for (let i = 0; i < 8; i++) tick();
+      events.keydown({ code: 'KeyI' }); tick(); events.keyup({ code: 'KeyI' });
+      assert.equal(P?.kind, 'alley', 'real double-I input must initiate the pass');
+      assert.equal(P.to, to, 'the directional pass selects the rolling big');
+      count.passes++;
+      for (let i = 0; i < 360 && T.ps; i++) tick();
+      if (P.rec?.res === 'fum') assert.equal(P.finish?.grade, 'bad', 'generic catch fumbles must not bypass alley grading');
+      if (finished) {
+        for (let i = 0; i < 480 && !G.lastShot; i++) tick();
+        assert(G.lastShot && G.lastShot.who === to.id, 'a finish attempt must reach shot/block resolution');
+        assert.match(G.lastShot.name, /^空接(暴扣|上篮)$/);
+        count.shots++;
+      }
+    }
+    assert(count.finishes >= N * (scenario === 'rolling' ? 0.85 : 0.65), JSON.stringify(totals));
+    assert.equal(count.shots, count.finishes);
+    assert(count.fumbles <= N * 0.35);
+  }
+  assert(totals.contested.close > 0, 'active defense must exercise the under-rim catch regression');
+  console.log(`PASS: seeded real-play 5V5 double-I alleys: rolling ${totals.rolling.shots}/${N} finish attempts; contested ${totals.contested.shots}/${N}, ${totals.contested.fumbles} bad-grade fumbles, ${totals.contested.close} close catches; all finishes resolve to shots/blocks.`);
 }
 
 for (const five of [false, true]) {
