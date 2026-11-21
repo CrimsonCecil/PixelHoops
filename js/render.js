@@ -626,6 +626,7 @@
       if (tier >= 3 && GM().t5 && GM().t5.sfx) try { GM().t5.sfx('bump'); } catch (e) {}
       g.n[tier]++; g[kind === 'pnr' ? 'on' : 'off'][tier]++; const ty = typ || (kind === 'pnr' ? 'pnr' : 'gen'); (g.ty[ty] || (g.ty[ty] = [0, 0, 0, 0, 0]))[tier]++; (g.ks || (g.ks = [])).push(+k.toFixed(2));
       const m = tgt || (kind === 'pnr' ? (PH.T5.T.pick && PH.T5.T.pick.h) : d.mark);
+      if (m && GM().t5.legendScreen) GM().t5.legendScreen(s, d, m);
       if (m) S.rec.push({ id: m.id, t: PH.T5.T.time, tier, kind: kind === 'pnr' ? 'on' : 'off' });
       return tier;
     }
@@ -1464,6 +1465,12 @@
         px(cx, h * 0.58, w * 0.09, h * (fs.soft ? 0.06 : 0.1), nose);
         if (!fs.soft) px(cx - w * 0.09, h * 0.68, w * 0.18, 1, dark);
       }
+      if (C.mask) {
+        const frame = '#dfeced';
+        px(w * 0.08, h * 0.36, w * 0.84, 1, frame);
+        px(w * 0.08, h * 0.36, 1, h * 0.32, frame); px(w * 0.84, h * 0.36, 1, h * 0.32, frame);
+        px(w * 0.08, h * 0.68, w * 0.84, 1, frame); px(cx, h * 0.48, 1, h * 0.2, frame);
+      }
       const bd = C.beard === true ? 'full' : C.beard;
       if (bd === 'full' || bd === 'boxed' || bd === 'long') {
         const close = bd === 'full' && C.beardFit === 'close';
@@ -1971,31 +1978,7 @@
     }
     ctx.restore();
   }
-  function pokePromptBox(head, ball, width) {
-    const w = Math.min(W - 8, width + 10), h = 19, r = Math.max(2, BALL_R * ball.s) + 12;
-    const candidates = [[head.x - w / 2, head.y - h - 12], [head.x - w / 2, head.y + 12],
-      [head.x - w / 2, ball.y - r - h - 4], [head.x - w / 2, ball.y + r + 4],
-      [ball.x - r - w - 4, head.y - h / 2], [ball.x + r + 4, head.y - h / 2]];
-    for (const [cx, cy] of candidates) {
-      const x = Math.round(Math.max(4, Math.min(W - w - 4, cx))), y = Math.round(Math.max(4, Math.min(H - h - 4, cy)));
-      if (x + w < ball.x - r || x > ball.x + r || y + h < ball.y - r || y > ball.y + r) return { x, y, w, h };
-    }
-    return null;
-  }
-  function drawScreenFx(G, cueView) {
-    const cue = PH.game && PH.game.pokeCue && PH.game.pokeCue();
-    if (cue && cue.prompts.length) {
-      ctx.save(); ctx.font = "12px 'Fusion Pixel 12px Proportional SC', monospace"; ctx.textBaseline = 'bottom';
-      cue.prompts.forEach((v) => {
-        const pl = G.players[v.id], head = cueView && cueView.heads[v.id] || proj(pl.x, pl.y, pl.z + pl.h);
-        const ball = cueView && cueView.ball || proj(G.ball.x, G.ball.y, G.ball.z);
-        const box = pokePromptBox(head, ball, ctx.measureText(v.text).width);
-        if (!box) return;
-        ctx.fillStyle = '#15101f'; ctx.fillRect(box.x, box.y, box.w, box.h);
-        ctx.fillStyle = '#fff0a0'; ctx.fillText(v.text, box.x + 5, box.y + 15, box.w - 10);
-      });
-      ctx.restore();
-    }
+  function drawScreenFx(G) {
     drawIntroFx(G);
     drawScoreFx(G);
     drawConfetti(G.fx);

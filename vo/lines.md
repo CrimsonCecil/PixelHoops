@@ -1,5 +1,41 @@
 # 球员配音台词
 
+新增三位传奇使用 Edge TTS 的通用普通话男声 `zh-CN-YunxiNeural`，不模仿真人。
+复现：安装 `edge-tts` 和 FFmpeg 后运行 `python vo/generate-legends.py`。
+每句独立转为 24kHz 单声道、40kbps MP3（无 ID3/Xing），按 120 字节帧拼接；
+清单的 `o` / `n` 是起始帧 / 帧数，每帧 24ms。生成器只更新这三位的条目。
+原有音频在初始提交 e626e2c 中导入，未附生成脚本；orus、fenrir 等音色名
+对应 Gemini 音色，但仓库没有记录原始模型、提示词和生成参数。
+三份新 sprite 已经 faster-whisper tiny 自动识别为中文（未强制语言，
+tmac 0.998 / nash 0.999 / rip 0.998）；总时长分别为 22.968 / 24.792 / 22.920 秒。
+
+## 特雷西·麦克格雷迪（tmac，音色 zh-CN-YunxiNeural）
+
+- dom：半步就行。剩下的是出手。 ／ 节奏到了，这球我来。
+- taunt：半步的空当，就够了。 ／ 我不后仰，你也得先跟上。
+- make：直起出手，稳稳拿下。
+- miss：没关系，下一球找回来。
+- win：今天的手感，刚刚好。
+- hurt：这一回合算你的，接着来。
+
+## 史蒂夫·纳什（nash，音色 zh-CN-YunxiNeural）
+
+- dom：你盯我，顺下的那位谁管？ ／ 球在走，机会就会来。
+- taunt：抬头看看，队友已经跑到了。 ／ 你没跟出来？那这球我自己投。
+- make：看准空当，再轻轻出手。
+- miss：这次没进，下次配合再来。
+- win：好球，是大家一起传出来的。
+- hurt：被你看穿了，我换个节奏。
+
+## 理查德·汉密尔顿（rip，音色 zh-CN-YunxiNeural）
+
+- dom：你跟我跑就好。一会儿还有一圈。 ／ 跑到空位，接球就投。
+- taunt：别停下，我还在跑。 ／ 我在肘区等你，别迟到。
+- make：绕出来，这两分收下。
+- miss：这球短了，下一圈再来。
+- win：跑到最后，机会就是我的。
+- hurt：跟得不错，下一圈见。
+
 事件：dunk 扣篮 / three 三分 / make 普通进球 / ankle 晃倒 / block 盖帽 / steal 抢断 / taunt 庆祝嘲讽 / miss 投丢自嘲 / dom 主宰 / win 获胜 / hurt 被打爆不服
 
 ## 马努·基诺比利（ginobili，通用中文男声 zh-CN-YunxiNeural，非本人模仿）

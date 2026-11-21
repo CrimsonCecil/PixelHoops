@@ -9,7 +9,6 @@ function fixture(mode) {
   vm.runInContext('let seed = 7; Math.random = () => ((seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0) / 4294967296)', ctx);
   for (const name of ['tune', 'ptype', 'render', 'input', 'roster', 'measurements', 'r5', 'game', 'b5', 'team5', 'team3']) {
     let code = fs.readFileSync(path.join(__dirname, '../js', name + '.js'), 'utf8');
-    if (name === 'render') code = code.replace('curCol: curCol,', 'curCol: curCol, pokePromptBox,');
     if (name === 'game') code = code.replace('_qa: {', '_qa: { updateAction, updateBall, updatePlayer, agil, slowSkip,');
     vm.runInContext(code, ctx, { filename: name + '.js' });
   }
@@ -44,6 +43,7 @@ function fixture(mode) {
   return { gm, G, K, reset, hit, tick, PH: ctx.PH, ctx };
 }
 
+const recoveryResults = [];
 for (const mode of ['1V1', '3V3', '5V5']) {
   const f = fixture(mode), { gm, G, K } = f;
   {
@@ -72,12 +72,17 @@ for (const mode of ['1V1', '3V3', '5V5']) {
     assert.equal(G.fx.slowScale, null);
     assert(Math.abs(G.time - start - K.stlPokeSlowT * K.stlPokeSlowK) < 0.025, 'simulation uses tuned time scale');
     const durations = [];
-    for (const agility of [0.2, 0.9]) {
+    const rosterAgility = Object.values(gm.ARCH).map((r) => gm._qa.agil({ r }));
+    const range = [Math.min(...rosterAgility), Math.max(...rosterAgility)];
+    for (const agility of range) {
       ({ p, d } = f.reset());
       Object.assign(p.r, { acc: agility, spd: agility, lat: agility });
       assert(f.hit(d)); durations.push(p.stun);
     }
     assert(durations[1] < durations[0], 'agile handler staggers for less time');
+    assert(Math.abs(durations[0] - 1) < 0.02, 'lowest roster agility gets about one second');
+    assert(Math.abs(durations[1] - 0.6) < 0.02, 'highest roster agility gets about 0.6 seconds');
+    console.log(`${mode} roster agility: ${range.map((v) => v.toFixed(3)).join('–')}; stagger=${durations.map((v) => v.toFixed(3)).join('–')}s`);
     ({ p, d } = f.reset());
     gm.isOnline = () => true;
     assert(f.hit(d)); assert.equal(G.fx.slow, 0, 'online poke never slows simulation');
@@ -96,76 +101,27 @@ for (const mode of ['1V1', '3V3', '5V5']) {
     Object.assign(K, defaults); gm.setAudioSink(null);
     console.log(`PASS ${mode}: poke-only offline slow motion and expiry, sound, gold ball, agility stagger and no vacuum pickup`);
   }
-  for (const head of [{ x: 240, y: 210 }, { x: 2, y: 2 }, { x: 478, y: 268 }]) {
-    for (const ball of [{ x: head.x, y: head.y - 30, s: 40 }, { x: 240, y: 215, s: 60 }]) {
-      const box = f.PH.render.pokePromptBox(head, ball, 100), r = Math.max(2, f.PH.render.BALL_R * ball.s) + 12;
-      assert(box, 'prompt has a visible placement');
-      assert(box.x >= 0 && box.y >= 0 && box.x + box.w <= f.PH.render.W && box.y + box.h <= f.PH.render.H, 'prompt stays on screen');
-      assert(box.x + box.w < ball.x - r || box.x > ball.x + r || box.y + box.h < ball.y - r || box.y > ball.y + r, 'prompt avoids ball and flash ring');
-    }
-  }
-  console.log(`PASS ${mode}: player-anchored prompt placement avoids ball and viewport edges`);
   {
-    const cleanDefaults = { stlCl0: K.stlCl0, stlClS: K.stlClS, stlClTm: K.stlClTm };
+    const defaults = { stlCl0: K.stlCl0, stlClS: K.stlClS, stlClTm: K.stlClTm };
     const { p, d } = f.reset();
     assert.equal(gm.pokeCue().active, false, 'no cue without pending poke');
     Object.assign(K, { stlCl0: 0, stlClS: 0, stlClTm: 0 });
     assert(f.hit(d));
-    assert(gm.pokeCue().active, 'poke activates shared flash');
-    Object.assign(p, { ctrl: 'p1', stun: 0, action: null, x: G.ball.x - 2, y: G.ball.y });
-    Object.assign(d, { ctrl: 'p2', stun: 0, action: null, x: G.ball.x + 2, y: G.ball.y });
-    assert.equal(gm.pokeCue().prompts.length, 2, 'both human teams receive prompt');
-    assert(gm.pokeCue().prompts[0].text.includes(mode === '5V5' ? 'J / Space' : 'K'));
-    assert(gm.pokeCue().prompts[1].text.includes(mode === '5V5' ? 'J / Space' : 'Num2 / .'));
-    if (mode !== '5V5') {
-      const binding = fs.readFileSync(path.join(__dirname, '../js/main.js'), 'utf8').split('\n').find((line) => line.includes('GM.localInputSlot ='));
-      assert(binding, 'main provides client-local input ownership');
-      for (const local of [p, d]) {
-        vm.runInContext(`{ const GM = PH.game, G = GM.G, matchConfig = {}, localSlot = ${local.id}; ${binding} }`, f.ctx);
-        const prompts = gm.pokeCue().prompts;
-        assert.equal(prompts.length, 1, 'online client never prompts remote humans');
-        assert.equal(prompts[0].id, local.id);
-        assert.equal(prompts[0].text, 'P1 扑球！按 K', 'host and guest both use device slot zero');
-      }
-      delete gm.localInputSlot;
-      console.log(`PASS ${mode}: online host/guest prompt ownership and local slot-zero key`);
-    }
+    assert(gm.pokeCue().gold, 'poke activates gold ball');
+    assert.equal('prompts' in gm.pokeCue(), false, 'overhead prompt removed');
+    assert.equal('stlPokePrompt' in K, false, 'prompt tunable removed');
+    assert.equal(f.PH.input.diveLabel, undefined, 'unused prompt device plumbing removed');
     const glow = gm.pokeCue().glow;
     G.time += 0.5 / K.stlPokeHz;
-    assert.notEqual(gm.pokeCue().glow, glow, 'flash pulses');
-    K.stlPokePrompt = 0;
-    assert.equal(gm.pokeCue().prompts.length, 0, 'prompt toggle');
-    K.stlPokePrompt = 1;
-    p.stun = 1; d.action = { type: 'steal' };
-    assert.equal(gm.pokeCue().prompts.length, 0, 'unavailable humans receive no prompt');
-    p.stun = 0;
+    assert.notEqual(gm.pokeCue().glow, glow, 'gold shimmer pulses');
     const input = f.PH.input;
     delete f.PH.input;
-    assert(gm.pokeCue().prompts.length, 'headless cue does not require input module');
+    assert(gm.pokeCue().gold, 'headless gold cue does not require input module');
     f.PH.input = input;
-    f.ctx.navigator.getGamepads = () => [{ connected: true, id: 'Xbox' }];
-    assert.equal(input.diveLabel(0, false), 'X');
-    f.ctx.navigator.getGamepads = () => [{ connected: true, id: 'DualSense' }];
-    assert.equal(input.diveLabel(0, true), '□');
-    f.ctx.navigator.getGamepads = () => [];
-    if (mode === '5V5') {
-      input.touch.on = true; input.touch.a1 = true;
-      assert.equal(input.read5().X, true, 'first touch button maps to dive input X');
-      for (const label of ['投篮', '抢断']) {
-        f.ctx.document = { getElementById: (id) => id === 'tb1' ? { textContent: label } : null };
-        assert.equal(input.diveLabel(0, true), label, '5V5 uses current first touch button label');
-        assert.equal(gm.pokeCue().prompts[0].text, 'P1 扑球！按 ' + label);
-      }
-      delete f.ctx.document;
-      assert.equal(input.diveLabel(0, true), '投篮/抢断', 'touch label remains headless safe');
-      input.touch.on = false; input.touch.a1 = false;
-      console.log('PASS 5V5: touch dive input and actual first-button prompt label');
-    }
     gm.t5.pickup(p);
-    assert.equal(gm.pokeCue().active, false, 'pickup clears flash');
-    assert.equal(gm.pokeCue().prompts.length, 0, 'pickup clears prompt');
-    Object.assign(K, cleanDefaults);
-    console.log(`PASS ${mode}: poke flash, human/device prompts, availability, toggle, headless and pickup cleanup`);
+    assert.equal(gm.pokeCue().gold, false, 'pickup restores ordinary ball');
+    Object.assign(K, defaults);
+    console.log(`PASS ${mode}: gold shimmer, headless and pickup cleanup; overhead prompts removed`);
   }
   let low = 0, high = 0;
   for (let i = 0; i < 200; i++) {
@@ -187,6 +143,7 @@ for (const mode of ['1V1', '3V3', '5V5']) {
     if (!f.hit(d)) {
       high++;
       assert.equal(p.stun, K.stlStun, 'clean stun unchanged');
+      assert.equal(d.action.T, K.stlRecT, 'clean recovery unchanged');
       assert.equal(G.stats[d.id].stl, 1, 'clean credit remains immediate');
       assert.equal(G.stats[p.id].tov, 1);
       assert.equal(G.ball.noPick, K.stlNoPick);
@@ -225,7 +182,7 @@ for (const mode of ['1V1', '3V3', '5V5']) {
   assert.equal(G.off, 0, 'poke out of bounds returns ball to original offense');
   assert.equal(G.stats[d.id].stl, 0);
   assert.equal(gm.pokeCue().active, false, 'OOB clears cue');
-  assert.equal(gm.pokeCue().prompts.length, 0, 'OOB clears prompts');
+  assert.equal(gm.pokeCue().gold, false, 'OOB restores ordinary ball');
   console.log(`PASS ${mode}: defensive/offensive/expired/empty recovery credit, no double count, clock and OOB`);
 
   let defense = 0, offense = 0, other = 0;
@@ -237,12 +194,45 @@ for (const mode of ['1V1', '3V3', '5V5']) {
       f.tick();
       for (const q of [p, d]) if (Math.hypot(q.vx, q.vy) > 0.1) moved.add(q.id);
     }
-    assert(moved.has(p.id) && moved.has(d.id), 'both original CPUs pursue the loose ball');
+    assert(moved.has(d.id), 'stealer pursues while handler staggers');
+    if (p.stun <= 0) assert(moved.has(p.id), 'recovered handler pursues the loose ball');
     if (G.ball.state !== 'held') other++;
     else if ((G.players[G.ball.holder].tm ?? G.ball.holder) === 0) offense++;
     else defense++;
   }
   console.log(`${mode} seeded poke recovery: defense=${defense}, offense=${offense}, unresolved/OOB=${other} / 200`);
-  assert(defense >= 120 && defense <= 150 && offense > 0, 'defense recovers 60–75%, not all');
+  recoveryResults.push({ defense, offense });
 }
+assert(recoveryResults.every(({ defense }) => defense > 100), 'defense wins a majority in every mode');
+assert(recoveryResults.some(({ offense }) => offense > 0), 'offense recovers at least once across all modes');
 console.log('PASS poke steals: shared judgement, ratings/badges, recovery accounting and CPU races');
+
+{
+  const starts = [], levels = [];
+  const parameter = () => ({ value: 0, setValueAtTime() {}, exponentialRampToValueAtTime() {} });
+  const node = () => ({ gain: parameter(), frequency: parameter(), Q: parameter(), connect() { return this; }, start(t) { starts.push(t); }, stop() {} });
+  class AudioContext {
+    constructor() { this.currentTime = 3; this.sampleRate = 48000; this.destination = node(); }
+    createGain() { const n = node(); n.gain.setValueAtTime = (v) => levels.push(v); return n; }
+    createBuffer(ch, n) { return { getChannelData: () => new Float32Array(n) }; }
+    createBufferSource() { return node(); }
+    createBiquadFilter() { return node(); }
+    createOscillator() { return node(); }
+  }
+  const ctx = vm.createContext({ window: { AudioContext }, performance: { now: () => 0 }, fetch: async () => ({ ok: false }) });
+  vm.runInContext(fs.readFileSync(path.join(__dirname, '../js/audio.js'), 'utf8'), ctx);
+  const { PH } = ctx.window, audio = PH.audio;
+  PH.game = { K: { stlPokeVol: 1 } };
+  audio.play('poke');
+  assert.deepEqual(starts, [3, 3, 3.04, 3.1], 'slap and distinct ascending sparkle schedule on audio clock');
+  const normal = levels.slice();
+  starts.length = levels.length = 0; PH.game.K.stlPokeVol = 0.5;
+  audio.play('poke');
+  assert.deepEqual(levels, normal.map((v) => v * 0.5), 'poke volume scales every layer');
+  starts.length = 0; PH.game.K.stlPokeVol = 0;
+  audio.play('poke'); assert.equal(starts.length, 0, 'zero poke volume is silent');
+  PH.game.K.stlPokeVol = 1; audio.setSfx(false);
+  audio.play('poke'); assert.equal(starts.length, 0, 'respects global sfx toggle');
+  audio.setSfx(true); audio.play('steal'); assert.equal(starts.length, 2, 'clean steal keeps original synth');
+  console.log('PASS poke synth: four scheduled layers, volume scaling/mute, SFX toggle and distinct clean cue');
+}

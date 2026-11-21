@@ -181,7 +181,7 @@
     T.pick = null;
   }
   function startPick(s, h, d) {
-    const P = T.pick = { s, h, d, phase: s.ctrl === 'cpu' ? 'approach' : 'set', at: G.time, side: s.x < d.x ? -1 : 1, pop: shooter(s) };
+    const P = T.pick = { s, h, d, offball: !h.hasBall, phase: s.ctrl === 'cpu' ? 'approach' : 'set', at: G.time, side: s.x < d.x ? -1 : 1, pop: shooter(s) };
     s.cutUntil = 0;
     if (P.phase === 'set') plant(s);
     T.nextPick = G.time + 4.5;
@@ -195,21 +195,21 @@
     const P = T.pick;
     if (P) {
       const { s, d } = P;
-      if (h !== P.h || !canScreen(s) || (P.phase !== 'roll' && dist(h, d) > 4)) { clearPick(); return; }
+      if ((P.offball ? !h || P.h.hasBall || h.tm !== P.h.tm : h !== P.h) || !canScreen(s) || (P.phase !== 'roll' && dist(P.h, d) > 4)) { clearPick(); return; }
       if (P.phase === 'approach') {
         if (dist(s, pickSpot(P)) < 0.36) { P.phase = 'set'; P.at = G.time; plant(s); }
         else if (G.time - P.at > 1.7) clearPick();
       } else if (P.phase === 'set') {
         if (!P.hit && G.time - P.at >= 0.12 && d.z < 0.1 && !d.off && d.stun <= 0 && dist(s, d) < 0.94) {
           const dx = s.x - d.x, dy = s.y - d.y, approach = d.vx * dx + d.vy * dy;
-          if (approach > 0.2 || (dist(h, d) > 0.85 && (h.x - d.x) * dx + (h.y - d.y) * dy > 0.18)) {
+          if (approach > 0.2 || (dist(P.h, d) > 0.85 && (P.h.x - d.x) * dx + (P.h.y - d.y) * dy > 0.18)) {
             const fight = 0.40 * (d.r.lat || d.r.spd) + 0.35 * d.tendency.help + 0.25 * d.r.def;
             const strength = (0.6 * s.r.str + 0.4 * s.tendency.move) * (PH.B5 ? PH.B5.scrK(s, d) : 1);
             const speed = clamp(0.24 + 0.62 * fight - 0.18 * strength, 0.28, 0.82);
             d.vx *= speed; d.vy *= speed;
             d.screenSlow3 = G.time + clamp(0.72 + 0.24 * strength - 0.64 * fight, 0.2, 0.8);
             if (PH.B5) {
-              PH.B5.scrT(s, d, 1, 'pnr');
+              PH.B5.scrT(s, d, 1, P.offball ? 'off' : 'pnr');
               const hit = { scrD: d.screenSlow3 - G.time };
               PH.B5.scrD(s, d, 1, hit);
               d.screenSlow3 = G.time + hit.scrD;
@@ -218,6 +218,7 @@
             }
             d.screenSpeed3 = speed;
             P.hit = true; P.release = G.time + 0.24;
+            A.legendScreen(s, d, P.h);
             A.float('掩护', s, '#9ef0ff', s.ctrl !== 'cpu' ? 1 : 0);
             const other = [...T.marks.keys()].find((m) => T.marks.get(m) === s);
             if (!T.cover && T.marks.get(d) === h && other && available(other) && G.time >= T.switchAt &&
@@ -228,7 +229,7 @@
         if (G.time - P.at >= 0.95 || P.hit && G.time >= P.release ||
           s.ctrl !== 'cpu' && G.time - P.at > 0.25 && input && Math.hypot(input.mx || 0, input.my || 0) > 0.4) {
           s.screen3 = false;
-          if (s.ctrl === 'cpu') { P.phase = 'roll'; P.at = G.time; }
+          if (s.ctrl === 'cpu' || P.offball) { P.phase = P.offball ? 'curl' : 'roll'; P.at = G.time; }
           else clearPick();
         }
       } else if (G.time - P.at > 2) clearPick();
@@ -236,6 +237,10 @@
     }
     if (!h || G.needClear || G.time < T.nextPick || G.time - T.acquired < 0.6 ||
       (T.clock && G.shotClock < 4) || GM.distHoop(h) < 4.2 || Math.abs(h.x) > 5.3) return;
+    const rip = teams(h.tm).find(p => p.arch.key === 'rip' && !p.hasBall && !p.action);
+    const rd = rip && teams(1 - h.tm).find(p => p.opp === rip);
+    const rs = rd && nearest(teams(h.tm).filter(p => p !== rip && p !== h && p.ctrl === 'cpu' && canScreen(p)), rd);
+    if (rs && h.arch.key !== 'nash' && dist(rs, rd) < GM.K.lgScreenSeek) { startPick(rs, rip, rd); return; }
     const d = teams(1 - h.tm).find((m) => m.opp === h);
     if (!d || dist(d, h) > 2.8) return;
     const options = teams(h.tm).filter((p) => p.ctrl === 'cpu' && canScreen(p) && p.cutUntil <= G.time &&
@@ -288,17 +293,20 @@
   }
   function send(from, to, kind = 'chest') {
     if (!to || from === to || !from.hasBall || from.action || from.stun > 0 || G.phase !== 'live') return false;
+    const pocket = A.legendPocket(from, to), LK = GM.K;
+    if (pocket) kind = 'bounce';
     const b = G.ball, t = from.tendency, d = dist(from, to), profile = A.passProfiles[kind];
     const duration = Math.max(0.22, d / (profile.v * (0.83 + 0.35 * t.accuracy + 0.08 * t.pass)));
     const difficulty = kind === 'alley' ? 1.5 : kind === 'chest' ? 0.7 : 1.1;
-    const error = (1 - t.accuracy) ** 2 * (0.45 + d * 0.09) * difficulty * (1.2 - 0.35 * t.passIQ) * (0.55 + 0.9 * A.rnd());
+    const error = (1 - t.accuracy) ** 2 * (0.45 + d * 0.09) * difficulty * (1.2 - 0.35 * t.passIQ) * (0.55 + 0.9 * A.rnd()) * (pocket ? LK.lgNashError : 1);
     const angle = A.rnd() * Math.PI * 2;
-    const lead = duration * (0.55 + 0.4 * t.vision);
+    const lead = duration * (0.55 + 0.4 * t.vision) + (pocket ? LK.lgNashLead : 0);
     const badgeState = PH.B5 ? PH.B5.passState(from, to, kind) : null;
     from.hasBall = false; from.post = false;
     from.face = Math.atan2(to.y - from.y, to.x - from.x);
     T.pass = { from, to, kind, x: b.x, y: b.y, z: Math.max(0.6, b.z), t: 0, duration, error,
       tx: to.x + (to.vx || 0) * lead + Math.cos(angle) * error, ty: to.y + (to.vy || 0) * lead + Math.sin(angle) * error };
+    if (pocket) { T.pass.skill = 'nash'; A.fireSkill(from); }
     if (PH.B5) {
       Object.assign(T.pass, { badgeState, T: duration, er: error });
       PH.B5.pass(from, to, kind, T.pass, duration, null);
@@ -353,6 +361,7 @@
       if (b.z > to.z + to.h * 0.85) to.catchAt = G.time;
       to.passCatchT = G.time;
       to.catchT = G.time;
+      A.legendCatch(to);
       to.passQuality = clamp(0.65 + (from.tendency.accuracy - 0.65) * 0.7 - 0.32 * miss - 0.42 * P.error, 0.1, 1);
       T.lastPass = { from, to, at: G.time };
       if (kind === 'alley' && !G.needClear && !to.action && !to.stun && GM.distHoop(to) < 4.2) {
@@ -362,6 +371,10 @@
   }
   function cpu(p, h, dt) {
     if (G.phase !== 'live') return A.zeroInp();
+    if (T.pick?.offball && T.pick.h === p) {
+      const P = T.pick, side = Math.sign(p.x) || 1;
+      return P.hit ? go(p, side * GM.K.lgCurlX, hoop.y - GM.K.lgCurlY, true) : go(p, P.s.x, P.s.y, true);
+    }
     const t = p.tendency, b = G.ball, team = p.tm === G.off;
     if (p === h) {
       if (!p.action && !p.stun && G.time > T.nextPass && G.time - T.acquired > 0.3 && (!T.clock || G.shotClock > 2.2)) {
@@ -433,8 +446,12 @@
         const inp = T.inputs[p.id], pass = !!(inp && inp.pass && p.ctrl !== 'cpu');
         const screen = !!(inp && inp.screen && p.ctrl !== 'cpu');
         if (screen && !T.screenPrev[p.id] && h && p.tm === h.tm && !p.hasBall && !G.needClear && canScreen(p) && (!T.pick || (T.pick.phase === 'approach' && T.pick.s.ctrl === 'cpu'))) {
-          const d = teams(1 - h.tm).find((m) => m.opp === h);
-          if (d && dist(p, d) < 1.8 && dist(h, d) < 3.5) { clearPick(); startPick(p, h, d); }
+          const rip = teams(h.tm).find(q => q !== p && !q.hasBall && q.arch.key === 'rip');
+          const rd = rip && teams(1 - h.tm).find(q => q.opp === rip);
+          const hd = teams(1 - h.tm).find(q => q.opp === h);
+          const target = rd && (!hd || dist(p, rd) < dist(p, hd)) ? rip : h;
+          const d = target === rip ? rd : hd;
+          if (d && dist(p, d) < 1.8 && dist(target, d) < 3.5) { clearPick(); startPick(p, target, d); }
         }
         T.screenPrev[p.id] = screen;
         if (pass && !T.prev[p.id] && h && p.tm === h.tm) {

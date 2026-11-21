@@ -78,7 +78,14 @@
     whistle: () => { tone(2300, 0.22, 'square', 0.1); tone(2350, 0.22, 'sine', 0.1); },
     squeak: () => { tone(1900, 0.07, 'sine', 0.07, 0, 2600); },
     steal: () => { tone(500, 0.06, 'square', 0.16, 0, 900); noise(0.05, 0.15, 3000, 2); },
-    poke: () => { const t = ac.currentTime; noise(0.06, 0.18, 3000, 2, t); tone(900, 0.06, 'triangle', 0.12, t, 1500); tone(1800, 0.1, 'sine', 0.1, t + 0.05); },
+    poke: () => {
+      const t = ac.currentTime, v = PH.game?.K.stlPokeVol ?? 1;
+      if (v <= 0) return;
+      noise(0.1, 0.45 * v, 2200, 0.8, t, 700);
+      tone(600, 0.1, 'square', 0.2 * v, t, 1200);
+      tone(1450, 0.16, 'triangle', 0.22 * v, t + 0.04);
+      tone(2200, 0.18, 'sine', 0.16 * v, t + 0.1);
+    },
     interceptGood: () => { const t = ac.currentTime; [659, 880, 1109, 1319].forEach((f, i) => tone(f, 0.13, 'square', 0.14, t + i * 0.065)); noise(0.08, 0.12, 3500, 1, t); },
     interceptBad: () => { const t = ac.currentTime; [392, 294, 196].forEach((f, i) => tone(f, 0.18, 'sawtooth', 0.14, t + i * 0.09, f * 0.85)); noise(0.1, 0.12, 500, 1, t); },
     block: () => { noise(0.12, 0.35, 500, 0.8); tone(110, 0.12, 'square', 0.2, 0, 60); },
@@ -288,7 +295,7 @@
   const voIdx = {}, voSpr = {};
   const voReady = fetch('vo/manifest.json' + (window.__V__ !== undefined ? '?v=' + window.__V__ : '')).then((r) => r.ok ? r.json() : null).then((j) => {
     voM = j && j.voices;
-    if (voM) for (const k in voM) { const V = voM[k]; for (const ev in V.lines) for (const it of V.lines[ev]) voIdx[it.f] = { s: V.s, it }; }
+    if (voM) for (const k in voM) { const V = voM[k]; for (const ev in V.lines) for (const it of V.lines[ev]) if (V.s && it.n > 0) voIdx[it.f] = { s: V.s, it }; }
     return voM;
   }).catch(() => null);
   function voFile(s) { if (!voSpr[s]) voSpr[s] = fetch('vo/' + s).then((r) => r.ok ? r.arrayBuffer() : null).catch(() => { delete voSpr[s]; return null; }); return voSpr[s]; }
@@ -363,6 +370,12 @@
   }
   // 指定一条语音（开场对话用）：voLine 按序号取条目，voSay 打断当前语音直接播
   function voLine(key, ev, i, skip) {
+    const text = {
+      tmac: { dom: '半步就行。剩下的是出手。', taunt: '我不后仰，你也得先跟上。' },
+      nash: { dom: '你盯我，顺下的那位谁管？', taunt: '你没跟出来？那这球我自己投。' },
+      rip: { dom: '你跟我跑就好。一会儿还有一圈。', taunt: '我在肘区等你，别迟到。' }
+    };
+    if (text[key] && text[key][ev] && !(voM && voM[key])) return { f: key + '_' + ev + '_text', t: text[key][ev], d: 3 };
     const lines = voM && voM[key] && voM[key].lines;
     if (ev === 'intro' && !lines?.intro?.length) {
       for (const f of VO_INTRO[key]?.[i] || []) { if (voIdx[f] && !skip?.has(f)) return voIdx[f].it; }
