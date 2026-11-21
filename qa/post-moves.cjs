@@ -9,7 +9,7 @@ ctx.window = ctx;
 vm.runInContext('Math.random = () => 0.5;', ctx);
 for (const name of ['tune', 'render', 'input', 'roster', 'r5', 'game', 'b5', 'team5']) {
   let source = fs.readFileSync(path.join(__dirname, '../js', name + '.js'), 'utf8');
-  if (name === 'game') source = source.replace('PH.game = {', 'PH.postQA = { updatePlayer, aiInput, postFollow, postMoveOf, MKF }; PH.game = {');
+  if (name === 'game') source = source.replace('PH.game = {', 'PH.postQA = { updatePlayer, aiInput, postFollow, postMoveOf, poseTarget, MKF }; PH.game = {');
   if (name === 'team5') source = source.replace('doPass: doPass,', 'doPass: doPass, qaHumanInp: humanInp, qaStick: stick,');
   vm.runInContext(source, ctx, { filename: name + '.js' });
 }
@@ -138,6 +138,23 @@ for (const v of ['postfade1', 'postfront', 'spinfade', 'shimshot', 'drophook']) 
   dbg.startShot(p, zero(), 'a1', 'turn'); assert(fast < p.action.ideal);
 }
 console.log('PASS post shots: finite probabilities, one-leg risk/reward, shimmy advantage, front release speed and live l1 tuning');
+
+{
+  const { p } = fixture();
+  dbg.startShot(p, zero(), 'a1', 'postfade1');
+  p.anim = 'shoot'; p.animT = 0;
+  const gather = qa.poseTarget(p);
+  p.animT = p.action.ideal * 0.7;
+  const air = qa.poseTarget(p);
+  assert(gather.lB < air.lB && air.lB > air.rB + 0.8 && air.lean < 0);
+  dbg.startShot(p, zero(), 'a1', 'shimshot');
+  p.animT = p.action.jT * 0.5;
+  const fake = qa.poseTarget(p);
+  p.animT = p.action.ideal;
+  const release = qa.poseTarget(p);
+  assert(Math.abs(fake.tilt) > 0.15 && Math.abs(release.tilt) < 0.01);
+}
+console.log('PASS post poses: one-leg lift builds after gather; shimmy shoulder fake settles before release');
 
 const variants = new Set();
 for (let seed = 1; seed <= 160; seed++) {

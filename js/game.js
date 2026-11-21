@@ -4338,7 +4338,7 @@
     else if (a && a.type === 'move' && a.kind !== 'postspin') { let dv = (pl.speed > 1 ? Math.atan2(pl.vy, pl.vx) : hA) - hA; while (dv > Math.PI) dv -= Math.PI * 2; while (dv < -Math.PI) dv += Math.PI * 2; tf = hA + clamp(dv, -1.2, 1.2) * (a.kind === 'stepback' ? 0 : 0.3); }
     else if (a && a.type === 'dive') tf = Math.atan2(a.uy, a.ux);
     else if (a && a.type === 'shot' && a.V.hook) tf = hA + (a.hs || 1) * Math.PI / 2;
-    else if (a && a.type === 'shot' && a.V.post) { const u = sm(clamp(a.t / a.ideal, 0, 1)); tf = a.v === 'spinfade' ? hA + a.postSide * Math.PI * (1 - u) : a.v === 'postfront' ? hA - a.postSide * Math.PI * (1 - u) : a.v === 'shimshot' ? hA + 0.3 * Math.sin(u * Math.PI * 2) : hA; snap = true; }
+    else if (a && a.type === 'shot' && a.V.post) { const u = sm(clamp(a.t / a.ideal, 0, 1)); tf = a.v === 'spinfade' ? hA + a.postSide * (Math.PI * (1 - u) + 0.5 * u) : a.v === 'postfront' ? hA - a.postSide * Math.PI * (1 - u) : a.v === 'postfade1' ? hA + a.postSide * 0.65 : a.v === 'shimshot' ? hA + a.postSide * 0.65 * Math.sin(Math.PI * clamp(a.t / a.jT, 0, 1)) : hA; snap = true; }
     else if (a && a.type === 'dunk' && a.v === 'reverse' && a.t > a.T * 0.3) tf = hA + Math.PI;
     else if (a && a.type === 'dunk' && a.v === '360' && !a.inSteps) { tf = hA + a.spD * Math.PI * 2 * sm(clamp(a.t / (a.T * 0.75), 0, 1)); snap = true; }
     else if (a && a.type === 'layup' && a.v === 'reverse' && !a.inSteps && a.t > 0.12) tf = hA + Math.PI;
@@ -4496,7 +4496,11 @@
         else sH({ lean: 0, lA: 0.9, lB: 1.1, rA: 0.02, rB: 0.08, aRp: 2.9, aRq: 0.55, aRe: a && a.released ? 0.1 : 0.5, aLp: 1.2, aLq: 1.0, aLe: 0.9 });
       } else {
         const F = (a && a.F) || SF.std, jT = (a && a.jT) || K.shotJump, TI = a ? a.ideal : 0.5, rel = a && a.released;
-        const P = (o) => { if (a && a.v === 'postfade1') { o.lA = 1.1; o.lB = 1.6; o.rA = 0.05; o.rB = 0.12; o.tilt = 0.12 * a.postSide; } if (F.push) { o.aLp = o.aRp - 0.05; o.aLe = o.aRe; o.aLq = o.aRq; } if (a && a.lefty) set(mir(o)); else set(o); };
+        const P = (o) => {
+          if (a && a.v === 'postfade1') { const lift = sm(clamp((t - jT * 0.5) / Math.max(0.05, jT), 0, 1)); o.lA = lerp(o.lA, 1.1, lift); o.lB = lerp(o.lB, 1.6, lift); o.rA = lerp(o.rA, 0.05, lift); o.rB = lerp(o.rB, 0.12, lift); o.tilt = 0.12 * a.postSide * lift; }
+          if (a && a.v === 'shimshot') { const fake = Math.sin(Math.PI * clamp(t / jT, 0, 1)); o.tilt = 0.2 * a.postSide * fake; o.lean += 0.15 * fake; o.aLq += 0.5 * fake; o.aRq += 0.5 * fake; }
+          if (F.push) { o.aLp = o.aRp - 0.05; o.aLe = o.aRe; o.aLq = o.aRq; } if (a && a.lefty) set(mir(o)); else set(o);
+        };
         if (t < jT) { const u = t / jT, dp = F.dip; P({ lean: (fd ? -0.05 : 0.1) + F.lean * 0.5, lA: 0.5 * u * dp, lB: 1.0 * u * dp, rA: 0.5 * u * dp, rB: 1.0 * u * dp, aLp: 0.9 + 0.6 * u, aLe: 1.7, aRp: 0.9 + 0.7 * u, aRe: 1.75, aLq: 0.1 + F.q * 0.5, aRq: 0.1 + F.q * 0.5 }); }
         else if (a && !rel) {
           const u = clamp((t - jT) / Math.max(0.05, TI - jT), 0, 1), w = F.two ? clamp(u / 0.45, 0, 1) : u, ww = w * w * (3 - 2 * w);
