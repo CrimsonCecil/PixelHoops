@@ -702,16 +702,18 @@ console.log('PASS: a CPU honors an open call according to pass IQ, vetoes a bloc
   vm.runInContext('skipReplay()', ctx);
   assert.equal(G.replay.skip, true);
   run(1);
-  assert(replay.view && replay.wipeOut > 0, 'skip starts the exit wipe rather than cutting immediately');
-  for (let i = 0; i < 30 && replay.view; i++) run(1);
+  assert.equal(G.replay, replay, 'skip starts the camera return rather than ending immediately');
+  assert.equal(replay.returnT, 0);
   assert.equal(replay.view, null);
-  assert.equal(Gm.replayFlow.cover(replay), 1, 'cut back to live behind the closed wipe');
+  run(18);
+  assert(replay.returnT > 0 && replay.returnT < 1);
+  assert.equal(Gm.replayFlow.cover(replay), 0, 'no wipe or logo on the way out');
   run(24);
   assert.equal(G.replay, null);
   run(75);
   assert.equal(G.off, 1);
   assert.equal(G.score[0], 3);
-  console.log('PASS: a 3V3 three-pointer waits, wipes into the replay, and wipes out when skipped.');
+  console.log('PASS: a 3V3 three-pointer waits, wipes in, and returns to the live camera when skipped.');
 }
 
 for (const human of [0, -1]) {
