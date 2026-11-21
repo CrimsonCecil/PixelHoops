@@ -416,13 +416,13 @@ console.log('PASS seeded AI post possessions choose ' + [...variants].sort().joi
 let armFrames = 0, maxArmRatio = 0;
 const distance3 = (a, b) => Math.hypot(...a.map((v, i) => v - b[i]));
 function checkArms(p) {
-  const before = JSON.stringify(p.pose), natural = ctx.PH.rig(p, p.pose, false, p.col.body), k = ctx.PH.postVisualRig(p);
+  const before = JSON.stringify(p.pose), natural = ctx.PH.rig({ ...p, sq: 1, armS: null }, { ...p.pose, reachL: 1, reachR: 1 }, false, p.col.body), k = ctx.PH.postVisualRig(p);
   for (const side of ['L', 'R']) {
     const upper = distance3(natural['sh' + side], natural['el' + side]), fore = distance3(natural['el' + side], natural['hand' + side]);
     const ratio = distance3(k['sh' + side], k['hand' + side]) / (upper + fore);
     assert(Number.isFinite(ratio) && ratio <= 1 + 1e-9, `${G.mode} ${p.arch.key} shoulder-hand reach ${ratio}`);
-    assert(Math.abs(distance3(k['sh' + side], k['el' + side]) - upper) < 1e-9, 'Upper arm must retain its posed length');
-    assert(Math.abs(distance3(k['el' + side], k['hand' + side]) - fore) < 1e-9, 'Forearm must retain its posed length');
+    assert(Math.abs(distance3(k['sh' + side], k['el' + side]) - upper) < 1e-9, 'Upper arm must retain its normal length');
+    assert(Math.abs(distance3(k['el' + side], k['hand' + side]) - fore) < 1e-9, 'Forearm must retain its normal length');
     maxArmRatio = Math.max(maxArmRatio, ratio);
   }
   assert.equal(JSON.stringify(p.pose), before, 'Visual IK must not mutate gameplay pose or hand targets');
@@ -447,7 +447,8 @@ for (const mode of ['2p', 't5']) for (const arch of ['embiid', 'jokic']) {
   const { p, d } = fixture(mode, 4, arch);
   for (const q of [p, d]) {
     delete q.pose.passHands; q.grip = null; q.hasBall = false; q.armS = null; q.anim = 'idle';
-    assert.deepEqual(ctx.PH.postVisualRig(q), ctx.PH.rig(q, q.pose, false, q.col.body), 'No hand target leaves the natural rig unchanged');
+    assert.deepEqual(ctx.PH.postVisualRig(q).pelvis, ctx.PH.rig(q, q.pose, false, q.col.body).pelvis, 'Visual limb bounds leave the root unchanged');
+    checkArms(q);
     const k = ctx.PH.rig(q);
     q.pose.passHands = { L: k.handL.slice(), R: k.handR.slice(), follow: 0 };
     checkArms(q);
