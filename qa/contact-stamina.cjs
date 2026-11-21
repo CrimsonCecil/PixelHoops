@@ -11,7 +11,7 @@ function fixture(baseline = false) {
   ctx.PH = { input: { endTick() {}, read: () => ({}) } };
   for (const name of ['tune', 'render', 'roster', 'r5', 'game']) {
     let source = baseline && name === 'game'
-      ? execFileSync('git', ['show', 'origin/main:js/game.js'], { cwd: root, encoding: 'utf8' })
+      ? execFileSync('git', ['show', 'dc69df3^:js/game.js'], { cwd: root, encoding: 'utf8' })
       : fs.readFileSync(path.join(root, 'js', name + '.js'), 'utf8');
     if (name === 'game') source = source.replace('PH.game = {', 'PH.contactQA = { collide, ctPow }; PH.game = {')
       .replace('bodyCost(hd, 0.45', 'window.postAdv = df2; bodyCost(hd, 0.45');
