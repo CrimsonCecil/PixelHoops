@@ -314,7 +314,7 @@
     if (e.key === 'Enter') { e.preventDefault(); roomAction(true); }
   });
   function refreshMenu() {
-    document.querySelectorAll('#menu .seg').forEach((seg) => {
+    document.querySelectorAll('#menu .seg, #set-rules .seg').forEach((seg) => {
       const k = seg.getAttribute('data-opt');
       seg.querySelectorAll('button').forEach((b) => {
         const on = String(opts[k]) === b.getAttribute('data-v');
@@ -324,30 +324,29 @@
     const tr = opts.mode === 'train', t5 = opts.mode === 't5', t3 = opts.mode === 't3', online = opts.mode === 'online', setup = !t3, guest = room.role === 'guest';
     show('row-opponent', opts.format === 'duel');
     show('lobby3', t3); show('menu-rooms', t3 || online);
-    for (const id of ['row-info', 'arch-desc']) show(id, setup);
+    show('arch-desc', setup);
     show('btn-start', !guest && (!online || room.role === 'host' && room.links.has(1)));
     $('row-diff').classList.toggle('hidden', opts.mode !== 'cpu' && !t5 && !t3);
-    for (const id of ['row-fb', 'row-p1', 'row-p2']) show(id, setup && !t5);
-    show('row-intro', !t5 && opts.mode !== 'train');
-    for (const id of ['row-qlen', 'row-teams', 'row-side']) $(id).classList.toggle('hidden', !t5);
-    for (const id of ['row-target', 'row-clock']) show(id, !tr && !t5);
-    show('row-glen', !tr && !t5 && !t3);
+    for (const id of ['row-p1', 'row-p2']) show(id, setup && !t5);
+    for (const id of ['row-teams', 'row-side']) $(id).classList.toggle('hidden', !t5);
+    const clkS = opts.clock ? opts.clock + ' 秒进攻' : '不限进攻';
+    const lenS = opts.glen ? Math.round(opts.glen / 60) + ' 分钟' : '不限时';
     if (t5) { refresh5(); return; }
     if (t3) {
       refreshLobby();
       $('btn-start').textContent = '开始';
-      $('menu-foot').textContent = '先到目标分获胜。点击切换身份；无人加入的位置由电脑补齐。';
+      $('menu-foot').textContent = '先到 ' + opts.target + ' 分获胜 · ' + clkS + ' · 点击切换身份，无人位置电脑补齐。';
       return;
     }
     $('lab-p1').textContent = opts.mode === '2p' ? '玩家 1' : '你的球员';
     $('lab-p2').textContent = opts.mode === '2p' ? '玩家 2' : tr ? '假人体型' : '对手';
     $('btn-start').textContent = tr ? '进入训练场' : '开始比赛';
-    $('menu-foot').textContent = tr ? '训练场：无比分无时限，可设置假人防守方式，并现场调整球员能力和判定参数。' : online ? '建房间并分享房间号；对手加入后，由房主开始比赛。' : '规则：2 分 / 3 分，先到目标分且领先 2 分获胜，失分方球权，抢到对方的球要先带出三分线。';
+    $('menu-foot').textContent = tr ? '训练场：无比分无时限，可设置假人防守方式，比赛中按 Tab 开关训练参数面板。' : online ? '建房间并分享房间号，对手加入后由房主开始 · ' + opts.target + ' 分制 · ' + clkS + '。' : '规则：先到 ' + opts.target + ' 分（领先 2 分胜）· ' + clkS + ' · ' + lenS + ' · 失分方球权，抢断需出三分线。';
     const a = GM.ARCH[opts.arch0];
     pickBtn('pick0', opts.arch0); pickBtn('pick1', opts.arch1);
     $('arch-desc').textContent = a.full + '：' + a.desc + (a.skill ? '。必杀技「' + a.skill.name + '」，条件和效果见“更换”。' : '。');
   }
-  document.querySelectorAll('#menu .seg button').forEach((b) => b.addEventListener('click', () => {
+  document.querySelectorAll('#menu .seg button, #set-rules .seg button').forEach((b) => b.addEventListener('click', () => {
     const k = b.parentElement.getAttribute('data-opt'), v = b.getAttribute('data-v');
     opts[k] = k === 'diff' || k === 'target' || k === 'clock' || k === 'glen' || k === 'qlen' || k === 'side' ? +v : v; if (k === 'fb') { cardId = -1; }
     if (k === 'format' || k === 'opponent') { rooms.close(); menuStatus(''); }
@@ -425,19 +424,21 @@
     hintKey = ''; cardId = -1; lastClock = ''; lastTB2 = ''; pcards();
   }
   function setPause(on) { if (screen === 'play5') { if (PH.T5.T.phase === 'over') return; if (PH.box5.isOpen()) { PH.box5.close(); b5Pause = false; } } else if (screen !== 'play' || G.phase === 'over') return; paused = on; clearPf(); setView('main'); show('pause', on); if (!on) show('help', false); }
-  // 设置菜单：一级（继续/镜头/声音/显示/说明/重开/退出），二级（声音、显示）
+  // 设置菜单：一级（主菜单：比赛规则/显示/声音/调参台；比赛中：继续/镜头/显示/声音/调参台/说明/重开/退出），二级（比赛规则/显示/声音/镜头）
   let setV = 'main';
   function setView(v) {
-    setV = v; for (const k of ['main', 'sound', 'disp', 'cam5']) show('set-' + k, k === v);
-    $('pause').classList.toggle('inmenu', screen === 'menu');   // 主菜单打开的设置只有声音 / 显示
-    // 5V5 的显示设置只有球员信息和配音（投篮反馈/回放/特写/热区是 1V1 的）
-    for (const id of ['btn-fb', 'btn-replay', 'btn-close', 'btn-hz']) show(id, screen !== 'play5');
-    $('set-title').textContent = v === 'sound' ? '声音' : v === 'disp' ? '显示' : v === 'cam5' ? '镜头' : '设置'; setLabels(); if (v === 'cam5') cam5Labels(); clearPf();
+    setV = v; for (const k of ['main', 'rules', 'sound', 'disp', 'cam5']) show('set-' + k, k === v);
+    $('pause').classList.toggle('inmenu', screen === 'menu');
+    $('pause').querySelector('.panel').classList.toggle('wide-sub', v === 'rules');
+    // 5V5 的显示设置只有球员信息（入场动画/投篮反馈/回放/特写/热区是 1V1/3V3 的）
+    for (const id of ['btn-intro', 'btn-fb', 'btn-replay', 'btn-close', 'btn-hz']) show(id, screen !== 'play5');
+    $('set-title').textContent = v === 'rules' ? '比赛规则' : v === 'sound' ? '声音' : v === 'disp' ? '显示' : v === 'cam5' ? '镜头' : '设置'; setLabels(); if (v === 'cam5') cam5Labels(); clearPf();
   }
   function setLabels() {
     $('btn-music').textContent = '音乐 ' + (PH.audio.musicOn ? '开' : '关');
     $('btn-sfx').textContent = '音效 ' + (PH.audio.sfxOn ? '开' : '关');
     $('btn-info').textContent = '球员信息 ' + (opts.info === 'show' ? '显示' : '隐藏');
+    $('btn-intro').textContent = '入场动画 ' + (opts.intro !== 'off' ? '开' : '关');
     $('btn-fb').textContent = '投篮反馈 ' + (opts.fb === 'detail' ? '详细' : '精简');
     $('btn-replay').textContent = '精彩回放 ' + (G.vopt.replay ? '开' : '关');
     $('btn-close').textContent = '特写镜头 ' + (G.vopt.close ? '开' : '关');
@@ -635,21 +636,29 @@
   const TUI = PH.TUNEUI, CSt = PH.CS;
   function tuneClose() { if (TUI && TUI.isOpen()) TUI.open(false, { silent: true }); }
   function cfgMenu() {
-    const sel = $('cfg-sel'); if (!sel || !CSt) return;
-    const S = CSt.S, cur = CSt.cur(), h = CSt.list().map((p) => '<option value="' + p.id + '"' + (p.id === cur.id ? ' selected' : '') + '>' + (p.id === S.def ? '★ ' : '') + p.name.replace(/[<&]/g, '') + '</option>').join('');
-    if (sel.innerHTML !== h) sel.innerHTML = h;
-    sel.value = cur.id;
+    const btn = $('btn-tune2'); if (!btn || !CSt) return;
+    const S = CSt.S, cur = CSt.cur();
+    btn.textContent = '调参台' + (cur && cur.name ? ' · ' + (cur.id === S.def ? '★ ' : '') + cur.name : '');
   }
   if (TUI && CSt && PH.TUNE) {
     TUI.wire(); CSt.on(cfgMenu); PH.TUNE.on((k) => { if (!k) cfgMenu(); }); cfgMenu();
-    $('cfg-sel').addEventListener('change', (e) => { CSt.select(e.target.value); PH.audio.play('ui'); e.target.blur(); });
-    $('btn-tune').addEventListener('click', () => { PH.audio.play('ui'); TUI.open(!TUI.isOpen(), { ctx: 'menu' }); });
     // 设置菜单里打开：先收起设置面板，关掉调参台后回到设置
-    $('btn-tune2').addEventListener('click', () => { show('pause', false); TUI.open(true, { ctx: 'pause', onClose: () => { if (paused && (screen === 'play' || screen === 'play5')) show('pause', true); } }); });
+    $('btn-tune2').addEventListener('click', () => {
+      const fromMenu = screen === 'menu';
+      PH.audio.play('ui');
+      show('pause', false);
+      TUI.open(true, {
+        ctx: fromMenu ? 'menu' : 'pause',
+        onClose: () => {
+          if ((fromMenu && screen === 'menu') || (!fromMenu && paused && (screen === 'play' || screen === 'play5'))) show('pause', true);
+        }
+      });
+    });
     // 训练场：调参台替换训练面板的位置（地板上画触发区域），关掉后恢复训练面板
     $('tr-tune').addEventListener('click', () => { show('train', false); TUI.open(true, { ctx: 'train', onClose: () => { if (screen === 'play' && G.mode === 'train' && panelOpen) { show('train', true); buildPanel(); } } }); });
-  } else { for (const id of ['row-cfg', 'btn-tune2', 'tr-tune']) { const e = $(id); if (e) e.classList.add('hidden'); } }
+  } else { for (const id of ['btn-tune2', 'tr-tune']) { const e = $(id); if (e) e.classList.add('hidden'); } }
   $('btn-help2').addEventListener('click', openHelp);
+  $('btn-rules').addEventListener('click', () => setView('rules'));
   $('btn-sound').addEventListener('click', () => setView('sound'));
   $('btn-disp').addEventListener('click', () => setView('disp'));
   for (const b of document.querySelectorAll('#pause [data-back]')) b.addEventListener('click', () => setView('main'));
@@ -681,6 +690,7 @@
   $('btn-set').addEventListener('click', () => { PH.audio.play('ui'); menuSet(true); });
   $('btn-set-close').addEventListener('click', () => menuSet(false));
   $('btn-info').addEventListener('click', () => { toggleInfo(); setLabels(); });
+  $('btn-intro').addEventListener('click', () => { opts.intro = opts.intro === 'off' ? 'on' : 'off'; setLabels(); refreshMenu(); });
   const saveV = () => setLabels();
   $('btn-replay').addEventListener('click', () => { G.vopt.replay = !G.vopt.replay; saveV(); });
   $('btn-close').addEventListener('click', () => { G.vopt.close = !G.vopt.close; saveV(); });
@@ -1523,7 +1533,7 @@
     const lb = I.sysPressed('PadLB'), rb = I.sysPressed('PadRB'), rl = I.sysPressed('PadRLeft'), rr = I.sysPressed('PadRRight'), px = I.sysPressed('PadX');
     if (screen === 'tips') { if (esc || pb || ok) tipsExit(); I.clearSys(); return; }
     const root = navRoot();
-    if (screen === 'menu' && root && (root.id === 'menu' || root.id === 'picker')) {
+    if (screen === 'menu' && root && (root.id === 'menu' || root.id === 'picker' || root.id === 'pause')) {
       up = I.sysPressed('ArrowUp') || up; dn = I.sysPressed('ArrowDown') || dn; lf = I.sysPressed('ArrowLeft') || lf; rt = I.sysPressed('ArrowRight') || rt;
       const focused = document.activeElement;
       if ((ok || pa || up || dn || lf || rt) && root.contains(focused) && focused.matches(NAV_SEL) && focused.id !== 'room-code' && focused.offsetParent !== null && !root.querySelector('.pf')) navSet(root, focused);
@@ -1538,7 +1548,7 @@
     if (!$('help').classList.contains('hidden')) { if (esc || ok || pb) { show('help', false); clearPf(); } else if (pa) navClick(); }
     else if (!$('tpicker').classList.contains('hidden')) { if (pb || esc) closeTP(false); else if (pa || ok) navClick(); }
     else if (!$('picker').classList.contains('hidden')) { if (pb || esc) closePicker(false); else if (pa || ok) { const b = $('picker').querySelector('.pf'); if (b && b.hasAttribute('data-pk') && b.getAttribute('data-pk') === pkSel) closePicker(true); else navClick(); } }
-    else if (screen === 'menu' && !$('pause').classList.contains('hidden')) { if (setV !== 'main' && (esc || pb)) setView('main'); else if (esc || pb || ok) menuSet(false); else if (pa) navClick(); }
+    else if (screen === 'menu' && !$('pause').classList.contains('hidden')) { if (setV !== 'main' && (esc || pb)) setView('main'); else if (esc || pb) menuSet(false); else if (pa || ok) navClick(); }
     else if (screen === 'menu' && !$('qvol').classList.contains('hidden') && (esc || pb)) qvOpen(false);
     else if (screen === 'menu') { if (ps) startMatch(false); else if (pa || ok) navClick(); }
     else if (screen === 'play5') {
