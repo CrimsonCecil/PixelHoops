@@ -13,21 +13,24 @@
   // 每项：[字段, 组, 中文名, 默认, 最小, 最大, 步长, 说明（单位 / 效果，只在调参台显示）, mode]
   const TU = PH.TUNE || null;
   const TDEF = [
-    ['foulJump', 'rules', '跳投犯规基础倍率', 0.09, 0, 1, 0.01, '乘以超过阈值的干扰与能力倍率'],
-    ['foulInside', 'rules', '冲筐犯规基础倍率', 0.16, 0, 1, 0.01, '上篮、扣篮：乘以干扰、身体接触与能力倍率'],
-    ['foulContestMin', 'rules', '投篮犯规干扰阈值', 0.25, 0, 1, 0.01, '只有超过此值的干扰计入犯规概率，冲筐接触另计'],
+    ['foulJump', 'rules', '跳投犯规基础倍率', 0.15, 0, 1, 0.01, '乘以超过阈值的干扰与能力倍率'],
+    ['foulInside', 'rules', '冲筐犯规基础倍率', 0.22, 0, 1, 0.01, '上篮、扣篮：乘以干扰、身体接触与能力倍率'],
+    ['foulContestMin', 'rules', '投篮犯规干扰阈值', 0.2, 0, 1, 0.01, '只有超过此值的干扰计入犯规概率，冲筐接触另计'],
     ['foulBlock', 'rules', '封盖动作 犯规倍率', 1.6, 0, 4, 0.05, '防守人做出封盖动作时的干扰倍率'],
     ['foulBody', 'rules', '冲筐身体接触加成', 0.65, 0, 2, 0.05, '有终结路线身体接触时计入犯规压力'],
-    ['foulRating', 'rules', '投篮犯规能力系数', 1, 0, 3, 0.05, '进攻能力减去防守稳定性越大，越容易造犯规'],
+    ['foulRating', 'rules', '造犯规能力权重', 2.5, 0, 4, 0.05, '造犯规能力以 65 为基准，越高越容易在受干扰或有身体接触的出手时获判；0 表示不计进攻者属性'],
+    ['foulPace', 'rules', '罚球次数节奏调节', 0.6, 0, 1, 0.05, '前两次罚球前，对抗出手连续未吹时逐步提高概率；超过三次后逐步降低概率，避免比赛频繁暂停'],
     ['foulCharge', 'rules', '进攻犯规基础概率', 0.5, 0, 1, 0.01, '撞倒防守人且进攻方没有明显能力优势时'],
     ['foulChargeEdge', 'rules', '进攻犯规优势阈值', 0.08, 0, 1, 0.01, '超过此优势，撞倒防守人的进攻犯规概率下降'],
     ['foulChargeSlope', 'rules', '进攻犯规概率下降系数', 0.9, 0, 3, 0.05, '每单位能力优势扣掉的犯规概率'],
     ['foulChargeSkill', 'rules', '进攻犯规终结能力系数', 0.5, 0, 2, 0.05, '终结能力相对于内线防守在优势中所占的权重'],
     ['ftSetup', 'rules', '罚球站位准备时间', 0.6, 0, 2, 0.05, '秒：每次罚球前的准备时间'],
     ['ftBetween', 'rules', '罚球落地后停顿', 0.7, 0, 2, 0.05, '秒：非最后一罚落地后，交还罚球球权前的停顿'],
-    ['ftBase', 'rules', '罚球非完美基础命中率', 0.2, 0, 1, 0.01, '非完美命中率 = 基础 + 能力加成 − 时机惩罚'],
-    ['ftRating', 'rules', '罚球能力命中系数', 0.78, 0, 1, 0.01, '乘以罚球能力（没有专属值时用中投和三分平均）'],
-    ['ftTiming', 'rules', '罚球时机偏差惩罚', 0.65, 0, 1, 0.01, '越偏离绿区扣得越多'],
+    ['ftGreenBase', 'rules', '罚球绿区基础半宽', 0.008, 0, 0.08, 0.001, '秒：与能力加成相加，得到完美出手允许的提前或延后时长'],
+    ['ftGreenRating', 'rules', '罚球能力绿区系数', 0.03, 0, 0.1, 0.001, '秒：乘以罚球能力后加到绿区半宽；玩家和电脑共用'],
+    ['ftBase', 'rules', '罚球非完美基础命中率', 0.12, 0, 1, 0.01, '非完美命中率 = 基础 + 能力加成 − 时机惩罚'],
+    ['ftRating', 'rules', '罚球能力命中系数', 0.92, 0, 1, 0.01, '非完美出手时乘以罚球能力；玩家和电脑共用'],
+    ['ftTiming', 'rules', '罚球时机偏差惩罚', 0.5, 0, 1, 0.01, '越偏离最佳松手时机扣得越多'],
     ['ftCpuError', 'rules', '电脑罚球时机偏差', 0.12, 0, 0.3, 0.01, '秒：电脑松手时机相对绿区的最大偏差'],
     ['manuContest', 'lay', '妖刀 提前封堵干扰倍率', 0.65, 0.3, 1, 0.05, '倍率：第二步落地前已举手或起跳的防守人'],
     ['manuCpu', 'ai', '妖刀 电脑欧洲步偏好', 0.75, 0, 1, 0.05, '概率：可上篮时优先左手欧洲步'],
@@ -1404,6 +1407,8 @@
   // 参考 2K 属性体系：每项都接到具体玩法上；界面只给玩家看 7 个维度的总结，细项在“全部属性”里
   const ATTRS = [
     ['three', '三分', '三分命中率与绿区宽度', '投篮'], ['ocon', '进攻稳定性', '手感波动：连中 / 连铁后绿区变化越小越稳', '投篮'], ['mid', '中投', '中距离跳投、急停、漂移跳投', '投篮'], ['fade', '后仰', '后仰、转身、背身后仰跳投', '投篮'],
+    ['ft', '罚球', '1V1：能力越高，罚球绿区越宽，非完美出手也更容易命中；玩家与电脑共用判定', '投篮'],
+    ['drawFoul', '造犯规', '1V1：受干扰或对抗出手时，能力越高越容易获得罚球；空位出手不会凭空吹罚', '投篮'],
     ['close', '内线', '篮下 1.5 米内的强起、补篮、近距离上篮', '终结'], ['lay', '突破上篮', '跑动中的上篮、欧洲步、跳步、转身、反篮', '终结'], ['flo', '抛投', '抛投命中率', '终结'],
     ['dunk', '行进扣篮', '低于 50 跑动中不能扣；决定起跳距离、隔扣能力', '终结'], ['sdunk', '原地扣篮', '低于 50 篮下原地/背打不能扣；双手强扣', '终结'],
     ['post', '背打控制', '背打顶人效率、背打中不易被挤开', '背打'], ['hook', '勾手', '勾手命中率', '背打'],
@@ -1658,6 +1663,8 @@
   const R2K = (typeof window !== 'undefined' && window.PH && window.PH.R2K) || null;
   for (const k in ARCH) {
     const a = ARCH[k], row = R2K && R2K.P[k], q = {}; if (row) R2K.F.forEach((f, i) => { q[f] = row[i] / 100; });
+    const ft = R2K?.FT?.[k] || [78, 65];
+    a.ft = ft[0] / 99; a.drawFoul = ft[1] / 99;
     const hv = clamp(((a.bw || 1) - 0.85) / 0.95, 0, 1), d = (v) => Math.round(clamp(v, 0.25, 0.99) * 100) / 100;
     const agi = row ? 0.5 * q.agi + 0.5 * a.acc : a.acc, pd = row ? 0.5 * q.perD + 0.5 * a.def : a.def, vt = row ? 0.5 * q.vert + 0.5 * a.vert : a.vert;
     a.spdB = d(row ? q.spdB : 0.55 * a.spd + 0.45 * a.hnd - 0.04);
@@ -1917,7 +1924,7 @@
   function newTrainStats() { return { n: 0, made: 0, blocked: 0, sumC: 0, zones: { three: [0, 0], mid: [0, 0], lay: [0, 0] }, timing: [0, 0, 0, 0, 0], last: [] }; }
   function newGame(o) {
     o = o || {};
-    G.fouls = o.fouls !== false; G.ft = null;
+    G.fouls = o.fouls !== false; G.ft = null; G.ftTrips = 0; G.foulDrought = 0;
     G.bumpT = -9; G.postBumpT = -9; G.pushT = -9;
     G.tips = null; G.mode = o.mode || 'cpu'; G.diff = o.diff == null ? 1 : o.diff; G.target = o.target || 21; G.glen = G.mode === 'cpu' || G.mode === '2p' ? (o.glen || 0) : 0; G.gclock = G.glen; G.sd = false; G.gEnd = false; G.mp = -1; G.mpT = 0; G.clkTick = 99; G.fb = o.fb || 'simple'; G.bpops = []; G.shotN = 0; G.hero = null; G.cz = null; G.hlQ = null; G.rec = []; G.replay = null;
     const c0 = G.mode === 'demo' ? 'cpu' : 'p1', c1 = G.mode === '2p' ? 'p2' : 'cpu';
@@ -2112,14 +2119,19 @@
     const inside = kind !== 'shot', block = df.action?.type === 'block';
     const contact = inside && (a.cHit || a.cAir) && !a.thru;
     const pressure = Math.max(ci.c - K.foulContestMin, 0) * (block ? K.foulBlock : 1) + (contact ? K.foulBody : 0);
-    const draw = pl.r.drawFoul ?? (inside ? pl.r.close : pl.r.ocon);
-    const discipline = df.r.dcon;
-    const p = clamp((inside ? K.foulInside : K.foulJump) * pressure * (1 + K.foulRating * (draw - discipline)), 0, 1);
-    return p > 0 && rnd() < p;
+    const edge = Math.max(0.2, 1 + K.foulRating * (pl.r.drawFoul - 65 / 99) + 65 / 99 - df.r.dcon);
+    const pace = G.ftTrips < 2 ? 1 + K.foulPace * clamp(G.foulDrought - 1, 0, 6)
+      : 1 / (1 + K.foulPace * Math.max(0, G.ftTrips - 3));
+    const p = clamp((inside ? K.foulInside : K.foulJump) * pressure * edge * pace, 0, 1);
+    if (p <= 0) return false;
+    if (rnd() < p) return true;
+    if (G.ftTrips < 2) G.foulDrought++;
+    return false;
   }
   function awardFreeThrows(id, pts, made) {
     const df = G.players[1 - id];
     G.stats[df.id].pf = (G.stats[df.id].pf || 0) + 1;
+    G.ftTrips++; G.foulDrought = 0;
     G.ft = { id, index: 1, total: made ? 1 : pts };
     G.cel = null; G.hlQ = null;
     sfx('foulWhistle');
@@ -2170,9 +2182,9 @@
         advanceFreeThrowPrep(F, dt);
         return;
       }
-      const r = pl.r.ft ?? (pl.r.mid + pl.r.three) / 2;
-      const ideal = CFG.shotIdeal * formOf(pl).sp, span = ideal + 0.12;
-      const gw = greenWidth(pl, r, 0, 'mid') * 0.2 / span;
+      const ideal = CFG.shotIdeal * formOf(pl).sp;
+      const halfWidth = clamp(K.ftGreenBase + K.ftGreenRating * pl.r.ft, 0, Math.min(ideal, 0.22));
+      const span = ideal + Math.max(0.12, halfWidth), gw = halfWidth / span;
       const dip = freeThrowDip(F);
       pl.action = { type: 'shot', v: 'set', V: SV.set, F: formOf(pl), lefty: !!pl.arch.lefty, jT: ideal * 0.45, t: 0, ideal, ft: true,
         ftCatch: { T: 0.08 + 0.18 * dip },
@@ -2189,8 +2201,7 @@
     m.v = release / m.span;
     if (!a.ftCatch.done || (cpu ? a.t < a.cpuRelease : a.ftRelease == null && a.t < a.ideal + 0.22)) return;
     const e = Math.abs(release - a.ideal) / 0.2, green = Math.abs(m.v - m.ideal) <= m.gw;
-    const r = pl.r.ft ?? (pl.r.mid + pl.r.three) / 2;
-    const p = clamp(K.ftBase + K.ftRating * r - K.ftTiming * Math.min(1, e), 0, 1);
+    const p = clamp(K.ftBase + K.ftRating * pl.r.ft - K.ftTiming * Math.min(1, e), 0, 1);
     const made = green || rnd() < p, hp = heldShotPos(pl), T = 0.8;
     const tx = HOOP.x + (made ? 0 : (F.index % 2 ? 0.27 : -0.27)), ty = HOOP.y, tz = HOOP.z + 0.02;
     Object.assign(G.ball, { state: 'shot', holder: -1, x: hp.x, y: hp.y, z: hp.z, vx: (tx - hp.x) / T, vy: (ty - hp.y) / T, vz: (tz - hp.z + 0.5 * GB * T * T) / T, dead: true,
@@ -3539,7 +3550,13 @@
   function tkStart(pl) {
     const T = tkType(pl.arch), D = TKD[T];
     pl.tkOn = TK_T; pl.tk = 100; pl.rBase = pl.r; pl.tkT = T;
-    const r = Object.assign({}, pl.r); for (const t of ATTRS) { const k = t[0]; if (typeof r[k] === 'number' && k !== 'bw') r[k] = Math.min(0.99, r[k] + (D.keys.indexOf(k) >= 0 ? 20 : 5) / 99); } pl.r = r;
+    const r = Object.assign({}, pl.r);
+    for (const [k] of ATTRS) {
+      if (typeof r[k] !== 'number' || k === 'bw') continue;
+      const cap = k === 'ft' || k === 'drawFoul' ? 1 : 0.99;
+      r[k] = Math.min(cap, r[k] + (D.keys.includes(k) ? 20 : 5) / 99);
+    }
+    pl.r = r;
     sfx('badge'); sfx('combo'); flash('#ff8a2a', 0.18); shake(3);
     G.fx.rings.push({ x: pl.x, y: pl.y, z: 0.1, t: 0, T: 0.7, col: '#ff8a2a', R: 3.2 }, { x: pl.x, y: pl.y, z: 0.1, t: -0.15, T: 0.7, col: '#ffd24a', R: 2.2 });
     burst(pl.x, pl.y, 1.2, 40, ['#ff8a2a', '#ffd24a', '#ffffff'], 4, 0.6, 6, 1.3);
