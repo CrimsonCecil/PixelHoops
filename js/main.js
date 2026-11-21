@@ -2,7 +2,7 @@
 (function () {
   const PH = window.PH, GM = PH.game, G = GM.G, R = PH.render, CFG = GM.CFG, TR = G.train;
   const $ = (id) => document.getElementById(id);
-  const stage = $('stage'), canvas = $('game');
+  const stage = $('stage'), canvas = $('game'), replayWipe = $('replay-wipe');
   const opts = { format: 'duel', opponent: 'cpu', get mode() { return this.format === 'duel' ? this.opponent : this.format; }, diff: 1, target: 21, clock: 24, glen: 0, arch0: GM.ROSTER[(Math.random() * GM.ROSTER.length) | 0], arch1: 'random', fb: 'simple', info: 'show', home: 'LAL', away: 'BOS', qlen: 300, side: 0 };
   const lobbyRoles = { human: '你', cpu: '电脑', waiting: '等待玩家' };
   const lobby3 = ['curry', 'lebron', 'jokic', 'edwards', 'durant', 'giannis'].map((arch, i) => ({ arch, role: i === 0 ? 'human' : i % 3 === 2 ? 'waiting' : 'cpu' }));
@@ -604,7 +604,7 @@
         g('属性颜色', [['亮绿 90+', '顶级，带发光'], ['黄绿 80+', '优秀'], ['金黄 70+', '合格'], ['暗橙 60+', '偏弱'], ['暗红 60 以下', '短板']]) +
         g('比赛规则', [['目标分', '11 / 21 / 33 / 50 分，默认 21；必须领先 2 分才算赢，没拉开就一直打下去'], ['赛点', '某一方这一回合进一个三分就能赢时进入赛点：广告屏打出 MATCH POINT，观众起立，广告带上下沿按该队颜色闪，比分牌下方显示“赛点”'], ['比赛时间', '默认不限；可选 3 / 5 / 10 分钟，只在比赛进行中走表。最后 10 秒每秒读秒，时间到鸣笛：球在空中等它落地（压哨球算），领先方获胜；平分进加时，下一球定胜负'], ['进攻时间', '最后 5 秒每秒滴一声，最后 3 秒更急'], ['三分线外清球', '球权转换后要先把球带出三分线，三分线变红并流动提示，出线时闪一下绿色。没出线也可以投篮、突破，但进了不算，判违例，球权交给对方']]) +
         g('声音（设置 → 声音）', [['音量', '总音量、音乐、音效、语音四个滑条，50 是默认；默认值按离线测出来的响度配平，语音和普通音效差不多响，音乐垫在下面，球员说话时音乐自动压低'], ['动作演示', '选人界面右侧的运球、上篮动作和必杀技都能点，用这名球员本人演示']]) +
-        g('精彩回放与特写（设置 → 显示 里可关）', [['特写', '精彩瞬间镜头推近；越精彩推得越近、停得越久'], ['回放', '每个回合里最精彩的一球，死球后立即慢放回放一次，双方都算；播满 ' + REPLAY_MIN + ' 秒后，按键盘任意键、手柄任意按钮或点画面跳过'], ['精彩度', '按档位打分，再加分：隔扣、花式扣、钉板、完美时机、晃倒、晃倒后得分、关键球、致胜球、超远三分']]) +
+        g('精彩回放与特写（设置 → 显示 里可关）', [['特写', '精彩瞬间镜头推近；越精彩推得越近、停得越久'], ['回放', '每个回合里最精彩的一球，等进球画面播完再切入慢放；播满 ' + REPLAY_MIN + ' 秒后，按键盘任意键、手柄任意按钮或点画面跳过'], ['精彩度', '按档位打分，再加分：隔扣、花式扣、钉板、完美时机、晃倒、晃倒后得分、关键球、致胜球、超远三分']]) +
         g('进攻节奏博弈（对电脑）', [['电脑会记你的打法', '电脑会记住你最近几回合靠什么得分（背打转身、背打勾手、突破、三分、后撤步、中投），下回合可能提前针对：防背身转身就退一步等你转、防突破就退后放投、防三分就贴身。它猜中了很难打，猜错了反而更好打，换打法就能反制'], ['看防守反应', '你做完一个动作，电脑会选择：扑上来（压低身体、举手贴近）、后撤（退一步防突破）或者不动'], ['它扑上来', '重心在前、转身慢，这时变向或直接突破最容易过'], ['它后撤', '给出了投篮空间，接着投'], ['常用骗法', '犹豫步 / 内外晃引它后撤再投；后撤步引它扑出来再突破。投射好的人，电脑更愿意扑，防守好的电脑更常选不动']]);
     }
     const D = HELP[tab], pad = tab === 'pad';
@@ -1094,7 +1094,7 @@
   }
   function hud() {
     frameN++;
-    stage.classList.toggle('replay', !!(G.replay && screen === 'play'));
+    stage.classList.toggle('replay', !!(G.replay?.view && screen === 'play'));
     if (frameN % 30 === 0) { const hp = PH.input.pads().length > 0; if (hp !== hasPad) { hasPad = hp; show('padtag', hp); hintKey = ''; } }
     if (screen === 'tips') { drawFloats(); return; }
     if (screen !== 'play') { for (const d of fpool) d.style.display = 'none'; return; }
@@ -1166,8 +1166,9 @@
   // ---------- 结算面板（参考赛况台：Box / 9-Cat / 11-Cat，可叠加高阶数据与高亮） ----------
   const BX = { view: 'box', adv: false, heat: true };
   const pc = (m, a) => (a > 0 ? m / a : null), fp = (v) => (v == null ? '-' : (v * 100).toFixed(v >= 1 ? 0 : 1) + '%');
-  function bxStat(i) {
-    const x = G.stats[i], pts = G.score[i], poss = Math.max(1, x.fga - x.oreb + x.tov);
+  function bxStat(i) { return statOf(G.stats[i], G.score[i]); }
+  function statOf(x, pts) {
+    const poss = Math.max(1, x.fga - x.oreb + x.tov);
     return Object.assign({}, x, { pts: pts, poss: poss, two: x.fg - x.tp, twoa: x.fga - x.tpa,
       fgp: pc(x.fg, x.fga), tpp: pc(x.tp, x.tpa), inp: pc(x.inm, x.ina), ts: pc(pts, 2 * x.fga), efg: pc(x.fg + 0.5 * x.tp, x.fga), tpar: pc(x.tpa, x.fga), ppp: pts / poss,
       gms: pts + 0.4 * x.fg - 0.7 * x.fga + 0.7 * x.oreb + 0.3 * x.dreb + x.stl + 0.7 * x.blk - x.tov });
@@ -1187,13 +1188,14 @@
     PRF: ['完美', (p) => p.green, null, '完美出手（绿区）', { el: (p) => p.green >= 4 }],
     SK: ['必杀', (p) => p.sk || 0, null, '必杀技发动', {}],
     'FG%': ['FG%', (p) => p.fgp, (p) => fp(p.fgp), '投篮命中率', { el: (p) => p.fga >= 8 && p.fgp >= 0.65, bad: (p) => p.fga >= 6 && p.fgp < 0.35 ? (p.fgp < 0.25 ? 2 : 1) : 0 }],
-    '3P%': ['3P%', (p) => p.tpp, (p) => fp(p.tpp), '三分命中率（1 对 1 没有罚球，用它代替 FT%）', { el: (p) => p.tpa >= 4 && p.tpp >= 0.5, bad: (p) => p.tpa >= 4 && p.tpp < 0.2 ? 1 : 0 }],
+    '3P%': ['3P%', (p) => p.tpp, (p) => fp(p.tpp), '三分命中率（比赛没有罚球，用它代替 FT%）', { el: (p) => p.tpa >= 4 && p.tpp >= 0.5, bad: (p) => p.tpa >= 4 && p.tpp < 0.2 ? 1 : 0 }],
     '3PM': ['3PM', (p) => p.tp, null, '三分命中数', { el: (p) => p.tp >= 5 }],
     OREB: ['OREB', (p) => p.oreb, null, '前场篮板', { el: (p) => p.oreb >= 4 }],
     'TS%': ['TS%', (p) => p.ts, (p) => fp(p.ts), '真实命中率 PTS / (2×FGA)，没有罚球', { el: (p) => p.fga >= 8 && p.ts >= 0.7, bad: (p) => p.fga >= 6 && p.ts < 0.42 ? 1 : 0 }],
     'eFG%': ['eFG%', (p) => p.efg, (p) => fp(p.efg), '有效命中率 (FGM + 0.5×3PM) / FGA', { el: (p) => p.fga >= 8 && p.efg >= 0.68 }],
     '3PAr': ['3PAr', (p) => p.tpar, (p) => fp(p.tpar), '三分出手占比 3PA / FGA', { neutral: true }],
     PPP: ['PPP', (p) => p.ppp, (p) => p.ppp.toFixed(2), '每回合得分 = 得分 / (FGA − OREB + TO)', { el: (p) => p.poss >= 6 && p.ppp >= 1.4 }],
+    'USG%': ['USG%', (p) => p.usg, (p) => fp(p.usg), '球权使用率 (FGA + TO) / 全队 (FGA + TO)', { neutral: true }],
     GmSc: ['GmSc', (p) => p.gms, (p) => p.gms.toFixed(1), 'Hollinger 单场综合表现分（去掉罚球、助攻、犯规项）', { el: (p) => p.gms >= 20 }],
   };
   PH.BXH = { C: C };
@@ -1209,7 +1211,55 @@
     return big ? 'g2' : 'g1';
   }
   function catWin(k, P) { const c = C[k], a = c[1](P[0]), b = c[1](P[1]); if (a == null && b == null) return -1; if (a == null) return 1; if (b == null) return 0; if (Math.abs(a - b) < 1e-9) return -1; return (c[4].low ? a < b : a > b) ? 0 : 1; }
+  // 3V3 结算：仿 NBA 赛况台 / MyLEGEND，两队各一段（头像 + 球员 + 合计），Box / 9-Cat / 11-Cat，可叠加高阶
+  const ADV3 = ['TS%', 'eFG%', '3PAr', 'USG%', 'PPP', 'GmSc'];
+  const Q3 = { FG: (p) => p.fga >= 4, 'FG%': (p) => p.fga >= 4, 'TS%': (p) => p.fga >= 4, 'eFG%': (p) => p.fga >= 4, '3P': (p) => p.tpa >= 3, '3P%': (p) => p.tpa >= 3, IN: (p) => p.ina >= 3, PPP: (p) => p.poss >= 4 };
+  function heat3(k, P, i) {
+    const c = C[k], o = c[4], p = P[i], q = Q3[k] || (() => true);
+    if (o.bad) { const b = o.bad(p); if (b) return 'b' + b; }
+    if (o.el && o.el(p)) return 'g3';
+    const v = c[1](p);
+    if (o.neutral || o.low || v == null || v <= 0 || !q(p)) return '';
+    const rest = P.filter((x, j) => j !== i && q(x)).map(c[1]).filter((w) => w != null);
+    return rest.every((w) => v > w + 1e-9) ? 'g2' : rest.every((w) => v >= w - 1e-9) ? 'g1' : '';
+  }
+  function box3Data() {
+    const use = (x) => x.fga + x.tov, sum = (L) => { const s = {}; for (const p of L) for (const k in G.stats[p.id]) if (typeof G.stats[p.id][k] === 'number') s[k] = (s[k] || 0) + G.stats[p.id][k]; return s; };
+    const tm = [0, 1].map((t) => G.players.filter((p) => p.tm === t));
+    const tot = tm.map((L) => { const r = sum(L); return statOf(r, r.pts || 0); });
+    const P = G.players.map((p) => { const s = statOf(G.stats[p.id], G.stats[p.id].pts || 0), T = tot[p.tm]; s.usg = use(T) ? use(s) / use(T) : null; return s; });
+    tot.forEach((t) => { t.usg = null; });
+    const win = G.winner >= 0 ? G.winner : G.score[0] >= G.score[1] ? 0 : 1;
+    const mvp = tm[win].reduce((b, p) => (!b || P[p.id].gms > P[b.id].gms ? p : b), null);
+    return { tm, tot, P, win, mvp };
+  }
+  function renderBox3() {
+    const view = VIEWS[BX.view] ? BX.view : 'box', cat = view !== 'box', cols = VIEWS[view].concat(BX.adv ? ADV3 : []);
+    const D = box3Data(), P = D.P, n = cols.length + 1 + (cat ? 1 : 0), cw = cat ? VIEWS[view].map((k) => catWin(k, D.tot)) : null;
+    const face = (p, cls) => '<canvas class="' + cls + '" width="32" height="32" data-pid="' + p.id + '"></canvas>';
+    const val = (k, x) => { const c = C[k]; return c[2] ? c[2](x) : c[1](x); };
+    let h = '<thead><tr><th class="pcol">球员</th>' + cols.map((k) => '<th title="' + C[k][3] + '">' + C[k][0] + '</th>').join('') + (cat ? '<th class="cw">胜项</th>' : '') + '</tr></thead>';
+    for (const t of [0, 1]) {
+      const L = D.tm[t].slice().sort((a, b) => P[b.id].pts - P[a.id].pts || P[b.id].gms - P[a.id].gms);
+      h += '<tbody class="b3t" data-testid="b3-team-' + t + '" style="--tc:' + GM.TEAMS[t].css + '"><tr class="b3h"><th class="pcol" colspan="' + n + '"><i></i>' + (t ? '客队' : '主队') + ' <b>' + G.score[t] + '</b>' + (D.win === t ? '<em>胜</em>' : '') + '</th></tr>';
+      for (const p of L) {
+        h += '<tr class="b3r' + (p.id === localSlot ? ' me' : '') + '" data-testid="b3-row-' + p.id + '"><td class="pcol"><span class="b3p">' + face(p, 'b3f') + '<span><b>' + escH(p.arch.name) + (p === D.mvp ? '<em>MVP</em>' : '') + '</b><small>' + escH(p.arch.pos || '') + (p.arch.ovr ? ' · ' + p.arch.ovr : '') + '</small></span></span></td>' +
+          cols.map((k) => '<td class="' + (BX.heat ? heat3(k, P, p.id) : '') + '">' + val(k, P[p.id]) + '</td>').join('') + (cat ? '<td class="cw"></td>' : '') + '</tr>';
+      }
+      const T = D.tot[t];
+      h += '<tr class="b3s"><td class="pcol">合计</td>' + cols.map((k, j) => '<td class="' + (cat && j < cw.length && cw[j] === t ? 'cwin' : '') + '">' + (k === 'USG%' ? '' : val(k, T)) + '</td>').join('');
+      if (cat) { const w = cw.filter((x) => x === t).length, e = cw.filter((x) => x === -1).length; h += '<td class="cw"><b>' + w + '</b><small>-' + (cw.length - w - e) + (e ? '-' + e : '') + '</small></td>'; }
+      h += '</tr></tbody>';
+    }
+    $('over-stats').innerHTML = h;
+    const m = D.mvp, s = m && P[m.id];
+    $('bx-note').innerHTML = m ? '<span class="b3mvp" data-testid="b3-mvp">' + face(m, 'b3f b3fm') + '<span><small>全场最佳</small><b>' + escH(m.arch.name) + '</b> ' + s.pts + ' 分 ' + s.reb + ' 板 ' + s.stl + ' 断 ' + s.blk + ' 帽 · 投篮 ' + s.fg + '/' + s.fga + ' · GmSc ' + s.gms.toFixed(1) + '</span></span>' : '';
+    document.querySelectorAll('#over canvas.b3f').forEach((cv) => { const p = G.players[+cv.getAttribute('data-pid')]; if (p) portrait(cv, p.arch, p.team); });
+    $('bx-bar').querySelectorAll('[data-bv]').forEach((b) => b.classList.toggle('on', b.getAttribute('data-bv') === view));
+    $('bx-bar').querySelectorAll('[data-bo]').forEach((b) => b.classList.toggle('on', !!BX[b.getAttribute('data-bo')]));
+  }
   function renderBox() {
+    if (G.mode === 't3') { renderBox3(); return; }
     const P = [bxStat(0), bxStat(1)], cols = VIEWS[BX.view].concat(BX.adv ? ADVC : []), cat = BX.view !== 'box';
     const nm = [$('n0').textContent, $('n1').textContent], cw = cat ? VIEWS[BX.view].map((k) => catWin(k, P)) : null;
     let h = '<thead><tr><th class="pcol">球员</th>' + cols.map((k) => '<th title="' + C[k][3] + '">' + C[k][0] + '</th>').join('') + (cat ? '<th class="cw">胜项</th>' : '') + '</tr></thead><tbody>';
@@ -1234,14 +1284,7 @@
     $('over-title').textContent = t3 ? (w ? '客队获胜' : '主队获胜') : two && !matchConfig ? '玩家 ' + (w + 1) + ' 获胜' : w === (matchConfig ? localSlot : 0) ? '你赢了' : matchConfig ? '对手获胜' : '电脑获胜';
     $('over-title').style.color = w === 0 ? 'var(--blue)' : 'var(--red)';
     $('over-score').innerHTML = '<span class="b">' + G.score[0] + '</span> : <span class="r">' + G.score[1] + '</span>';
-    show('bx-bar', !t3);
-    if (t3) {
-      $('over-stats').innerHTML = '<thead><tr><th>阵容</th><th>得分</th><th>投篮</th><th>篮板</th><th>抢断</th><th>盖帽</th></tr></thead><tbody>' + G.players.map((p) => {
-        const s = G.stats[p.id];
-        return '<tr><th>' + (p.tm ? '客 · ' : '主 · ') + p.arch.name + '</th><td>' + (s.pts || 0) + '</td><td>' + s.fg + '/' + s.fga + '</td><td>' + s.reb + '</td><td>' + s.stl + '</td><td>' + s.blk + '</td></tr>';
-      }).join('') + '</tbody>';
-      $('bx-note').textContent = '';
-    } else { BX.view = 'box'; renderBox(); }
+    BX.view = 'box'; renderBox();
     clearPf(); show('over', true); show('touch', false);
   }
 
@@ -1680,11 +1723,15 @@
   // 浏览器要求用户操作后才能出声：第一次点击 / 按键时启动音乐（主菜单就有音乐）
   const musKick = () => { if (PH.audio.ensure()) { PH.audio.startMusic(); musicPick(); } };
   window.addEventListener('pointerdown', musKick, true); window.addEventListener('keydown', musKick, true);
+  let lastReplayCover = 0;
   function draw(dt) {
     PH.audio.setPaused((screen === 'play' || screen === 'play5') && paused);
     musicPick();
+    const r5 = PH.render5.rpl, replay = screen === 'play' ? G.replay : screen === 'play5' && r5.on ? r5 : null;
+    const cover = GM.replayFlow.cover(replay);
+    if (cover !== lastReplayCover) { replayWipe.style.setProperty('--cover', cover); lastReplayCover = cover; }
     if (screen === 'play5') { PH.render5.render(PH.T5.T, manual ? 0.05 : 1 / Math.max(30, fps)); hud5(); cutin(); return; }
-    const hint = screen === 'play' && G.mode === 't3' && !G.replay ? $('hint') : null;
+    const hint = screen === 'play' && G.mode === 't3' && !G.replay?.view ? $('hint') : null;
     const hintY = hint?.offsetHeight ? hint.offsetTop / scale : undefined;
     R.render(G, dt, hintY); hud(); cutin();
     const dbg = $('debug');

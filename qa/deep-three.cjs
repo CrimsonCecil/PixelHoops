@@ -4,7 +4,7 @@ const path = require('node:path');
 const vm = require('node:vm');
 const { execFileSync } = require('node:child_process');
 const root = path.resolve(__dirname, '..');
-const baseline = process.env.DEEP_BASE || 'HEAD^';
+const baseline = process.env.DEEP_BASE || '0243ec7^';
 
 function load(before) {
   const ctx = vm.createContext({ console, performance: { now: () => 0 }, setTimeout() {}, clearTimeout() {} });
@@ -39,7 +39,7 @@ function shot(ctx, rating, badge, distance, error, mode = '2p', variant = 'set',
   const info = gm.G.ball.shot.info;
   assert.equal(info.contest, 0);
   assert.equal(info.green, error === 0);
-  return { ...info, tier: gm.btier(pl, 'limitless') };
+  return { ...info, tier: gm.btier(pl, 'limitless'), pops: (gm.G.bpops || []).map(x => x.key) };
 }
 
 const before = load(true), after = load(false);
@@ -81,3 +81,12 @@ for (const distance of [7, 8.5, 15]) for (const error of [0, 0.35]) {
   assert.equal(ordinary.gw, immune.gw);
 }
 console.log('PASS non-badge pull-up penalty layered over normal/deep shot probabilities without changing green widths');
+for (const [distance, pops] of [[7, false], [7.7, false], [7.9, false], [8.1, true], [8.6, true], [9.5, true]]) {
+  for (const rating of [84, 90, 95]) {
+    for (const variant of ['set', 'stepback']) {
+      assert.equal(shot(after, rating, true, distance, 0.35, '2p', variant).pops.includes('limitless'), pops, `limitless popup at ${distance}m (${variant}, ${rating})`);
+    }
+  }
+  assert.equal(shot(after, 75, false, distance, 0.35).pops.includes('limitless'), false);
+}
+console.log('PASS infinite-range badge popup only on clearly deep threes (> ' + after.PH.game.K.bgLimPop + 'm), not just behind the arc');
