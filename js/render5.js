@@ -236,8 +236,10 @@
     const hw = halfW(), lim = Math.max(0, CL + 3.4 - hw);
     const rc = RPL.on && RPL.view ? RPL.cam : null; if (rc) tx = rc.x;   // V4.4 回放：对准接触点
     tx = Math.max(-lim, Math.min(lim, tx));
-    camX += (tx - camX) * Math.min(1, (dt || 1 / 60) * 2.4); if (!(dt > 0)) camX = tx;
-    applyCam(camX); T.camX = camX; if (rc) cam.F *= 1 + 0.3 * rc.w;
+    camX += (tx - camX) * Math.min(1, (dt || 1 / 60) * 2.4); if (!(dt > 0) || (RPL.on && RPL.returnT != null)) camX = tx;
+    applyCam(camX); if (rc) cam.F *= 1 + 0.3 * rc.w;
+    if (RPL.on) R.replayCamera(RPL, cam, 'broadcast');
+    T.camX = cam.x;
   }
   function render(T, dt) {
     init();
@@ -254,7 +256,7 @@
     const F = Gm.fx;
     if (F.shake > 0.3) { const hsh = hash((Gm.time * 60) | 0); ctx.setTransform(1, 0, 0, 1, Math.round(((hsh & 255) / 255 - 0.5) * F.shake), Math.round((((hsh >>> 8) & 255) / 255 - 0.5) * F.shake)); }
     const first = drawFloor(T);
-    const bk = buildBack(T), bxo = Math.round(-((camX + 20) * 18) % (bk.width - W));
+    const bk = buildBack(T), bxo = Math.round(-((cam.x + 20) * 18) % (bk.width - W));
     ctx.drawImage(bk, bxo < 0 ? bxo : -bxo, first - bk.height + 2);
     ctx.drawImage(fcv, 0, 0);
     const P = Gm.players.map((p) => wp(p, d)), wb = Object.assign({}, b, { x: d * b.y, y: -d * b.x });
@@ -459,6 +461,7 @@
       const ko = dt > 0 ? Math.min(1, dt * 2.5) : 1;
       C2.oyx = need >= (C2.oyx || 0) ? need : (C2.oyx || 0) + (need - (C2.oyx || 0)) * ko;
       pose.oy += C2.oyx * tipE; }
+    if (RPL.on) R.replayCamera(RPL, pose, '2k');
     applyPose(pose); T.camX = pose.cu;
     lastProj = (x, y, z) => pv(pose, U(x, y), V(x, y), z || 0);   // QA 用：逻辑坐标 → 屏幕像素
     PH.render5.k2 = { tipE: tipE, tip: tipE < 1, pose: pose, ph: ph, inb: inbOn };
@@ -559,19 +562,6 @@
     for (const p of Gm.players) { if (p.tm === T.hum || p.tm == null || p.off) continue; if (p.mark === c || p.opp === c) return p; const d = Math.hypot(p.x - c.x, p.y - c.y); if (d < bd) { bd = d; m = p; } }
     return m;
   }
-  // 名字标签：白字深色描边
-  function nameTag(a, cx, y, alpha, col) {
-    const t = a.name, pt = PH.PT.of(a), oldAlpha = ctx.globalAlpha;
-    ctx.font = FONT; ctx.textBaseline = 'top';
-    const tw = Math.ceil(ctx.measureText(t).width), w = tw + 3 + PH.PT.SIZE, x0 = Math.round(Math.max(2, Math.min(W - w - 2, cx - w / 2))), yy = Math.round(y);
-    ctx.globalAlpha = alpha == null ? 1 : alpha;
-    ctx.fillStyle = '#15101f';
-    for (const [dx, dy] of [[-1, 0], [1, 0], [0, -1], [0, 1], [-1, -1], [1, -1], [-1, 1], [1, 1]]) ctx.fillText(t, x0 + dx, yy + dy);
-    ctx.fillStyle = col ? (R.curCol ? R.curCol(col) : col) : '#ffffff'; ctx.fillText(t, x0, yy);
-    PH.PT.draw(ctx, pt.id, x0 + tw + 3, yy - 1);
-    ctx.globalAlpha = oldAlpha;
-    return { x0: x0, x1: x0 + w, y0: yy - 1, y1: yy - 1 + PH.PT.SIZE };
-  }
   // 遮挡物（底部比分条、左右上角信息卡）在 480x270 画布坐标里的矩形
   let uiAv = [];   // C2：战术选择条 / 角落战术名，本帧的矩形（名字标签要避开）
   function hitAvoid(x0, x1, y0, y1) {
@@ -593,7 +583,10 @@
       // V4.4 体力条（render.js PH.stamBar：刻度、阈值、残影）；旧版 bw 20–40 × 3 → 28–56 × 3（只拉长）
       if (PH.stamBar) PH.stamBar(ctx, Math.round(cx - bw / 2), by + 2, bw, bh, p.stam, 'f' + (p.id != null ? p.id : p.a.name), (G5() && G5().time) || 0);
     }
-    const r = nameTag(p.a, cx, by + (star ? bh + 5 : 0), star || col ? 1 : 0.85, col);
+    const alpha = ctx.globalAlpha;
+    ctx.globalAlpha = star || col ? 1 : 0.85;
+    const r = R.drawNameTag(ctx, p.a, cx, by + (star ? bh + 5 : 0), col, true);
+    ctx.globalAlpha = alpha;
     return { x0: r.x0, x1: r.x1, y0: by - 1, y1: r.y1 };
   }
   function overlays(T) {
@@ -724,7 +717,7 @@
     }
     function start() {
       const mk = S.mk; S.mk = null; const fr = S.buf.filter((f) => f.t >= mk.t - 1.4 && f.t <= mk.t + 1.3); if (fr.length < 40) return;
-      Object.assign(S, { on: true, fr, q: mk, rt: fr[0].t, t1: fr[fr.length - 1].t, i: 0, age: 0, wipeIn: 0, wipeOut: 0, view: null, cam: { x: mk.x, y: mk.y, w: 0 }, prev: null });
+      Object.assign(S, { on: true, fr, q: mk, rt: fr[0].t, t1: fr[fr.length - 1].t, i: 0, age: 0, wipeIn: 0, returnT: null, cameraFrom: null, view: null, cam: { x: mk.x, y: mk.y, w: 0 }, prev: null });
       S.log = (S.log || []).concat([{ t: G5().time, k: mk.k }]);
       try { PH.game.sfx && PH.game.sfx('swoosh'); } catch (e) {}
     }

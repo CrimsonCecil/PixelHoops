@@ -375,7 +375,7 @@
     else { CFG.shotClock = config.clock; GM.newGame({ ...config, mode: '2p' }); }
     PH.audio.voPreload(G.players.map((p) => p.arch.key));
     if (opts.intro !== 'off') GM.introStart();
-    screen = 'play'; paused = false; panelOpen = false; overShown = false; PH.input.clearSys(); clearPf(); camShift();
+    screen = 'play'; paused = false; panelOpen = false; overShown = false; PH.input.clearSys(); PH.input.flush(); clearPf(); camShift();
     syncBackgroundMatch();
     for (const id of ['menu', 'picker', 'pause', 'over', 'help', 'shotcard', 'trainbar', 'btn-panel', 'train']) show(id, false);
     show('hud', true); show('scorebar', true); show('touch', isTouch); show('tbpass', config.mode === 't3');
@@ -410,7 +410,7 @@
     GM.newGame({ mode: opts.mode, diff: opts.diff, target: opts.target, arch0: lastArch.a0, arch1: lastArch.a1, fb: opts.fb, glen: opts.glen });
     PH.audio.voPreload(G.players.map((p) => p.arch.key));
     if (opts.intro !== 'off') GM.introStart();
-    screen = 'play'; paused = false; PH.input.clearSys(); clearPf();
+    screen = 'play'; paused = false; PH.input.clearSys(); PH.input.flush(); clearPf();
     show('tbpass', false); show('tbscreen', false); show('tbbounce', false); show('tblob', false); show('tballey', false);
     show('btn-restart', true); show('btn-again', true);
     show('menu', false); show('picker', false); show('pause', false); show('over', false); show('help', false); show('hud', true); show('touch', isTouch); show('shotcard', false);

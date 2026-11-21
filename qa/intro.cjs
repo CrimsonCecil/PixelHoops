@@ -52,15 +52,26 @@ function runIntro(Gm, G) {
   const { Gm, G } = load();
   Gm.newGame({ mode: '2p', arch0: 'maxey', arch1: 'joe' });
   Gm.introStart();
-  const L = G.intro.lines;
-  assert.equal(L.length, 2);
+  const L = G.intro.lines, maxey = G.players.find((p) => p.arch.key === 'maxey');
+  assert.equal(L.length, 3);
+  assert.equal(L[0].id, maxey.id);
+  assert.ok(L[0].gen && L[1].gen && L[0].t.includes(Gm.ARCH.joe.name) && L[1].t.includes(Gm.ARCH.maxey.name), 'stat templates name the opponent');
   Gm.introPress(); Gm.introPress();
   assert.equal(G.intro.li, 0, 'first press skips to the dialogue, second completes the typing');
-  Gm.introPress(); Gm.introPress(); Gm.introPress();
+  for (let i = 0; i < 5; i++) Gm.introPress();
   assert.equal(G.intro, null);
-  assert.equal(L[0].t, 'maxey:taunt:' + L[0].i);
+  assert.equal(L[2].t, 'maxey:taunt:' + L[2].i, 'ends on a voiced taunt from the voice pack');
   assert.equal(G.phase, 'check');
-  console.log('PASS: generic matchup uses voiced taunt/dom clips; presses advance and finish the intro.');
+  const keys = Object.keys(Gm.ARCH);
+  for (let i = 0; i < keys.length; i++) {
+    const a = keys[i], b = keys[(i * 7 + 3) % keys.length];
+    if (a === b || Gm.TALK[[a, b].sort().join('|')]) continue;
+    Gm.newGame({ mode: 'cpu', arch0: a, arch1: b }); Gm.introStart();
+    const T = G.intro.lines;
+    assert.ok(T.length === 3 && T[0].t && T[1].t && !/[{}]/.test(T[0].t + T[1].t) && T[2].v === 'taunt', a + ' vs ' + b);
+    G.intro = null;
+  }
+  console.log('PASS: generic matchups open with stat templates naming the opponent and end on a voiced taunt; presses advance and finish the intro.');
 }
 {
   const { ctx, Gm, G } = load();
@@ -86,4 +97,152 @@ function runIntro(Gm, G) {
   for (let i = 0; i < 90; i++) Gm.tick(1 / 60);
   assert.equal(G.phase, 'live');
   console.log('PASS: Esc skip hands straight to the tip-off and 1V1 goes live.');
+}
+{
+  const { ctx, Gm, G } = load();
+  const R = ctx.PH.render;
+  // Simulate stale demo focus near the basket/corner before starting a 1V1 match
+  G.focus = { cx: -4.2, cy: 0.2 };
+  Gm.newGame({ mode: 'cpu', arch0: 'edwards', arch1: 'jclark' });
+  assert.equal(G.focus.cx, 0, 'newGame resets stale demo focus cx');
+  assert.ok(G.focus.cy < -3.5, 'newGame resets stale demo focus cy back to check distance');
+  Gm.introStart();
+  const W = R.W, H = R.H;
+  let walkFrames = 0, talkFrames = 0;
+  for (let n = 0; G.intro && n < 60 * 40; n++) {
+    const I = G.intro;
+    R.camera1Intro(G, 1 / 60);
+    if (I.li < 0) {
+      walkFrames++;
+      const sh = G.players.find((p) => p.id === (I.shot != null ? I.shot : I.duo[0]));
+      const head = R.proj(sh.x, sh.y, sh.h), feet = R.proj(sh.x, sh.y, 0);
+      assert.ok(Math.abs(feet.x - W / 2) < W * 0.12, `walk-in player x centered: ${feet.x.toFixed(1)} vs ${W / 2}`);
+      assert.ok(head.y >= H * 0.14 && feet.y <= H * 0.85, `walk-in player vertical bounds: head=${head.y.toFixed(1)} feet=${feet.y.toFixed(1)}`);
+    } else if (G.time - I.lt > 0.6) {
+      talkFrames++;
+      for (const p of G.players) {
+        const head = R.proj(p.x, p.y, p.h), feet = R.proj(p.x, p.y, 0);
+        assert.ok(Math.abs(feet.x - W / 2) < W * 0.12, `dialogue player ${p.id} x centered: ${feet.x.toFixed(1)}`);
+        assert.ok(head.y >= H * 0.11, `dialogue player ${p.id} head below top letterbox: ${head.y.toFixed(1)}`);
+        assert.ok(feet.y <= H * 0.67, `dialogue player ${p.id} feet above dialogue box: ${feet.y.toFixed(1)}`);
+      }
+    }
+    Gm.introTick(1 / 60);
+  }
+  assert.ok(walkFrames > 100 && talkFrames > 60, 'verified both walk-in and dialogue frames');
+  for (const k of ['camInZ', 'camInDist', 'camInPitch', 'camInTalkZ', 'camInTalkDist', 'camInTalkPitch']) {
+    const m = ctx.PH.TUNE.meta('l1_' + k);
+    assert.ok(m, `tune parameter l1_${k} is registered`);
+    assert.equal(m.cat, 'pace', `l1_${k} categorized under pace`);
+    assert.equal(m.sub, '镜头', `l1_${k} categorized under 镜头`);
+  }
+  // Changing exposed intro camera tuning immediately updates camera1Intro
+  Gm.newGame({ mode: 'cpu', arch0: 'edwards', arch1: 'jclark' });
+  Gm.introStart();
+  ctx.PH.TUNE.set('l1_camInZ', 1.1);
+  ctx.PH.TUNE.set('l1_camInPitch', 2);
+  R.camera1Intro(G, 1 / 60);
+  assert.ok(Math.abs(R.cam.z - 1.1) < 1e-6, 'camInZ tune controls walk-in camera height');
+  assert.ok(R.cam.fz > 0, 'positive camInPitch tilts camera upward');
+  console.log('PASS: 1V1 intro camera centers walking stars, uses low-angle defaults, and responds to exposed tuning sliders.');
+}
+{
+  const listeners = {};
+  let gamepads = [];
+  const ctx = vm.createContext({
+    performance: { now: () => 0 },
+    setTimeout: () => {},
+    navigator: { getGamepads: () => gamepads },
+    addEventListener: (ev, fn) => { (listeners[ev] = listeners[ev] || []).push(fn); },
+  });
+  ctx.window = ctx;
+  vm.runInContext('let seed = 7; Math.random = () => ((seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0) / 4294967296)', ctx);
+  for (const name of ['input', 'tune', 'ptype', 'render', 'roster', 'measurements', 'r5', 'game', 'team3']) {
+    vm.runInContext(fs.readFileSync(path.join(__dirname, '../js', name + '.js'), 'utf8'), ctx, { filename: name + '.js' });
+  }
+  ctx.PH.audio = { voLine: (k, ev, i) => ({ f: k + ev + i, t: k + ':' + ev + ':' + i, d: 1.5 }), voSay() {}, voStop() {}, play() {} };
+  ctx.PH.game.seed(7);
+  const Gm = ctx.PH.game, G = Gm.G, T3 = ctx.PH.T3, I = ctx.PH.input;
+  const emit = (ev, data) => { for (const fn of listeners[ev] || []) fn({ preventDefault() {}, ...data }); };
+  const tick3 = () => {
+    const h = T3.holder();
+    const off = !!(h && h.id === 0);
+    const local = I.read3(off);
+    T3.tick(1 / 60, { 0: local });
+    I.endTick();
+  };
+  const start3v3IntroToLastLine = () => {
+    const slots = [
+      { arch: 'curry', role: 'human' },
+      { arch: 'joe', role: 'cpu' },
+      { arch: 'maxey', role: 'cpu' },
+      { arch: 'kyrie', role: 'cpu' },
+      { arch: 'white', role: 'cpu' },
+      { arch: 'herb', role: 'cpu' },
+    ];
+    T3.start({ slots, local: 0, target: 21, clock: 14, replay: false });
+    Gm.introStart();
+    // Advance to the final line already fully typed out
+    while (G.intro.li < G.intro.lines.length - 1) Gm.introPress();
+    G.intro.lines[G.intro.li].done = true;
+  };
+
+  // 1) Quick tap of KeyE (pass) ends dialogue: latch must not leak into check-ball T.passQueue
+  start3v3IntroToLastLine();
+  emit('keydown', { code: 'KeyE', repeat: false });
+  emit('keyup', { code: 'KeyE' });
+  assert.ok(I.sysAny());
+  Gm.introPress();
+  I.clearSys();
+  assert.equal(G.intro, null);
+  assert.equal(G.phase, 'check');
+  for (let i = 0; i < 65; i++) tick3();
+  assert.equal(G.phase, 'live');
+  assert.equal(T3.T.pass, null, 'tapped KeyE during intro must not fire a pass at tip-off');
+  assert.equal(T3.T.passQueue, null);
+  assert.equal(T3.holder()?.id, 0, 'ball handler keeps the ball at tip-off');
+
+  // 2) Held KeyE across introEnd() must stay masked until released, then a fresh press passes
+  start3v3IntroToLastLine();
+  emit('keydown', { code: 'KeyE', repeat: false });
+  Gm.introPress();
+  I.clearSys();
+  for (let i = 0; i < 10; i++) tick3();
+  assert.equal(T3.T.passQueue, null, 'held KeyE from intro must not queue a pass during check');
+  emit('keyup', { code: 'KeyE' });
+  while (G.phase !== 'live') tick3();
+  tick3();
+  assert.equal(T3.T.pass, null, 'ball handler still holds the ball after releasing KeyE');
+  emit('keydown', { code: 'KeyE', repeat: false });
+  tick3();
+  emit('keyup', { code: 'KeyE' });
+  assert.ok(T3.T.pass, 'a fresh KeyE press after tip-off passes normally');
+
+  // 3) Gamepad Xbox A (button 0) pressed & held to end dialogue must not pass at tip-off
+  const mkPad = (aPressed) => ({
+    index: 0,
+    connected: true,
+    axes: [0, 0, 0, 0],
+    buttons: Array.from({ length: 16 }, (_, i) => ({ pressed: i === 0 ? aPressed : false, value: i === 0 && aPressed ? 1 : 0 })),
+  });
+  gamepads = [mkPad(false)];
+  I.pollPads();
+  start3v3IntroToLastLine();
+  gamepads = [mkPad(true)];
+  assert.ok(I.pollPads());
+  Gm.introPress();
+  I.clearSys();
+  for (let i = 0; i < 10; i++) { I.pollPads(); tick3(); }
+  assert.equal(T3.T.passQueue, null, 'held Xbox A from intro must not queue a pass during check');
+  gamepads = [mkPad(false)];
+  while (G.phase !== 'live') { I.pollPads(); tick3(); }
+  I.pollPads(); tick3();
+  assert.equal(T3.T.pass, null, 'ball handler still holds the ball at tip-off after Xbox A release');
+  gamepads = [mkPad(true)];
+  I.pollPads();
+  tick3();
+  gamepads = [mkPad(false)];
+  assert.ok(T3.T.pass, 'a fresh Xbox A press after release passes normally');
+
+  console.log('PASS: pass presses (keyboard tap/hold and gamepad A) ending 3V3 intro do not fire at tip-off.');
 }

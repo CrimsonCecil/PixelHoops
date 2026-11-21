@@ -19,6 +19,11 @@ const vm = require('node:vm');
   console.log('PASS: 3V3 badge popups for slots 2 and 5 use the home and away HUD columns.');
 }
 
+function settleCheck(G, T3, inputs) {
+  for (let i = 0; i < 120 && G.phase === 'check'; i++) T3.tick(1 / 60, inputs);
+  assert.equal(G.phase, 'live', 'check ball reaches the offense');
+}
+
 function fixture(options = {}) {
   const ctx = vm.createContext({ performance: { now: () => 0 }, setTimeout: () => {} });
   ctx.window = ctx;
@@ -30,18 +35,23 @@ function fixture(options = {}) {
   game.seed(7);
   const slots = ['curry', 'edwards', 'jokic', 'lebron', 'durant', 'giannis'].map((arch, i) => ({ arch, role: options.human === i ? 'human' : 'cpu' }));
   T3.start({ slots, target: 21, clock: 14, replay: false, ...options });
+  if (options.settle !== false) settleCheck(game.G, T3);
   return { ctx, G: game.G, Gm: game, api: game.t5, T3, run: (count, inputs) => { for (let i = 0; i < count; i++) T3.tick(1 / 60, inputs); } };
 }
 
 {
   const { ctx, G, T3 } = fixture({ human: 0, local: 0 });
-  const nameRows = [], staminaRows = [], strokes = [];
+  const nameRows = [], staminaRows = [], strokes = [], teamNames = new Map();
+  const rosterNames = G.players.map(p => p.arch.name);
   const canvas = () => {
     const c = new Proxy({
       createImageData: (w, h) => ({ data: new Uint8ClampedArray(w * h * 4) }),
       measureText: () => ({ width: 8 }),
       stroke() { strokes.push(this.strokeStyle); },
-      fillText(text, x, y) { if (text === T3.holder()?.arch.name) nameRows.push(y + 12); },
+      fillText(text, x, y) {
+        if (text === T3.holder()?.arch.name) nameRows.push(y + 12);
+        if (rosterNames.includes(text) && this.fillStyle !== '#15101f') teamNames.set(text, { font: this.font, x, y });
+      },
       fillRect(x, y, w, h) { if (w === 32 && h === 4 && this.fillStyle === '#15101f') staminaRows.push(y + h); },
     }, { get: (obj, key) => obj[key] ?? (() => {}) });
     return { getContext: () => c };
@@ -76,10 +86,14 @@ function fixture(options = {}) {
   move(3.3, 6.25);
   R.render(G, 1);
   nameRows.length = staminaRows.length = 0;
+  teamNames.clear();
   R.render(G, 0, hintY);
   assert(feet().s > 30, 'keep close framing when clearing the hints at the wing');
   assert(nameRows.length && Math.max(...nameRows) < hintY);
   assert(staminaRows.length && Math.max(...staminaRows) < hintY);
+  assert.deepEqual([...teamNames.keys()].sort(), [...rosterNames].sort());
+  assert([...teamNames.values()].every(({ font, y }) => font.startsWith('10px') && y + 12 < hintY));
+  console.log('PASS: 3V3 draws six compact under-foot names above the hint bar.');
   assert(visible(feet()) && visible(rim()));
   const origin = R.cam.x;
   move(7.4, 1);
@@ -566,11 +580,15 @@ console.log('PASS: a CPU honors an open call according to pass IQ, vetoes a bloc
 }
 
 {
-  const { G, Gm, T3, api, run } = fixture({ human: 1, target: 5 });
+  const { G, Gm, T3, api, run } = fixture({ human: 1, target: 5, settle: false });
   assert.equal(G.players.length, 6);
-  assert.equal(T3.holder().id, 1);
   assert.equal(G.phase, 'check');
+  assert.equal(T3.holder(), null, 'the defender holds the check ball');
+  assert.equal(G.ball.state, 'pass');
+  assert.equal(G.players[G.ball.lastTouch].tm, 1, 'a defender checks the ball');
   assert.equal(G.shotClock, 14);
+  settleCheck(G, T3);
+  assert.equal(T3.holder().id, 1);
   assert(Gm.isThree(T3.holder().x, T3.holder().y));
   run(60);
   api.scoreBy(1, 2, 'lay');
@@ -578,6 +596,7 @@ console.log('PASS: a CPU honors an open call according to pass IQ, vetoes a bloc
   run(62);
   assert.equal(G.phase, 'check');
   assert.equal(G.off, 1);
+  settleCheck(G, T3);
   assert(!G.needClear && Gm.isThree(T3.holder().x, T3.holder().y));
   assert.equal(G.shotClock, 14);
   run(60);
@@ -683,16 +702,18 @@ console.log('PASS: a CPU honors an open call according to pass IQ, vetoes a bloc
   vm.runInContext('skipReplay()', ctx);
   assert.equal(G.replay.skip, true);
   run(1);
-  assert(replay.view && replay.wipeOut > 0, 'skip starts the exit wipe rather than cutting immediately');
-  for (let i = 0; i < 30 && replay.view; i++) run(1);
+  assert.equal(G.replay, replay, 'skip starts the camera return rather than ending immediately');
+  assert.equal(replay.returnT, 0);
   assert.equal(replay.view, null);
-  assert.equal(Gm.replayFlow.cover(replay), 1, 'cut back to live behind the closed wipe');
+  run(18);
+  assert(replay.returnT > 0 && replay.returnT < 1);
+  assert.equal(Gm.replayFlow.cover(replay), 0, 'no wipe or logo on the way out');
   run(24);
   assert.equal(G.replay, null);
   run(75);
   assert.equal(G.off, 1);
   assert.equal(G.score[0], 3);
-  console.log('PASS: a 3V3 three-pointer waits, wipes into the replay, and wipes out when skipped.');
+  console.log('PASS: a 3V3 three-pointer waits, wipes in, and returns to the live camera when skipped.');
 }
 
 for (const human of [0, -1]) {
