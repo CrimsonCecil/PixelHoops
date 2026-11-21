@@ -79,7 +79,7 @@
       else { if (B(3)) o.a1 = true; if (B(2)) o.a2 = true; if (B(6) || B(4) || (!teamPass && B(0))) o.a3 = true; }
       const rx = gp.axes[2] || 0, ry = gp.axes[3] || 0;
       o.rsPad = true;
-      if (onOffense && Math.hypot(rx, ry) > 0.6) { o.a3 = o.rs = true; o.dx = rx; o.dy = -ry; }
+      if (onOffense && Math.hypot(rx, ry) >= 0.5) { o.a3 = o.rs = true; o.dx = rx; o.dy = -ry; }
     }
     if (slot === 0 && touch.on) {
       if (Math.hypot(touch.mx, touch.my) > 0.2) { o.mx = touch.mx; o.my = touch.my; }

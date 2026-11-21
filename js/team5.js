@@ -1256,7 +1256,7 @@
       }
       // 2K：RT + X 突破中 = 扣篮（1V1 的扣篮键 a2）
       if (X && R.RT && dHoop(p) < 6.5 && p.speed > 2.5) { o.a2 = true; o.a1 = false; }
-      if (rsM > 0.5) { o.a3 = o.rs = true; o.dx = RS.x / rsM; o.dy = RS.y / rsM; }
+      if (rsM >= 0.5) { o.a3 = o.rs = true; o.dx = RS.x / rsM; o.dy = RS.y / rsM; }
       if (R.hesi) o.a3 = o.hesi = true;
       o.post = R.LT;
       if (R.rsPad) o.rsPad = true;
