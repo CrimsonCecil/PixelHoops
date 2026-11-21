@@ -35,11 +35,12 @@ function fixture(options = {}) {
 
 {
   const { ctx, G, T3 } = fixture({ human: 0, local: 0 });
-  const nameRows = [], staminaRows = [];
+  const nameRows = [], staminaRows = [], strokes = [];
   const canvas = () => {
     const c = new Proxy({
       createImageData: (w, h) => ({ data: new Uint8ClampedArray(w * h * 4) }),
       measureText: () => ({ width: 8 }),
+      stroke() { strokes.push(this.strokeStyle); },
       fillText(text, x, y) { if (text === T3.holder()?.arch.name) nameRows.push(y + 12); },
       fillRect(x, y, w, h) { if (w === 32 && h === 4 && this.fillStyle === '#15101f') staminaRows.push(y + h); },
     }, { get: (obj, key) => obj[key] ?? (() => {}) });
@@ -58,6 +59,15 @@ function fixture(options = {}) {
   };
   move(0, 6);
   R.render(G);
+  const clearFrame = { ...G, phase: 'live', time: 1, needClear: true };
+  strokes.length = 0;
+  R.render(clearFrame);
+  assert(!strokes.includes('#ff3b30'), '3V3 does not repaint the arc while the ball needs clearing');
+  Object.assign(clearFrame, { needClear: false, clearOk: clearFrame.time });
+  strokes.length = 0;
+  R.render(clearFrame);
+  assert(!strokes.includes('#7dff8a'), '3V3 does not repaint the arc after clearing');
+  console.log('PASS: 3V3 keeps the original court arc before and after clearing the ball.');
   assert(feet().s > 30, '3V3 uses close framing at the arc');
   assert(R.cam.fz < defaultPitch, 'elevated end-on camera looks downward more than 1V1');
   assert.equal(R.proj(0, 2, 0).x, rim().x, 'court centerline points straight to the hoop');
