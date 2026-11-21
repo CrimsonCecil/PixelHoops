@@ -1264,7 +1264,7 @@
     back: { name: '篮后挑篮', c: 0.55, g: 0.8, p: 0.92, blk: 0.35 },
     floater: { name: '抛投', c: 0.6, g: 0.9, p: 1, blk: 0.2, floater: true },
     clutch: { name: '拉杆上篮', c: 0.5, g: 0.75, p: 0.92, blk: 0.3 },
-    power: { name: '双脚强起上篮', c: 0.85, g: 0.95, p: 1.02, blk: 0.8 },
+    power: { name: '强起上篮', c: 0.85, g: 0.95, p: 1.02, blk: 0.8 },
     hop: { name: '跳步上篮', c: 0.72, g: 0.92, p: 0.98, blk: 0.65 },
     spin: { name: '转身上篮', c: 0.55, g: 0.85, p: 0.93, blk: 0.45 },
   };
