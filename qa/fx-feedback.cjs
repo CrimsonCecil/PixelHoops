@@ -323,3 +323,178 @@ function load() {
     assert.ok(tested, 'async leading-silence trim test must run to completion');
   });
 }
+
+// 6. Rebound, block, steal, and queued back-and-forth banter voice lines
+{
+  const timers = [];
+  const ctx = vm.createContext({
+    performance: { now: () => 0 },
+    setTimeout: (fn, ms) => { const id = timers.length + 1; timers.push({ id, fn, ms, cleared: false }); return id; },
+    clearTimeout: (id) => { const t = timers.find((x) => x.id === id); if (t) t.cleared = true; }
+  });
+  ctx.window = ctx;
+  vm.runInContext('Math.random = () => 0.1', ctx);
+  for (const name of ['tune', 'ptype', 'render', 'roster', 'measurements', 'r5', 'game', 'team3']) {
+    vm.runInContext(fs.readFileSync(path.join(__dirname, '../js', name + '.js'), 'utf8'), ctx, { filename: name + '.js' });
+  }
+  const voiced = [];
+  ctx.PH.audio = {
+    voLine: () => null,
+    voSay() {},
+    voStop() {},
+    voWhenReady() {},
+    play() {},
+    vo: (key, ev, mode) => { voiced.push({ key, ev, mode }); return { f: key + '_' + ev + '.mp3', t: ev, d: 2.8 }; }
+  };
+  ctx.PH.input = { read: () => ctx.PH.game.t5.zeroInp(), endTick() {} };
+  const Gm = ctx.PH.game;
+  const G = Gm.G;
+
+  Gm.newGame({ mode: 'cpu', arch0: 'lebron', arch1: 'curry' });
+  G.phase = 'live';
+
+  // Offensive rebound triggers attacker dom ('pri') + defender hurt ('q')
+  Gm.seed(11);
+  G.off = 0; G.ball.state = 'loose'; G.ball.wasShot = true;
+  voiced.length = 0; timers.length = 0;
+  Gm.t5.pickup(G.players[0]);
+  for (const t of timers) if (!t.cleared) t.fn();
+  assert.ok(voiced.some((v) => v.key === 'lebron' && v.ev === 'dom' && v.mode === 'pri'), 'offensive rebound triggers attacker dom voice');
+  assert.ok(voiced.some((v) => v.key === 'curry' && v.ev === 'hurt' && v.mode === 'q'), 'offensive rebound queues defender reply');
+
+  // Defensive rebound triggers rebounder stop + actual shooter miss ('q')
+  voiced.length = 0; timers.length = 0;
+  G.lastShot = { who: G.players[1].id };
+  for (let i = 0; i < 10; i++) {
+    G.off = 1; G.ball.state = 'loose'; G.ball.wasShot = true;
+    Gm.t5.pickup(G.players[0]);
+  }
+  for (const t of timers) if (!t.cleared) t.fn();
+  assert.ok(voiced.some((v) => v.key === 'lebron' && v.ev === 'stop'), 'defensive rebound triggers rebounder stop voice');
+  assert.ok(voiced.some((v) => v.key === 'curry' && v.ev === 'miss' && v.mode === 'q'), 'defensive rebound queues shooter reply');
+
+  // 3V3 defensive rebound attributes 'miss' reply to the actual shooter, not OP(rebounder)
+  const slots3 = ['lebron', 'curry', 'jokic', 'kobe', 'shaq', 'kyrie'].map((arch, i) => ({ arch, role: i === 0 ? 'p1' : 'cpu' }));
+  ctx.PH.T3.start({ slots: slots3, target: 21, clock: 14, replay: false });
+  G.phase = 'live';
+  G.lastShot = { who: G.players[5].id }; // kyrie shot and missed (OP(lebron) is kobe, not kyrie)
+  voiced.length = 0; timers.length = 0;
+  for (let i = 0; i < 10; i++) {
+    G.off = 1; G.ball.state = 'loose'; G.ball.wasShot = true;
+    Gm.t5.pickup(G.players[0]);
+  }
+  for (const t of timers) if (!t.cleared) t.fn();
+  assert.ok(voiced.some((v) => v.key === 'kyrie' && v.ev === 'miss' && v.mode === 'q'), '3V3 defensive rebound attributes miss reply to actual shooter');
+  assert.ok(!voiced.some((v) => v.key === 'kobe' && v.ev === 'miss'), '3V3 defensive rebound does not make non-shooting matchup admit missing');
+
+  // Steal and block fire 100% across many RNG draws
+  voiced.length = 0;
+  for (let i = 0; i < 20; i++) {
+    Gm.t5.vo(G.players[0], 'block', 'pri');
+    Gm.t5.vo(G.players[0], 'steal', 'pri');
+  }
+  assert.equal(voiced.filter((v) => v.ev === 'block').length, 20, 'block voice fires 100% of the time');
+  assert.equal(voiced.filter((v) => v.ev === 'steal').length, 20, 'steal voice fires 100% of the time');
+
+  // Test audio.js queued reply (mode === 'q') after a 3.2s lead clip & voStop cancellation
+  let fakeNow = 1000;
+  const aTimers = [];
+  const startedClips = [];
+  const manifest = {
+    voices: {
+      lebron: { s: 'p/lebron.mp3', lines: { block: [{ f: 'lb_blk', t: 'Not in my house!', d: 3.2, o: 0, n: 10 }] } },
+      curry: { s: 'p/curry.mp3', lines: { rejected: [{ f: 'sc_rej', t: 'Next one is going in.', d: 2.1, o: 10, n: 10 }] } }
+    }
+  };
+  let audioQueueTested = false;
+  const audioCtx = {
+    window: null,
+    console,
+    Math,
+    Date,
+    Promise,
+    ArrayBuffer,
+    Uint8Array,
+    performance: { now: () => fakeNow },
+    setTimeout: (fn, ms) => { const id = aTimers.length + 1; aTimers.push({ id, fn, at: fakeNow + ms, cleared: false }); return id; },
+    clearTimeout: (id) => { const t = aTimers.find((x) => x.id === id); if (t) t.cleared = true; },
+    localStorage: { getItem: () => null, setItem: () => {} },
+    fetch: () => Promise.resolve({
+      ok: true,
+      json: () => Promise.resolve(manifest),
+      arrayBuffer: () => Promise.resolve(new ArrayBuffer(4096))
+    }),
+    AudioContext: function FakeAC() {
+      this.state = 'running';
+      this.currentTime = 0;
+      this.sampleRate = 48000;
+      this.destination = {};
+      this.resume = () => Promise.resolve();
+      this.createGain = () => ({ gain: { value: 1, setValueAtTime() {}, linearRampToValueAtTime() {}, cancelScheduledValues() {} }, connect() {} });
+      this.createBiquadFilter = () => ({ type: '', frequency: { value: 0 }, Q: { value: 0 }, connect() {} });
+      this.createBuffer = () => ({ getChannelData: () => new Float32Array(16) });
+      this.createBufferSource = () => ({ buffer: null, connect() {}, start() { startedClips.push(this.buffer); }, stop() {} });
+      this.decodeAudioData = (ab, ok) => ok({ len: ab.byteLength });
+    },
+    PH: {}
+  };
+  audioCtx.window = audioCtx;
+  vm.createContext(audioCtx);
+  vm.runInContext(fs.readFileSync(path.join(__dirname, '../js/audio.js'), 'utf8'), audioCtx, { filename: 'js/audio.js' });
+
+  // Wait for voReady to resolve manifest
+  audioCtx.PH.audio.voWhenReady(() => {
+    try {
+      const first = audioCtx.PH.audio.vo('lebron', 'block', 'pri');
+      assert.ok(first && first.f === 'lb_blk', 'lead block clip starts immediately');
+      fakeNow += 60;
+      const queued = audioCtx.PH.audio.vo('curry', 'rejected', 'q');
+      assert.equal(queued, null, 'queued reply waits while lead clip is active');
+      assert.equal(aTimers.filter((t) => !t.cleared).length, 1, 'queued reply schedules timer even for >2s lead clip');
+
+      // Let lead clip decode and start before the queued timer fires
+      setImmediate(() => {
+        try {
+          assert.equal(startedClips.length, 1, 'lead block clip starts playing');
+
+          // Advance to timer firing time and execute queued reply
+          const pending = aTimers.find((t) => !t.cleared);
+          fakeNow = pending.at;
+          pending.cleared = true;
+          pending.fn();
+
+          // Wait for queued reply decode + start()
+          setImmediate(() => {
+            try {
+              assert.equal(startedClips.length, 2, 'both lead clip and queued opponent reply start playing');
+
+              // Verify voStop cancels any newly queued reply
+              audioCtx.PH.audio.vo('lebron', 'block', 'pri');
+              fakeNow += 60;
+              audioCtx.PH.audio.vo('curry', 'rejected', 'q');
+              const q2 = aTimers.filter((t) => !t.cleared);
+              assert.equal(q2.length, 1, 'second queued reply scheduled');
+              audioCtx.PH.audio.voStop();
+              assert.ok(q2[0].cleared, 'voStop cancels pending queued reply');
+
+              audioQueueTested = true;
+              console.log('PASS: rebounds, blocks, steals, and >2s queued opponent banter replies fire cleanly and cancel on voStop.');
+            } catch (err) {
+              console.error(err);
+              process.exit(1);
+            }
+          });
+        } catch (err) {
+          console.error(err);
+          process.exit(1);
+        }
+      });
+    } catch (err) {
+      console.error(err);
+      process.exit(1);
+    }
+  });
+  process.on('beforeExit', () => {
+    assert.ok(audioQueueTested, 'async audio queued-reply test must run to completion');
+  });
+}
