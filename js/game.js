@@ -2630,17 +2630,17 @@
   // 开场入场：双方从两侧边线走到开球站位 → 主角依次做招牌动作（镜头推近）→ 对话框互相垃圾话，空格 / 点击下一句，Esc 跳过
   const ISIG = { lebron: 'chalk', curry: 'night', kobe: 'cool', shaq: 'flex', giannis: 'roar', luka: 'shrug', kyrie: 'shush', herb: 'wag' };
   const ISIG_CN = { chalk: '撒镁粉', night: '晚安手势', shimmy: '抖肩', flex: '秀肌肉', roar: '仰天怒吼', chest: '捶胸', toosmall: 'Too Small', shush: '嘘声', cool: '抱臂冷视', point: '隔空点名', dance: '尬舞', shrug: '耸肩', wag: '摇手指' };
-  // 宿敌台词：[说话人, 文本] 只有字幕；[说话人, 语音事件, 序号] 播语音包里的原声并显示它的字幕
+  // 宿敌台词：[说话人, 语音事件, 序号] 全部走各球员原声语音包并同步显示对应字幕
   const TALK = {
-    'curry|lebron': [['lebron', '2016 总决赛，1 比 3 落后我照样翻盘，还记得吗？'], ['curry', '记得。可我手上四枚总冠军戒指，你数数自己几枚？'], ['lebron', '73 胜又怎样？今天我就是要赢你！'], ['curry', 'dom', 0]],
-    'kobe|lebron': [['kobe', '五枚戒指，我只认冠军，别的都是数据。'], ['lebron', '历史得分王的名字，现在写的是我。'], ['kobe', 'taunt', 3], ['lebron', 'taunt', 3]],
-    'kobe|shaq': [['shaq', '湖人三连冠，内线是谁扛下来的？'], ['kobe', '没有我在外线撕开防守，你早被三人包夹了。'], ['shaq', 'dom', 1], ['kobe', 'dom', 1]],
-    'curry|kyrie': [['kyrie', '2016 抢七最后那记三分，就是在你头上投进的。'], ['curry', '那球我记得。可接下来两座总冠军，是我们拿的。'], ['kyrie', 'dom', 2], ['curry', 'dom', 2]],
-    'kyrie|lebron': [['lebron', '2016 那记三分，空位还是我帮你拉出来的。'], ['kyrie', '晃开防守是我自己的本事。今天单挑，你看好了。'], ['lebron', 'taunt', 0], ['kyrie', 'taunt', 2]],
-    'giannis|lebron': [['giannis', '2021 总决赛第六场 50 分，冠军是我自己扛回来的。'], ['lebron', '一个冠军就上头了？我有四个。'], ['giannis', 'taunt', 2], ['lebron', 'dom', 0]],
-    'lebron|luka': [['luka', '老大哥，现在湖人是谁在控球？'], ['lebron', '想接班？先把防守脚步练明白。'], ['luka', 'taunt', 0], ['lebron', 'taunt', 1]],
-    'curry|luka': [['luka', '2022 西决输给你，今天我要讨回来。'], ['curry', '4 比 1 那轮系列赛，还想再来一次？'], ['luka', 'taunt', 2], ['curry', 'dom', 0]],
-    'kobe|kyrie': [['kyrie', '2012 年就说要跟你单挑，今天兑现！'], ['kobe', 'taunt', 0], ['kyrie', 'taunt', 3]] };
+    'curry|lebron': [['lebron', 'taunt', 3], ['curry', 'taunt', 0], ['lebron', 'dom', 2], ['curry', 'dom', 0]],
+    'kobe|lebron': [['kobe', 'taunt', 0], ['lebron', 'taunt', 1], ['kobe', 'taunt', 3], ['lebron', 'taunt', 3]],
+    'kobe|shaq': [['shaq', 'taunt', 3], ['kobe', 'taunt', 1], ['shaq', 'dom', 1], ['kobe', 'dom', 1]],
+    'curry|kyrie': [['kyrie', 'win', 2], ['curry', 'taunt', 2], ['kyrie', 'dom', 2], ['curry', 'dom', 2]],
+    'kyrie|lebron': [['lebron', 'taunt', 0], ['kyrie', 'taunt', 0], ['lebron', 'dom', 0], ['kyrie', 'taunt', 2]],
+    'giannis|lebron': [['giannis', 'win', 1], ['lebron', 'taunt', 2], ['giannis', 'taunt', 2], ['lebron', 'dom', 0]],
+    'lebron|luka': [['luka', 'taunt', 0], ['lebron', 'taunt', 1], ['luka', 'dom', 0], ['lebron', 'dom', 2]],
+    'curry|luka': [['luka', 'taunt', 2], ['curry', 'taunt', 3], ['luka', 'dom', 1], ['curry', 'dom', 0]],
+    'kobe|kyrie': [['kyrie', 'taunt', 0], ['kobe', 'taunt', 0], ['kyrie', 'taunt', 3]] };
   // 入场走位时的造势动作（上半身），走到位后再做招牌动作
   const IWALK = { lebron: ['raise', 'wave'], curry: ['wave', 'shimmy'], kobe: ['wave', 'point'], shaq: ['raise', 'dance'], giannis: ['chest', 'flex'], luka: ['wave', 'wag'], kyrie: ['point', 'wave'], herb: ['flex', 'chest'] };
   const IWA = 3.8;
@@ -2690,6 +2690,7 @@
     for (const s of spots) { const p = s.p, star = p === fa || p === fb; s.w0 = t0 + (TM(p) === TM(fa) ? 0 : IWA); s.w1 = s.w0 + IWA;
       (star ? [(IWALK[p.arch.key] || ['wave'])[0], sigOf(p)] : ['wave']).forEach((ty, j) => walk.push({ id: p.id, ty: ty, t0: s.w0 + (star ? 0.3 + j * 1.75 : 0.9 + (p.id % 3) * 0.3), T: 1.6, fx: false, sig: star && j === 1, vo: star && j === 0, voAt: s.w0 + (p === fa ? 0.25 : 0), voDone: false })); }
     const foc0 = { x: fa.x, y: fa.y, u: G.mode === 't3' ? 0.08 : 0.3, mode: 'walk', snap: true };
+    if (PH.audio && PH.audio.voPreload) PH.audio.voPreload([fa.arch.key, fb.arch.key]);
     G.intro = { t0: t0, duo: [fa.id, fb.id], walk: walk, spots: spots, lines: lines, li: -1, lt: 0, ld: 0, tT: t0 + 2 * IWA + 0.15, cam: foc0, foc: foc0, banner: G.banner, phaseT: G.phaseT,
       sig: [], confettiT: 0 };
     G.cz = null; G.cutin = null; G.phase = 'intro';
@@ -2719,7 +2720,8 @@
       if (S.ty === 'chalk' && !S.fx && now >= S.t0 + 0.42) { S.fx = true; const p = plById(S.id); burst(p.x, p.y, p.h + 0.45, 70, ['#ffffff', '#f4f1e8', '#e2ded2', '#fffbe9'], 2.3, 1.7, 1.1, 2); spawnConfetti(28, [p.team.css, '#ffd24a', '#ffffff'], 'burst'); }
       else if (S.sig && !S.fx && now >= S.t0 + 0.35) { S.fx = true; const p = plById(S.id); spawnConfetti(26, [p.team.css, '#ffd24a', '#ffffff', '#ff8a2a'], 'burst'); flash('#ffffff', 0.08); G.fx.cheer = Math.max(G.fx.cheer, 2.6); }
     }
-    if (I.li < 0 ? now >= I.tT : now >= I.lt + I.ld) introNext();
+    const curL = I.li >= 0 ? I.lines[I.li] : null;
+    if (I.li < 0 ? now >= I.tT : (!curL || !curL.waitVo || now - I.lt >= 4) && now >= I.lt + I.ld) introNext();
     if (!G.intro) return;
     const A = plById(I.duo[0]), B2 = plById(I.duo[1]), mid = { x: (A.x + B2.x) / 2, y: (A.y + B2.y) / 2 };
     const sh = I.li < 0 ? (now < I.t0 + IWA ? A : B2) : null;
@@ -2755,7 +2757,14 @@
         if (!it) return false;
         L.t = it.t; L.d = it.d;
         G.intro.ld = Math.max(clamp(0.8 + L.t.length * 0.1, 1.9, 4.5), (L.d || 0) + 0.55);
-        if (G.mode !== 'demo') PH.audio.voSay(it);
+        if (G.mode !== 'demo') {
+          const pending = PH.audio.voSay(it, (playDur) => {
+            if (!G.intro || G.intro.lines[G.intro.li] !== L) return;
+            L.waitVo = false;
+            if (playDur > 0) { G.intro.lt = G.time; G.intro.ld = Math.max(clamp(0.8 + L.t.length * 0.1, 1.9, 4.5), playDur + 0.55); }
+          });
+          if (pending === true) L.waitVo = true;
+        }
         return true;
       };
       if (!sayVo() && PH.audio && PH.audio.voWhenReady) PH.audio.voWhenReady(sayVo);

@@ -337,11 +337,19 @@
   // 指定一条语音（开场对话用）：voLine 按序号取条目，voSay 打断当前语音直接播
   function voLine(key, ev, i) { const L = voM && voM[key] && voM[key].lines && voM[key].lines[ev]; return L && L.length ? L[(i || 0) % L.length] : null; }
   function voStop() { voSeq++; voSayF = ''; if (voQTimer) { clearTimeout(voQTimer); voQTimer = null; } if (voCur) { try { voCur.stop(); } catch (e) { /* 已停 */ } voCur = null; } voBusy = 0; }
-  function voSay(it) {
-    if (!it || !voOn || !sfxOn || pauseOn || !ensure()) return;
+  function voSay(it, onStart) {
+    if (!it || !voOn || !sfxOn || pauseOn || !ensure()) return false;
     voStop(); const want = it.f, seq = ++voSeq; voSayF = want;
-    voBuf(it.f).then((buf) => { if (!buf || !voOn || pauseOn || voSayF !== want || seq !== voSeq) return; if (ac.state === 'suspended') ac.resume(); const lead = voLead(buf), src = ac.createBufferSource(); src.buffer = buf; src.connect(voGain); src.start(0, lead); voCur = src; if (lead > 0.1) voBusy = Math.min(voBusy, performance.now() + Math.max(0.3, (buf.duration || it.d || 1.5) - lead) * 1000 + 250); }).catch(() => {});
+    voBuf(it.f).then((buf) => {
+      if (!buf || !voOn || pauseOn || voSayF !== want || seq !== voSeq) { if (onStart && seq === voSeq) onStart(0); return; }
+      if (ac.state === 'suspended') ac.resume();
+      const lead = voLead(buf), src = ac.createBufferSource(); src.buffer = buf; src.connect(voGain); src.start(0, lead); voCur = src;
+      const playDur = Math.max(0.3, (buf.duration || it.d || 1.5) - lead);
+      if (lead > 0.1) voBusy = Math.min(voBusy, performance.now() + playDur * 1000 + 250);
+      if (onStart) onStart(playDur);
+    }).catch(() => { if (onStart && seq === voSeq) onStart(0); });
     voBusy = performance.now() + ((it.d || 1.5) * 1000) + 250;
+    return true;
   }
   function voWhenReady(cb) { if (voM) cb(); else voReady.then(() => { if (voM) cb(); }); }
   let voSayF = '', voSeq = 0, voQTimer = null;
