@@ -118,6 +118,33 @@ console.log('PASS zero duration tuning: low/high multipliers keep all UU and pos
 console.log('PASS move quality: post Spin/Back/Front and all four UU steps are larger/faster at high ratings in 1V1/3V3/5V5');
 console.log('PASS fake limits: no dream=1, bronze=2, silver=3, gold/HOF unlimited; excess early releases become rushed real shots in all modes');
 
+for (const mode of ['2p', 't3', 't5']) for (const [tier, limit] of [[0, 1], [1, 2], [2, 3], [3, 5], [4, 5]]) {
+  const { p } = fixture(mode); badge(p, 'dream', tier);
+  for (let i = 0; i < limit + (tier < 3 ? 1 : 0); i++) {
+    const side = i % 2 ? -1 : 1;
+    step(p, { post: true, rs: true, rsPad: true, dx: side });
+    assert.equal(p.postFakeCount || 0, i, 'a provisional stick move preserves the count before hold conversion');
+    step(p, { post: true, rs: true, rsPad: true, dx: side }, Math.ceil(K.rsHold / dt) + 1);
+    const a = p.action;
+    assert.equal(a.type, 'shot', `${mode} held stick converts its preliminary move to a shot`);
+    step(p, { post: true, rsPad: true });
+    if (i < limit) {
+      assert(p.action.postFake && p.hasBall, `${mode} tier ${tier} stick fake ${i + 1}`);
+      assert.equal(p.postFakeCount, i + 1, `${mode} stick conversion preserves the fake count`);
+      finishFake(p);
+    } else assert(a.released && !p.hasBall, `${mode} tier ${tier} over-limit stick release must commit`);
+  }
+}
+console.log('PASS right-stick fake limits: preliminary post moves cannot reset no/bronze/silver Dream limits; gold/HOF remain unlimited in all modes');
+
+for (const end of ['flick', 'direction', 'exit']) {
+  const { p } = fixture(); early(p); finishFake(p);
+  step(p, { post: true, rs: true, rsPad: true, dx: 1 });
+  assert.equal(p.postFakeCount, 1);
+  step(p, { post: end !== 'exit', rs: end !== 'flick', rsPad: true, dx: -1 });
+  assert.equal(p.postFakeCount, 0, `${end} commits a real move or leaves post`);
+}
+
 for (const end of ['exit', 'loss', 'dead', 'move', 'shot']) {
   const { p } = fixture(); early(p); finishFake(p); assert.equal(p.postFakeCount, 1);
   if (end === 'move') dbg.startMove(p, { ...zero(), dx: 1 }, 'postspin');

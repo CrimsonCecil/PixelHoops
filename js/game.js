@@ -3807,7 +3807,7 @@
     float('假动作', pl, '#f6efe0');
   }
   function startMove(pl, inp, force, inputAt = G.time) {
-    pl.postFakeCount = 0;
+    if (!(inp.rs && pl.rsGesture && pl.rsGesture.post)) pl.postFakeCount = 0;
     comboTick(pl, inputAt);
     const prev = pl.dribbleCombo, moving = pl.action && pl.action.type === 'move';
     const linked = prev && prev.end == null && (moving || Math.abs(inputAt - pl.mvEndT) <= K.cbWin);
@@ -4488,6 +4488,8 @@
     return a.type === 'move' || (a.type === 'shot' && !a.released) || (a.type === 'layup' && !a.released) || (a.type === 'dunk' && !a.done);
   }
   function postRightStickInput(pl, inp, raw) {
+    const prev = pl.postRS;
+    if (prev && prev.post && prev.move && !prev.postShot && prev !== pl.rsGesture) pl.postFakeCount = 0;
     const rs = pl.rsGesture || pl.postRS;
     pl.postRS = pl.rsGesture;
     if (!rs) return inp;
@@ -4642,7 +4644,7 @@
         if (was && !pl.post && q.l > 0.3 && Math.abs(q.lat) > 0.5 && can) startMove(pl, inp, 'postspin');
       }
     } else if (!pl.hasBall || frozen || pl.stun > 0) { pl.post = false; if (!pl.hasBall) { pl.postMove = null; pl.postFaceLock = false; } }
-    if (!pl.hasBall || frozen || G.ball.dead || pl.stun > 0 || !pl.post && !(pl.action && (pl.action.postFake || pl.action.postOrigin && !pl.action.released))) pl.postFakeCount = 0;
+    if (!pl.hasBall || frozen || G.ball.dead || pl.stun > 0 || !pl.post && !(pl.action && (pl.action.postFake || pl.action.postOrigin && !pl.action.released)) && !(rs && rs.post && !rs.postShot && !rs.postCancelled)) pl.postFakeCount = 0;
     // 运球接招按取消窗口；普通投篮等动作做完，高控球/徽章可随时干拔
     // 只缓存"动作进行中"新按的键（刚由这一下触发的动作不再重复缓存），并记住按下那一刻的方向，接招时按当时推的方向出，不会变成别的动作
     if (pl.buf) trackHesitation(pl, pl.buf.hesi, raw);
