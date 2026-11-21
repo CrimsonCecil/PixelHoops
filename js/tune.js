@@ -33,7 +33,7 @@
     { id: 'stam', name: '体力', subs: ['消耗', '恢复', '疲劳影响', '体力门槛'] },
     { id: 'ai', name: 'AI', subs: ['进攻决策', '球员个性', '连招', '防守反应', '难度'] },
     { id: 't5', name: '5V5 团队', subs: ['战术', '换人', '时间管理', '命中校准', '团队专属'] },
-    { id: 'pace', name: '节奏与表现', subs: ['时长与规则', '插屏', '特效', '镜头', '回放', '震屏', '输入缓冲'] },
+    { id: 'pace', name: '节奏与表现', subs: ['时长与规则', '犯规与罚球', '插屏', '特效', '镜头', '回放', '震屏', '输入缓冲'] },
   ];
   const CAT_ID = {}; CATS.forEach((c) => { CAT_ID[c.id] = c; CAT_ID[c.name] = c; });
   const CLS = [
@@ -51,6 +51,7 @@
     [/^fxT\dSh$/, 'pace', '震屏'], [/^fxWin/, 'pace', '特效', '1v1'], [/^fx/, 'pace', '特效'], [/^rp/, 'pace', '回放', '1v1'], [/^cam/, 'pace', '镜头', '1v1'],
     [/^(prevRun)$/, 'fin', '脚步与起跳', '1v1'], [/^(ctDbl|ctBlkD)$/, 'ct', '封堵对抗', '5v5'],
     [/^shotClock$/, 'pace', '时长与规则', '1v1'],
+    [/^(foul|ft)/, 'pace', '犯规与罚球', '1v1'],
     [/^(ciDur|ciFx)$/, 'pace', '插屏'], [/^layNoStop$/, 'pace', '特效'], [/^ibuf/, 'pace', '输入缓冲'],
     [/^(smTLay|smTFlo|layTi|floTi|smLay0|smLayR|smFlo0|smFloR|smIn|smGIn)/, 'fin', '上篮'],
     [/^(smLayC|smCLay|smCShot|smCR|contestShot|contestLay|greenContest)/, 'shot', '干扰'],
@@ -107,6 +108,7 @@
   }
   function classify(d) {
     const k = String(d.k), bare = k.replace(/^l1_/, ''), t5 = /^t5_/.test(k);
+    if (/^l1_(foul|ft)/.test(k)) d.wide = false;
     if (t5) { const m = T5SUB[d.cat + '|' + d.sub]; if (m) { d.cat = m.split('|')[0]; d.sub = m.split('|')[1]; } for (const [re, c, s] of T5RE) if (re.test(k)) { d.cat = c; d.sub = s; } }
     if (!d.cat) for (const r of CLS) if (r[0].test(bare)) { d.cat = r[1]; d.sub = r[2]; if (r[3] && !d.gm) d.gm = r[3]; break; }
     if (!d.cat) { d.cat = t5 ? 't5' : 'pace'; d.sub = d.sub || (t5 ? '战术' : '时长与规则'); }

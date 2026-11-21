@@ -22,7 +22,7 @@ function load(before = false) {
 
 function fixture(ctx, { attacker = 'rdunn', defender = 'pritchard', kind = 'dunk', seed = 7, mode = '2p', cpu = false, ratings } = {}) {
   const gm = ctx.PH.game, G = gm.G;
-  gm.newGame({ mode: '2p', arch0: attacker, arch1: defender, target: 9999 });
+  gm.newGame({ mode: '2p', arch0: attacker, arch1: defender, target: 9999, fouls: false });
   Object.assign(G, { mode, phase: 'live', tips: null, needClear: false });
   const [p, d] = G.players;
   Object.assign(p, { x: 0, y: 10, z: 0.05, vx: 0, vy: 5, face: Math.PI / 2, speed: 5, hasBall: true, ctrl: cpu ? 'cpu' : 'p1', stam: 100 });

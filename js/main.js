@@ -3,7 +3,7 @@
   const PH = window.PH, GM = PH.game, G = GM.G, R = PH.render, CFG = GM.CFG, TR = G.train;
   const $ = (id) => document.getElementById(id);
   const stage = $('stage'), canvas = $('game'), replayWipe = $('replay-wipe');
-  const opts = { format: 'duel', opponent: 'cpu', get mode() { return this.format === 'duel' ? this.opponent : this.format; }, diff: 1, target: 21, clock: 24, glen: 0, arch0: GM.ROSTER[(Math.random() * GM.ROSTER.length) | 0], arch1: 'random', fb: 'simple', info: 'show', intro: 'on', home: 'LAL', away: 'BOS', qlen: 300, side: 0, ktarget: 21, kreveal: 'hide' };
+  const opts = { format: 'duel', opponent: 'cpu', get mode() { return this.format === 'duel' ? this.opponent : this.format; }, diff: 1, target: 21, clock: 24, glen: 0, fouls: 'on', arch0: GM.ROSTER[(Math.random() * GM.ROSTER.length) | 0], arch1: 'random', fb: 'simple', info: 'show', intro: 'on', home: 'LAL', away: 'BOS', qlen: 300, side: 0, ktarget: 21, kreveal: 'hide' };
   const lobbyRoles = { human: '你', cpu: '电脑', waiting: '等待玩家' };
   const lobby3 = ['curry', 'lebron', 'jokic', 'edwards', 'durant', 'giannis'].map((arch, i) => ({ arch, role: i === 0 ? 'human' : i % 3 === 2 ? 'waiting' : 'cpu' }));
   const rooms = PH.rooms, room = rooms.room;
@@ -269,7 +269,7 @@
     else if (!room.role) menuStatus('');
   }
   const NET_STATE = ['time', 'phase', 'phaseT', 'score', 'stats', 'target', 'shotClock', 'glen', 'gclock', 'sd', 'mp', 'needClear', 'off', 'winner',
-    'ball', 'banner', 'floats', 'fx', 'net', 'focus', 'camK', 'cz', 'cutin', 'hero', 'bpops', 'lastShot', 'hzV', 'clearOk', 'clearPing'];
+    'ball', 'banner', 'floats', 'fx', 'net', 'focus', 'camK', 'cz', 'cutin', 'hero', 'bpops', 'lastShot', 'hzV', 'clearOk', 'clearPing', 'ft'];
   const roomAudio = [];
   function resetRoomAudio() {
     roomAudio.length = 0;
@@ -568,7 +568,7 @@
       if (!t3 && !room.links.has(1)) return;
       const config = same && !t3 && matchConfig ? matchConfig : { mode: opts.mode, clock: opts.clock, target: opts.target, diff: opts.diff, fb: opts.fb, glen: opts.glen,
         ...(t3 ? { slots: lobby3.map((s, i) => ({ arch: s.arch, role: room.links.has(i) ? 'remote' : s.role === 'waiting' ? 'cpu' : s.role })) }
-          : { arch0: opts.arch0, arch1: pickArch(opts.arch1, opts.arch0) }) };
+          : { arch0: opts.arch0, arch1: pickArch(opts.arch1, opts.arch0), fouls: opts.fouls === 'on' }) };
       if (room.role === 'host') {
         if (!room.code) return;
         room.active = true;
@@ -585,8 +585,8 @@
     if (!kg && (!same || !lastArch || opts.arch1 === 'random')) lastArch = { a0: opts.arch0, a1: pickArch(opts.arch1, opts.arch0) };
     const tr = opts.mode === 'train';
     if (!tr) CFG.shotClock = opts.clock;
-    if (kg) GM.newGame({ mode: 'cpu', diff: Math.min(2, KING_T[KR.stage]), target: KR.target, arch0: KR.arch, arch1: KR.ladder[KR.stage], fb: opts.fb, glen: 0, cpuD: kingD(KR.stage) });
-    else GM.newGame({ mode: opts.mode, diff: opts.diff, target: opts.target, arch0: lastArch.a0, arch1: lastArch.a1, fb: opts.fb, glen: opts.glen });
+    if (kg) GM.newGame({ mode: 'cpu', diff: Math.min(2, KING_T[KR.stage]), target: KR.target, arch0: KR.arch, arch1: KR.ladder[KR.stage], fb: opts.fb, glen: 0, cpuD: kingD(KR.stage), fouls: opts.fouls === 'on' });
+    else GM.newGame({ mode: opts.mode, diff: opts.diff, target: opts.target, arch0: lastArch.a0, arch1: lastArch.a1, fb: opts.fb, glen: opts.glen, fouls: opts.fouls === 'on' });
     replaySaveReset();
     PH.audio.voPreload(G.players.map((p) => p.arch.key));
     if (opts.intro !== 'off') GM.introStart();
@@ -1248,7 +1248,7 @@
   function who(id) { return G.mode === '2p' ? '玩家 ' + (id + 1) : G.players[id].ctrl === 'cpu' ? (G.players[id].dummy ? '假人' : '电脑') : '你'; }
   function shotCard() {
     const L = G.lastShot, el = $('shotcard');
-    if (!L || G.mode === 'demo' || opts.fb !== 'detail' || (G.mode !== 'train' && G.time - L.time > 3.6) || G.phase === 'over') { el.classList.add('hidden'); cardId = -1; return; }
+    if (!L || G.mode === 'demo' || opts.fb !== 'detail' || (G.mode !== 'train' && G.time - L.time > 3.6) || G.phase === 'over' || G.phase === 'ft') { el.classList.add('hidden'); cardId = -1; return; }
     if (L.id === cardId) return;
     cardId = L.id;
     const res = L.blocked ? '被盖帽' : L.made ? '命中' : '未进', pc = Math.round(L.prob * 100);
@@ -1353,10 +1353,11 @@
     bpops();
     if (G.score[0] !== lastS0) { lastS0 = G.score[0]; $('s0').textContent = lastS0; }
     if (G.score[1] !== lastS1) { lastS1 = G.score[1]; $('s1').textContent = lastS1; }
-    const c = CFG.shotClock > 0 ? String(Math.max(0, Math.ceil(G.shotClock))) : '--';
+    const ft = G.phase === 'ft' ? G.ft : null;
+    const c = !ft && CFG.shotClock > 0 ? String(Math.max(0, Math.ceil(G.shotClock))) : '--';
     if (c !== lastClock) { lastClock = c; $('clock').textContent = c; $('clock').classList.toggle('low', CFG.shotClock > 0 && G.shotClock <= 5); }
-    { const gl = G.glen > 0 && G.mode !== 'train', gc = Math.ceil(G.gclock || 0), tt = G.sd ? '加时 · 下一球胜' : (gl ? Math.floor(gc / 60) + ':' + String(gc % 60).padStart(2, '0') + ' · ' : '') + (G.mp >= 0 ? '赛点' : '先到 ' + G.target + ' 分');
-      if (tt !== lastTB2) { lastTB2 = tt; const el = $('target'); el.textContent = tt; el.classList.toggle('mp', G.mp >= 0 || !!G.sd); el.classList.toggle('low', gl && gc <= 10); } }
+    { const gl = G.glen > 0 && G.mode !== 'train', gc = Math.ceil(G.gclock || 0), tt = ft ? '罚球 ' + ft.index + '/' + ft.total : G.sd ? '加时 · 下一球胜' : (gl ? Math.floor(gc / 60) + ':' + String(gc % 60).padStart(2, '0') + ' · ' : '') + (G.mp >= 0 ? '赛点' : '先到 ' + G.target + ' 分');
+      if (tt !== lastTB2) { lastTB2 = tt; const el = $('target'); el.textContent = tt; el.classList.toggle('mp', !ft && (G.mp >= 0 || !!G.sd)); el.classList.toggle('low', !ft && gl && gc <= 10); } }
     const teamOff = t3 && !!local && local.tm === G.off;
     show('notice', G.needClear && G.phase === 'live' && G.ball.state === 'held' && (t3 ? teamOff : G.players[G.off].ctrl !== 'cpu'));
     $('notice').classList.toggle('ping', G.time - (G.clearPing || -9) < 0.45);
@@ -1368,7 +1369,7 @@
     // 操作提示
     const two = G.mode === '2p' && !matchConfig, off = t3 ? teamOff : matchConfig ? !!(local && local.hasBall) : G.off === 0;
     const offBall = teamOff && !local.hasBall, post = off && !offBall && local.post;
-    const key = (two ? '2' : '1') + (offBall ? 'b' : off ? 'o' : 'd') + (post ? 'p' : '') + (hasPad ? 'g' : '') + (train ? 't' : '') + (t3 ? '3' : '');
+    const key = (two ? '2' : '1') + (offBall ? 'b' : off ? 'o' : 'd') + (post ? 'p' : '') + (hasPad ? 'g' : '') + (train ? 't' : '') + (t3 ? '3' : '') + (ft ? 'ft' + ft.id : '');
     if (key !== hintKey) {
       hintKey = key;
       const kb = hasPad ? { a1: 'X', a2: 'Y', a3: 'B', po: 'LT', sp: 'RT', st: 'LT', d1: 'Y', d2: 'X' } : { a1: 'J', a2: 'K', a3: 'L', po: 'Q', sp: 'Shift', st: '按住 L', d1: 'J', d2: 'K' };
@@ -1376,15 +1377,20 @@
       const B = '<b>' + kb.d1 + '</b> 抢篮板 <b>' + kb.st + '</b> 卡位 <b>' + kb.sp + '</b> 加速';
       const P = '背打中　<b>' + kb.a1 + '</b> 勾手 / 按住后方向后仰 <b>' + kb.a2 + '</b> 转身终结　松开时按左右 转身';
       const D = '<b>' + kb.d1 + '</b> 封盖 <b>' + kb.d2 + '</b> 抢断 <b>' + kb.st + '</b> 举手干扰 <b>' + kb.sp + '</b> 加速';
-      show('hint', train || !!(t3 && local) || opts.fb === 'detail');
+      show('hint', !!ft || train || !!(t3 && local) || opts.fb === 'detail');
       const passing = t3 && local && off ? offBall ? '　<b>' + (hasPad ? 'A' : 'E') + '</b> 要球' : hasPad
         ? '　<b>A</b> 胸传　<b>RT+A</b> 过顶　<b>LB+A</b> 击地　<b>LT+A</b> 高吊　<b>双击 Y / LB+LT+A</b> 空接'
         : '　<b>E</b> 胸传　<b>Shift+E</b> 过顶　<b>Z</b> 击地　<b>X</b> 高吊　<b>V</b> 空接' : '';
       const alleyHelp = t3 ? '　空接接球自动终结' : '';
       $('hint').innerHTML = two ? '玩家 1：WASD + J K L，H 犹豫步，Q 背打，V 自抛空接　玩家 2：方向键 + 小键盘 1 2 3，小键盘 5 犹豫步，O 背打，Num4 自抛空接；手柄双击 Y 自抛空接，接球自动终结' : (post ? P : off ? '进攻　' + (offBall ? B : O) : '防守　' + D) + passing + (offBall ? '　<b>' + (hasPad ? 'R3' : 'F') + '</b> 掩护' : '') + (train ? '　<b>' + (hasPad ? 'View' : 'Tab') + '</b> 参数 <b>R</b> 重置' : '');
       if (t3) $('hint').innerHTML += alleyHelp;
+      if (ft) {
+        const shooter = G.players[ft.id];
+        const key = hasPad ? 'X' : two && ft.id === 1 ? '小键盘 1' : kb.a1;
+        $('hint').innerHTML = shooter.ctrl === 'cpu' || !two && shooter !== local ? '等待对手罚球' : '按住 <b>' + key + '</b>，到绿区松手罚球';
+      }
       if (isTouch) {
-        $('tb1').textContent = offBall ? '篮板' : off ? '投篮' : '盖帽'; $('tb2').textContent = offBall ? '扑球' : off ? '终结' : '抢断'; $('tb3').textContent = offBall ? '卡位' : off ? '运球' : '姿态'; $('tbalt').textContent = '背打';
+        $('tb1').textContent = ft && ft.id === local?.id ? '罚球' : offBall ? '篮板' : off ? '投篮' : '盖帽'; $('tb2').textContent = offBall ? '扑球' : off ? '终结' : '抢断'; $('tb3').textContent = offBall ? '卡位' : off ? '运球' : '姿态'; $('tbalt').textContent = '背打';
         show('tbalt', off && !offBall); show('tbscreen', offBall);
         for (const id of ['tbbounce', 'tblob', 'tballey']) show(id, t3 && off && !offBall);
       }
@@ -1420,16 +1426,18 @@
   const pc = (m, a) => (a > 0 ? m / a : null), fp = (v) => (v == null ? '-' : (v * 100).toFixed(v >= 1 ? 0 : 1) + '%');
   function bxStat(i) { return statOf(G.stats[i], G.score[i]); }
   function statOf(x, pts) {
-    const poss = Math.max(1, x.fga - x.oreb + x.tov);
+    const fta = x.fta || 0, ftm = x.ftm || 0, pf = x.pf || 0, poss = Math.max(1, x.fga + 0.44 * fta - x.oreb + x.tov);
     return Object.assign({}, x, { pts: pts, poss: poss, two: x.fg - x.tp, twoa: x.fga - x.tpa,
-      fgp: pc(x.fg, x.fga), tpp: pc(x.tp, x.tpa), inp: pc(x.inm, x.ina), ts: pc(pts, 2 * x.fga), efg: pc(x.fg + 0.5 * x.tp, x.fga), tpar: pc(x.tpa, x.fga), ppp: pts / poss,
-      gms: pts + 0.4 * x.fg - 0.7 * x.fga + 0.7 * x.oreb + 0.3 * x.dreb + x.stl + 0.7 * x.blk - x.tov });
+      fta, ftm, pf, ftp: pc(ftm, fta), fgp: pc(x.fg, x.fga), tpp: pc(x.tp, x.tpa), inp: pc(x.inm, x.ina), ts: pc(pts, 2 * (x.fga + 0.44 * fta)), efg: pc(x.fg + 0.5 * x.tp, x.fga), tpar: pc(x.tpa, x.fga), ppp: pts / poss,
+      gms: pts + 0.4 * x.fg - 0.7 * x.fga - 0.4 * (fta - ftm) + 0.7 * x.oreb + 0.3 * x.dreb + x.stl + 0.7 * x.blk - 0.4 * pf - x.tov });
   }
   // 列：[标题, 取值, 显示, 说明, 选项]  选项 low = 越少越好；el = 精英阈值；bad = 拖后腿阈值；q = 样本门槛
   const C = {
     PTS: ['得分', (p) => p.pts, null, '得分', { el: (p) => p.pts >= 21 && p.fgp >= 0.55 }],
     FG: ['投篮', (p) => p.fgp, (p) => p.fg + '/' + p.fga, '投篮命中 / 出手', { el: (p) => p.fga >= 8 && p.fgp >= 0.65, bad: (p) => p.fga >= 6 && p.fgp < 0.35 ? (p.fgp < 0.25 ? 2 : 1) : 0 }],
     '3P': ['三分', (p) => p.tpp, (p) => p.tp + '/' + p.tpa, '三分命中 / 出手', { el: (p) => p.tpa >= 4 && p.tpp >= 0.5, bad: (p) => p.tpa >= 4 && p.tpp < 0.2 ? 1 : 0 }],
+    FT: ['罚球', (p) => p.ftp, (p) => p.ftm + '/' + p.fta, '罚球命中 / 出手', {}],
+    PF: ['犯规', (p) => p.pf, null, '个人犯规', { low: true }],
     IN: ['内线', (p) => p.inp, (p) => p.inm + '/' + p.ina, '上篮 / 扣篮 / 补篮 命中 / 出手', { el: (p) => p.ina >= 5 && p.inp >= 0.75 }],
     REB: ['篮板', (p) => p.reb, (p) => p.reb + '<small>' + p.oreb + '前</small>', '篮板（其中前场板）', { el: (p) => p.reb >= 10 }],
     STL: ['抢断', (p) => p.stl, null, '抢断', { el: (p) => p.stl >= 4 }],
@@ -1440,15 +1448,15 @@
     PRF: ['完美', (p) => p.green, null, '完美出手（绿区）', { el: (p) => p.green >= 4 }],
     SK: ['必杀', (p) => p.sk || 0, null, '必杀技发动', {}],
     'FG%': ['FG%', (p) => p.fgp, (p) => fp(p.fgp), '投篮命中率', { el: (p) => p.fga >= 8 && p.fgp >= 0.65, bad: (p) => p.fga >= 6 && p.fgp < 0.35 ? (p.fgp < 0.25 ? 2 : 1) : 0 }],
-    '3P%': ['3P%', (p) => p.tpp, (p) => fp(p.tpp), '三分命中率（比赛没有罚球，用它代替 FT%）', { el: (p) => p.tpa >= 4 && p.tpp >= 0.5, bad: (p) => p.tpa >= 4 && p.tpp < 0.2 ? 1 : 0 }],
+    '3P%': ['3P%', (p) => p.tpp, (p) => fp(p.tpp), '三分命中率', { el: (p) => p.tpa >= 4 && p.tpp >= 0.5, bad: (p) => p.tpa >= 4 && p.tpp < 0.2 ? 1 : 0 }],
     '3PM': ['3PM', (p) => p.tp, null, '三分命中数', { el: (p) => p.tp >= 5 }],
     OREB: ['OREB', (p) => p.oreb, null, '前场篮板', { el: (p) => p.oreb >= 4 }],
-    'TS%': ['TS%', (p) => p.ts, (p) => fp(p.ts), '真实命中率 PTS / (2×FGA)，没有罚球', { el: (p) => p.fga >= 8 && p.ts >= 0.7, bad: (p) => p.fga >= 6 && p.ts < 0.42 ? 1 : 0 }],
+    'TS%': ['TS%', (p) => p.ts, (p) => fp(p.ts), '真实命中率 PTS / (2×(FGA + 0.44×FTA))', { el: (p) => p.fga >= 8 && p.ts >= 0.7, bad: (p) => p.fga >= 6 && p.ts < 0.42 ? 1 : 0 }],
     'eFG%': ['eFG%', (p) => p.efg, (p) => fp(p.efg), '有效命中率 (FGM + 0.5×3PM) / FGA', { el: (p) => p.fga >= 8 && p.efg >= 0.68 }],
     '3PAr': ['3PAr', (p) => p.tpar, (p) => fp(p.tpar), '三分出手占比 3PA / FGA', { neutral: true }],
-    PPP: ['PPP', (p) => p.ppp, (p) => p.ppp.toFixed(2), '每回合得分 = 得分 / (FGA − OREB + TO)', { el: (p) => p.poss >= 6 && p.ppp >= 1.4 }],
+    PPP: ['PPP', (p) => p.ppp, (p) => p.ppp.toFixed(2), '每回合得分 = 得分 / (FGA + 0.44×FTA − OREB + TO)', { el: (p) => p.poss >= 6 && p.ppp >= 1.4 }],
     'USG%': ['USG%', (p) => p.usg, (p) => fp(p.usg), '球权使用率 (FGA + TO) / 全队 (FGA + TO)', { neutral: true }],
-    GmSc: ['GmSc', (p) => p.gms, (p) => p.gms.toFixed(1), 'Hollinger 单场综合表现分（去掉罚球、助攻、犯规项）', { el: (p) => p.gms >= 20 }],
+    GmSc: ['GmSc', (p) => p.gms, (p) => p.gms.toFixed(1), 'Hollinger 单场综合表现分（不计助攻）', { el: (p) => p.gms >= 20 }],
   };
   PH.BXH = { C: C };
   const VIEWS = { box: ['PTS', 'FG', '3P', 'IN', 'REB', 'STL', 'BLK', 'TO', 'DNK', 'ANK', 'PRF', 'SK'], '9cat': ['FG%', '3P%', '3PM', 'PTS', 'REB', 'STL', 'BLK', 'TO', 'DNK'], '11cat': ['FG%', '3P%', '3PM', 'PTS', 'REB', 'OREB', 'STL', 'BLK', 'TO', 'DNK', 'ANK'] };
@@ -1513,6 +1521,7 @@
   function renderBox() {
     if (G.mode === 't3') { renderBox3(); return; }
     const P = [bxStat(0), bxStat(1)], cols = VIEWS[BX.view].concat(BX.adv ? ADVC : []), cat = BX.view !== 'box';
+    if (!cat && G.fouls) cols.splice(3, 0, 'FT', 'PF');
     const nm = [$('n0').textContent, $('n1').textContent], cw = cat ? VIEWS[BX.view].map((k) => catWin(k, P)) : null;
     let h = '<thead><tr><th class="pcol">球员</th>' + cols.map((k) => '<th title="' + C[k][3] + '">' + C[k][0] + '</th>').join('') + (cat ? '<th class="cw">胜项</th>' : '') + '</tr></thead><tbody>';
     for (const i of [0, 1]) {
