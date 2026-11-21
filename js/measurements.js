@@ -9,6 +9,9 @@ window.PH.measurements = {
   barkley: [78, 252],
   mutombo: [86, 245],
   yao: [90, 310],
+  rodman: [79, 210],
+  bwallace: [81, 240],
+  rallen: [77, 205],
   ablack: [79, 200, 79.5, 8.25], // Anthony Black
   ace: [81, 200, 84.5, 8.5], // Ace Bailey
   achiuwa: [80, 243, 84.75, 9], // Precious Achiuwa
@@ -319,6 +322,7 @@ window.PH.measurements = {
 // Visual build judgments from ESPN roster portraits and known playing physiques.
 window.PH.buildTags = {
   barkley: 'heavy', mutombo: 'lean', yao: 'muscular',
+  rodman: 'lean', bwallace: 'muscular', rallen: 'balanced',
   ablack: 'lean', ace: 'lean', achiuwa: 'muscular', acuff: 'balanced',
   ad: 'muscular', ajay: 'balanced', ajgreen: 'balanced', amen: 'balanced',
   ament: 'lean', ausar: 'balanced', avdija: 'muscular', awiggins: 'lean',

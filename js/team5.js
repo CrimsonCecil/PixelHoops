@@ -1087,7 +1087,7 @@
   // game.js 只用对位人 OP 的 contestInfo，这里按比例改 a.V.c（每帧在出手前更新）；盖帽仍按各自起跳的人判定，不叠加
   function dblC() {
     for (const p of ps()) {
-      const a = p.action; if (!a || (a.type !== 'shot' && a.type !== 'layup') || a.released || !a.k5 || !a.V || a.skill) continue;
+      const a = p.action; if (!a || (a.type !== 'shot' && a.type !== 'layup') || a.released || !a.k5 || !a.V || a.skill && a.skill !== 'rallen') continue;
       const cls = a.type === 'layup' || a.V.hook || a.V.post || a.v === 'postfade' ? 'in' : 'shot', L = [];
       for (const d of defs()) if (dist(d, p) < TV.t5_dbl_r) { const c = A5.contestInfo(p, d, cls).c; if (c > 0) L.push(c); }
       L.sort((x, y) => y - x);

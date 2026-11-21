@@ -383,6 +383,7 @@
     const L = voLines(key, ev);
     return L && L.length ? L[(i || 0) % L.length] : null;
   }
+  function voHas(key, ev) { return !!voM?.[key]?.lines?.[ev]?.length; }
   function voStop() { voSeq++; voSayF = ''; if (voQTimer) { clearTimeout(voQTimer); voQTimer = null; } if (voCur) { try { voCur.stop(); } catch (e) { /* 已停 */ } voCur = null; } voBusy = 0; }
   function voSay(it, onStart) {
     if (!it || !voOn || !sfxOn || pauseOn || !ensure()) return false;
@@ -417,5 +418,5 @@
     return Array.from(out.getChannelData(0));
   }
   function setMix(k, v) { MIX[k] = v; applyMix(); }
-  PH.audio = { setPaused: setPaused, get paused() { return pauseOn; }, get pauseLevel() { return pauseGain ? pauseGain.gain.value : 1; }, mixRender: mixRender, MIX: MIX, BASE: BASE, setMix: setMix, voPreload: voPreload, voLine: voLine, voSay: voSay, voStop: voStop, voWhenReady: voWhenReady, sfxNames: () => Object.keys(SFX), vo: vo, setVo: (v) => { voOn = v; }, get voOn() { return voOn; }, play: play, ensure: ensure, startMusic: startMusic, stopMusic: stopMusic, scene: scene, intensity: intensity, get scene_() { return curName; }, get hot() { return hotWant; }, tracks: () => Object.keys(TRK), setMusic: setMusic, setSfx: setSfx, get musicOn() { return musicOn; }, get sfxOn() { return sfxOn; } };
+  PH.audio = { voHas: voHas, setPaused: setPaused, get paused() { return pauseOn; }, get pauseLevel() { return pauseGain ? pauseGain.gain.value : 1; }, mixRender: mixRender, MIX: MIX, BASE: BASE, setMix: setMix, voPreload: voPreload, voLine: voLine, voSay: voSay, voStop: voStop, voWhenReady: voWhenReady, sfxNames: () => Object.keys(SFX), vo: vo, setVo: (v) => { voOn = v; }, get voOn() { return voOn; }, play: play, ensure: ensure, startMusic: startMusic, stopMusic: stopMusic, scene: scene, intensity: intensity, get scene_() { return curName; }, get hot() { return hotWant; }, tracks: () => Object.keys(TRK), setMusic: setMusic, setSfx: setSfx, get musicOn() { return musicOn; }, get sfxOn() { return sfxOn; } };
 })();
