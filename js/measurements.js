@@ -401,6 +401,6 @@ window.PH.buildTags = {
   vanderbilt: 'lean', vassell: 'lean', wagler: 'lean', walsh: 'lean',
   ware: 'muscular', wcj: 'muscular', wemby: 'lean', white: 'balanced',
   wiggins: 'balanced', wolf: 'heavy', youngblood: 'muscular', ziaire: 'lean',
-  tmac: 'lean', nash: 'lean', rip: 'lean',
+  tmac: 'balanced', nash: 'lean', rip: 'lean',
   zion: 'heavy', zubac: 'muscular',
 };

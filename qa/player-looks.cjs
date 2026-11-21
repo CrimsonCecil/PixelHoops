@@ -10,6 +10,7 @@ const noop = () => {};
 let numberPixels;
 let jerseyPixels;
 let playerLabels;
+let detailPixels;
 const canvas = () => {
   const c = new Proxy({ createImageData: (w, h) => ({ data: new Uint8ClampedArray(w * h * 4) }), measureText: () => ({ width: 8 }),
     createLinearGradient: () => ({ addColorStop: noop }),
@@ -17,6 +18,7 @@ const canvas = () => {
     fillRect(x, y, w, h) {
       if (this.fillStyle === '#123456') numberPixels?.push([x, y, w, h]);
       if (this.fillStyle === '#234567') jerseyPixels?.push([x, y, w, h]);
+      detailPixels?.get(this.fillStyle)?.push([x, y, w, h]);
     },
   }, {
     get: (obj, key) => obj[key] ?? noop,
@@ -36,7 +38,7 @@ const distance = (a, b) => Math.hypot(...rgb(a).map((v, i) => v - rgb(b)[i]));
 for (const [key, team] of [['barkley', 'PHX'], ['yao', 'HOU'], ['mutombo', 'DEN']]) {
   assert.equal(game.ARCH[key].kitTeam, team);
 }
-const kitOf = p => game.NBA[p.arch.kitTeam || (p.arch.team === 'LEG' ? 'LAL' : p.arch.team)];
+const kitOf = p => p.arch.matchKit || game.NBA[p.arch.kitTeam || (p.arch.team === 'LEG' ? 'LAL' : p.arch.team)];
 const jerseyOf = p => kitOf(p).jersey;
 const homeRoster = game.ROSTER.map(key => game.t5.makePlayer(0, key, 'p1'));
 const awayRoster = game.ROSTER.map(key => game.t5.makePlayer(1, key, 'cpu'));
@@ -82,6 +84,42 @@ for (const facing of [-Math.PI / 2, Math.PI / 2]) {
   assert(numberPixels.length > 10, 'two number glyphs render on front and back');
 }
 console.log('PASS all jersey numbers and team kits resolve; all ordered matchups are distinguishable');
+game.newGame({ mode: 'cpu', arch0: 'tmac', arch1: 'tmac' });
+const [tmac, tmacAway] = game.G.players;
+assert.equal(tmac.col.buildTag, 'balanced');
+assert(tmac.col.body.chest > tmac.col.body.waist);
+assert.equal(tmac.col.face, 'long');
+assert.equal(tmac.arch.kitTeam, 'ORL');
+assert.equal(tmac.col.jersey[1], '#0874c9');
+assert.equal(tmac.col.jerseyNo, '1');
+assert.equal(tmac.col.pinstripes, '#68acd9');
+assert.equal(tmacAway.col.pinstripes, undefined);
+assert.equal(tmacAway.col.jersey[1], '#eeeae0');
+const eyeAndMoustache = ctx.PH.shade(tmac.col.skin[1], 0.57);
+const goatee = ctx.PH.shade(tmac.col.skin[1], 0.46);
+{
+  const wrist = tmac.col.wristband[1];
+  assert.equal(wrist, '#f4f0e0');
+  detailPixels = new Map([[wrist, []], [tmac.col.pinstripes, []], [eyeAndMoustache, []], [goatee, []]]);
+  const savedCam = { ...render.cam };
+  Object.assign(render.cam, { y: -10, z: 0, F: 485, oy: 55, fy: 1, fz: 0, uy: 0, uz: 1 });
+  const front = { ...tmac, x: 0, y: 0, face: -Math.PI / 2, hasBall: false };
+  const drawing = render.drawPlayer(front);
+  const bandPixels = detailPixels.get(wrist);
+  for (const side of ['L', 'R']) {
+    const hand = render.proj(...drawing.k['hand' + side]), origin = render.proj(front.x, front.y, 0);
+    const x = hand.x - Math.round(origin.x) + 150, y = hand.y - Math.round(origin.y) + 270;
+    assert(bandPixels.some(([bx, by]) => Math.hypot(bx - x, by - y) < 7), 'McGrady wrist ' + side);
+  }
+  assert(detailPixels.get(tmac.col.pinstripes).length > 5, 'Magic blue torso pinstripes');
+  assert(detailPixels.get(goatee).length, 'light goatee');
+  const chinY = detailPixels.get(goatee)[0][1];
+  assert(detailPixels.get(eyeAndMoustache).some(([, y]) => y < chinY - 3), 'hooded eyes');
+  assert(detailPixels.get(eyeAndMoustache).some(([, y]) => y >= chinY - 3), 'light moustache');
+  Object.assign(render.cam, savedCam);
+  detailPixels = undefined;
+}
+console.log('PASS McGrady balanced build, hooded eyes, light goatee, white wristbands and Magic blue pinstripes');
 const jerseyCam = { ...render.cam };
 render.setCam({ zoom: 0.8, dist: 14, height: 10 });
 // The holder at the top of the court fixes the camera at the near end of its follow range.
