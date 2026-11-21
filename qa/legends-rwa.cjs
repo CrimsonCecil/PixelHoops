@@ -78,6 +78,21 @@ audio.voWhenReady(() => {
       game.introEnd();
     }
   }
+  const mixedFailures = [];
+  for (const key of keys) for (const opponent of ['ginobili', 'iverson', 'carter']) for (const reverse of [false, true]) {
+    game.newGame({ mode: 'cpu', arch0: reverse ? opponent : key, arch1: reverse ? key : opponent });
+    game.introStart(); game.introPress();
+    const I = game.G.intro;
+    if (reverse) { I.lines[0].done = true; game.introPress(); }
+    const actual = played.at(-1), expected = originals[key][reverse ? 1 : 0];
+    if (actual !== expected) mixedFailures.push(`${reverse ? opponent + ' -> ' + key : key + ' -> ' + opponent}: ${actual}`);
+    const other = I.lines[reverse ? 0 : 1];
+    assert.equal(other.v, reverse ? 'intro' : 'reply', 'merged opponent keeps authored event');
+    assert.equal(other.fb, manifest.voices[opponent].lines[reverse ? 'intro' : 'reply'][0].t);
+    game.introEnd();
+  }
+  assert.deepEqual(mixedFailures, [], 'all 18 mixed-order matchups use our recorded intro/reply');
+  console.log('PASS all 18 mixed-order Rodman/Wallace/Allen vs Ginobili/Iverson/Carter matchups use recorded intro/reply and preserve opponent events/subtitles');
   ctx.PH.audio = { play() {}, voStop() {}, voLine: () => null, voHas: () => false };
   game.newGame({ mode: 'cpu', arch0: 'rodman', arch1: 'curry' });
   game.introStart(); game.introPress();

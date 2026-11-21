@@ -2886,8 +2886,8 @@
     const authored = (p, i) => ({ id: p.id, t: p.arch.intro[i], v: 'intro', i });
     const a = INTRO_TALK[fa.arch.key], b = INTRO_TALK[fb.arch.key];
     if (a || b) return [
-      !a && fa.arch.intro ? authored(fa, 0) : { id: fa.id, t: '', fb: a ? a[0] : pick(TOPEN[bestStat(fa.r || fa.arch)], h).replace('{o}', o(fb)), v: a ? 'intro' : 'dom', i: 0, gen: 1 },
-      !b && fb.arch.intro ? authored(fb, 1) : { id: fb.id, t: '', fb: b ? b[1] : pick(TREPLY[bestStat(fb.r || fb.arch)], h >>> 5).replace('{o}', o(fa)), v: b ? 'reply' : 'taunt', i: 0, gen: 1 }
+      !a && fa.arch.intro ? authored(fa, 0) : { id: fa.id, t: '', fb: a ? a[0] : pick(TOPEN[bestStat(fa.r || fa.arch)], h).replace('{o}', o(fb)), v: a ? 'intro' : 'dom', pref: a ? null : 'intro', i: 0, gen: 1 },
+      !b && fb.arch.intro ? authored(fb, 1) : { id: fb.id, t: '', fb: b ? b[1] : pick(TREPLY[bestStat(fb.r || fb.arch)], h >>> 5).replace('{o}', o(fa)), v: b ? 'reply' : 'taunt', pref: b ? null : 'reply', i: 0, gen: 1 }
     ];
     return [
       fa.arch.intro ? authored(fa, 0) : { id: fa.id, t: '', fb: pick(TOPEN[bestStat(fa.r || fa.arch)], h).replace('{o}', o(fb)), v: 'dom', pref: 'intro', i: h % 3, gen: 1 },
