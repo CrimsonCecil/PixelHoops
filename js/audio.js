@@ -5,7 +5,7 @@
   // 混音总线：音乐 / 音效 / 语音分别一路，再进总线。默认值是离线渲染测响度后定的（见 qa/mix.js）
   const MIX = { master: 0.8, music: 0.5, sfx: 0.5, vo: 0.5 };
   const BASE = { music: 0.28, sfx: 0.85, vo: 0.27 };
-  let musicOn = true, sfxOn = true, timer = null, introBed = null;
+  let musicOn = true, sfxOn = true, timer = null;
 
   function ensure() {
     if (ac) { if (ac.state === 'suspended') ac.resume(); return true; }
@@ -27,13 +27,12 @@
   }
   // 滑条 0~1，0.5 = 默认；按分贝感知映射（0.5 → ×1，1 → ×2 约 +6dB，0 → 静音）
   const curve = (v) => v <= 0 ? 0 : Math.pow(v / 0.5, 1.6);
-  let duck = 1, pauseOn = false, offAc = null;
+  let pauseOn = false, offAc = null;
   const PAUSE_LV = 0.3, PAUSE_FADE = 0.3;
   // 暂停时 BGM 平滑降到约 30%，恢复时平滑回来；暂停时停掉正在播的配音
   function setPaused(on) {
     on = !!on; if (on === pauseOn) return; pauseOn = on;
     if (on) { voSeq++; if (voCur) { try { voCur.stop(); } catch (e) { /* 已停 */ } voCur = null; } }
-    if (introBed && ac) ramp(introBed.g.gain, on ? 0.0001 : introBed.want, 0.25);
     if (!pauseGain || !ac) return;
     const g = pauseGain.gain, t = ac.currentTime;
     g.cancelScheduledValues(t); g.setValueAtTime(g.value, t); g.linearRampToValueAtTime(on ? PAUSE_LV : 1, t + PAUSE_FADE);
@@ -41,7 +40,7 @@
   function applyMix() {
     if (!master) return;
     master.gain.value = MIX.master * 0.625;
-    musicGain.gain.value = BASE.music * curve(MIX.music) * duck;
+    musicGain.gain.value = BASE.music * curve(MIX.music);
     sfxGain.gain.value = BASE.sfx * curve(MIX.sfx);
     voGain.gain.value = BASE.vo * curve(MIX.vo);
   }
@@ -58,41 +57,6 @@
     if (f2) f.frequency.exponentialRampToValueAtTime(f2, t + dur);
     g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.001, t + dur);
     s.connect(f).connect(g).connect(arguments[7] || sfxGain); s.start(t); s.stop(t + dur + 0.02);
-  }
-  function swellNoise(dur, vol, freq, q, t0, f2, type, att, rel, dest) {
-    const t = t0 || ac.currentTime, s = ac.createBufferSource(), f = ac.createBiquadFilter(), g = ac.createGain();
-    const a = Math.min(att || 0.22, dur * 0.35), r = Math.min(rel || 0.55, dur * 0.45);
-    s.buffer = noiseBuf; s.loop = true; f.type = type || 'bandpass'; f.frequency.setValueAtTime(freq, t); f.Q.value = q || 1;
-    if (f2) f.frequency.exponentialRampToValueAtTime(f2, t + dur);
-    g.gain.setValueAtTime(0.001, t);
-    g.gain.linearRampToValueAtTime(vol, t + a);
-    g.gain.setValueAtTime(vol, t + Math.max(a, dur - r));
-    g.gain.exponentialRampToValueAtTime(0.001, t + dur);
-    s.connect(f).connect(g).connect(dest || sfxGain); s.start(t); s.stop(t + dur + 0.03);
-  }
-  function introCrowd(level) {
-    const lv = typeof level === 'number' ? level : (level ? 1 : 0);
-    if (!sfxOn || lv <= 0) {
-      if (introBed && ac) {
-        const b = introBed; introBed = null;
-        ramp(b.g.gain, 0.0001, 0.45);
-        setTimeout(() => { for (const n of b.nodes) { try { n.stop(); } catch (e) { /* 已停 */ } } try { b.g.disconnect(); } catch (e) { /* 已断 */ } }, 520);
-      }
-      return;
-    }
-    if (!ensure()) return;
-    if (!introBed) {
-      const g = ac.createGain(); g.gain.value = 0.0001; g.connect(sfxGain);
-      const nodes = [
-        ...bed(g, 0.26, 480, 0.55, 'bandpass', 0.22),
-        ...bed(g, 0.24, 1180, 0.5, 'bandpass', 0.37),
-        ...bed(g, 0.12, 2350, 0.65, 'bandpass', 0.53)
-      ];
-      introBed = { g, nodes, want: lv };
-    } else {
-      introBed.want = lv;
-    }
-    if (!pauseOn) ramp(introBed.g.gain, lv * (duck < 1 ? 0.45 : 1), 0.35);
   }
   const SFX = {
     badge: () => { tone(880, 0.09, 'square', 0.12, 0, 1320); tone(1320, 0.16, 'triangle', 0.16, 0.08, 1760); },
@@ -123,22 +87,6 @@
     green: () => { const t = ac.currentTime; tone(1047, 0.07, 'square', 0.1, t); tone(1568, 0.12, 'square', 0.1, t + 0.06); },
     cheer2: () => { const t = ac.currentTime; noise(1.8, 0.34, 1200, 0.45, t); noise(1.5, 0.2, 2800, 0.6, t + 0.08); noise(0.5, 0.2, 500, 0.6, t); [784, 988, 1175].forEach((f, i) => tone(f, 0.1, 'square', 0.07, t + i * 0.07)); },
     cheerSoft: () => { const t = ac.currentTime; noise(0.65, 0.14, 1350, 0.55, t, 1650); noise(0.45, 0.08, 2500, 0.7, t + 0.06); },
-    confettiCannon: () => {
-      const t = ac.currentTime;
-      tone(175, 0.14, 'sine', 0.62, t, 46);
-      noise(0.08, 0.72, 1900, 0.7, t, 720);
-      noise(0.62, 0.32, 4600, 0.5, t + 0.03, 1750, 'highpass');
-      for (let k = 0; k < 7; k++) noise(0.025, 0.16 + (k % 2) * 0.07, 2600 + k * 420, 1.8, t + 0.07 + k * 0.055);
-    },
-    introCheer: () => {
-      const t = ac.currentTime;
-      if (ac !== offAc) duckMusic(2.8);
-      swellNoise(3.3, 0.48, 520, 0.52, t, 680, 'bandpass', 0.22, 0.7);
-      swellNoise(3.4, 0.44, 1180, 0.44, t + 0.05, 1720, 'bandpass', 0.25, 0.75);
-      swellNoise(3.0, 0.26, 2450, 0.58, t + 0.12, 3150, 'bandpass', 0.28, 0.7);
-      [523, 659, 784, 1047].forEach((f, i) => { tone(f, 0.22, 'sawtooth', 0.09, t + i * 0.085); tone(f * 0.5, 0.26, 'triangle', 0.1, t + i * 0.085); });
-      for (let k = 0; k < 10; k++) noise(0.055, 0.2, 1450 + (k % 3) * 260, 1.0, t + 0.22 + k * 0.21);
-    },
     combo: () => { const t = ac.currentTime; tone(660, 0.05, 'square', 0.08, t); tone(990, 0.07, 'square', 0.08, t + 0.05); },
     cheer: () => { noise(1.1, 0.22, 1300, 0.5); noise(0.9, 0.12, 2600, 0.7, ac.currentTime + 0.1); },
     win: () => { const t = ac.currentTime; [523, 523, 659, 784, 659, 784, 1047].forEach((f, i) => tone(f, 0.16, 'square', 0.13, t + i * 0.13)); noise(1.8, 0.2, 1400, 0.5, t); },
@@ -314,7 +262,7 @@
     sched();
   }
   // 场景：menu / calm / p1 / p5 / win / lose / null(静音)；重复调用同一场景不会重启
-  function scene(n) { want = n && TRK[n] ? n : null; if (want === 'menu' || want === 'calm' || want === null) introCrowd(0); apply(); }
+  function scene(n) { want = n && TRK[n] ? n : null; apply(); }
   // 关键时刻强度 0~1：提速 + 叠一层
   function intensity(v) {
     v = v > 0.5 ? 1 : 0; if (v === hotWant) return; hotWant = v;
@@ -322,9 +270,9 @@
     I.hotTgt = v; ramp(I.lay.gain, v, v ? 1.2 : 2.5);
   }
   function startMusic() { if (!musicOn || !ensure()) return; if (want == null && curName == null) want = 'menu'; apply(); }
-  function stopMusic() { introCrowd(0); if (!ac) return; for (const I of insts) fadeOut(I, 0.3); curName = null; }
+  function stopMusic() { if (!ac) return; for (const I of insts) fadeOut(I, 0.3); curName = null; }
   function setMusic(on) { musicOn = on; if (on) startMusic(); else stopMusic(); }
-  function setSfx(on) { sfxOn = on; if (!on) introCrowd(0); }
+  function setSfx(on) { sfxOn = on; }
 
   // 球员配音：vo/manifest.json 列出每名球员每类事件的若干条语音，随机选、不连播同一条
   let voM = null, voOn = true, voCur = null, voLast = {}, voBusy = 0;
@@ -336,22 +284,12 @@
     return voM;
   }).catch(() => null);
   function voFile(s) { if (!voSpr[s]) voSpr[s] = fetch('vo/' + s).then((r) => r.ok ? r.arrayBuffer() : null).catch(() => { delete voSpr[s]; return null; }); return voSpr[s]; }
-  // 语音解码成缓冲走 WebAudio，和音乐、音效同一套总线；说话时音乐自动压低一点
+  // 语音解码成缓冲走 WebAudio，和音乐、音效同一套总线
   const voCache = {};
   function voBuf(f) { const X = voIdx[f]; if (!X) return Promise.resolve(null); if (!voCache[f]) voCache[f] = voFile(X.s).then((ab) => ab ? new Promise((ok, no) => ac.decodeAudioData(ab.slice(X.o * 120, (X.o + X.n) * 120), ok, no)) : null).catch(() => { delete voCache[f]; return null; }); return voCache[f]; }
   function voPreload(keys) {
     const run = () => { if (!voM) return; for (const k of keys) { const V = voM[k]; if (V && V.s) voFile(V.s); } };
     if (voM) run(); else voReady.then(run);
-  }
-  let duckT = 0;
-  function duckMusic(d) {
-    duck = 0.45; applyMix();
-    if (introBed && !pauseOn && ac) ramp(introBed.g.gain, introBed.want * 0.42, 0.18);
-    clearTimeout(duckT);
-    duckT = setTimeout(() => {
-      duck = 1; applyMix();
-      if (introBed && !pauseOn && ac) ramp(introBed.g.gain, introBed.want, 0.35);
-    }, d * 1000 + 250);
   }
   // 新事件没有录到时退回到相近的事件
   const VO_FB = { poster: 'dunk', fall: 'ankle', pin: 'block', clutch: 'make', hot: 'make', stop: 'taunt', rejected: 'hurt', dropped: 'hurt', posterized: 'hurt', stolen: 'hurt' };
@@ -368,7 +306,7 @@
     if (!ensure()) return null;
     if (voCur && pri) { try { voCur.stop(); } catch (e) { /* 已停 */ } voCur = null; }
     const seq = ++voSeq;
-    voBuf(it.f).then((buf) => { if (!buf || !voOn || pauseOn || seq !== voSeq) return; if (ac.state === 'suspended') ac.resume(); const src = ac.createBufferSource(); src.buffer = buf; src.connect(voGain); src.start(0, 0.1); voCur = src; duckMusic(buf.duration); }).catch(() => {});
+    voBuf(it.f).then((buf) => { if (!buf || !voOn || pauseOn || seq !== voSeq) return; if (ac.state === 'suspended') ac.resume(); const src = ac.createBufferSource(); src.buffer = buf; src.connect(voGain); src.start(0, 0.1); voCur = src; }).catch(() => {});
     voBusy = now + ((it.d || 1.5) * 1000) + 500;
     return it;
   }
@@ -378,7 +316,7 @@
   function voSay(it) {
     if (!it || !voOn || !sfxOn || pauseOn || !ensure()) return;
     voStop(); const want = it.f, seq = ++voSeq; voSayF = want;
-    voBuf(it.f).then((buf) => { if (!buf || !voOn || pauseOn || voSayF !== want || seq !== voSeq) return; if (ac.state === 'suspended') ac.resume(); const src = ac.createBufferSource(); src.buffer = buf; src.connect(voGain); src.start(0, 0.1); voCur = src; duckMusic(buf.duration); }).catch(() => {});
+    voBuf(it.f).then((buf) => { if (!buf || !voOn || pauseOn || voSayF !== want || seq !== voSeq) return; if (ac.state === 'suspended') ac.resume(); const src = ac.createBufferSource(); src.buffer = buf; src.connect(voGain); src.start(0, 0.1); voCur = src; }).catch(() => {});
     voBusy = performance.now() + ((it.d || 1.5) * 1000) + 500;
   }
   function voWhenReady(cb) { if (voM) cb(); else voReady.then(() => { if (voM) cb(); }); }
@@ -387,18 +325,18 @@
   // name 为音乐场景名（加 '!' 后缀 = 关键时刻强度全开）；空名 = 1V1 比赛音乐
   async function mixRender(kind, name, secs) {
     const sr = 48000, off = new OfflineAudioContext(1, Math.ceil(sr * (secs || 3)), sr);
-    const save = { ac, master, pauseGain, musicGain, sfxGain, voGain, noiseBuf, duck };
+    const save = { ac, master, pauseGain, musicGain, sfxGain, voGain, noiseBuf };
     if (!ac) ensure();
     const buf = kind === 'vo' ? await voBuf(name) : null;
-    ac = off; offAc = off; duck = 1; buildBus(off.destination);
+    ac = off; offAc = off; buildBus(off.destination);
     try {
       if (kind === 'music') { const hot = /!$/.test(name || ''), n = (name || 'p1').replace('!', ''), I = mkInst(TRK[n] ? n : 'p1'); I.out.gain.value = 1; I.nextT = 0.01; if (hot) { I.hot = I.hotTgt = 1; I.lay.gain.value = 1; } schedInst(I, secs); }
       else if (kind === 'sfx') SFX[name]();
       else if (kind === 'vo' && buf) { const src = off.createBufferSource(); src.buffer = buf; src.connect(voGain); src.start(0.01); }
-    } finally { offAc = null; ({ ac, master, pauseGain, musicGain, sfxGain, voGain, noiseBuf, duck } = save); }
+    } finally { offAc = null; ({ ac, master, pauseGain, musicGain, sfxGain, voGain, noiseBuf } = save); }
     const out = await off.startRendering();
     return Array.from(out.getChannelData(0));
   }
   function setMix(k, v) { MIX[k] = v; applyMix(); }
-  PH.audio = { setPaused: setPaused, get paused() { return pauseOn; }, get pauseLevel() { return pauseGain ? pauseGain.gain.value : 1; }, mixRender: mixRender, MIX: MIX, BASE: BASE, setMix: setMix, voPreload: voPreload, voLine: voLine, voSay: voSay, voStop: voStop, voWhenReady: voWhenReady, introCrowd: introCrowd, sfxNames: () => Object.keys(SFX), vo: vo, setVo: (v) => { voOn = v; }, get voOn() { return voOn; }, play: play, ensure: ensure, startMusic: startMusic, stopMusic: stopMusic, scene: scene, intensity: intensity, get scene_() { return curName; }, get hot() { return hotWant; }, tracks: () => Object.keys(TRK), setMusic: setMusic, setSfx: setSfx, get musicOn() { return musicOn; }, get sfxOn() { return sfxOn; } };
+  PH.audio = { setPaused: setPaused, get paused() { return pauseOn; }, get pauseLevel() { return pauseGain ? pauseGain.gain.value : 1; }, mixRender: mixRender, MIX: MIX, BASE: BASE, setMix: setMix, voPreload: voPreload, voLine: voLine, voSay: voSay, voStop: voStop, voWhenReady: voWhenReady, sfxNames: () => Object.keys(SFX), vo: vo, setVo: (v) => { voOn = v; }, get voOn() { return voOn; }, play: play, ensure: ensure, startMusic: startMusic, stopMusic: stopMusic, scene: scene, intensity: intensity, get scene_() { return curName; }, get hot() { return hotWant; }, tracks: () => Object.keys(TRK), setMusic: setMusic, setSfx: setSfx, get musicOn() { return musicOn; }, get sfxOn() { return sfxOn; } };
 })();
