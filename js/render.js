@@ -1777,9 +1777,17 @@
   function particleSize(q, scale) {
     return q.interceptTeam != null ? Math.max(4, Math.min(6, Math.round(q.s * scale / 24))) : q.s || 1;
   }
+  function replayCamera(replay, pose, preset) {
+    if (replay.view) replay.cameraFrom = { preset, pose: { ...pose } };
+    else if (replay.returnT != null && replay.cameraFrom?.preset === preset) {
+      const t = replay.returnT, u = t * t * (3 - 2 * t), from = replay.cameraFrom.pose;
+      for (const k in pose) pose[k] = from[k] + (pose[k] - from[k]) * u;
+    }
+    return pose;
+  }
   function render(G, dt = 1 / 60, hintY) {
     // 回放时用录下来的画面快照代替实时状态
-    const RP = G.replay && G.replay.view;
+    const replay = G.replay, RP = replay?.view;
     if (RP) G = Object.assign(Object.create(G), RP);
     // 相机
     const b = G.ball, foc = G.focus, F = G.fx;
@@ -1800,6 +1808,12 @@
       if (follow3) { follow3 = null; setPitch(CAMV.dist + 2.4, 1 - CAMV.height); }
       if (G.intro && G.intro.foc && !RP) camera1Intro(G, dt);
       else if (intro1) { intro1 = null; setPitch(CAMV.dist + 2.4, 1 - CAMV.height); }
+    }
+    if (replay && (RP || replay.returnT != null)) {
+      const { dx, dy, ...pose } = replayCamera(replay, { ...cam, dx: offsetX3, dy: offsetY3 }, G.mode);
+      Object.assign(cam, pose);
+      setPitch(cam.fy, cam.fz);
+      offsetX3 = dx; offsetY3 = dy;
     }
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.fillStyle = '#070a16'; ctx.fillRect(0, 0, W, H);
@@ -1902,7 +1916,7 @@
     }
   }
 
-  PH.render = { init: init, resize: resize, get W() { return W; }, get H() { return H; }, render: render, camera1Intro: camera1Intro, particleSize: particleSize, setTheme: setTheme, proj: proj, cam: cam, CAMV: CAMV, CAM_DEF: CAM_DEF, setCam: setCam, HOOP: HOOP, BOARD_Y: BOARD_Y, BALL_R: BALL_R, curCol: curCol,
+  PH.render = { init: init, resize: resize, get W() { return W; }, get H() { return H; }, render: render, camera1Intro: camera1Intro, replayCamera: replayCamera, particleSize: particleSize, setTheme: setTheme, proj: proj, cam: cam, CAMV: CAMV, CAM_DEF: CAM_DEF, setCam: setCam, HOOP: HOOP, BOARD_Y: BOARD_Y, BALL_R: BALL_R, curCol: curCol,
     // 5V5 全场模式复用的绘制图元（不影响 1V1）
     drawCombos: drawCombos, drawMeter: (pl, hp) => drawMeter(pl, hp), drawPlayer: drawPlayer, drawHead: drawHead, drawBall: drawBall, shadow: shadow, ellipse: ellipse, ring: ring, brush: brush, getCtx: () => ctx, drawNameTag: curName, BAYER: BAYER };
 })();

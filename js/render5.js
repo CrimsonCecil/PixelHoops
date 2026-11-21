@@ -236,8 +236,10 @@
     const hw = halfW(), lim = Math.max(0, CL + 3.4 - hw);
     const rc = RPL.on && RPL.view ? RPL.cam : null; if (rc) tx = rc.x;   // V4.4 回放：对准接触点
     tx = Math.max(-lim, Math.min(lim, tx));
-    camX += (tx - camX) * Math.min(1, (dt || 1 / 60) * 2.4); if (!(dt > 0)) camX = tx;
-    applyCam(camX); T.camX = camX; if (rc) cam.F *= 1 + 0.3 * rc.w;
+    camX += (tx - camX) * Math.min(1, (dt || 1 / 60) * 2.4); if (!(dt > 0) || (RPL.on && RPL.returnT != null)) camX = tx;
+    applyCam(camX); if (rc) cam.F *= 1 + 0.3 * rc.w;
+    if (RPL.on) R.replayCamera(RPL, cam, 'broadcast');
+    T.camX = cam.x;
   }
   function render(T, dt) {
     init();
@@ -254,7 +256,7 @@
     const F = Gm.fx;
     if (F.shake > 0.3) { const hsh = hash((Gm.time * 60) | 0); ctx.setTransform(1, 0, 0, 1, Math.round(((hsh & 255) / 255 - 0.5) * F.shake), Math.round((((hsh >>> 8) & 255) / 255 - 0.5) * F.shake)); }
     const first = drawFloor(T);
-    const bk = buildBack(T), bxo = Math.round(-((camX + 20) * 18) % (bk.width - W));
+    const bk = buildBack(T), bxo = Math.round(-((cam.x + 20) * 18) % (bk.width - W));
     ctx.drawImage(bk, bxo < 0 ? bxo : -bxo, first - bk.height + 2);
     ctx.drawImage(fcv, 0, 0);
     const P = Gm.players.map((p) => wp(p, d)), wb = Object.assign({}, b, { x: d * b.y, y: -d * b.x });
@@ -458,6 +460,7 @@
       const ko = dt > 0 ? Math.min(1, dt * 2.5) : 1;
       C2.oyx = need >= (C2.oyx || 0) ? need : (C2.oyx || 0) + (need - (C2.oyx || 0)) * ko;
       pose.oy += C2.oyx * tipE; }
+    if (RPL.on) R.replayCamera(RPL, pose, '2k');
     applyPose(pose); T.camX = pose.cu;
     lastProj = (x, y, z) => pv(pose, U(x, y), V(x, y), z || 0);   // QA 用：逻辑坐标 → 屏幕像素
     PH.render5.k2 = { tipE: tipE, tip: tipE < 1, pose: pose, ph: ph, inb: inbOn };
@@ -712,7 +715,7 @@
     }
     function start() {
       const mk = S.mk; S.mk = null; const fr = S.buf.filter((f) => f.t >= mk.t - 1.4 && f.t <= mk.t + 1.3); if (fr.length < 40) return;
-      Object.assign(S, { on: true, fr, q: mk, rt: fr[0].t, t1: fr[fr.length - 1].t, i: 0, age: 0, wipeIn: 0, wipeOut: 0, view: null, cam: { x: mk.x, y: mk.y, w: 0 }, prev: null });
+      Object.assign(S, { on: true, fr, q: mk, rt: fr[0].t, t1: fr[fr.length - 1].t, i: 0, age: 0, wipeIn: 0, returnT: null, cameraFrom: null, view: null, cam: { x: mk.x, y: mk.y, w: 0 }, prev: null });
       S.log = (S.log || []).concat([{ t: G5().time, k: mk.k }]);
       try { PH.game.sfx && PH.game.sfx('swoosh'); } catch (e) {}
     }

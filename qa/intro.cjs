@@ -52,15 +52,26 @@ function runIntro(Gm, G) {
   const { Gm, G } = load();
   Gm.newGame({ mode: '2p', arch0: 'maxey', arch1: 'joe' });
   Gm.introStart();
-  const L = G.intro.lines;
-  assert.equal(L.length, 2);
+  const L = G.intro.lines, maxey = G.players.find((p) => p.arch.key === 'maxey');
+  assert.equal(L.length, 3);
+  assert.equal(L[0].id, maxey.id);
+  assert.ok(L[0].gen && L[1].gen && L[0].t.includes(Gm.ARCH.joe.name) && L[1].t.includes(Gm.ARCH.maxey.name), 'stat templates name the opponent');
   Gm.introPress(); Gm.introPress();
   assert.equal(G.intro.li, 0, 'first press skips to the dialogue, second completes the typing');
-  Gm.introPress(); Gm.introPress(); Gm.introPress();
+  for (let i = 0; i < 5; i++) Gm.introPress();
   assert.equal(G.intro, null);
-  assert.equal(L[0].t, 'maxey:taunt:' + L[0].i);
+  assert.equal(L[2].t, 'maxey:taunt:' + L[2].i, 'ends on a voiced taunt from the voice pack');
   assert.equal(G.phase, 'check');
-  console.log('PASS: generic matchup uses voiced taunt/dom clips; presses advance and finish the intro.');
+  const keys = Object.keys(Gm.ARCH);
+  for (let i = 0; i < keys.length; i++) {
+    const a = keys[i], b = keys[(i * 7 + 3) % keys.length];
+    if (a === b || Gm.TALK[[a, b].sort().join('|')]) continue;
+    Gm.newGame({ mode: 'cpu', arch0: a, arch1: b }); Gm.introStart();
+    const T = G.intro.lines;
+    assert.ok(T.length === 3 && T[0].t && T[1].t && !/[{}]/.test(T[0].t + T[1].t) && T[2].v === 'taunt', a + ' vs ' + b);
+    G.intro = null;
+  }
+  console.log('PASS: generic matchups open with stat templates naming the opponent and end on a voiced taunt; presses advance and finish the intro.');
 }
 {
   const { ctx, Gm, G } = load();
