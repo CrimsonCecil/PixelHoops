@@ -1131,3 +1131,8 @@ select.pf, input.pf, .tn-row.pf, .sl.pf, .crow.pf, .mx.pf { outline: calc(var(--
 @keyframes kBrk { 0% { filter: none; opacity: 1; transform: scale(1.5); } 25% { transform: translateX(-3px) scale(1.4); } 45% { transform: translateX(3px) scale(1.3); } 65% { filter: none; opacity: 1; transform: none; } 100% { filter: grayscale(1) brightness(0.45); opacity: 0.55; transform: none; } }
 @keyframes kCrack { 0%, 55% { opacity: 0; } 100% { opacity: 1; } }
 #lk-lives { flex: none !important; }
+.kat { display: grid; grid-template-columns: repeat(3, auto); gap: 2px calc(var(--u) * 3); margin-top: calc(var(--u) * 2); font-size: var(--fs-xs); color: var(--muted); }
+.kat span { display: flex; justify-content: space-between; gap: calc(var(--u) * 1.5); min-width: 4.5em; }
+.kat i { font-style: normal; color: var(--rating, var(--text)); font-weight: var(--rating-weight, normal); }
+.kat.hid i { color: var(--muted); opacity: 0.6; }
+.kp.op.shown .kat span { animation: kSlam 0.35s cubic-bezier(.3, 1.8, .5, 1) both; }
