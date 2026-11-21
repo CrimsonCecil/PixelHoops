@@ -112,8 +112,17 @@ for (const key of game.ROSTER) {
   const legacy = { ...p, col: { ...p.col, body: undefined } };
   assert.deepEqual(live, rig(legacy), key);
   const held = render.drawPlayer({ ...p, hasBall: true });
-  assert.deepEqual(Array.from(held.k.handL), Array.from(live.handL), key);
-  assert.deepEqual(Array.from(held.k.handR), Array.from(live.handR), key);
+  const natural = rig(p, p.pose, false, body);
+  const length = (a, b) => Math.hypot(...a.map((v, i) => v - b[i]));
+  for (const side of ['L', 'R']) {
+    const shoulder = natural['sh' + side], target = live['hand' + side];
+    const upper = length(shoulder, natural['el' + side]), fore = length(natural['el' + side], natural['hand' + side]);
+    const reach = (upper + fore) * 0.99, distance = length(shoulder, target);
+    const expected = distance > reach ? shoulder.map((v, i) => v + (target[i] - v) * reach / distance) : target;
+    assert(length(held.k['hand' + side], expected) < 1e-9, key);
+    assert(Math.abs(length(held.k['sh' + side], held.k['el' + side]) - upper) < 1e-9, key);
+    assert(Math.abs(length(held.k['el' + side], held.k['hand' + side]) - fore) < 1e-9, key);
+  }
 }
 const look = (key) => game.lookOf(game.ARCH[key]);
 const curry = look('curry'), lebron = look('lebron');
@@ -206,7 +215,7 @@ for (const key of ['curry', 'cade', 'shaq', 'jokic', 'morant', 'butler', 'kawhi'
   const { limb, armThickness } = look(key).body;
   assert.equal(armThickness, limb, key);
 }
-console.log('PASS every rostered player renders; 302 measured-height profiles, signature looks, original gameplay rig and held-ball wrist anchors');
+console.log('PASS every rostered player renders; 302 measured-height profiles, signature looks, original gameplay rig and reach-bounded held-ball wrist anchors');
 
 const widths = Object.fromEntries(classes.map(tag => [tag, []]));
 for (const key of game.ROSTER) {

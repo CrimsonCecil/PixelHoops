@@ -7,8 +7,9 @@ const pads = [];
 const ctx = vm.createContext({ console, navigator: { getGamepads: () => pads }, performance: { now: () => 0 }, setTimeout() {}, clearTimeout() {}, addEventListener() {} });
 ctx.window = ctx;
 vm.runInContext('Math.random = () => 0.5;', ctx);
-for (const name of ['tune', 'render', 'input', 'roster', 'r5', 'game', 'b5', 'team5']) {
+for (const name of ['tune', 'ptype', 'render', 'input', 'roster', 'measurements', 'r5', 'game', 'b5', 'team5']) {
   let source = fs.readFileSync(path.join(__dirname, '../js', name + '.js'), 'utf8');
+  if (name === 'render') source = source.replace('PH.rig = rig;', 'PH.postVisualRig = visualRig; PH.rig = rig;');
   if (name === 'game') source = source.replace('PH.game = {', 'PH.postQA = { updatePlayer, aiInput, postFollow, postMoveOf, poseTarget, MKF }; PH.game = {');
   if (name === 'team5') source = source.replace('doPass: doPass,', 'doPass: doPass, qaHumanInp: humanInp, qaStick: stick,');
   vm.runInContext(source, ctx, { filename: name + '.js' });
@@ -17,15 +18,16 @@ const { game: gm, T5: team, TUNE: tune, input, postQA: qa } = ctx.PH;
 const { G, _dbg: dbg } = gm;
 const dt = 1 / 120, hoop = ctx.PH.render.HOOP;
 const zero = () => gm.t5.zeroInp();
-function fixture(mode = '2p', distance = 5.2) {
+function fixture(mode = '2p', distance = 5.2, arch = 'luka') {
   if (team.T.on) team.stop();
   if (G.mode === 't5') gm.t5.end();
   tune.load({ l1_stamRegen: 0 });
   gm.seed(7);
-  if (mode === 't5') team.start({ home: 'LAL', away: 'BOS', human: 0 });
-  else gm.newGame({ mode: '2p', arch0: 'luka', arch1: 'gobert', target: 999 });
-  const p = mode === 't5' ? team.T.ctl : G.players[0];
-  const d = G.players.find(q => q !== p && (mode !== 't5' || q.tm !== p.tm));
+  if (mode === 't5') team.start({ home: arch === 'embiid' ? 'PHI' : arch === 'jokic' ? 'DEN' : 'LAL', away: arch === 'luka' ? 'BOS' : 'MIN', human: 0 });
+  else gm.newGame({ mode: '2p', arch0: arch, arch1: 'gobert', target: 999 });
+  const p = mode === 't5' ? arch === 'luka' ? team.T.ctl : G.players.find(q => q.arch.key === arch) : G.players[0];
+  const d = G.players.find(q => q !== p && q.arch.key === 'gobert' && (mode !== 't5' || q.tm !== p.tm)) || G.players.find(q => q !== p && (mode !== 't5' || q.tm !== p.tm));
+  if (mode === 't5' && arch !== 'luka') team.setCtl(p, 'auto');
   Object.assign(G, { phase: 'live', needClear: false, time: 10, off: p.tm || 0, shotClock: 20 });
   for (const q of G.players) Object.assign(q, { hasBall: false, off: q !== p && q !== d });
   Object.assign(p, { x: 0, y: hoop.y - distance, z: 0, face: -Math.PI / 2, vx: 0, vy: 0, speed: 0, action: null, post: true, hasBall: true, opp: d, stam: 100, cd: 0, postMove: null, postFaceLock: false });
@@ -189,3 +191,49 @@ for (let seed = 1; seed <= 160; seed++) {
 }
 assert(variants.has('postspin') && variants.has('postdrop') && variants.has('postshim') && variants.has('postface'), [...variants].join(','));
 console.log('PASS seeded AI post possessions choose ' + [...variants].sort().join(', '));
+
+let armFrames = 0, maxArmRatio = 0;
+const distance3 = (a, b) => Math.hypot(...a.map((v, i) => v - b[i]));
+function checkArms(p) {
+  const before = JSON.stringify(p.pose), natural = ctx.PH.rig(p, p.pose, false, p.col.body), k = ctx.PH.postVisualRig(p);
+  for (const side of ['L', 'R']) {
+    const upper = distance3(natural['sh' + side], natural['el' + side]), fore = distance3(natural['el' + side], natural['hand' + side]);
+    const ratio = distance3(k['sh' + side], k['hand' + side]) / (upper + fore);
+    assert(Number.isFinite(ratio) && ratio <= 1 + 1e-9, `${G.mode} ${p.arch.key} shoulder-hand reach ${ratio}`);
+    assert(Math.abs(distance3(k['sh' + side], k['el' + side]) - upper) < 1e-9, 'Upper arm must retain its posed length');
+    assert(Math.abs(distance3(k['el' + side], k['hand' + side]) - fore) < 1e-9, 'Forearm must retain its posed length');
+    maxArmRatio = Math.max(maxArmRatio, ratio);
+  }
+  assert.equal(JSON.stringify(p.pose), before, 'Visual IK must not mutate gameplay pose or hand targets');
+  armFrames++;
+}
+for (const mode of ['2p', 't5']) for (const arch of ['embiid', 'jokic']) {
+  for (const kind of ['plain', 'postspin', 'postdrop', 'postface', 'postshim', 'postfade1', 'postfront', 'spinfade', 'shimshot', 'drophook']) {
+    const { p, d } = fixture(mode, kind === 'drophook' ? 3 : 5.2, arch);
+    assert.equal(d.arch.key, 'gobert');
+    for (const q of [p, d]) delete q.pose.passHands;
+    if (kind !== 'plain') {
+      const inp = { ...zero(), post: true, dx: 0.7, dy: 0.7 };
+      if (['postspin', 'postdrop', 'postface', 'postshim'].includes(kind)) dbg.startMove(p, inp, kind);
+      else dbg.startShot(p, inp, 'a1', kind);
+    }
+    for (let frame = 0; frame < 180; frame++) {
+      step(p, { post: true, a1: true, my: frame < 60 ? 0.4 : 0 });
+      qa.updatePlayer(d, qa.aiInput(d, dt), dt);
+      checkArms(p); checkArms(d);
+    }
+  }
+  const { p, d } = fixture(mode, 4, arch);
+  for (const q of [p, d]) {
+    delete q.pose.passHands; q.grip = null; q.hasBall = false; q.armS = null; q.anim = 'idle';
+    assert.deepEqual(ctx.PH.postVisualRig(q), ctx.PH.rig(q, q.pose, false, q.col.body), 'No hand target leaves the natural rig unchanged');
+    const k = ctx.PH.rig(q);
+    q.pose.passHands = { L: k.handL.slice(), R: k.handR.slice(), follow: 0 };
+    checkArms(q);
+    q.pose.passHands = { L: [q.x + 20, q.y - 20, -20], R: [q.x - 20, q.y + 20, -20], follow: 0 };
+    const gameplay = JSON.stringify(ctx.PH.rig(q));
+    checkArms(q);
+    assert.equal(JSON.stringify(ctx.PH.rig(q)), gameplay, 'Unreachable visual targets must not change gameplay contact points');
+  }
+}
+console.log(`PASS post arm reach: ${armFrames} player-frames in 1V1 and 5V5, Embiid/Jokic vs Gobert, max shoulder-hand/reach=${maxArmRatio.toFixed(6)}; segment lengths, empty/reachable/stale targets and gameplay rig preserved`);

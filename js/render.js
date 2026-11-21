@@ -1028,14 +1028,14 @@
     T[arm + 'e'] = lerpN(T[arm + 'e'], 0.08, w);
   }
 
-  function gripArm(k, side, end, gathering) {
+  function gripArm(k, side, end, gathering, bounded = false) {
     const sh = k['sh' + side], el = k['el' + side], hand = k['hand' + side];
     const diff = (a, b) => a.map((x, i) => x - b[i]), dot = (a, b) => a.reduce((s, x, i) => s + x * b[i], 0);
     const axis = diff(end, sh), d0 = Math.hypot(...axis);
     if (d0 < 0.001) return;
     const v = axis.map((x) => x / d0), upper = diff(el, sh);
     let ua = Math.hypot(...upper), fa = Math.hypot(...diff(hand, el));
-    const d = gathering ? Math.min(d0, (ua + fa) * 1.04) : d0;
+    const d = bounded ? Math.min(d0, (ua + fa) * 0.99) : gathering ? Math.min(d0, (ua + fa) * 1.04) : d0;
     if (d < d0) end = sh.map((x, i) => x + v[i] * d);
     const reach = Math.max(1, d / ((ua + fa) * 0.99)); ua *= reach; fa *= reach;
     const along = Math.max(-ua, Math.min(ua, (d * d + ua * ua - fa * fa) / (2 * d)));
@@ -1135,7 +1135,7 @@
     // 用比赛骨架的手部落点，保持持球、触球和盖帽动作对齐。
     if (pl.grip || pl.hasBall || pl.anim === 'block' || pl.anim === 'steal' || pl.armS || pl.pose.passHands) {
       const live = rig(pl);
-      for (const side of ['L', 'R']) gripArm(k, side, live['hand' + side], false);
+      for (const side of ['L', 'R']) gripArm(k, side, live['hand' + side], false, true);
     }
     return k;
   }
