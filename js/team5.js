@@ -362,7 +362,7 @@
     return o;
   }
   const U = (p, f) => (p && p.r5 ? p.r5[f] : 0);
-  const PASS = { chest: { v: 12.5, ap: 0.25, tz: 1.25 }, skip: { v: 14, ap: 1.2, tz: 1.35 }, bounce: { v: 10, ap: 0, tz: 1.0 }, lob: { v: 8.5, ap: 2.2, tz: 2.2 }, alley: { v: 8.5, ap: 1.6, tz: 3.2 } };
+  const PASS = PH.game.t5.passProfiles;
   const ICON = ['A', 'B', 'X', 'Y', 'LT'];
   // V3.9e 默认 2K 镜头（远近 5、高度 10，2K 社区常用值）；转播镜头留作可选。两种镜头各记一套远近 / 高度（只存内存）
   const CAM_DEF5 = { broadcast: { zoom: 5, height: 5 }, '2k': { zoom: 5, height: 10 } };
@@ -899,18 +899,21 @@
     const u = clamp(P.t / P.T, 0, 1), px = b.x, py = b.y;
     b.x = lerp(P.x0, P.ex, u); b.y = lerp(P.y0, P.ey, u);
     if (P.lin) { b.z = lerp(P.z0, P.ez, u); if (r && u < 1) { const H = handPt(r, b); P.ex = H[0]; P.ey = H[1]; P.ez = H[2]; } }
-    else if (P.kind === 'bounce') { if (u < 0.55) b.z = lerp(P.z0, 0.13, u / 0.55); else { if (!P.bnc) { P.bnc = true; A5.sfx('bounce'); } b.z = lerp(0.13, P.ez, (u - 0.55) / 0.45) + 0.3 * Math.sin(Math.PI * (u - 0.55) / 0.45); } }
-    else b.z = lerp(P.z0, P.ez, u) + (P.ap != null ? P.ap : K.ap) * 4 * u * (1 - u);
+    else {
+      if (P.kind === 'bounce' && u >= 0.55 && !P.bnc) { P.bnc = true; A5.sfx('bounce'); }
+      b.z = A5.passHeight(P.kind, P.z0, P.ez, P.ap != null ? P.ap : K.ap, u);
+    }
     b.vx = (b.x - px) / dt; b.vy = (b.y - py) / dt; b.spin += dt * 10;
     const I = P.int;
     if (I && !I.done && u >= I.u) {
       I.done = true; const d = I.d;
       if (d.stun <= 0 && dist(d, b) < TV.t5_int_grab && rnd() < I.ch) {
         G.stats[P.from.id].tov++; if (r && r.rk) r.rk.st.drop++; T.cnt.intc++; T.cnt.tov++; T.cnt.steals++;
+        A5.passIntercept(d, T.hum >= 0 ? T.hum : null);
         T.ps = null; b.state = 'loose'; b.vz = 0; b.vx = b.vy = 0; b.x = d.x; b.y = d.y; b.z = 1;
-        G.stats[d.id].stl++; fltS('抢断', d); A5.sfx('steal'); A5.vo(d, 'steal');
+        G.stats[d.id].stl++; fltS('抢断', d); A5.vo(d, 'steal');
         if (P.rec) P.rec.res = 'int';
-        A5.pickup(d); return;
+        A5.pickup(d, 'intercept'); return;
       }
       if (d.stun <= 0 && dist(d, b) < TV.t5_int_deflD && rnd() < I.ch * TV.t5_int_defl) {   // 碰到球：挡出
         T.ps = null; b.state = 'loose'; b.vx = -b.vx * 0.3 + rr(-2, 2); b.vy = -b.vy * 0.3 + rr(-2, 2); b.vz = 1.5; b.lastTouch = d.id; b.noPick = 0.15;

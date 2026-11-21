@@ -77,6 +77,8 @@
     whistle: () => { tone(2300, 0.22, 'square', 0.1); tone(2350, 0.22, 'sine', 0.1); },
     squeak: () => { tone(1900, 0.07, 'sine', 0.07, 0, 2600); },
     steal: () => { tone(500, 0.06, 'square', 0.16, 0, 900); noise(0.05, 0.15, 3000, 2); },
+    interceptGood: () => { const t = ac.currentTime; [659, 880, 1109, 1319].forEach((f, i) => tone(f, 0.13, 'square', 0.14, t + i * 0.065)); noise(0.08, 0.12, 3500, 1, t); },
+    interceptBad: () => { const t = ac.currentTime; [392, 294, 196].forEach((f, i) => tone(f, 0.18, 'sawtooth', 0.14, t + i * 0.09, f * 0.85)); noise(0.1, 0.12, 500, 1, t); },
     block: () => { noise(0.12, 0.35, 500, 0.8); tone(110, 0.12, 'square', 0.2, 0, 60); },
     jump: () => { tone(220, 0.08, 'triangle', 0.08, 0, 420); },
     grab: () => { const t = ac.currentTime; tone(240, 0.06, 'triangle', 0.16, t, 160); tone(660, 0.06, 'square', 0.09, t + 0.04); tone(990, 0.08, 'square', 0.08, t + 0.09); },

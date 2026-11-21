@@ -542,7 +542,7 @@
           if (!h.dust) { h.dust = 1; dust(pl, h.dx || 0, h.dy || 0, 5, 0.7); }
         } else if (h.tier === 4 && !h.dust) { h.dust = 1; dust(pl, h.dx || 0, h.dy || 0, 7, 0.9); }
       }
-      const T5 = PH.T5 && PH.T5.T, P = T5 && T5.on && T5.pick, im = pl.scrImp, setNow = P && P.s === pl && P.ph === 'set';
+      const T5 = PH.T5 && PH.T5.T, P = T5 && T5.on && T5.pick, im = pl.scrImp, setNow = pl.screen3 || P && P.s === pl && P.ph === 'set';
       const imE = im ? now - im.t : 9;
       if ((setNow || imE < 0.6) && !a && pl.z <= 0.01 && !(pl.stun > 0) && !pl.hasBall) {
         // 站定：脚分开、膝微屈、两臂张开护在胸前
@@ -1617,10 +1617,11 @@
 
   // 三分线提示：球权转换未出线时沿三分线闪光；出线瞬间绿色闪一下
   function draw3pt(G) {
+    if (G.mode === 't3') return;
     const now = G.time, ping = now - (G.clearPing || -9), ok = now - (G.clearOk || -9);
     let col, a;
-    const h = G.players[G.mode === 't3' ? G.ball.holder : G.off];
-    if (G.needClear && G.phase === 'live' && G.ball.state === 'held' && h && (G.mode === 't3' || h.ctrl !== 'cpu')) { col = '#ff3b30'; a = 0.7 + 0.3 * Math.sin(now * 7) + (ping < 0.5 ? 0.5 * (1 - ping / 0.5) : 0); }
+    const h = G.players[G.off];
+    if (G.needClear && G.phase === 'live' && G.ball.state === 'held' && h && h.ctrl !== 'cpu') { col = '#ff3b30'; a = 0.7 + 0.3 * Math.sin(now * 7) + (ping < 0.5 ? 0.5 * (1 - ping / 0.5) : 0); }
     else if (ok < 0.6) { col = '#7dff8a'; a = 1 - ok / 0.6; }
     else return;
     const pts = [];
@@ -1716,6 +1717,9 @@
     offsetY3 = Math.max(36 - scaledY(board.y), 16 - scaledY(top),
       Math.min(40 - scaledY(board.y), footLimit - scaledY(bottom), nameLimit - scaledY(nameAnchor)));
   }
+  function particleSize(q, scale) {
+    return q.interceptTeam != null ? Math.max(4, Math.min(6, Math.round(q.s * scale / 24))) : q.s || 1;
+  }
   function render(G, dt = 1 / 60, hintY) {
     // 回放时用录下来的画面快照代替实时状态
     const RP = G.replay && G.replay.view;
@@ -1801,7 +1805,8 @@
     for (const q of F.parts) {
       const p = proj(q.x, q.y, q.z); if (p.d < 1) continue;
       const k = q.t / q.life; if (k > 0.75 && (((G.time * 30) | 0) & 1)) continue;
-      ctx.fillStyle = q.col; const sz = q.s + (p.s > 26 ? 1 : 0); ctx.fillRect(Math.round(p.x), Math.round(p.y), sz, sz);
+      ctx.fillStyle = q.col; const contact = q.interceptTeam != null, sz = contact ? particleSize(q, p.s) : q.s + (p.s > 26 ? 1 : 0), offset = contact ? sz / 2 : 0;
+      ctx.fillRect(Math.round(p.x - offset), Math.round(p.y - offset), sz, sz);
     }
     // 冲击环（抢断 / 盖帽 / 进攻篮板）
     if (F.rings) for (const r of F.rings) {
@@ -1833,7 +1838,7 @@
     }
   }
 
-  PH.render = { init: init, resize: resize, get W() { return W; }, get H() { return H; }, render: render, setTheme: setTheme, proj: proj, cam: cam, CAMV: CAMV, CAM_DEF: CAM_DEF, setCam: setCam, HOOP: HOOP, BOARD_Y: BOARD_Y, BALL_R: BALL_R, curCol: curCol,
+  PH.render = { init: init, resize: resize, get W() { return W; }, get H() { return H; }, render: render, particleSize: particleSize, setTheme: setTheme, proj: proj, cam: cam, CAMV: CAMV, CAM_DEF: CAM_DEF, setCam: setCam, HOOP: HOOP, BOARD_Y: BOARD_Y, BALL_R: BALL_R, curCol: curCol,
     // 5V5 全场模式复用的绘制图元（不影响 1V1）
     drawCombos: drawCombos, drawMeter: (pl, hp) => drawMeter(pl, hp), drawPlayer: drawPlayer, drawHead: drawHead, drawBall: drawBall, shadow: shadow, ellipse: ellipse, ring: ring, brush: brush, getCtx: () => ctx, BAYER: BAYER };
 })();
