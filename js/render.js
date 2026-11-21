@@ -866,15 +866,16 @@
     function layReach(T, a, s, far) {
       const I = a.ideal || 0.34, release = a.released ? (a.relT ?? I) : a.t;
       const extend = sm((release / I - (far ? 0.2 : 0.1)) / 0.63);
-      const recover = a.released ? sm((a.t - release - 0.04) / 0.22) : 0;
-      const blend = sm(a.t / 0.08) * (1 - sm((release - I - 0.015) / 0.07)), knee = sm(release / (I * 0.55));
+      const recover = sm((a.t - Math.min(release, I) - 0.04) / 0.22);
+      const blend = sm(a.t / 0.08), knee = sm(release / (I * 0.55));
+      const kneeMax = PH.TUNE && PH.TUNE.has('lvFarKnee') ? PH.TUNE.get('lvFarKnee') : 0.6;
       const reach = far ? { p: 2.26, q: 0.58, e: 0.12 } : { p: 2.6, q: 0.48, e: 0.2 };
       // 球从出手侧髋前托起；另一只手先护在胸前，再向侧下方收回。
       const o = {
         yaw: -s * lp(lp(0.16, far ? 0.54 : 0.42, extend), 0, recover),
         tilt: s * lp(lp(0.07, far ? 0.22 : 0.17, extend), 0, recover),
         lean: lp(lp(0.21, 0.06, extend), 0.16, recover),
-        rA: lp(lp(0.42, 0.94, knee), 0.28, recover), rB: lp(lp(0.91, 1.22, knee), 0.54, recover), rS: lp(0.1, 0.14, recover),
+        rA: lp(lp(0.42, kneeMax, knee), 0.28, recover), rB: lp(lp(0.7, 0.9, knee), 0.54, recover), rS: lp(0.1, 0.14, recover),
         lA: lp(lp(-0.35, -0.19, knee), 0.24, recover), lB: lp(lp(0.53, 0.68, knee), 0.51, recover), lS: lp(0.12, 0.14, recover),
       };
       setA(T, s, {
@@ -884,6 +885,8 @@
       setA(T, -s, { p: lp(lp(0.84, 0.62, extend), 0.46, recover), q: lp(lp(-0.18, 0.42, extend), 0.26, recover), e: lp(lp(1.36, 0.72, extend), 0.5, recover) }, blend);
       if (s < 0) { [o.rA, o.lA] = [o.lA, o.rA]; [o.rB, o.lB] = [o.lB, o.rB]; [o.rS, o.lS] = [o.lS, o.rS]; }
       for (const k in o) T[k] = lp(T[k] || 0, o[k], blend);
+      T.lA = Math.min(T.lA, kneeMax); T.rA = Math.min(T.rA, kneeMax);
+      T.lB = Math.min(T.lB, 0.9); T.rB = Math.min(T.rB, 0.9);
     }
     function layS(T, a) {
       const s = a.side > 0 ? 1 : -1, v = a.lsv || 'reach', rel = a.released, I = a.ideal || 0.34;

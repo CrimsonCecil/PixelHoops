@@ -8,8 +8,8 @@ function load(before = false) {
   const ctx = vm.createContext({ console, performance: { now: () => 0 }, setTimeout() {}, clearTimeout() {} });
   ctx.window = ctx; ctx.PH = { input: { endTick() {}, read: () => ({}) } };
   for (const name of ['render', 'tune', 'roster', 'game']) {
-    let src = before && name === 'game' ? execFileSync('git', ['show', 'main:js/game.js'], { cwd: root, encoding: 'utf8' }) : fs.readFileSync(path.join(root, 'js', name + '.js'), 'utf8');
-    if (name === 'game') src = src.replace('PH.game = {', 'PH.farQA = { laySide, buildSteps, releaseShot, LVR }; PH.game = {');
+    let src = before && ['game', 'render'].includes(name) ? execFileSync('git', ['show', `main:js/${name}.js`], { cwd: root, encoding: 'utf8' }) : fs.readFileSync(path.join(root, 'js', name + '.js'), 'utf8');
+    if (name === 'game') src = src.replace('PH.game = {', 'PH.farQA = { laySide, buildSteps, releaseShot, LVR, poseTarget, updatePlayer, stepPose }; PH.game = {');
     vm.runInContext(src, ctx, { filename: name + '.js' });
   }
   return ctx;
@@ -59,7 +59,6 @@ function rate(ctx, rating, contested, mode, cpu, error) {
   for (let i = 1; n < 1500; i++) {
     const a = action(ctx, f, i * 100003);
     if (a.lsv !== 'far') continue;
-    const w = a.wp.at(-1);
     Object.assign(f.p, { x: 0, y: f.H.y - 1.7, z: 0.15, hasBall: true, action: a });
     Object.assign(f.d, { x: 0, y: f.p.y + 0.3, off: !contested });
     ctx.PH.farQA.releaseShot(f.p, error, 'lay');
@@ -85,3 +84,53 @@ for (const mode of ['2p', 't5']) for (const error of [0, 0.7]) {
   assert(values[0].made > values[2].made && values[1].made > values[3].made);
 }
 console.log('PASS baseline nerf, contest sensitivity, rating separation, green/late timing and CPU/shared-team release parity');
+
+function poseMetrics(ctx) {
+  const f = setup(ctx), Q = ctx.PH.farQA;
+  let peak = 0, gatherPeak = 0, recovery = 0;
+  let a;
+  for (let i = 1; !a || a.lsv !== 'far'; i++) a = action(ctx, f, i * 100003);
+  Object.assign(a, { lsv: 'far', side: 1, hand: 1, sty: 'high', ideal: 0.34, si: 0, st: 0 });
+  Object.assign(f.p, { action: a, anim: 'layup', speed: 0 });
+  for (let si = 0; si < a.wp.length; si++) for (let j = 0; j <= 100; j++) {
+    Object.assign(a, { si, st: a.wp[si].T * j / 100 });
+    const T = Q.stepPose(a); gatherPeak = Math.max(gatherPeak, T.lA, T.rA);
+  }
+  for (const side of [-1, 1]) for (const lsv of ['far', 'reach']) {
+    Object.assign(a, { side, hand: side, lsv, inSteps: false });
+    for (let j = 0; j <= 90; j++) {
+      Object.assign(a, { t: j / 120, released: j >= 58, relT: 0.48 });
+      const T = Q.poseTarget(f.p); peak = Math.max(peak, T.lA, T.rA);
+    }
+    recovery = Math.max(recovery, Q.poseTarget(f.p).lA, Q.poseTarget(f.p).rA);
+  }
+  return { peak, gatherPeak, recovery, duration: a.wp.reduce((s, w) => s + w.T, 0) };
+}
+const oldPose = poseMetrics(before), newPose = poseMetrics(after);
+console.log(`Pose before -> after: peak thigh ${oldPose.peak.toFixed(3)} -> ${newPose.peak.toFixed(3)}rad; gather ${oldPose.gatherPeak.toFixed(3)} -> ${newPose.gatherPeak.toFixed(3)}rad; late-release thigh at 0.75s ${oldPose.recovery.toFixed(3)} -> ${newPose.recovery.toFixed(3)}rad; gather time ${oldPose.duration.toFixed(3)} -> ${newPose.duration.toFixed(3)}s`);
+assert(oldPose.recovery > 1 && newPose.recovery < 0.3, 'late release must not expose the held high-style keyframe');
+assert(newPose.peak <= after.PH.game.K.lvFarKnee + 1e-9);
+assert(newPose.gatherPeak <= after.PH.game.K.lvFarKnee + 1e-9);
+assert(newPose.duration >= 2 * after.PH.game.K.lvFarStep + after.PH.game.K.gathT);
+for (const scenario of ['open', 'contested', 'light block', 'heavy block', 'interrupted', 'possession change']) {
+  const f = setup(after), Q = after.PH.farQA;
+  const a = action(after, f, 100003);
+  Object.assign(a, { lsv: 'far', side: 1, hand: 1, sty: 'high', inSteps: false, t: 0.48, ideal: 0.34, relT: 0.48, released: true });
+  Object.assign(f.p, { action: a, anim: 'layup', x: 0, y: f.H.y - 1.7, z: 0.8, vz: -1, vx: 0, vy: 0, speed: 0, hasBall: false });
+  f.p.pose = Q.poseTarget(f.p);
+  f.d.off = scenario === 'open';
+  if (scenario.includes('block')) f.gm.blkReact(f.d, f.p, 'lay', scenario === 'light block' ? 1 : 3);
+  if (scenario === 'interrupted') f.p.action = null;
+  if (scenario === 'possession change') { f.d.hasBall = true; f.gm.G.ball.holder = f.d.id; }
+  const samples = [];
+  for (let i = 0; i < 240; i++) {
+    f.gm.G.time += 1 / 120;
+    Q.updatePlayer(f.p, f.gm.t5.zeroInp(), 1 / 120);
+    if ([0, 35, 119, 239].includes(i)) samples.push(`${((i + 1) / 120).toFixed(2)}s:${Math.max(f.p.pose.lA, f.p.pose.rA).toFixed(3)}`);
+  }
+  assert(!f.p.action, `${scenario}: action clears within 2s`);
+  assert.equal(f.p.z, 0);
+  const target = Q.poseTarget(f.p);
+  for (const k of ['lA', 'rA', 'lB', 'rB', 'aRp', 'aLp', 'tilt', 'yaw']) assert(Math.abs(f.p.pose[k] - target[k]) < 0.06, `${scenario}: ${k} blends back to current normal pose`);
+  console.log(`PASS ${scenario} recovery (time:thigh rad): ${samples.join(', ')}`);
+}

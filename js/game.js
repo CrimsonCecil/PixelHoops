@@ -98,6 +98,8 @@
     ['lvFarMin', 'lay', '远端手上篮 最近启动', 2.6, 2, 4, 0.05, '米：更近时改侧身上篮，留出两步收球空间'],
     ['lvFarMax', 'lay', '远端手上篮 最远启动', 4, 2, 6, 0.05, '米：更远时改侧身上篮，不影响普通上篮启动'],
     ['lvFarLay', 'lay', '远端手上篮 终结修正', 0.7, 0, 2, 0.05, '倍率/能力：命中倍率加此值×(上篮能力−0.75)，结果限制在0.25到1'],
+    ['lvFarKnee', 'lay', '远端手上篮 抬膝上限', 0.6, 0.3, 0.9, 0.05, '弧度：远端手收球和侧身出手的大腿前抬上限，避免高抬腿'],
+    ['lvFarStep', 'lay', '远端手上篮 每步时长', 0.32, 0.24, 0.6, 0.01, '秒：每步基础时长下限，第一步另加收球时间'],
     ['lvRevB', 'lay', '反手上篮 被盖率', 0.72, 0.2, 1.5, 0.01, '倍率'], ['lvRevP', 'lay', '反手上篮 命中', 0.95, 0.5, 1.2, 0.01, '倍率'], ['lvRevC', 'lay', '反手上篮 受干扰', 0.88, 0.3, 1.5, 0.01, '倍率'],
     // —— V4.3 封堵上篮：投篮条不停 + 被封堵时的上篮变体（a.cv）
     ['layNoStop', 'lay', '上篮/扣篮中不顿帧', 1, 0, 1, 1, '开关：有人上篮或扣篮还没出手时，撞人顿帧和慢动作不冻结画面，投篮条一直走'],
@@ -3113,7 +3115,7 @@
       a.tk = P.d - s; return wp;
     }
     // 收球发生在第一步落地时，不再单独走一步；之后只有两步（第二步起跳）
-    const d0 = Math.hypot(HOOP.x - x, HOOP.y - y), sT = (st) => K.stepT + 0.025 * st, GATHER_T = K.gathT, STEP_T = K.stepT;
+    const d0 = Math.hypot(HOOP.x - x, HOOP.y - y), sT = (st) => Math.max(K.stepT, far ? K.lvFarStep : 0) + 0.025 * st, GATHER_T = K.gathT, STEP_T = K.stepT;
     if (kind === 'floater') {
       const s = clamp(d0 - 3.0, 0, P.L * 0.9);
       if (s > 0.35) push(x + h.x * s, y + h.y * s, sT(s) + GATHER_T, 0.08, ft);
@@ -3680,6 +3682,7 @@
     const sk = clamp(Math.hypot(w.x - w.fx, w.y - w.fy) / 1.1, 0.7, 1.6);
     const A = lerp(-0.3 * sk, 0.95 * sk, u), B = 0.3 + 0.6 * Math.sin(Math.PI * u) + (last ? 0.35 * u : 0), tA = lerp(0.6 * sk, -0.65 * sk, u), tB = 0.55 + 0.3 * Math.sin(Math.PI * u);
     if (w.lead === 'L') Object.assign(o, { lA: A, lB: B, rA: tA, rB: tB }); else Object.assign(o, { rA: A, rB: B, lA: tA, lB: tB });
+    if (a.lsv === 'far') { o.lA = Math.min(o.lA, K.lvFarKnee); o.rA = Math.min(o.rA, K.lvFarKnee); o.lB = Math.min(o.lB, 0.9); o.rB = Math.min(o.rB, 0.9); }
     o.lean = 0.24 + (last ? 0.1 * u : 0);
     if (a.v === 'euro') {
       const lead = w.lead === 'R' ? 1 : -1, first = a.wp[0].lead === 'R' ? 1 : -1;
