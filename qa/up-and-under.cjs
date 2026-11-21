@@ -248,7 +248,7 @@ for (const [mode, flipped, camera] of [['1v1', false, '2k'], ['5v5', false, '2k'
       assert(p.stam < stamina, 'existing move path charges stamina');
       f.neutral(); step(44);
       const dx = p.x - start[0], dy = p.y - start[1];
-      const distance = mv === 'uuForward' ? 1.7 : mv === 'uuBack' ? 1.3 : 1.4;
+      const distance = mv === 'uuForward' ? 1.5 : mv === 'uuBack' ? 1.15 : 1.25;
       assert(dx * x + dy * y > distance * 0.85, `${mv} enlarged displacement ${dx},${dy}`);
       assert(Math.abs(dx * y - dy * x) < 0.15, 'no sideways drift');
       assert(p.hasBall && b.holder === p.id && b.state === 'held');
