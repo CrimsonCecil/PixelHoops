@@ -537,7 +537,10 @@
     ['stlPokeVR', 'def', '抢断 捅球速度随机', 0.6, 0, 3, 0.05, '米/秒：水平速度 ± 这个值'],
     ['stlPokeZ', 'def', '抢断 捅球上抛速度', 1, 0, 6, 0.1, '米/秒'],
     ['stlPokeNP', 'def', '抢断 捅球不可拾取时间', 0.3, 0, 1, 0.01, '秒：双方都要等待球脱手'],
-    ['stlPokeStun', 'def', '抢断 捅球持球人硬直', 0.42, 0, 2, 0.01, '秒：捅球后持球人的追球延迟，不影响干净断球'],
+    ['stlPokeStun', 'def', '抢断 捅球踉跄基础时长', 0.6, 0, 2, 0.01, '秒：实际时长 = 基础 − 灵活 × 系数，不影响干净断球'],
+    ['stlPokeAg', 'def', '抢断 捅球踉跄灵活系数', 0.25, 0, 1, 0.01, '秒：灵活越高，踉跄越短'],
+    ['stlPokeSlowT', 'def', '抢断 捅球慢动作时长', 0.5, 0, 2, 0.01, '秒：现实时间；联机和回放不触发'],
+    ['stlPokeSlowK', 'def', '抢断 捅球慢动作速度', 0.35, 0.05, 1, 0.05, '倍率：仅捅球触发的慢动作'],
     ['stlPokeHz', 'def', '抢断 捅球闪光频率', 3, 0, 8, 0.1, '次/秒：只影响散球提示'],
     ['stlPokeFlash', 'def', '抢断 捅球闪光强度', 0.8, 0, 1, 0.05, '透明度：0 关闭闪光，不影响比赛'],
     ['stlPokePrompt', 'def', '抢断 捅球扑球提示', 1, 0, 1, 1, '显示人类球员的扑球按键', 'bool'],
@@ -4384,7 +4387,7 @@
       const d = Math.hypot(b.x - p.x, b.y - p.y);
       return inputSlot(p) != null && !p.off && !p.dummy && !p.action && p.stun <= 0 && p.z <= 0.05 && p.stam > ST.act && b.z <= K.dvMaxZ && d >= K.dvMinD && d <= diveR(p);
     }) : [];
-    return { active, glow: active ? K.stlPokeFlash * (0.5 + 0.5 * Math.cos(G.time * Math.PI * 2 * K.stlPokeHz)) : 0,
+    return { active, gold: active, glow: active ? K.stlPokeFlash * (0.5 + 0.5 * Math.cos(G.time * Math.PI * 2 * K.stlPokeHz)) : 0,
       prompts: players.map((p) => { const slot = inputSlot(p); return { id: p.id, text: (slot === 1 ? 'P2 ' : 'P1 ') + '扑球！按 ' + (PH.input && PH.input.diveLabel ? PH.input.diveLabel(slot, G.mode === 't5') : G.mode === 't5' ? 'J / Space' : slot === 1 ? 'Num2 / .' : 'K') }; }) };
   }
   function startDive(pl) {
@@ -4723,7 +4726,7 @@
             const bx = G.ball.x, by = G.ball.y, ux = (pl.x - df.x) / (dd || 1), uy = (pl.y - df.y) / (dd || 1);
             df.action = null; df.stunK = 'off'; df.post = false;
             const clean = !finishing && (ch === 99 || rnd() < clamp(clamp(K.stlCl0 + K.stlClS * Math.max(0, pl.r.stl - K.stlClR) + (read.timed ? K.stlClTm : 0), 0, 1) * bk(pl, 'pick', K.stlBdClean), 0, 1));
-            df.stun = df.stunT0 = clean ? K.stlStun : K.stlPokeStun;
+            df.stun = df.stunT0 = clean ? K.stlStun : Math.max(0, K.stlPokeStun - K.stlPokeAg * agil(df));
             a.T = K.stlRecT;
             if (clean) {
               playLoss(df);
@@ -4731,10 +4734,15 @@
               G.ball.noPick = K.stlNoPick; G.stats[pl.id].stl++; G.stats[df.id].tov++; vo(pl, 'steal', 'pri'); vic(df, 'stolen');
               float(read.timed ? '时机抢断' : '掏球', pl, '#7dff8a', 1); tkAdd(pl, 14); tkAdd(df, -10); bigPlay('steal', pl, bx, by, 0.7, stTier); bpop(pl, 'pick');
             } else {
+              df.stunK = 'daze'; df.vx = df.vy = 0;
               const an = Math.atan2(-uy, -ux) + rr(-K.stlPokeA, K.stlPokeA) * Math.PI / 180, v = Math.max(0, K.stlPokeV + rr(-K.stlPokeVR, K.stlPokeVR)), z = G.ball.z;
               looseBall({ x: bx, y: by, z }, Math.cos(an) * v, Math.sin(an) * v, K.stlPokeZ, pl.id);
               G.ball.noPick = K.stlPokeNP; G.ball.poke = { by: pl.id, from: df.id, t: G.time };
-              float(finishing ? '掏掉' : '捅掉', pl, '#7dff8a', 1); if (finishing) sfx('steal');
+              if (!(PH.game.isOnline && PH.game.isOnline()) && !G.replay && K.stlPokeSlowT > 0) {
+                G.fx.slow = Math.max(G.fx.slow, K.stlPokeSlowT); G.fx.slowScale = K.stlPokeSlowK; G.fx.slowC = 0;
+              }
+              sfx('poke');
+              float(finishing ? '掏掉' : '捅掉', pl, '#7dff8a', 1);
             }
           } else { reachTo(pl, { x: G.ball.x, y: G.ball.y, z: Math.max(0.3, G.ball.z) }, K.stlMissReach, K.stlMissReachT); a.T = Math.max(a.t, stealMissTime(pl, dd, read)); float(read.risk > 0.5 ? '伸手失位' : '抢断落空', pl, '#9aa3c0', read.risk > 0.5 ? 1 : 0); bpop(df, 'tight'); }
         } else { a.T = Math.max(a.t, stealMissTime(pl, dd, read)); float('伸手失位', pl, '#9aa3c0', 1); }
@@ -6705,6 +6713,17 @@
       const vc = c.vx * nx + c.vy * ny; if (vc < 0) { c.vx -= nx * vc * 0.8; c.vy -= ny * vc * 0.8; }
     }
   }
+  function slowSkip(dt) {
+    const F = G.fx;
+    if (!(F.slow > 0)) { F.slowScale = null; F.slowC = 0; return false; }
+    F.slow = Math.max(0, F.slow - dt);
+    if (F.slowScale == null) { F.slowC = (F.slowC + 1) % 3; return F.slowC !== 0; }
+    F.slowC += clamp(F.slowScale, 0.05, 1);
+    const skip = F.slowC < 1;
+    if (!skip) F.slowC -= 1;
+    if (F.slow <= 0) { F.slowScale = null; F.slowC = 0; }
+    return skip;
+  }
   function tick(dt, humanInput) {
     if (G.state !== 'play') return;
     if (G.replay) { PH.input.endTick(); replayTick(dt); return; }
@@ -6713,7 +6732,7 @@
     fxUpdate(dt); hzView();
     if ((F.hit > 0 || F.slow > 0) && finLive()) { F.hit = 0; F.slow = 0; }   // V4.3 上篮 / 扣篮出手前不顿帧、不慢放：投篮条不停
     if (F.hit > 0) { F.hit -= dt; return; }
-    if (F.slow > 0) { F.slow -= dt; F.slowC = (F.slowC + 1) % 3; if (F.slowC !== 0) return; }
+    if (slowSkip(dt)) return;
     G.time += dt;
     const ps = G.players, solo = G.mode !== '2p', train = G.mode === 'train', T = G.train;
     const inps = ps.map((p) => {
@@ -6840,7 +6859,7 @@
     fxUpdate(dt); hzView();
     if ((F.hit > 0 || F.slow > 0) && finLive()) { F.hit = 0; F.slow = 0; }   // V4.3 同 1V1
     if (F.hit > 0) { F.hit -= dt; return false; }
-    if (F.slow > 0) { F.slow -= dt; F.slowC = (F.slowC + 1) % 3; if (F.slowC !== 0) return false; }
+    if (slowSkip(dt)) return false;
     G.time += dt;
     for (let i = 0; i < ps.length; i++) { updatePlayer(ps[i], inps[i] || zeroInp(), dt); skTick(ps[i], dt); tkTick(ps[i], dt); }
     for (let i = 0; i < ps.length; i++) for (let j = i + 1; j < ps.length; j++) {

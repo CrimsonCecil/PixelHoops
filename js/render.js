@@ -1680,21 +1680,22 @@
     const p = proj(b.x, b.y, b.z), r = Math.max(2, Math.round(BALL_R * p.s));
     const cx = Math.round(p.x), cy = Math.round(p.y);
     const cue = PH.game && PH.game.pokeCue && PH.game.pokeCue();
-    if (cue && cue.active) {
-      ctx.save(); ctx.globalAlpha = cue.glow;
-      ctx.strokeStyle = '#ffe58a'; ctx.lineWidth = 2; ctx.shadowColor = '#fff4bc'; ctx.shadowBlur = 12;
-      ctx.beginPath(); ctx.arc(cx, cy, r + 4 + cue.glow * 5, 0, Math.PI * 2); ctx.stroke();
-      ctx.restore();
-    }
+    const gold = cue && cue.gold;
     const fl = b.fl > 0 && ((b.fl * 18) | 0) % 2 === 0;
     ellipse(ctx, cx, cy, r + 1, r + 1, fl ? '#fff6c8' : '#15101f');
-    ellipse(ctx, cx, cy, r, r, '#b4501e');
-    ellipse(ctx, cx - 0.5, cy - 0.5, r - 0.6, r - 0.6, '#ee7f30');
-    ctx.fillStyle = '#7a3212';
+    ellipse(ctx, cx, cy, r, r, gold ? '#b67b12' : '#b4501e');
+    ellipse(ctx, cx - 0.5, cy - 0.5, r - 0.6, r - 0.6, gold ? '#ffd34e' : '#ee7f30');
+    ctx.fillStyle = gold ? '#916014' : '#7a3212';
     const off = Math.round(Math.sin(b.spin) * r * 0.6);
     ctx.fillRect(cx + off, cy - r + 1, 1, r * 2 - 1);
     ctx.fillRect(cx - r + 1, cy + Math.round(Math.cos(b.spin * 0.7) * r * 0.4), r * 2 - 1, 1);
-    ctx.fillStyle = '#ffc890'; ctx.fillRect(cx - Math.max(1, r >> 1), cy - Math.max(1, r >> 1), 1, 1);
+    ctx.fillStyle = gold ? '#fff5b5' : '#ffc890'; ctx.fillRect(cx - Math.max(1, r >> 1), cy - Math.max(1, r >> 1), 1, 1);
+    if (gold) {
+      const phase = PH.game.G.time * Math.PI * 2 * PH.game.K.stlPokeHz, hx = cx + Math.sin(phase) * r * 0.45, hy = cy - r * 0.35;
+      ctx.save(); ctx.globalAlpha = cue.glow; ctx.fillStyle = '#ffffff';
+      ctx.fillRect(Math.round(hx) - 1, Math.round(hy), 3, 1); ctx.fillRect(Math.round(hx), Math.round(hy) - 1, 1, 3);
+      ctx.restore();
+    }
   }
 
   function shadow(x, y, z, rad) {

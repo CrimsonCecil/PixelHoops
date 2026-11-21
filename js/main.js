@@ -8,6 +8,7 @@
   const lobby3 = ['curry', 'lebron', 'jokic', 'edwards', 'durant', 'giannis'].map((arch, i) => ({ arch, role: i === 0 ? 'human' : i % 3 === 2 ? 'waiting' : 'cpu' }));
   const rooms = PH.rooms, room = rooms.room;
   let localSlot = -1, roomSlot = -1, matchConfig = null, netFrame = 0;
+  GM.isOnline = () => room.active;
   GM.localInputSlot = (p) => matchConfig && G.mode !== 't5' ? (p.id === localSlot ? 0 : null) : p.ctrl === 'cpu' ? null : p.ctrl === 'p2' ? 1 : 0;
   let scale = 2, paused = false, manual = false, screen = 'menu', last = 0, acc = 0, fps = 60, debug = /[?&]debug/.test(location.search);
   const isTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
