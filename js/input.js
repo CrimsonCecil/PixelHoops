@@ -9,15 +9,26 @@
   const SOLO_EXTRA = { up: ['ArrowUp'], down: ['ArrowDown'], left: ['ArrowLeft'], right: ['ArrowRight'] };
   const touch = { mx: 0, my: 0, a1: false, a2: false, a3: false, alt: false, sprint: false, on: false };
   const sys = {};
+  const blockedKeys = {}, blockedPad = {}, blockedTouch = {};
 
   window.addEventListener('keydown', (e) => {
     if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Slash', 'Tab'].includes(e.code)) e.preventDefault();
-    if (!e.repeat) { keys[e.code] = true; latch[e.code] = true; sys[e.code] = true; }
+    if (!e.repeat) { delete blockedKeys[e.code]; keys[e.code] = true; latch[e.code] = true; sys[e.code] = true; }
   });
-  window.addEventListener('keyup', (e) => { keys[e.code] = false; });
-  window.addEventListener('blur', () => { for (const k in keys) keys[k] = false; });
+  window.addEventListener('keyup', (e) => { keys[e.code] = false; delete blockedKeys[e.code]; });
+  window.addEventListener('blur', () => { for (const k in keys) keys[k] = false; for (const k in blockedKeys) delete blockedKeys[k]; });
 
-  const held = (list) => { for (const c of list) if (keys[c] || latch[c]) return true; return false; };
+  const held = (list) => { for (const c of list) if (!blockedKeys[c] && (keys[c] || latch[c])) return true; return false; };
+  const gpBtn = (gp, i) => !!(gp && gp.buttons[i] && (gp.buttons[i].pressed || ((i === 6 || i === 7) && gp.buttons[i].value > 0.3)));
+  function padBtn(gp, i) {
+    const down = gpBtn(gp, i), blk = gp && blockedPad[gp.index];
+    if (blk && blk[i]) { if (!down) delete blk[i]; return false; }
+    return down;
+  }
+  function touchBtn(k) {
+    if (!touch[k]) { delete blockedTouch[k]; return false; }
+    return !blockedTouch[k];
+  }
   let padPrev = {};
   const lock = { on: false };
 
@@ -41,7 +52,7 @@
     if (gp) {
       const ax = gp.axes[0] || 0, ay = gp.axes[1] || 0;
       if (Math.hypot(ax, ay) > 0.22) { o.mx = ax; o.my = -ay; }
-      const B = (i) => !!(gp.buttons[i] && (gp.buttons[i].pressed || ((i === 6 || i === 7) && gp.buttons[i].value > 0.3)));
+      const B = (i) => padBtn(gp, i);
       if (B(14)) o.mx = -1; if (B(15)) o.mx = 1; if (B(12)) o.my = 1; if (B(13)) o.my = -1;
       if (B(7) || B(5)) o.sprint = true;
       if (onOffense) { if (B(2)) o.a1 = true; if (B(3)) o.a2 = true; if (B(1)) o.a3 = o.dribble = true; if (B(6) || B(4)) o.post = true; }
@@ -51,8 +62,8 @@
     }
     if (slot === 0 && touch.on) {
       if (Math.hypot(touch.mx, touch.my) > 0.2) { o.mx = touch.mx; o.my = touch.my; }
-      o.a1 = o.a1 || touch.a1; o.a2 = o.a2 || touch.a2; o.a3 = o.a3 || touch.a3; o.sprint = o.sprint || touch.sprint;
-      if (onOffense) { o.dribble = o.dribble || touch.a3; o.post = o.post || touch.alt; }
+      o.a1 = o.a1 || touchBtn('a1'); o.a2 = o.a2 || touchBtn('a2'); o.a3 = o.a3 || touchBtn('a3'); o.sprint = o.sprint || touchBtn('sprint');
+      if (onOffense) { o.dribble = o.dribble || touchBtn('a3'); o.post = o.post || touchBtn('alt'); }
     }
     const l = Math.hypot(o.mx, o.my); if (l > 1) { o.mx /= l; o.my /= l; }
     return o;
@@ -67,7 +78,7 @@
     const gp = lock.on ? null : pads()[0];
     if (gp) {
       o.pad = true;
-      const B = (i) => !!(gp.buttons[i] && (gp.buttons[i].pressed || ((i === 6 || i === 7) && gp.buttons[i].value > 0.3)));
+      const B = (i) => padBtn(gp, i);
       const ax = gp.axes[0] || 0, ay = gp.axes[1] || 0, rx = gp.axes[2] || 0, ry = gp.axes[3] || 0;
       if (Math.hypot(ax, ay) > 0.2) { o.lx = ax; o.ly = -ay; }
       if (Math.hypot(rx, ry) > 0.35) { o.rx = rx; o.ry = -ry; }
@@ -78,8 +89,8 @@
     }
     if (touch.on) {
       if (Math.hypot(touch.mx, touch.my) > 0.2) { o.lx = touch.mx; o.ly = touch.my; }
-      if (touch.a1) o.X = true; if (touch.a2) o.A = true; if (touch.a3) o.LT = true; if (touch.sprint) o.RT = true;
-      o.hesi = o.hesi || touch.alt;
+      if (touchBtn('a1')) o.X = true; if (touchBtn('a2')) o.A = true; if (touchBtn('a3')) o.LT = true; if (touchBtn('sprint')) o.RT = true;
+      o.hesi = o.hesi || touchBtn('alt');
     }
     const l = Math.hypot(o.lx, o.ly); if (l > 1) { o.lx /= l; o.ly /= l; }
     return o;
@@ -87,14 +98,14 @@
 
   function read3(onOffense) {
     const input = read(0, onOffense, true, true), gp = lock.on ? null : pads()[0];
-    const B = (i) => !!(gp?.buttons[i]?.pressed || ((i === 6 || i === 7) && gp?.buttons[i]?.value > 0.3));
-    input.pass = held(['KeyE']) || B(0) || !!touch.pass;
-    const bounce = held(['KeyZ']) || touch.bounce || B(0) && B(4);
-    const lob = held(['KeyX']) || touch.lob || B(0) && B(6);
-    const alley = held(['KeyV']) || touch.alley || bounce && lob;
+    const B = (i) => padBtn(gp, i);
+    input.pass = held(['KeyE']) || B(0) || touchBtn('pass');
+    const bounce = held(['KeyZ']) || touchBtn('bounce') || B(0) && B(4);
+    const lob = held(['KeyX']) || touchBtn('lob') || B(0) && B(6);
+    const alley = held(['KeyV']) || touchBtn('alley') || bounce && lob;
     if (onOffense && (bounce || lob || alley)) input.pass = true;
     if (input.pass) input.passKind = alley ? 'alley' : lob ? 'lob' : bounce ? 'bounce' : input.sprint ? 'skip' : 'chest';
-    input.screen = held(['KeyF']) || !!(gp && gp.buttons[11]?.pressed) || !!touch.screen;
+    input.screen = held(['KeyF']) || B(11) || touchBtn('screen');
     if (B(0) && (B(4) || B(6))) input.post = false;
     return input;
   }
@@ -104,6 +115,8 @@
     const cur = {}, nextButtons = {}, now = performance.now();
     let pressed = false;
     for (const gp of pads()) {
+      const blk = blockedPad[gp.index];
+      if (blk) for (const i in blk) if (!gpBtn(gp, +i)) delete blk[i];
       const prev = padPrev[gp.index] || [], buttons = nextButtons[gp.index] = gp.buttons.map((b) => b.pressed);
       if (buttons.some((b, i) => b && !prev[i])) pressed = true;
       const B = (i) => buttons[i], ax = gp.axes[0] || 0, ay = gp.axes[1] || 0, rx = gp.axes[2] || 0;
@@ -127,6 +140,19 @@
     return Math.hypot(bx, by) > 0.25 ? { x: bx, y: by } : { x: 0, y: 0 };
   }
   function endTick() { for (const k in latch) delete latch[k]; }
+  function flush() {
+    endTick();
+    for (const k in blockedKeys) delete blockedKeys[k];
+    for (const k in keys) if (keys[k]) blockedKeys[k] = true;
+    for (const k in blockedPad) delete blockedPad[k];
+    for (const gp of pads()) {
+      const b = {};
+      for (let i = 0; i < gp.buttons.length; i++) if (gpBtn(gp, i)) b[i] = true;
+      blockedPad[gp.index] = b;
+    }
+    for (const k in blockedTouch) delete blockedTouch[k];
+    for (const k in touch) if (k !== 'on' && k !== 'mx' && k !== 'my' && touch[k]) blockedTouch[k] = true;
+  }
   function sysPressed(code) { if (sys[code]) { delete sys[code]; return true; } return false; }
   function sysAny() { const n = Object.keys(sys).length > 0; return n; }
   function clearSys() { for (const k in sys) delete sys[k]; }
@@ -155,5 +181,5 @@
     });
   }
 
-  PH.input = { read: read, read3: read3, read5: read5, endTick: endTick, sysPressed: sysPressed, sysAny: sysAny, clearSys: clearSys, initTouch: initTouch, pollPads: pollPads, rstick: rstick, lock: lock, pads: pads, keys: keys, touch: touch };
+  PH.input = { read: read, read3: read3, read5: read5, endTick: endTick, flush: flush, sysPressed: sysPressed, sysAny: sysAny, clearSys: clearSys, initTouch: initTouch, pollPads: pollPads, rstick: rstick, lock: lock, pads: pads, keys: keys, touch: touch };
 })();
