@@ -28,6 +28,7 @@ function fixture(mode) {
     Object.assign(p, { x: 0, y: 6, face: Math.PI / 2, handX: 0.33, hasBall: true, opp: d });
     Object.assign(d, { x: 0.8, y: 6.6, opp: p, face: -Math.PI / 2 });
     p.r.badges = []; d.r.badges = []; d.r.stl = 0.5;
+    Object.assign(p.ai, { call: 'drive', callLost: false, pm: { drive: 0 } });
     Object.assign(G.ball, { state: 'held', holder: p.id, dead: false, wasShot: false, poke: null, x: p.x, y: p.y, z: 0.8, noPick: 0 });
     Object.assign(K, { stlB0: 100, stlMax: 1 });
     return { p, d };
@@ -57,6 +58,7 @@ for (const mode of ['1V1', '3V3', '5V5']) {
       assert.equal(d.action.T, K.stlRecT);
       assert.equal(G.stats[d.id].stl, 0);
       assert.equal(G.stats[p.id].tov, 0);
+      if (mode === '1V1') assert.equal(p.ai.pm.drive, 0, 'poke does not penalize tactic memory before recovery');
     }
     ({ p, d } = f.reset(100 + i));
     d.r.stl = 0.99; d.r.badges = ['pick'];
@@ -66,6 +68,7 @@ for (const mode of ['1V1', '3V3', '5V5']) {
       assert.equal(G.stats[d.id].stl, 1, 'clean credit remains immediate');
       assert.equal(G.stats[p.id].tov, 1);
       assert.equal(G.ball.noPick, K.stlNoPick);
+      if (mode === '1V1') assert.equal(p.ai.pm.drive, -K.aiPlTurn, 'clean steal penalizes tactic memory immediately');
     }
   }
   assert(low > 150 && high > 150, 'low rating mostly pokes; elite pick badge mostly clean');
@@ -75,6 +78,7 @@ for (const mode of ['1V1', '3V3', '5V5']) {
     let { p, d } = f.reset();
     Object.assign(K, { stlCl0: 0, stlClS: 0, stlClTm: 0 });
     assert(f.hit(d));
+    if (mode === '1V1') assert.equal(p.ai.pm.drive, 0, 'pending poke preserves tactic memory');
     const offensive = recovery === 'offense' || recovery === 'expiredOffense';
     G.time += recovery.startsWith('expired') ? K.stlPokeCredT + 0.01 : 0.5;
     gm._qa.updateBall(0);
@@ -83,9 +87,11 @@ for (const mode of ['1V1', '3V3', '5V5']) {
     const credit = recovery === 'defense' || recovery === 'teammate' ? 1 : 0;
     assert.equal(G.stats[d.id].stl, credit);
     assert.equal(G.stats[p.id].tov, credit);
+    if (mode === '1V1') assert.equal(p.ai.pm.drive, credit ? -K.aiPlTurn : 0, 'only credited defensive recovery penalizes tactic memory');
     if (offensive) { assert.equal(G.off, 0); assert.equal(G.shotClock, 8); }
     gm.t5.pickup(d);
     assert.equal(G.stats[d.id].stl, credit, 'no double credit');
+    if (mode === '1V1') assert.equal(p.ai.pm.drive, credit ? -K.aiPlTurn : 0, 'no repeated tactic memory penalty');
   }
   let { p, d } = f.reset();
   gm.t5.pickup(p);

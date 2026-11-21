@@ -2951,6 +2951,7 @@
     const poke = b.poke, pokeBy = poke && G.players[poke.by], pokeFrom = poke && G.players[poke.from];
     b.poke = null;
     if (pokeBy && pokeFrom && G.phase === 'live' && G.time - poke.t <= K.stlPokeCredT && TM(pl) === TM(pokeBy)) {
+      playLoss(pokeFrom);
       G.stats[pokeBy.id].stl++; G.stats[pokeFrom.id].tov++;
       vo(pokeBy, 'steal', 'pri'); vic(pokeFrom, 'stolen');
       tkAdd(pokeBy, 14); tkAdd(pokeFrom, -10); bigPlay('steal', pokeBy, b.x, b.y, 0.7, 1); bpop(pokeBy, 'pick');
@@ -4405,11 +4406,12 @@
             const stTier = da && da.type === 'move' ? 2 : 1;
             reachTo(pl, { x: G.ball.x, y: G.ball.y, z: Math.max(0.3, G.ball.z) }, K.stlReach, K.stlReachT);
             const bx = G.ball.x, by = G.ball.y, ux = (pl.x - df.x) / (dd || 1), uy = (pl.y - df.y) / (dd || 1);
-            playLoss(df); df.action = null; df.stunK = 'off'; df.post = false;
+            df.action = null; df.stunK = 'off'; df.post = false;
             const clean = ch === 99 || rnd() < clamp(clamp(K.stlCl0 + K.stlClS * Math.max(0, pl.r.stl - K.stlClR) + (read.timed ? K.stlClTm : 0), 0, 1) * bk(pl, 'pick', K.stlBdClean), 0, 1);
             df.stun = df.stunT0 = clean ? K.stlStun : K.stlPokeStun;
             a.T = K.stlRecT;
             if (clean) {
+              playLoss(df);
               looseBall({ x: bx, y: by, z: 0.6 }, ux * K.stlBallV + rr(-K.stlBallR, K.stlBallR), uy * K.stlBallV + rr(-K.stlBallR, K.stlBallR), K.stlBallZ, pl.id);
               G.ball.noPick = K.stlNoPick; G.stats[pl.id].stl++; G.stats[df.id].tov++; vo(pl, 'steal', 'pri'); vic(df, 'stolen');
               float(read.timed ? '时机抢断' : '掏球', pl, '#7dff8a', 1); tkAdd(pl, 14); tkAdd(df, -10); bigPlay('steal', pl, bx, by, 0.7, stTier); bpop(pl, 'pick');
