@@ -13,7 +13,9 @@ for (const name of ['tune', 'ptype', 'render', 'roster', 'r5', 'r2k', 'game']) {
 const { game: gm, TUNE: tune, foulQA: qa } = ctx.PH;
 const { G, _dbg: dbg, t5: t } = gm;
 const audio = [];
+let bounces = 0;
 gm.setAudioSink((...event) => {
+  if (event[0] === 'play' && event[1] === 'bounce') bounces++;
   if (event[1] === 'foulWhistle' || (event[0] === 'vo' && event[2].startsWith('foul'))) audio.push(event);
 });
 function heardFoul(event) {
@@ -21,9 +23,9 @@ function heardFoul(event) {
 }
 const dt = 1 / 120;
 const set = (key, value) => tune.set('l1_' + key, value);
-const tick = (hold = false) => gm.tick(dt, (p) => ({ ...t.zeroInp(), a1: hold && p.id === G.off }));
-function until(test, hold = false) {
-  for (let i = 0; i < 800 && !test(); i++) tick(hold);
+const tick = (hold = false, step = dt) => gm.tick(step, (p) => ({ ...t.zeroInp(), a1: hold && p.id === G.off }));
+function until(test, hold = false, step = dt) {
+  for (let i = 0; i < 800 && !test(); i++) tick(hold, step);
   assert(test(), 'simulation did not reach expected state');
 }
 function duel(o = {}) {
@@ -35,7 +37,7 @@ function duel(o = {}) {
   Object.assign(d.r, { def: 0.95, intD: 0.95, dcon: 0.5 });
   return [p, d];
 }
-function jumper(y, made, fouls) {
+function jumper(y, made, fouls, hold = true) {
   const [p, d] = duel({ fouls, glen: 180 });
   p.y = y; d.y = y + 0.4;
   gm.seed(3);
@@ -43,7 +45,7 @@ function jumper(y, made, fouls) {
   gm.seed(made ? 9999 : 1730);
   dbg.releaseShot(p, made ? 0 : 1, 'shot');
   assert.equal(G.lastShot.made, made);
-  until(() => G.ball.state !== 'shot');
+  until(() => G.ball.state !== 'shot', hold);
   return [p, d];
 }
 function freeThrow(green, pause = 0.7, stalled = false) {
@@ -57,6 +59,7 @@ function freeThrow(green, pause = 0.7, stalled = false) {
   assert(p.action?.meter && p.action.ft, 'the normal shot button starts the timing meter');
   if (green) until(() => p.action.t + dt >= p.action.ideal - dt / 2, true);
   tick();
+  until(() => G.ball.state === 'shot');
   assert.equal(G.ball.shot.kind, 'ft');
   assert.equal(G.ball.shot.made, green);
   if (phase === G.ft.total) {
@@ -96,6 +99,70 @@ set('foulBlock', 4);
 set('foulContestMin', 0);
 set('foulRating', 3);
 set('ftBase', 0); set('ftRating', 0); set('ftTiming', 1);
+
+const ballPos = () => [G.ball.x, G.ball.y, G.ball.z];
+const ballShift = (from) => Math.hypot(...ballPos().map((v, i) => v - from[i]));
+function handGap(p) {
+  const rig = ctx.PH.rig(p);
+  return Math.min(ballShift(rig.handL), ballShift(rig.handR));
+}
+{
+  const [p] = jumper(7, true, true, false);
+  heardFoul('foulAndOne');
+  const before = bounces;
+  const floor = [];
+  for (let i = 0; i < 145; i++) {
+    tick();
+    if (G.ball.z < 0.14) floor.push(i);
+  }
+  assert.equal(bounces - before, 2);
+  assert(floor.length >= 2 && floor.at(-1) - floor[0] > 40, 'both dribbles reach the floor');
+  const gathered = ballPos();
+  assert(gathered[2] > 0.9 && handGap(p) < 0.16);
+  for (let i = 0; i < 240; i++) tick();
+  assert.equal(bounces - before, 2, 'the gathered shooter no longer dribbles');
+  assert(ballShift(gathered) < 0.04 && handGap(p) < 0.16);
+  tick(true);
+  assert.equal(p.action.t, 0);
+  assert(p.action.meter && p.action.ft, 'shooting starts immediately from the gather');
+}
+for (const [dribble, low] of [[1, false], [2, false], [1, true], [2, true]]) {
+  const [p] = jumper(7, true, true, false);
+  heardFoul('foulAndOne');
+  const before = bounces;
+  until(() => G.ft.prep >= (dribble - 1) * 0.5 && G.ball.z < (low ? 0.4 : 0.85), false, 1 / 60);
+  if (dribble === 1) assert(G.phaseT > 0, 'setup has not finished during the first dribble');
+  let last = ballPos();
+  tick(true, 1 / 60);
+  assert.equal(p.action.t, 0);
+  assert(p.action.meter && p.action.ft, `shooting starts immediately during dribble ${dribble}`);
+  assert(ballShift(last) <= 0.1, 'the shot press does not jump the ball to the hand');
+  const c = p.action.ftCatch;
+  assert.equal(c.contactT == null, low, 'a reachable ball is caught immediately; a low ball continues its bounce');
+  until(() => {
+    assert(ballShift(last) <= 0.100001, 'the ball stays continuous throughout the catch');
+    last = ballPos();
+    const gap = handGap(p);
+    if (c.contactT != null) {
+      assert(gap < 0.16, `dribble ${dribble} catch at ${p.action.t.toFixed(3)}s: hand gap ${gap.toFixed(3)}m`);
+      assert(handGap(G.rec.at(-1).p[p.id]) < 0.16, 'the recorded pose keeps the hand on the ball');
+    }
+    return c.done;
+  }, true, 1 / 60);
+  assert.equal(bounces - before, dribble - (low ? 0 : 1), 'only an already-started low bounce can finish before the catch');
+}
+{
+  const [p] = jumper(7, true, true, false);
+  heardFoul('foulAndOne');
+  p.ctrl = 'cpu';
+  const before = bounces;
+  until(() => p.action?.ft);
+  assert.equal(bounces - before, 2, 'CPU completes two bounces before shooting');
+  assert(handGap(p) < 0.16);
+  until(() => G.ball.shot?.kind === 'ft');
+}
+console.log('PASS FT routine: two floor bounces, steady gather, continuous ball and hand contact on either dribble, CPU routine');
+
 jumper(7, true);
 assert.equal(G.phase, 'ft');
 assert.equal(G.stats[1].pf, 1);

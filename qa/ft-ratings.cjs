@@ -40,6 +40,7 @@ function startFT(rating, cpu, i = 0) {
   return p.action;
 }
 function release(a, cpu, offset) {
+  a.ftCatch.done = true;
   if (offset != null) {
     a.t = a.ideal + offset - dt;
     if (cpu) a.cpuRelease = 0;
