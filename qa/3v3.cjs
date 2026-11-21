@@ -224,7 +224,10 @@ function fixture(options = {}) {
   const { G, T3, run } = fixture({ human: 0, clock: 3 });
   run(60);
   const before = G.shotClock;
+  T3.holder().stun = 0.12;
   run(1, { 0: { pass: true, mx: -1, my: 0 } });
+  assert.equal(G.ball.state, 'held', 'brief contact delays but does not swallow a pass');
+  run(9);
   assert.equal(G.ball.state, 'pass');
   run(41);
   assert.equal(T3.holder().id, 1);
