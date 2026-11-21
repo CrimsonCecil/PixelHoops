@@ -2620,7 +2620,7 @@
     const t0 = G.time;
     const sigOf = (p) => ISIG[p.arch.key] || (CELS[p.arch.key] || ['flex'])[0], walk = [];
     for (const s of spots) { const p = s.p, star = p === fa || p === fb; s.w0 = t0 + (TM(p) === TM(fa) ? 0 : IWA); s.w1 = s.w0 + IWA;
-      (star ? [(IWALK[p.arch.key] || ['wave'])[0], sigOf(p)] : ['wave']).forEach((ty, j) => walk.push({ id: p.id, ty: ty, t0: s.w0 + (star ? 0.3 + j * 1.75 : 0.9 + (p.id % 3) * 0.3), T: 1.6, fx: false, sig: star && j === 1, vo: star && j === 0, voDone: false })); }
+      (star ? [(IWALK[p.arch.key] || ['wave'])[0], sigOf(p)] : ['wave']).forEach((ty, j) => walk.push({ id: p.id, ty: ty, t0: s.w0 + (star ? 0.3 + j * 1.75 : 0.9 + (p.id % 3) * 0.3), T: 1.6, fx: false, sig: star && j === 1, vo: star && j === 0, voAt: s.w0 + (p === fa ? 0.25 : 0), voDone: false })); }
     const foc0 = { x: fa.x, y: fa.y, u: G.mode === 't3' ? 0.08 : 0.3, mode: 'walk', snap: true };
     G.intro = { t0: t0, duo: [fa.id, fb.id], walk: walk, spots: spots, lines: lines, li: -1, lt: 0, ld: 0, tT: t0 + 2 * IWA + 0.15, cam: foc0, foc: foc0, banner: G.banner, phaseT: G.phaseT,
       sig: [], confettiT: 0 };
@@ -2647,7 +2647,7 @@
     }
     updateBall(dt);
     if (I.li < 0) for (const S of I.walk) {
-      if (S.vo && !S.voDone && now >= S.t0) { S.voDone = true; const p = plById(S.id); if (G.mode !== 'demo' && PH.audio && PH.audio.vo) { const speak = () => (!G.intro || G.intro.li >= 0) ? true : PH.audio.vo(p.arch.key, 'taunt', 'pri'); if (!speak() && PH.audio.voWhenReady) PH.audio.voWhenReady(speak); } }
+      if (S.vo && !S.voDone && now >= (S.voAt != null ? S.voAt : S.t0)) { S.voDone = true; const p = plById(S.id); if (G.mode !== 'demo' && PH.audio && PH.audio.vo) { const speak = () => { if (!G.intro || G.intro.li >= 0) return true; const it = PH.audio.vo(p.arch.key, 'taunt', 'pri'); if (it && it.d && p.id === G.intro.duo[1]) G.intro.tT = Math.max(G.intro.tT, G.time + it.d + 0.2); return it; }; if (!speak() && PH.audio.voWhenReady) PH.audio.voWhenReady(speak); } }
       if (S.ty === 'chalk' && !S.fx && now >= S.t0 + 0.42) { S.fx = true; const p = plById(S.id); burst(p.x, p.y, p.h + 0.45, 70, ['#ffffff', '#f4f1e8', '#e2ded2', '#fffbe9'], 2.3, 1.7, 1.1, 2); spawnConfetti(28, [p.team.css, '#ffd24a', '#ffffff'], 'burst'); }
       else if (S.sig && !S.fx && now >= S.t0 + 0.35) { S.fx = true; const p = plById(S.id); spawnConfetti(26, [p.team.css, '#ffd24a', '#ffffff', '#ff8a2a'], 'burst'); flash('#ffffff', 0.08); G.fx.cheer = Math.max(G.fx.cheer, 2.6); }
     }
