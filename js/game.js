@@ -331,7 +331,7 @@
     ['bRange', 'def', '盖帽 水平距离', 1.35, 0.5, 2.5, 0.05, '米：防守人离出手人超过这个盖不到'],
     ['bFront', 'def', '盖帽 正面要求', 0.15, -1, 1, 0.05, '余弦：防守人在出手方向上的最小正对程度'],
     ['bLim', 'def', '盖帽 手到球距离', 1.0, 0.3, 2, 0.05, '米'],
-    ['bStopDist', 'def', '封堵扣篮 反馈距离', 0.55, 0.25, 0.7, 0.01, '米：防守人起跳封盖时，手离球近于此距离的干扰扣篮不进也显示被阻挡与分档反应，不计盖帽'],
+    ['bStopDist', 'def', '封堵扣篮 反馈距离', 0.55, 0.25, 0.7, 0.01, '米：防守人起跳封盖时，手离球近于此距离的干扰扣篮不进也显示盖帽名称与分档反应，不计盖帽'],
     ['bShot', 'def', '盖帽率 跳投', 0.5, 0, 2, 0.01, '基数'], ['bLay', 'def', '盖帽率 上篮', 0.62, 0, 2, 0.01, '基数'], ['bDunk', 'def', '盖帽率 扣篮', 0.38, 0, 2, 0.01, '基数'],
     ['bLift', 'def', '够高 最大抬升', 0.45, 0, 1, 0.01, '米：判定时最多把盖帽人抬高多少'],
     ['bPeak', 'def', '够高 超出最高点', 0.1, 0, 0.5, 0.01, '米'],
@@ -2691,7 +2691,7 @@
       sh.hasBall = false;
       a.released = true; a.done = true; a.doneT = a.t;
       if (a.meter) { a.meter.done = true; a.meter.color = '#ff5a4a'; }
-      blkReact(df, sh, kind); float('被阻挡', sh, '#ff6b5e', 1); cold(sh.id);
+      blkReact(df, sh, kind); cold(sh.id);
       if (G.lastShot === info && info.hc0 != null) sh.hc = Math.max(-3, Math.min(0, info.hc0) - 1);   // 已按命中记过手感的出手被盖：改记为不中
       Object.assign(info, { blocked: true, made: false, tl: '—', reason: '被盖帽：防守手接触到球' });
       if (G.lastShot !== info) publishShot(info); else trainLog(info);
@@ -2906,19 +2906,31 @@
     sfx('board'); G.fx.board = Math.max(G.fx.board, 0.6); shake(4);
     return true;
   }
-  function blockFx(df, hp, sh, kind) {
-    sh = sh || OP(df);
-    const st = blockStyle(df, sh, kind || 'shot');
+  function blockPin(df, hp, st) {
+    return st !== 'catch' && hp.z > HOOP.z + K.pinZ && distHoop(df) < K.pinD && !!pinPt(df, hp);
+  }
+  function blockPresentation(df, hp, sh, st, pin) {
     if (df.action && df.action.type === 'block') { df.action.bst = st; df.action.hitT = df.action.t; }
-    if (distHoop(df) < 3) bpop(df, 'rim');
+    if (st === 'chase') {
+      const S = df.arch.skill, gen = S && S.type === 'block', nm = gen ? S.name : '追身大帽';
+      float(nm, df, '#ffd24a', 1); sfx('block');
+      hype(3, df, { x: df.x, y: df.y, z: df.z + df.h, col: '#ffd24a', cols: ['#ffffff', '#ffd24a', '#ff6b5e'], led: gen ? S.en + '  ' + S.name : 'CHASE DOWN BLOCK  追身大帽  钉板', sfx: 'bigblock', hero: [nm, df.arch.name + ' · ' + (gen ? S.en : 'CHASE DOWN')] });
+      return;
+    }
     if (df.action && df.action.q > 0.85 && df.action.type === 'block') float('完美时机', df, '#ffe14d', 0);
-    const perfect = df.action && df.action.q > 0.85, pin = st !== 'catch' && hp.z > HOOP.z + K.pinZ && distHoop(df) < K.pinD && !!pinPt(df, hp);
-    if (df.action && df.action.type === 'block') df.action.pinQ = pin;
-    G.stats[df.id].blk++; tkAdd(df, 16); tkAdd(sh, -8); vo(df, pin || st === 'facial' ? 'pin' : 'block', 'pri'); vic(sh, 'rejected');
+    const perfect = df.action && df.action.q > 0.85;
     float(pin ? '钉板大帽' : { swat: '大帽', catch: '抓帽', facial: '呼脸大帽', chase: '追身封盖' }[st], df, st === 'catch' ? '#5ee0ff' : '#ff6b5e', 1);
     const tier = perfect || pin || st === 'facial' || st === 'chase' ? 2 : 1;
     bigPlay('block', df, hp.x, hp.y, hp.z, tier, (pin ? 15 : 0) + (perfect ? 8 : 0) + (st === 'facial' ? 12 : st === 'chase' ? 10 : st === 'catch' ? 6 : 0));
     if (st === 'facial') { shake(9); impactFx(sh.x, sh.y, true, 1.4); }
+  }
+  function blockFx(df, hp, sh, kind) {
+    sh = sh || OP(df);
+    const st = blockStyle(df, sh, kind || 'shot'), pin = blockPin(df, hp, st);
+    if (df.action && df.action.type === 'block') df.action.pinQ = pin;
+    if (distHoop(df) < 3) bpop(df, 'rim');
+    G.stats[df.id].blk++; tkAdd(df, 16); tkAdd(sh, -8); vo(df, pin || st === 'facial' ? 'pin' : 'block', 'pri'); vic(sh, 'rejected');
+    blockPresentation(df, hp, sh, st, pin);
     return st;
   }
   // 盖帽后的球路
@@ -4955,6 +4967,7 @@
           } else if (!df.off && c > 0.4 && edge < 0 && Math.hypot(df.x - pl.x, df.y - pl.y) < 1.5 && rnd() < 0.65) {
             // 被内线大闸正面挡住：球被打掉，扣篮的人被弹开
             const l = Math.hypot(pl.x - df.x, pl.y - df.y) || 1;
+            const behind = relPos(df, pl) < -0.3;
             const k = PH.rig(df), stopped = !df.stun && df.action?.type === 'block' && df.z > 0.18 &&
               [k.handL, k.handR].some(h => Math.hypot(h[0] - grip.x, h[1] - grip.y, h[2] - grip.z) <= K.bStopDist);
             G.ball.wasShot = true; looseBall(grip, rr(-1.4, 1.4), -rr(0.8, 2.2), rr(2, 3.2), pl.id);
@@ -4962,9 +4975,9 @@
             info.reason = '内线防守干扰，扣篮不进'; cold(pl.id);
             pl.vx += (pl.x - df.x) / l * 2.2; pl.vy += (pl.y - df.y) / l * 2.2; impactFx(df.x, df.y, powOf(df) > 1.3, 1.6);
             if (stopped) {
-              const tier = blkReact(df, pl, 'dunk');
-              float('被阻挡', pl, '#ff6b5e', 1);
-              bigPlay('block', df, grip.x, grip.y, grip.z, tier >= 2 ? 2 : 1);
+              blkReact(df, pl, 'dunk');
+              const st = behind ? 'chase' : blockStyle(df, pl, 'dunk');
+              blockPresentation(df, grip, pl, st, blockPin(df, grip, st));
             }
           } else { G.ball.wasShot = true; looseBall(grip, rr(-1.4, 1.4), -rr(0.8, 2.2), rr(2, 3.2), pl.id); float('扣篮不进', pl, '#ff6b5e'); sfx('rim'); shake(3); G.fx.board = 0.3; cold(pl.id); info.reason = c > 0.3 ? '防守干扰大（' + ci.src + '）' : pl.stam < ST.layLow ? '体力不足' : '运气不佳（本次命中率 ' + Math.round(prob * 100) + '%）'; }
           if (!made && !a.shootingFoul) { st.fga++; st.ina++; }
