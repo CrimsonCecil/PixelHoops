@@ -288,6 +288,20 @@
   // 语音解码成缓冲走 WebAudio，和音乐、音效同一套总线
   const voCache = {};
   function voBuf(f) { const X = voIdx[f]; if (!X) return Promise.resolve(null); if (!voCache[f]) voCache[f] = voFile(X.s).then((ab) => ab ? new Promise((ok, no) => ac.decodeAudioData(ab.slice(X.o * 120, (X.o + X.n) * 120), ok, no)) : null).catch(() => { delete voCache[f]; return null; }); return voCache[f]; }
+  // 跳过 TTS 音频开头的长静音/低噪（保留 50ms 气口），避免台词字幕已出完语音才响
+  function voLead(buf) {
+    if (!buf || !buf.getChannelData) return 0.1;
+    if (buf._voLead != null) return buf._voLead;
+    const ch = buf.getChannelData(0), sr = buf.sampleRate || 48000, win = Math.max(1, Math.floor(sr * 0.05));
+    const maxI = Math.min(ch.length, Math.floor(sr * Math.max(0, (buf.duration || ch.length / sr) - 0.35)));
+    let lead = 0.1;
+    for (let i = 0; i + win <= maxI; i += win) {
+      let s = 0;
+      for (let j = i; j < i + win; j++) s += ch[j] * ch[j];
+      if (Math.sqrt(s / win) >= 0.02) { lead = Math.max(0.1, i / sr - 0.05); break; }
+    }
+    return (buf._voLead = lead);
+  }
   function voPreload(keys) {
     const run = () => { if (!voM) return; for (const k of keys) { const V = voM[k]; if (V && V.s) voFile(V.s); } };
     if (voM) run(); else voReady.then(run);
@@ -316,7 +330,7 @@
     if (voQTimer) { clearTimeout(voQTimer); voQTimer = null; }
     if (voCur && pri) { try { voCur.stop(); } catch (e) { /* 已停 */ } voCur = null; }
     const seq = ++voSeq;
-    voBuf(it.f).then((buf) => { if (!buf || !voOn || pauseOn || seq !== voSeq) return; if (ac.state === 'suspended') ac.resume(); const src = ac.createBufferSource(); src.buffer = buf; src.connect(voGain); src.start(0, 0.1); voCur = src; }).catch(() => {});
+    voBuf(it.f).then((buf) => { if (!buf || !voOn || pauseOn || seq !== voSeq) return; if (ac.state === 'suspended') ac.resume(); const lead = voLead(buf), src = ac.createBufferSource(); src.buffer = buf; src.connect(voGain); src.start(0, lead); voCur = src; if (lead > 0.1) voBusy = Math.min(voBusy, performance.now() + Math.max(0.3, (buf.duration || it.d || 1.5) - lead) * 1000 + 250); }).catch(() => {});
     voBusy = now + ((it.d || 1.5) * 1000) + 250;
     return it;
   }
@@ -326,7 +340,7 @@
   function voSay(it) {
     if (!it || !voOn || !sfxOn || pauseOn || !ensure()) return;
     voStop(); const want = it.f, seq = ++voSeq; voSayF = want;
-    voBuf(it.f).then((buf) => { if (!buf || !voOn || pauseOn || voSayF !== want || seq !== voSeq) return; if (ac.state === 'suspended') ac.resume(); const src = ac.createBufferSource(); src.buffer = buf; src.connect(voGain); src.start(0, 0.1); voCur = src; }).catch(() => {});
+    voBuf(it.f).then((buf) => { if (!buf || !voOn || pauseOn || voSayF !== want || seq !== voSeq) return; if (ac.state === 'suspended') ac.resume(); const lead = voLead(buf), src = ac.createBufferSource(); src.buffer = buf; src.connect(voGain); src.start(0, lead); voCur = src; if (lead > 0.1) voBusy = Math.min(voBusy, performance.now() + Math.max(0.3, (buf.duration || it.d || 1.5) - lead) * 1000 + 250); }).catch(() => {});
     voBusy = performance.now() + ((it.d || 1.5) * 1000) + 250;
   }
   function voWhenReady(cb) { if (voM) cb(); else voReady.then(() => { if (voM) cb(); }); }
