@@ -134,3 +134,63 @@ function load() {
   assert.ok(G.fx.shake >= 9, '3V3/5V5 dunk triggers screen shake (' + G.fx.shake + ')');
   console.log('PASS: 3V3/5V5 scoring triggers full-screen scoreFx, confetti, and dunk screen shake.');
 }
+
+// 4. Rebound positive cue SFX (1V1 & 3V3)
+{
+  const { ctx, Gm, G, played } = load();
+  Gm.newGame({ mode: 'cpu', arch0: 'lebron', arch1: 'curry' });
+  G.phase = 'live';
+
+  // 1V1 human defensive rebound plays positive 'rebound' cue (without duplicating 'grab')
+  G.off = 1;
+  G.ball.state = 'loose';
+  G.ball.wasShot = true;
+  played.length = 0;
+  Gm.t5.pickup(G.players[0]);
+  assert.ok(played.includes('rebound'), 'human defensive rebound plays positive rebound cue');
+  assert.ok(!played.includes('grab'), 'rebound does not duplicate grab SFX');
+
+  // 1V1 CPU defensive rebound does not play positive 'rebound' cue
+  G.off = 0;
+  G.ball.state = 'loose';
+  G.ball.wasShot = true;
+  played.length = 0;
+  Gm.t5.pickup(G.players[1]);
+  assert.ok(!played.includes('rebound'), 'CPU defensive rebound does not play positive rebound cue');
+
+  // 1V1 human offensive rebound keeps 'oreb' cue without duplicating 'grab'
+  G.off = 0;
+  G.ball.state = 'loose';
+  G.ball.wasShot = true;
+  played.length = 0;
+  Gm.t5.pickup(G.players[0]);
+  assert.ok(played.includes('oreb'), 'offensive rebound plays oreb cue');
+  assert.ok(!played.includes('grab'), 'offensive rebound does not duplicate grab SFX');
+
+  // Non-rebound loose ball pickup by human still plays 'grab'
+  G.off = 1;
+  G.ball.state = 'loose';
+  G.ball.wasShot = false;
+  played.length = 0;
+  Gm.t5.pickup(G.players[0]);
+  assert.ok(played.includes('grab'), 'non-rebound loose ball pickup still plays grab');
+
+  // 3V3 AI teammate defensive rebound plays positive 'rebound' cue; opponent CPU does not
+  const slots = ['lebron', 'curry', 'jokic', 'kobe', 'shaq', 'kyrie'].map((arch, i) => ({ arch, role: i === 0 ? 'p1' : 'cpu' }));
+  ctx.PH.T3.start({ slots, target: 21, clock: 14, replay: false });
+  G.phase = 'live';
+  G.off = 1;
+  G.ball.state = 'loose';
+  G.ball.wasShot = true;
+  played.length = 0;
+  Gm.t5.pickup(G.players[1]); // AI teammate on team 0
+  assert.ok(played.includes('rebound'), '3V3 teammate defensive rebound plays positive rebound cue');
+
+  G.off = 0;
+  G.ball.state = 'loose';
+  G.ball.wasShot = true;
+  played.length = 0;
+  Gm.t5.pickup(G.players[3]); // opponent CPU on team 1
+  assert.ok(!played.includes('rebound'), '3V3 opponent defensive rebound does not play positive rebound cue');
+  console.log('PASS: rebound grabs play positive cue SFX for the player/team without firing for opponents.');
+}
