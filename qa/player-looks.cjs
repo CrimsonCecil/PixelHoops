@@ -9,8 +9,11 @@ vm.runInContext('delete Array.prototype.findLast', ctx);
 const noop = () => {};
 let numberPixels;
 let jerseyPixels;
+let playerLabels;
 const canvas = () => {
   const c = new Proxy({ createImageData: (w, h) => ({ data: new Uint8ClampedArray(w * h * 4) }), measureText: () => ({ width: 8 }),
+    createLinearGradient: () => ({ addColorStop: noop }),
+    fillText(text) { if (this.fillStyle !== '#15101f') playerLabels?.set(text, this.font); },
     fillRect(x, y, w, h) {
       if (this.fillStyle === '#123456') numberPixels?.push([x, y, w, h]);
       if (this.fillStyle === '#234567') jerseyPixels?.push([x, y, w, h]);
@@ -21,7 +24,7 @@ const canvas = () => {
   return { getContext: () => c };
 };
 ctx.document = { createElement: canvas };
-for (const name of ['tune', 'render', 'roster', 'measurements', 'r5', 'game', 'b5', 'team5']) {
+for (const name of ['tune', 'ptype', 'render', 'roster', 'measurements', 'r5', 'game', 'b5', 'team5', 'render5']) {
   const file = path.resolve(__dirname, '../js', name + '.js');
   vm.runInContext(fs.readFileSync(file, 'utf8'), ctx, { filename: file });
 }
@@ -397,3 +400,24 @@ for (const p of game.G.players) {
   render.drawPlayer(p);
 }
 console.log('PASS 5V5 starters share the measured appearance profiles');
+
+{
+  game.newGame({ mode: 'cpu', arch0: 'curry', arch1: 'lillard' });
+  playerLabels = new Map();
+  render.render(game.G);
+  for (const p of game.G.players) assert.match(playerLabels.get(p.arch.name), /^12px /);
+
+  T5.start({ home: 'LAL', away: 'GSW', human: 0 });
+  const T = T5.T, G = game.G, foe = T.tm[1].on[0];
+  T.phase = G.phase = 'live';
+  G.off = foe.tm;
+  for (const p of G.players) p.hasBall = p === foe;
+  Object.assign(G.ball, { state: 'held', holder: foe.id, x: foe.x, y: foe.y });
+  playerLabels.clear();
+  ctx.PH.render5.render(T, 1 / 60);
+  const activeNames = new Set(G.players.map(p => p.arch.name));
+  const names = [...playerLabels].filter(([name]) => activeNames.has(name));
+  assert.deepEqual(names.map(([name]) => name), [T.ctl.arch.name, foe.arch.name]);
+  assert(names.every(([, font]) => font.startsWith('10px ')));
+  console.log('PASS: 5V5 draws compact labels for the controlled player and opponent; 1V1 keeps 12px.');
+}

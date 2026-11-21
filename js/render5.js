@@ -557,19 +557,6 @@
     for (const p of Gm.players) { if (p.tm === T.hum || p.tm == null || p.off) continue; if (p.mark === c || p.opp === c) return p; const d = Math.hypot(p.x - c.x, p.y - c.y); if (d < bd) { bd = d; m = p; } }
     return m;
   }
-  // 名字标签：白字深色描边
-  function nameTag(a, cx, y, alpha, col) {
-    const t = a.name, pt = PH.PT.of(a), oldAlpha = ctx.globalAlpha;
-    ctx.font = FONT; ctx.textBaseline = 'top';
-    const tw = Math.ceil(ctx.measureText(t).width), w = tw + 3 + PH.PT.SIZE, x0 = Math.round(Math.max(2, Math.min(W - w - 2, cx - w / 2))), yy = Math.round(y);
-    ctx.globalAlpha = alpha == null ? 1 : alpha;
-    ctx.fillStyle = '#15101f';
-    for (const [dx, dy] of [[-1, 0], [1, 0], [0, -1], [0, 1], [-1, -1], [1, -1], [-1, 1], [1, 1]]) ctx.fillText(t, x0 + dx, yy + dy);
-    ctx.fillStyle = col ? (R.curCol ? R.curCol(col) : col) : '#ffffff'; ctx.fillText(t, x0, yy);
-    PH.PT.draw(ctx, pt.id, x0 + tw + 3, yy - 1);
-    ctx.globalAlpha = oldAlpha;
-    return { x0: x0, x1: x0 + w, y0: yy - 1, y1: yy - 1 + PH.PT.SIZE };
-  }
   // 遮挡物（底部比分条、左右上角信息卡）在 480x270 画布坐标里的矩形
   let uiAv = [];   // C2：战术选择条 / 角落战术名，本帧的矩形（名字标签要避开）
   function hitAvoid(x0, x1, y0, y1) {
@@ -591,7 +578,10 @@
       // V4.4 体力条（render.js PH.stamBar：刻度、阈值、残影）；旧版 bw 20–40 × 3 → 28–56 × 3（只拉长）
       if (PH.stamBar) PH.stamBar(ctx, Math.round(cx - bw / 2), by + 2, bw, bh, p.stam, 'f' + (p.id != null ? p.id : p.a.name), (G5() && G5().time) || 0);
     }
-    const r = nameTag(p.a, cx, by + (star ? bh + 5 : 0), star || col ? 1 : 0.85, col);
+    const alpha = ctx.globalAlpha;
+    ctx.globalAlpha = star || col ? 1 : 0.85;
+    const r = R.drawNameTag(ctx, p.a, cx, by + (star ? bh + 5 : 0), col, true);
+    ctx.globalAlpha = alpha;
     return { x0: r.x0, x1: r.x1, y0: by - 1, y1: r.y1 };
   }
   function overlays(T) {
