@@ -270,7 +270,7 @@
   // 名字颜色跟光标一致；太暗的队色往白提亮，保证在地板上看得清
   function curCol(c) { const m = /^#([0-9a-f]{6})$/i.exec(c || ''); if (!m) return '#ffffff'; const v = parseInt(m[1], 16), r = v >> 16, g = (v >> 8) & 255, b = v & 255, L = 0.3 * r + 0.59 * g + 0.11 * b; if (L >= 110) return c; const k = (110 - L) / (255 - L); return 'rgb(' + [r, g, b].map((x) => Math.round(x + (255 - x) * k)).join(',') + ')'; }
   function nameBounds(c, a, cx, y, compact) {
-    c.font = (compact ? '10px' : '12px') + " 'Fusion Pixel 12px Proportional SC', monospace";
+    c.font = "12px 'Fusion Pixel 12px Proportional SC', monospace";
     const tw = Math.ceil(c.measureText(a.name).width), w = tw + 3 + PH.PT.SIZE;
     const x0 = Math.round(Math.max(2, Math.min(W - w - 2, cx - w / 2))), yy = Math.round(y), y0 = yy - (compact ? 2 : 1);
     return { x0, x1: x0 + w, y0, y1: y0 + PH.PT.SIZE, yy };
