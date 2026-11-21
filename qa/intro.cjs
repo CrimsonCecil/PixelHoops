@@ -75,8 +75,19 @@ function runIntro(Gm, G) {
     const a = keys[i], b = keys[(i * 7 + 3) % keys.length];
     if (a === b || Gm.TALK[[a, b].sort().join('|')]) continue;
     Gm.newGame({ mode: 'cpu', arch0: a, arch1: b }); Gm.introStart();
-    const T = G.intro.lines;
-    assert.ok(T.length === 3 && T[0].v === 'dom' && T[1].v === 'taunt' && T[2].v === 'taunt' && T[0].fb && T[1].fb && !/[{}]/.test(T[0].fb + T[1].fb), a + ' vs ' + b);
+    const { lines: T, duo: [first, second] } = G.intro;
+    assert.equal(T.length, 3, a + ' vs ' + b);
+    for (const [i, id, line, voice] of [[0, first, 0, 'dom'], [1, second, 1, 'taunt'], [2, first, 1, 'taunt']]) {
+      const custom = G.players[id].arch.intro;
+      assert.equal(T[i].id, id);
+      if (custom) {
+        assert.equal(T[i].t, custom[line]);
+        assert.equal(T[i].v, undefined, 'authored lines do not play unrelated audio');
+      } else {
+        assert.equal(T[i].v, voice);
+        if (i < 2) assert.ok(T[i].fb && !/[{}]/.test(T[i].fb), a + ' vs ' + b);
+      }
+    }
     G.intro = null;
   }
   console.log('PASS: generic matchups voice all 3 intro lines from each player voice pack with template fallbacks; presses advance and finish the intro.');
