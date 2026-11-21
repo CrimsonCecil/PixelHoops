@@ -16,7 +16,7 @@ VOICES = {
     "rodman": "fenrir", "bwallace": "algenib", "rallen": "schedar",
     "ginobili": "zubenelgenubi", "iverson": "umbriel", "carter": "alnilam",
 }
-MODEL = "gemini-2.5-pro-preview-tts"
+MODEL = "gemini-2.5-flash-preview-tts"
 PROMPT = "用自然的普通话说出以下台词，只说台词，不要读出指令，不要添加任何内容：\n"
 LAST_REQUEST = 0.0
 
@@ -95,11 +95,19 @@ def generate(args):
             for entry in entries:
                 pcm = synthesize(entry["t"], VOICES[key], args.cache, args.take, model=args.model)
                 clip = args.cache / entry["f"]
+                trim = "silenceremove=start_periods=1:start_threshold=-45dB:start_silence=0.05"
+                analysis = subprocess.run([
+                    "ffmpeg", "-hide_banner", "-f", "s16le", "-ar", "24000", "-ac", "1",
+                    "-i", "pipe:0", "-af", trim + ",loudnorm=print_format=json",
+                    "-f", "null", "-",
+                ], input=pcm, capture_output=True, check=True).stderr.decode()
+                measured = json.loads(analysis[analysis.rfind("{"):])
+                gain = min(-20.7 - float(measured["input_i"]),
+                           -4 - float(measured["input_tp"]))
                 subprocess.run([
                     "ffmpeg", "-v", "error", "-y", "-f", "s16le", "-ar", "24000",
                     "-ac", "1", "-i", "pipe:0", "-af",
-                    "silenceremove=start_periods=1:start_threshold=-45dB:start_silence=0.05,"
-                    "loudnorm=I=-20.7:TP=-4:LRA=7",
+                    trim + f",volume={gain}dB",
                     "-ac", "1", "-ar", "24000", "-c:a", "libmp3lame", "-b:a", "40k",
                     "-write_xing", "0", "-id3v2_version", "0", "-map_metadata", "-1", str(clip),
                 ], input=pcm, check=True)
