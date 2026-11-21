@@ -481,6 +481,18 @@
     ['stlBallZ', 'def', '抢断成功 球上抛速度', 2.2, 0, 6, 0.1, '米/秒'],
     ['stlNoPick', 'def', '抢断成功 球不可拾取时间', 0.08, 0, 0.5, 0.01, '秒'],
     ['stlRecT', 'def', '抢断成功 收手时长', 0.2, 0.02, 1, 0.01, '秒：成功后动作提前结束'],
+    ['stlCl0', 'def', '抢断 干净断球基础概率', 0.1, 0, 1, 0.01, '概率：否则向持球人身后捅出散球'],
+    ['stlClS', 'def', '抢断 干净断球能力系数', 2, 0, 5, 0.05, '比例：× 超过能力门槛的抢断能力'],
+    ['stlClR', 'def', '抢断 干净断球能力门槛', 0.7, 0, 1, 0.01, '能力：高于这个值增加干净断球概率'],
+    ['stlClTm', 'def', '抢断 干净断球时机加成', 0.15, 0, 1, 0.01, '概率：命中露球窗口时增加'],
+    ['stlBdClean', 'def', '抢断 干净断球徽章倍率', 1.5, 0, 3, 0.05, '倍率：抢断大师按档位增加干净断球概率'],
+    ['stlPokeA', 'def', '抢断 捅球角度随机', 35, 0, 90, 1, '度：远离抢断人的方向 ± 这个角度'],
+    ['stlPokeV', 'def', '抢断 捅球速度', 3.2, 0, 8, 0.1, '米/秒：向持球人身后弹出'],
+    ['stlPokeVR', 'def', '抢断 捅球速度随机', 0.6, 0, 3, 0.05, '米/秒：水平速度 ± 这个值'],
+    ['stlPokeZ', 'def', '抢断 捅球上抛速度', 1, 0, 6, 0.1, '米/秒'],
+    ['stlPokeNP', 'def', '抢断 捅球不可拾取时间', 0.3, 0, 1, 0.01, '秒：双方都要等待球脱手'],
+    ['stlPokeStun', 'def', '抢断 捅球持球人硬直', 0.42, 0, 2, 0.01, '秒：捅球后持球人的追球延迟，不影响干净断球'],
+    ['stlPokeCredT', 'def', '抢断 捅球记账窗口', 3, 0, 10, 0.1, '秒：防守方在窗口内捡球才记抢断和失误'],
     ['stlMissReach', 'def', '抢断落空 伸手距离', 1.3, 0.5, 3, 0.05, '米'],
     ['stlMissReachT', 'def', '抢断落空 伸手时长', 0.12, 0.02, 0.6, 0.01, '秒'],
     ['stlMissT', 'def', '抢断落空 基础时长', 0.22, 0.1, 2, 0.01, '秒：从伸手起算的基础动作时长，再加距离、低抢断能力和风险修正'],
@@ -2297,6 +2309,7 @@
 
   function looseBall(from, vx, vy, vz, last) {
     const b = G.ball;
+    b.poke = null;
     for (const p of G.players) p.hasBall = false;
     b.state = 'loose'; b.holder = -1; b.x = from.x; b.y = from.y; b.z = from.z; b.vx = vx; b.vy = vy; b.vz = vz; b.noPick = 0.22; b.dead = false; b.shot = null; b.lastTouch = last; b.under = false; b.trail = null; b.lk = null; b.pin = null; b.slam = null;
   }
@@ -2935,12 +2948,19 @@
     for (const p of G.players) comboEnd(p);
     pl.dh = [];
     const b = G.ball;
+    const poke = b.poke, pokeBy = poke && G.players[poke.by], pokeFrom = poke && G.players[poke.from];
+    b.poke = null;
+    if (pokeBy && pokeFrom && G.phase === 'live' && G.time - poke.t <= K.stlPokeCredT && TM(pl) === TM(pokeBy)) {
+      G.stats[pokeBy.id].stl++; G.stats[pokeFrom.id].tov++;
+      vo(pokeBy, 'steal', 'pri'); vic(pokeFrom, 'stolen');
+      tkAdd(pokeBy, 14); tkAdd(pokeFrom, -10); bigPlay('steal', pokeBy, b.x, b.y, 0.7, 1); bpop(pokeBy, 'pick');
+    }
     if (b.wasShot && b.z > pl.z + pl.h * 0.85) pl.catchAt = G.time; // 高球：双手举起接球的姿势
     b.cT = 0.1; b.cx = b.x; b.cy = b.y; b.cz = b.z;
     if (reason !== 'intercept' && b.state === 'loose' && pl.ctrl !== 'cpu' && G.phase === 'live') { b.fl = 0.5; pl.grabT = G.time; if (!b.wasShot) sfx('grab'); G.fx.rings.push({ x: pl.x, y: pl.y, z: 0.1, t: 0, T: 0.42, col: '#ffffff', R: 1.5 }, { x: pl.x, y: pl.y, z: 0.1, t: -0.08, T: 0.4, col: pl.team.css || '#5ee0ff', R: 1.0 }); burst(b.x, b.y, b.z, 8, ['#ffffff', '#fff6c8', '#ffd24a'], 2.2, 0.3, 8); }
     b.state = 'held'; b.holder = pl.id; pl.hasBall = true; b.shot = null; b.under = false; b.trail = null;
     pl.drib = 0; pl.gotT = G.time; pl.passCatchT = null; pl.catchDribbled = false;
-    const change = !isO(pl), keepClk = teamPlay() && !change && !b.wasShot, clk0 = G.shotClock, wasShot = b.wasShot, train = G.mode === 'train' && G.train.role === 'off';
+    const change = !isO(pl), keepClk = (teamPlay() || poke) && !change && !b.wasShot, clk0 = G.shotClock, wasShot = b.wasShot, train = G.mode === 'train' && G.train.role === 'off';
     if (change) { if (playCPU(pl)) { pl.ai.call = null; pl.ai.su = null; } G.illId = -1; G.off = TM(pl); G.needClear = !train && G.mode !== 't5' && !isThree(pl.x, pl.y); if (!train && G.mode !== 't5') float(G.needClear ? '球权转换 · 先出三分线' : '球权转换', pl, '#5ee0ff', 0); }
     if (wasShot) {
       pl.ib = pl.buf = pl.finQ = null; pl.jbuf = 0;
@@ -4385,10 +4405,20 @@
             const stTier = da && da.type === 'move' ? 2 : 1;
             reachTo(pl, { x: G.ball.x, y: G.ball.y, z: Math.max(0.3, G.ball.z) }, K.stlReach, K.stlReachT);
             const bx = G.ball.x, by = G.ball.y, ux = (pl.x - df.x) / (dd || 1), uy = (pl.y - df.y) / (dd || 1);
-            playLoss(df); df.action = null; df.stun = K.stlStun; df.stunK = 'off'; df.stunT0 = K.stlStun; df.post = false;
-            looseBall({ x: bx, y: by, z: 0.6 }, ux * K.stlBallV + rr(-K.stlBallR, K.stlBallR), uy * K.stlBallV + rr(-K.stlBallR, K.stlBallR), K.stlBallZ, pl.id);
-            G.ball.noPick = K.stlNoPick; G.stats[pl.id].stl++; G.stats[df.id].tov++; vo(pl, 'steal', 'pri'); vic(df, 'stolen'); a.T = K.stlRecT;
-            float(read.timed ? '时机抢断' : '掏球', pl, '#7dff8a', 1); tkAdd(pl, 14); tkAdd(df, -10); bigPlay('steal', pl, bx, by, 0.7, stTier); bpop(pl, 'pick');
+            playLoss(df); df.action = null; df.stunK = 'off'; df.post = false;
+            const clean = ch === 99 || rnd() < clamp(clamp(K.stlCl0 + K.stlClS * Math.max(0, pl.r.stl - K.stlClR) + (read.timed ? K.stlClTm : 0), 0, 1) * bk(pl, 'pick', K.stlBdClean), 0, 1);
+            df.stun = df.stunT0 = clean ? K.stlStun : K.stlPokeStun;
+            a.T = K.stlRecT;
+            if (clean) {
+              looseBall({ x: bx, y: by, z: 0.6 }, ux * K.stlBallV + rr(-K.stlBallR, K.stlBallR), uy * K.stlBallV + rr(-K.stlBallR, K.stlBallR), K.stlBallZ, pl.id);
+              G.ball.noPick = K.stlNoPick; G.stats[pl.id].stl++; G.stats[df.id].tov++; vo(pl, 'steal', 'pri'); vic(df, 'stolen');
+              float(read.timed ? '时机抢断' : '掏球', pl, '#7dff8a', 1); tkAdd(pl, 14); tkAdd(df, -10); bigPlay('steal', pl, bx, by, 0.7, stTier); bpop(pl, 'pick');
+            } else {
+              const an = Math.atan2(-uy, -ux) + rr(-K.stlPokeA, K.stlPokeA) * Math.PI / 180, v = Math.max(0, K.stlPokeV + rr(-K.stlPokeVR, K.stlPokeVR)), z = G.ball.z;
+              looseBall({ x: bx, y: by, z }, Math.cos(an) * v, Math.sin(an) * v, K.stlPokeZ, pl.id);
+              G.ball.noPick = K.stlPokeNP; G.ball.poke = { by: pl.id, from: df.id, t: G.time };
+              float('捅掉', pl, '#7dff8a', 1);
+            }
           } else { reachTo(pl, { x: G.ball.x, y: G.ball.y, z: Math.max(0.3, G.ball.z) }, K.stlMissReach, K.stlMissReachT); a.T = Math.max(a.t, stealMissTime(pl, dd, read)); float(read.risk > 0.5 ? '伸手失位' : '抢断落空', pl, '#9aa3c0', read.risk > 0.5 ? 1 : 0); bpop(df, 'tight'); }
         } else { a.T = Math.max(a.t, stealMissTime(pl, dd, read)); float('伸手失位', pl, '#9aa3c0', 1); }
       }
@@ -5208,6 +5238,7 @@
   function updateBall(dt) {
     if (G.ball.fl > 0) G.ball.fl -= dt;
     const b = G.ball;
+    if (b.poke && (b.state !== 'loose' || b.dead || G.phase !== 'live')) b.poke = null;
     b.noPick = Math.max(0, b.noPick - dt);
     if (b.state === 'pass' && b.selfAlley) { selfAlleyStep(dt); return; }
     if (b.state === 'pass' || b.state === 'ext') return;

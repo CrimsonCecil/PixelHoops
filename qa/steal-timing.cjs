@@ -9,7 +9,7 @@ function fixture(source) {
   const ctx = vm.createContext({ performance: { now: () => 0 }, setTimeout() {}, clearTimeout() {} });
   ctx.window = ctx;
   ctx.PH = { input: { endTick() {}, read: () => ({}) } };
-  ctx.reachAudit = { judged: 0, inRange: 0, moving: 0, timed: 0, timedHits: 0,
+  ctx.reachAudit = { judged: 0, successful: 0, inRange: 0, moving: 0, timed: 0, timedHits: 0,
     scheduled: 0, fired: 0, cancelledMove: 0, cancelledWindow: 0, cancelledOutOfRange: 0,
     started: 0, scheduledJudged: 0, lostMove: 0, lostToMove: 0, lostToGather: 0, lostToIdle: 0, missedWindow: 0, missedRange: 0, rangeOnly: 0, scheduledTimedInRange: 0, scheduledHits: 0 };
   for (const name of ['tune', 'render', 'roster', 'r5', 'game']) {
@@ -53,8 +53,9 @@ function fixture(source) {
           if (timed && df.action === a.qaMove) reachAudit.scheduledTimedInRange++;
         }
         updateActionOriginal(pl, inp, dt, shootPress);
-        if (timed && G.stats[pl.id].stl > before) reachAudit.timedHits++;
-        if (judge && a.qaMove && G.stats[pl.id].stl > before) reachAudit.scheduledHits++;
+        if (judge && pl.id === 1 && (a.poked || G.stats[pl.id].stl > before)) reachAudit.successful++;
+        if (timed && (a.poked || G.stats[pl.id].stl > before)) reachAudit.timedHits++;
+        if (judge && a.qaMove && (a.poked || G.stats[pl.id].stl > before)) reachAudit.scheduledHits++;
       }
       function updateActionOriginal(pl, inp, dt, shootPress) {`);
     }
@@ -77,7 +78,7 @@ function sample(gm, { kind = 'cross', mv, u = 0.5, side = 1, hand = 1, mode = '2
   Object.assign(G.ball, { state: 'held', holder: 0, dead: false, x: p.x, y: p.y, z: 0.8 });
   const before = G.stats[1].stl;
   gm._qa.updateAction(d, t5.zeroInp(), 0);
-  return { hit: G.stats[1].stl > before, recovery: d.action.T, text: G.floats.at(-1)?.text };
+  return { hit: d.action.poked || G.stats[1].stl > before, recovery: d.action.T, text: G.floats.at(-1)?.text };
 }
 
 function rates(gm, label) {
@@ -111,6 +112,7 @@ function possessions(gm, label) {
   let steals = 0, attempts = 0, timeouts = 0;
   const N = 3000, dt = 1 / 60;
   for (let n = 0; n < N; n++) {
+    const success0 = gm.reachAudit.successful;
     gm.seed(7 + n * 2);
     gm.newGame({ mode: 'cpu', arch0: n % 2 ? 'kyrie' : 'luka', arch1: 'joe', target: 999, diff: 1 });
     const { G } = gm;
@@ -127,13 +129,13 @@ function possessions(gm, label) {
       if (a?.type === 'steal' && a !== previous) attempts++;
       previous = a;
       if (G.phase === 'live') live = true;
-      if (live && (G.off !== 0 || G.phase !== 'live' || G.stats[1].stl > 0)) { ended = true; break; }
+      if (live && (G.off !== 0 || G.phase !== 'live' || gm.reachAudit.successful > success0)) { ended = true; break; }
     }
-    steals += G.stats[1].stl;
+    steals += gm.reachAudit.successful - success0;
     if (!ended) timeouts++;
   }
   assert.equal(timeouts, 0, 'all CPU possessions should finish');
-  console.log(label + ' CPU-vs-CPU: ' + steals + ' steals / ' + N + ' possessions; ' + attempts + ' reaches; timeouts=' + timeouts);
+  console.log(label + ' CPU-vs-CPU: ' + steals + ' successful steal judgements (clean + poke) / ' + N + ' possessions; ' + attempts + ' reaches; timeouts=' + timeouts);
   console.log(label + ' reach audit: ' + JSON.stringify(gm.reachAudit));
   return steals;
 }
