@@ -2765,11 +2765,11 @@
   const bestStat = (a) => Object.keys(TSTAT).reduce((b, k) => (TSTAT[k](a) > TSTAT[b](a) ? k : b), 'three');
   function genTalk(fa, fb, h) {
     const pick = (L, n) => L[n % L.length], o = (p) => p.arch.name || p.arch.full;
-    const a = fa.arch.intro, b = fb.arch.intro;
+    const authored = (p, i) => ({ id: p.id, t: p.arch.intro[i], v: 'intro', i });
     return [
-      a ? { id: fa.id, t: a[0] } : { id: fa.id, t: '', fb: pick(TOPEN[bestStat(fa.r || fa.arch)], h).replace('{o}', o(fb)), v: 'dom', i: h % 3, gen: 1 },
-      b ? { id: fb.id, t: b[1] } : { id: fb.id, t: '', fb: pick(TREPLY[bestStat(fb.r || fb.arch)], h >>> 5).replace('{o}', o(fa)), v: 'taunt', i: (h >>> 5) % 4, gen: 1 },
-      a ? { id: fa.id, t: a[1] } : { id: fa.id, t: '', v: 'taunt', i: (h >>> 9) % 4, gen: 1 }
+      fa.arch.intro ? authored(fa, 0) : { id: fa.id, t: '', fb: pick(TOPEN[bestStat(fa.r || fa.arch)], h).replace('{o}', o(fb)), v: 'dom', i: h % 3, gen: 1 },
+      fb.arch.intro ? authored(fb, 1) : { id: fb.id, t: '', fb: pick(TREPLY[bestStat(fb.r || fb.arch)], h >>> 5).replace('{o}', o(fa)), v: 'taunt', i: (h >>> 5) % 4, gen: 1 },
+      fa.arch.intro ? authored(fa, 1) : { id: fa.id, t: '', v: 'taunt', i: (h >>> 9) % 4, gen: 1 }
     ];
   }
   const plById = (id) => G.players.find((p) => p.id === id);

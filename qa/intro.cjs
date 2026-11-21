@@ -82,7 +82,8 @@ function runIntro(Gm, G) {
       assert.equal(T[i].id, id);
       if (custom) {
         assert.equal(T[i].t, custom[line]);
-        assert.equal(T[i].v, undefined, 'authored lines do not play unrelated audio');
+        assert.equal(T[i].v, 'intro', 'authored lines use dedicated clips or keep their subtitles');
+        assert.equal(T[i].i, line);
       } else {
         assert.equal(T[i].v, voice);
         if (i < 2) assert.ok(T[i].fb && !/[{}]/.test(T[i].fb), a + ' vs ' + b);
@@ -319,9 +320,14 @@ function runIntro(Gm, G) {
 {
   // Verify walk-in + dialogue never repeat a voice clip across all 9 rivalries and small voice packs (jwells: 2 taunts)
   const manifest = JSON.parse(fs.readFileSync(path.join(__dirname, '../vo/manifest.json'), 'utf8')).voices;
+  const fetched = new Set();
   const audioCtx = vm.createContext({
     window: null, PH: {}, performance: { now: () => 0 }, setTimeout: () => {}, clearTimeout: () => {},
-    fetch: () => Promise.resolve({ ok: true, json: () => Promise.resolve({ voices: manifest }) })
+    fetch: async (url) => {
+      if (url === 'vo/manifest.json') return { ok: true, json: async () => ({ voices: manifest }) };
+      fetched.add(url);
+      return { ok: fs.existsSync(path.join(__dirname, '..', url)) };
+    }
   });
   audioCtx.window = audioCtx;
   vm.runInContext(fs.readFileSync(path.join(__dirname, '../js/audio.js'), 'utf8'), audioCtx, { filename: 'audio.js' });
@@ -356,6 +362,39 @@ function runIntro(Gm, G) {
     assert.equal(new Set(playedClips).size, playedClips.length, `jwells vs maxey: no repeated clips (${playedClips.join(', ')})`);
     assert.equal(playedClips.length, 5, 'generic matchup plays 2 walk-in + 3 dialogue unique clips');
     console.log('PASS: walk-in + intro dialogue never repeat a voice clip across all 9 rivalries and small voice packs.');
+
+    const audio = audioCtx.PH.audio;
+    ctx.PH.audio.voPreload = audio.voPreload;
+    // Keep gameplay/walk-in voice pools unchanged; only the dialogue borrows clips.
+    delete ctx.PH.audio.vo;
+    for (const [key, donor, ids] of [
+      ['barkley', 'shaq', ['shaq_make_1.mp3', 'shaq_dom_1.mp3']],
+      ['yao', 'sengun', ['sengun_dom_0.mp3', 'sengun_taunt_1.mp3']],
+      ['mutombo', 'gobert', ['gobert_taunt_2.mp3', 'gobert_taunt_0.mp3']]
+    ]) {
+      const pack = manifest[donor], clips = ids.map(f => Object.values(pack.lines).flat().find(it => it.f === f));
+      const sprite = fs.readFileSync(path.join(__dirname, '../vo', pack.s));
+      for (const clip of clips) {
+        assert.ok(clip?.t && clip.n > 0 && (clip.o + clip.n) * 120 <= sprite.length);
+        assert.equal(sprite[clip.o * 120], 0xff, 'clip starts at an MP3 frame');
+      }
+      for (const side of [0, 1]) {
+        playedClips.length = 0;
+        const [arch0, arch1] = side === 0 ? [key, 'joe'] : ['joe', key];
+        Gm.newGame({ mode: 'cpu', arch0, arch1 });
+        Gm.introStart();
+        const player = G.players.find(p => p.arch.key === key);
+        assert.ok(fetched.has('vo/' + pack.s), 'preload fetches the borrowed sprite');
+        assert.equal(G.intro.lines.find(l => l.id === player.id).t, player.arch.intro[side], 'authored subtitle before voice resolution');
+        const lines = runIntro(Gm, G).lines.filter(l => l.id === player.id);
+        const expected = side === 0 ? clips : [clips[1]];
+        assert.deepEqual(lines.map(l => l.t), expected.map(it => it.t), 'subtitles match the borrowed speech');
+        assert.deepEqual(playedClips.filter(f => ids.includes(f)), expected.map(it => it.f));
+      }
+      assert.equal(audio.voLine(key, 'taunt', 0), null);
+    }
+    assert.equal(audio.voLine('shaq', 'intro', 0, new Set()), null, 'unmapped authored text does not borrow unrelated audio');
+    console.log('PASS: Barkley, Yao and Mutombo preload and play their mapped intro clips with matching subtitles.');
   };
   audioCtx.PH.audio.voWhenReady(checkDedupe);
 }

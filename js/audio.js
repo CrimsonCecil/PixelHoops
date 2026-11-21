@@ -277,17 +277,22 @@
 
   // 球员配音：vo/manifest.json 列出每名球员每类事件的若干条语音，随机选、不连播同一条
   let voM = null, voOn = true, voCur = null, voLast = {}, voBusy = 0;
+  const VO_INTRO = {
+    barkley: ['shaq_make_1.mp3', 'shaq_dom_1.mp3'],
+    yao: ['sengun_dom_0.mp3', 'sengun_taunt_1.mp3'],
+    mutombo: ['gobert_taunt_2.mp3', 'gobert_taunt_0.mp3']
+  };
   // 每名球员的全部语音合成一个文件（vo/p/<球员>.mp3，40kbps 定长帧，每帧 120 字节、24ms），清单里记每句的起始帧 o 和帧数 n
   const voIdx = {}, voSpr = {};
   const voReady = fetch('vo/manifest.json' + (window.__V__ !== undefined ? '?v=' + window.__V__ : '')).then((r) => r.ok ? r.json() : null).then((j) => {
     voM = j && j.voices;
-    if (voM) for (const k in voM) { const V = voM[k]; for (const ev in V.lines) for (const it of V.lines[ev]) voIdx[it.f] = { s: V.s, o: it.o, n: it.n }; }
+    if (voM) for (const k in voM) { const V = voM[k]; for (const ev in V.lines) for (const it of V.lines[ev]) voIdx[it.f] = { s: V.s, it }; }
     return voM;
   }).catch(() => null);
   function voFile(s) { if (!voSpr[s]) voSpr[s] = fetch('vo/' + s).then((r) => r.ok ? r.arrayBuffer() : null).catch(() => { delete voSpr[s]; return null; }); return voSpr[s]; }
   // 语音解码成缓冲走 WebAudio，和音乐、音效同一套总线
   const voCache = {};
-  function voBuf(f) { const X = voIdx[f]; if (!X) return Promise.resolve(null); if (!voCache[f]) voCache[f] = voFile(X.s).then((ab) => ab ? new Promise((ok, no) => ac.decodeAudioData(ab.slice(X.o * 120, (X.o + X.n) * 120), ok, no)) : null).catch(() => { delete voCache[f]; return null; }); return voCache[f]; }
+  function voBuf(f) { const X = voIdx[f]; if (!X) return Promise.resolve(null); const { o, n } = X.it; if (!voCache[f]) voCache[f] = voFile(X.s).then((ab) => ab ? new Promise((ok, no) => ac.decodeAudioData(ab.slice(o * 120, (o + n) * 120), ok, no)) : null).catch(() => { delete voCache[f]; return null; }); return voCache[f]; }
   // 跳过 TTS 音频开头的长静音/低噪（保留 50ms 气口），避免台词字幕已出完语音才响
   function voLead(buf) {
     if (!buf || !buf.getChannelData) return 0.1;
@@ -303,7 +308,10 @@
     return (buf._voLead = lead);
   }
   function voPreload(keys) {
-    const run = () => { if (!voM) return; for (const k of keys) { const V = voM[k]; if (V && V.s) voFile(V.s); } };
+    const run = () => { if (!voM) return; for (const k of keys) {
+      const V = voM[k]; if (V?.s) voFile(V.s);
+      if (!V?.lines?.intro?.length) for (const f of VO_INTRO[k] || []) { if (voIdx[f]) voFile(voIdx[f].s); }
+    } };
     if (voM) run(); else voReady.then(run);
   }
   // 新事件没有录到时退回到相近的事件
@@ -337,6 +345,7 @@
   // 指定一条语音（开场对话用）：voLine 按序号取条目，voSay 打断当前语音直接播
   function voLine(key, ev, i, skip) {
     const lines = voM && voM[key] && voM[key].lines;
+    if (ev === 'intro' && !lines?.intro?.length) return voIdx[VO_INTRO[key]?.[i]]?.it || null;
     if (!lines) return null;
     const pick = (e) => {
       const L = lines[e];
