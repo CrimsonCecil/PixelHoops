@@ -1374,8 +1374,8 @@
       const hairline = HAIRLINE[st] || 0.3;
       const close = st === 'buzz' || st === 'receding';
       const nape = HAIR_NAPE[st] || 0.74, taper = NAPE_TAPER[st];
-      const hairColor = close ? shade(skin, st === 'buzz' ? 0.53 : 0.44) : hr;
-      const fadeColor = close ? shade(skin, 0.71) : shade(hr, st === 'fade' ? 2.23 : 1.63);
+      const hairColor = close && !C.dyed ? shade(skin, st === 'buzz' ? 0.53 : 0.44) : hr;
+      const fadeColor = close && !C.dyed ? shade(skin, 0.71) : shade(hr, st === 'fade' ? 2.23 : 1.63);
       const braidStart = Math.max(1, Math.round(w / 6)), braidStep = Math.max(2, Math.round(w / 4));
       const rear = Math.max(0, back * 2.25);
       const profileMix = clampR(Math.min((back + 0.75) / 0.45, (0.45 - back) / 0.1), 0, 1);
@@ -1569,6 +1569,9 @@
       const sleeve = C.sleeve === side ? [C.shorts[0], C.trim] : C.skin;
       const upper = (B ? 0.122 : 0.11) * armWidth, elbowTop = Math.round(J['el' + side].y - Math.max(1, Math.round(upper * s)) / 2);
       seg('sh' + side, 'el' + side, upper, sleeve, 0, Math.min(shoulderTop, elbowTop));
+      if (C.tattoos && C.sleeve !== side) {
+        segs[segs.length - 1].tattoos = true;
+      }
       seg('el' + side, 'hand' + side, (B ? 0.106 : 0.095) * armWidth, sleeve);
       if (B || (pl.pose['fl' + side] || 0) > 0.15) seg('hand' + side, 'fg' + side, 0.075 * lw, C.skin);
     }
@@ -1602,6 +1605,13 @@
         continue;
       } else {
         brush(sctx, g.a.x, g.a.y, g.b.x, g.b.y, g.w, g.c[0], g.c[1], g.top, !!B && (g.c === C.jersey || g.c === C.shorts), g.endWidth);
+        if (g.tattoos) {
+          sctx.fillStyle = '#344947';
+          for (const t of [0.25, 0.4, 0.65]) {
+            const x = Math.round(lerpN(g.a.x, g.b.x, t)), y = Math.max(g.top || 0, Math.round(lerpN(g.a.y, g.b.y, t)));
+            sctx.fillRect(x - 1, y, Math.max(1, Math.round(g.w * 0.65)), 1);
+          }
+        }
         if (g === lastJersey) drawJerseyNumber(sctx, C, numberTorso, s);
       }
     }

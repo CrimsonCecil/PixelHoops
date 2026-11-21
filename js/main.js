@@ -422,6 +422,7 @@
     ['hnd', 0.8, ['控球大师', '运球魔术', '变向高手']], ['post', 0.7, ['背打蛮牛', '低位巨兽', '篮下推土机']], ['str', 0.8, ['力量怪兽', '肌肉坦克', '硬核猛男']],
     ['mid', 0.8, ['中投杀手', '中距离王', '急停跳投']], ['dreb', 0.75, ['篮板机器', '篮板怪兽', '卡位专家']], ['flo', 0.75, ['抛投高手', '上篮艺术', '终结大师']]
   ];
+  Object.assign(KING_TAG, { rodman: '篮板狂人', bwallace: '卡位巨闸', rallen: '绝杀射手' });
   function kingTags(ladder) {
     const used = new Set();
     return ladder.map((k) => {

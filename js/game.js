@@ -1485,6 +1485,7 @@
   // 投篮包（参考 2K 的 Base + Release）：sp 出手用时倍率、dip 下蹲时长、jmp 起跳、two 两段式（在出手点停顿）
   // setP/setE 出手点手臂角度与肘、q 肘外翻、lean 身体、kick 踢腿、push 双手推射、blk 被盖倍率（出手点越高越难盖）、ct 干扰倍率
   const SF = {
+    ray:     { name: '紧凑高抬', sp: 0.86, dip: 0.86, jmp: 1.0, two: false, setP: 2.85, setE: 1.18, q: 0.04, lean: 0, kick: 0, blk: 0.9, ct: 0.95 },
     curry:   { name: '一段式快投', sp: 0.8, dip: 0.82, jmp: 0.9, two: false, setP: 2.45, setE: 1.35, q: 0.05, lean: 0.02, kick: 0, blk: 0.95, ct: 0.95 },
     quick:   { name: '快速出手', sp: 0.88, dip: 0.9, jmp: 0.95, two: false, setP: 2.5, setE: 1.3, q: 0.08, lean: 0.03, kick: 0, blk: 1, ct: 1 },
     kobe:    { name: '高点后仰', sp: 0.95, dip: 1, jmp: 1.12, two: true, setP: 2.95, setE: 1.25, q: 0.06, lean: -0.08, kick: 0.35, blk: 0.8, ct: 0.92 },
@@ -1633,6 +1634,9 @@
   const FACE = { curry: 'oval', kyrie: 'long', kobe: 'long', luka: 'round', lebron: 'square', giannis: 'long', shaq: 'wide', ginobili: 'long', iverson: 'long', carter: 'oval', maxey: 'round', sengun: 'wide', white: 'oval', bridges: 'long', herb: 'long', kessler: 'round',
     gafford: 'long', joe: 'oval', dosunmu: 'oval', dybantsa: 'long', peterson: 'oval', boozer: 'square', flemings: 'oval', mara: 'long', peat: 'wide', karaban: 'square', delarrea: 'oval' };
   const SIGNATURE_LOOK = {
+    rodman: { style: 'buzz', hair: '#28dfc1', dyed: true, tattoos: true, face: 'long', build: -0.3, shoulder: 0.96, legs: 1.04 },
+    bwallace: { style: 'afro', face: 'square', brow: 'heavy', build: 0.2, muscle: 0.5, shoulder: 1.16, legs: 0.94, headScale: 1.06 },
+    rallen: { style: 'bald', face: 'oval', beard: '', brow: 'soft', build: -0.2, shoulder: 0.96 },
     curry: { style: 'curlfade', face: 'youthful', skin: '#be8b66', beard: '', eyes: 'open', mouthguard: true, build: -0.2, shoulder: 0.94 },
     lebron: { style: 'receding', beard: 'boxed', brow: 'heavy', build: 0.22, muscle: 0.65, shoulder: 1.13, sleeve: 'L' },
     luka: { style: 'swept', beard: 'stubble', brow: 'soft', build: 0.04, frameBuild: 0.4 },
@@ -1689,7 +1693,7 @@
     const m = PH.measurements && PH.measurements[a.key];
     const buildTag = PH.buildTags?.[a.key] || 'balanced';
     const look = { skin: pair(sig.skin || a.skin), hair: sig.hair || a.hair, style: sig.style || a.style, beard: sig.beard ?? a.beard ?? '', beardFit: sig.beardFit, band: sig.band ?? a.band ?? '',
-      bw: a.bw || 1, wing: a.wing || 1, face: sig.face || FACE[a.key] || 'square', brow: sig.brow, eyes: sig.eyes, smile: sig.smile, mouthguard: sig.mouthguard, sleeve: sig.sleeve, buildTag };
+      bw: a.bw || 1, wing: a.wing || 1, face: sig.face || FACE[a.key] || 'square', brow: sig.brow, eyes: sig.eyes, smile: sig.smile, mouthguard: sig.mouthguard, sleeve: sig.sleeve, dyed: sig.dyed, tattoos: sig.tattoos, buildTag };
     if (m) {
       const [inches, pounds, span, hand] = m, height = inches * 0.0254;
       const bmi = pounds * 0.45359237 / (height * height);
@@ -2802,6 +2806,8 @@
   // 入场走位时的造势动作（上半身），走到位后再做招牌动作
   const IWALK = { lebron: ['raise', 'wave'], curry: ['wave', 'shimmy'], kobe: ['wave', 'point'], shaq: ['raise', 'dance'], ginobili: ['point', 'wave'], iverson: ['cool', 'point'], carter: ['raise', 'flex'], giannis: ['chest', 'flex'], luka: ['wave', 'wag'], kyrie: ['point', 'wave'], herb: ['flex', 'chest'] };
   const IWA = 3.8;
+  Object.assign(ISIG, { rodman: 'shrug', bwallace: 'flex', rallen: 'cool' });
+  Object.assign(IWALK, { rodman: ['wag', 'shrug'], bwallace: ['raise', 'flex'], rallen: ['wave', 'cool'] });
   // 非宿敌对局：按双方最强项套模板开场 + 回呛，最后用语音包里的真实嘲讽收尾
   const TSTAT = {
     three: (a) => a.three * 1.04, mid: (a) => (a.mid + (a.fade || 0)) / 2, dunk: (a) => (a.dunk + (a.vert || 0)) / 2,
@@ -2835,8 +2841,8 @@
       !b && fb.arch.intro ? authored(fb, 1) : { id: fb.id, t: '', fb: b ? b[1] : pick(TREPLY[bestStat(fb.r || fb.arch)], h >>> 5).replace('{o}', o(fa)), v: b ? 'reply' : 'taunt', i: 0, gen: 1 }
     ];
     return [
-      fa.arch.intro ? authored(fa, 0) : { id: fa.id, t: '', fb: pick(TOPEN[bestStat(fa.r || fa.arch)], h).replace('{o}', o(fb)), v: 'dom', i: h % 3, gen: 1 },
-      fb.arch.intro ? authored(fb, 1) : { id: fb.id, t: '', fb: pick(TREPLY[bestStat(fb.r || fb.arch)], h >>> 5).replace('{o}', o(fa)), v: 'taunt', i: (h >>> 5) % 4, gen: 1 },
+      fa.arch.intro ? authored(fa, 0) : { id: fa.id, t: '', fb: pick(TOPEN[bestStat(fa.r || fa.arch)], h).replace('{o}', o(fb)), v: 'dom', pref: 'intro', i: h % 3, gen: 1 },
+      fb.arch.intro ? authored(fb, 1) : { id: fb.id, t: '', fb: pick(TREPLY[bestStat(fb.r || fb.arch)], h >>> 5).replace('{o}', o(fa)), v: 'taunt', pref: 'reply', i: (h >>> 5) % 4, gen: 1 },
       fa.arch.intro ? authored(fa, 1) : { id: fa.id, t: '', v: 'taunt', i: (h >>> 9) % 4, gen: 1 }
     ];
   }
@@ -2926,7 +2932,8 @@
     if (L.v) {
       const sayVo = () => {
         if (!G.intro || G.intro.lines[G.intro.li] !== L) return false;
-        const it = PH.audio && PH.audio.voLine ? PH.audio.voLine(p.arch.key, L.v, L.i, G.intro.usedVo) : null;
+        const ev = L.pref && PH.audio?.voHas?.(p.arch.key, L.pref) ? L.pref : L.v;
+        const it = PH.audio && PH.audio.voLine ? PH.audio.voLine(p.arch.key, ev, ev === L.pref ? 0 : L.i, G.intro.usedVo) : null;
         if (!it) return false;
         if (it.f && G.intro.usedVo) G.intro.usedVo.add(it.f);
         L.t = it.t; L.d = it.d;
