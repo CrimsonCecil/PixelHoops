@@ -1508,7 +1508,10 @@
     const r = PH.input.rstick(); if (r.y) { const sb = scrollBox(root); if (sb) sb.scrollTop += r.y * dt * 1.1; }
   }
   const isTextInput = (el) => !!(el && ((el.tagName === 'INPUT' && el.type !== 'range') || el.tagName === 'TEXTAREA'));
-  document.addEventListener('pointerdown', clearPf, true);
+  document.addEventListener('pointerdown', (e) => {
+    const t = e.target && e.target.closest && e.target.closest(NAV_SEL);
+    if (t && (t.closest('#pause') || t.closest('#tune'))) clearPf();
+  }, true);
   document.addEventListener('keydown', (e) => {
     if (e.code !== 'Enter' || isTextInput(e.target)) return;
     const root = navRoot();
