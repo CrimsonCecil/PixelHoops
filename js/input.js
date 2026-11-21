@@ -46,13 +46,14 @@
     if (held(m.right) || (solo && held(SOLO_EXTRA.right))) mx += 1;
     if (held(m.up) || (solo && held(SOLO_EXTRA.up))) my += 1;
     if (held(m.down) || (solo && held(SOLO_EXTRA.down))) my -= 1;
-    const a3 = held(m.a3);
-    const o = { mx: mx, my: my, sprint: held(m.sprint), a1: held(m.a1), a2: held(m.a2), a3: a3, dribble: a3, post: onOffense && held(m.post), dx: 0, dy: 0 };
+    const a3 = held(m.a3), hesi = onOffense && held([slot === 0 ? 'KeyH' : 'Numpad5']);
+    const o = { mx: mx, my: my, sprint: held(m.sprint), a1: held(m.a1), a2: held(m.a2), a3: a3 || hesi, dribble: a3, hesi: hesi, post: onOffense && held(m.post), dx: 0, dy: 0 };
     const gp = lock.on ? null : pads()[slot];
     if (gp) {
       const ax = gp.axes[0] || 0, ay = gp.axes[1] || 0;
       if (Math.hypot(ax, ay) > 0.22) { o.mx = ax; o.my = -ay; }
       const B = (i) => padBtn(gp, i);
+      if (onOffense && B(11)) o.a3 = o.hesi = true;
       if (B(14)) o.mx = -1; if (B(15)) o.mx = 1; if (B(12)) o.my = 1; if (B(13)) o.my = -1;
       if (B(7) || B(5)) o.sprint = true;
       if (onOffense) { if (B(2)) o.a1 = true; if (B(3)) o.a2 = true; if (B(1)) o.a3 = o.dribble = true; if (B(6) || B(4)) o.post = true; }
