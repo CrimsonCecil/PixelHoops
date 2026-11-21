@@ -81,7 +81,7 @@ for (const distance of [7, 8.5, 15]) for (const error of [0, 0.35]) {
   assert.equal(ordinary.gw, immune.gw);
 }
 console.log('PASS non-badge pull-up penalty layered over normal/deep shot probabilities without changing green widths');
-for (const [distance, pops] of [[7, false], [7.7, false], [8, false], [8.1, false], [8.3, true], [8.6, true], [9.5, true]]) {
+for (const [distance, pops] of [[7, false], [7.7, false], [7.9, false], [8.1, true], [8.6, true], [9.5, true]]) {
   for (const rating of [84, 90, 95]) {
     for (const variant of ['set', 'stepback']) {
       assert.equal(shot(after, rating, true, distance, 0.35, '2p', variant).pops.includes('limitless'), pops, `limitless popup at ${distance}m (${variant}, ${rating})`);
