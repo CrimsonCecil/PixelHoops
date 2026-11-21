@@ -537,13 +537,13 @@
     ['stlPokeVR', 'def', '抢断 捅球速度随机', 0.6, 0, 3, 0.05, '米/秒：水平速度 ± 这个值'],
     ['stlPokeZ', 'def', '抢断 捅球上抛速度', 1, 0, 6, 0.1, '米/秒'],
     ['stlPokeNP', 'def', '抢断 捅球不可拾取时间', 0.3, 0, 1, 0.01, '秒：双方都要等待球脱手'],
-    ['stlPokeStun', 'def', '抢断 捅球踉跄基础时长', 0.6, 0, 2, 0.01, '秒：实际时长 = 基础 − 灵活 × 系数，不影响干净断球'],
-    ['stlPokeAg', 'def', '抢断 捅球踉跄灵活系数', 0.25, 0, 1, 0.01, '秒：灵活越高，踉跄越短'],
+    ['stlPokeStun', 'def', '抢断 捅球踉跄基础时长', 1.31, 0, 2, 0.01, '秒：实际时长 = 基础 − 灵活 × 系数，不影响干净断球'],
+    ['stlPokeAg', 'def', '抢断 捅球踉跄灵活系数', 0.76, 0, 1, 0.01, '秒：灵活越高，踉跄越短'],
+    ['stlPokeVol', 'def', '抢断 捅球音效音量', 1, 0, 2, 0.05, '倍率：捅球拍击与亮音，0 关闭；仍受设置中的音效和总音量控制'],
     ['stlPokeSlowT', 'def', '抢断 捅球慢动作时长', 0.5, 0, 2, 0.01, '秒：现实时间；联机和回放不触发'],
     ['stlPokeSlowK', 'def', '抢断 捅球慢动作速度', 0.35, 0.05, 1, 0.05, '倍率：仅捅球触发的慢动作'],
     ['stlPokeHz', 'def', '抢断 捅球闪光频率', 3, 0, 8, 0.1, '次/秒：只影响散球提示'],
     ['stlPokeFlash', 'def', '抢断 捅球闪光强度', 0.8, 0, 1, 0.05, '透明度：0 关闭闪光，不影响比赛'],
-    ['stlPokePrompt', 'def', '抢断 捅球扑球提示', 1, 0, 1, 1, '显示人类球员的扑球按键', 'bool'],
     ['stlPokeCredT', 'def', '抢断 捅球记账窗口', 3, 0, 10, 0.1, '秒：防守方在窗口内捡球才记抢断和失误'],
     ['stlMissReach', 'def', '抢断落空 伸手距离', 1.3, 0.5, 3, 0.05, '米'],
     ['stlMissReachT', 'def', '抢断落空 伸手时长', 0.12, 0.02, 0.6, 0.01, '秒'],
@@ -4382,13 +4382,7 @@
   const diving = (p) => !!(p.action && p.action.type === 'dive' && p.action.t - p.action.pre < p.action.air + p.action.slide);
   function pokeCue() {
     const b = G.ball, active = !!(b.poke && b.state === 'loose' && !b.dead && G.phase === 'live');
-    const inputSlot = (p) => PH.game.localInputSlot ? PH.game.localInputSlot(p) : p.ctrl === 'cpu' ? null : p.ctrl === 'p2' ? 1 : 0;
-    const players = active && K.stlPokePrompt ? G.players.filter((p) => {
-      const d = Math.hypot(b.x - p.x, b.y - p.y);
-      return inputSlot(p) != null && !p.off && !p.dummy && !p.action && p.stun <= 0 && p.z <= 0.05 && p.stam > ST.act && b.z <= K.dvMaxZ && d >= K.dvMinD && d <= diveR(p);
-    }) : [];
-    return { active, gold: active, glow: active ? K.stlPokeFlash * (0.5 + 0.5 * Math.cos(G.time * Math.PI * 2 * K.stlPokeHz)) : 0,
-      prompts: players.map((p) => { const slot = inputSlot(p); return { id: p.id, text: (slot === 1 ? 'P2 ' : 'P1 ') + '扑球！按 ' + (PH.input && PH.input.diveLabel ? PH.input.diveLabel(slot, G.mode === 't5') : G.mode === 't5' ? 'J / Space' : slot === 1 ? 'Num2 / .' : 'K') }; }) };
+    return { active, gold: active, glow: active ? K.stlPokeFlash * (0.5 + 0.5 * Math.cos(G.time * Math.PI * 2 * K.stlPokeHz)) : 0 };
   }
   function startDive(pl) {
     const b = G.ball, d = Math.hypot(b.x - pl.x, b.y - pl.y);
