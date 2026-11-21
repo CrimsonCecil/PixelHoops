@@ -82,9 +82,9 @@
       const free = teams(G.off).filter((p) => p !== h).sort((a, b) => threat(b) - threat(a));
       const next = help.find((p) => p !== helper);
       T.cover = { h, helper, spot, next };
-      helper.opp = h;
       if (next) { next.opp = free[0]; d.opp = free[1]; }
-      else d.opp = T.marks.get(helper);
+      else d.opp = helper.opp;
+      helper.opp = h;
       return;
     }
     const closer = nearest(help, h);

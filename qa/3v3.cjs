@@ -309,6 +309,21 @@ console.log('PASS: CPU teammates set screens, roll or pop by tendency, and recei
   assert.deepEqual(Array.from(G.players.slice(3), (d) => d.opp.id), [0, 1, 2], 'recover positional assignments after a switch');
 }
 
+{
+  const { G, T3, put, run } = tactics([3, 4]);
+  put(0, 0, 5.9); put(3, 0, 3.4); put(4, 0.95, 6.6);
+  run(1);
+  const marks = () => Array.from(G.players.slice(3), (d) => d.opp.id);
+  assert.deepEqual(marks(), [1, 0, 2], 'CPU defenders first switch on the perimeter');
+
+  put(0, 0, 9, 0, 2); put(3, 1.1, 10.8); put(4, 0, 7);
+  run(1);
+  assert.equal(T3.T.cover?.helper.id, 3, 'the switch partner is the only CPU able to help');
+  assert.equal(T3.T.cover.next, undefined, 'the human defender does not participate in the rotation');
+  assert.deepEqual(marks(), [0, 1, 2], 'the beaten defender takes the helper’s current mark, keeping each attacker covered');
+  console.log('PASS: single-helper paint rotation after a switch preserves one defender per attacker.');
+}
+
 function driveCoverage(helpIQ) {
   const { G, T3, api, put, run } = tactics([3, 4, 5]);
   put(0, 0, 9, 0, 2); put(3, 0, 7); put(4, 1.7, 10.8); put(5, -3, 8);
