@@ -654,7 +654,7 @@
     ['gaHzMin', 'drib', '跑步 最低步频', 0.45, 0.2, 1.2, 0.05, '次/秒：标准身高的低速步频；持球和无球共用'],
     ['gaHzMax', 'drib', '跑步 最高步频', 2.8, 1.8, 3.5, 0.05, '次/秒：标准身高的全速步频；慢跑到冲刺连续增加'],
     ['gaHeight', 'drib', '跑步 身高步幅差异', 0.8, 0, 1.5, 0.05, '指数：越高步幅越长、步频越低；不影响移动速度'],
-    ['stLift', 'def', '螃蟹步 抬脚高度', 0.025, 0, 0.03, 0.005, '米：低抬脚；超过短步触及范围时贴地滑行'],
+    ['stLift', 'def', '螃蟹步 抬脚高度', 0.07, 0, 0.15, 0.005, '米：膝盖随摆动脚垂直抬起；小步降低抬脚，超出触及范围才滑行'],
     ['drCrouch', 'drib', '跑动运球 速度下蹲', 0.32, 0, 0.5, 0.01, '弧度：速度越快膝盖越弯，冲刺最深；保留跑步摆腿'],
     ['drHeight', 'drib', '运球频率 身高差异', 1.8, 0, 3, 0.05, '指数：按实际模型身高缩放拍球频率，越矮越快；0 为无差异'],
     ['bdWBox', 'ct', '身体碰撞 卡位加成', 0.15, 0, 0.5, 0.01, '比例'],
@@ -6519,7 +6519,7 @@
   }
   // V4.0 注册到调参台（ST / GW_TYPE / BLK_K / BLK_T / LSV 这些对象保持同一引用，值随调参刷新）
   if (TU) {
-    TU.reg(TDEF.map((d) => ({ k: 'l1_' + d[0], g: d[1], label: d[2], v: d[3], min: d[4], max: d[5], step: d[6], note: d[7], mode: d[8] || 'num', tmp: !!d[9], ...(/^(alley|selfAlley)/.test(d[0]) ? { cat: 'fin', sub: '上篮', gm: 'both' } : {}) })));
+    TU.reg(TDEF.map((d) => ({ k: 'l1_' + d[0], g: d[1], label: d[2], v: d[3], min: d[4], max: d[5], step: d[6], note: d[7], mode: d[8] || 'num', tmp: !!d[9], ...(d[0] === 'stLift' ? { wide: false } : {}), ...(/^(alley|selfAlley)/.test(d[0]) ? { cat: 'fin', sub: '上篮', gm: 'both' } : {}) })));
     TU.reg(RDEF.map((d) => ({ k: 'l1_' + d[0], g: 'rules', label: d[1], v: CFG_DEF[d[0]], min: d[2], max: d[3], step: d[4], note: d[5], mode: d[6] || 'num' })));
     for (const d of RDEF) if (d[0] !== 'shotClock') Object.defineProperty(CFG, d[0], { enumerable: true, configurable: true, get: () => TU.get('l1_' + d[0]), set: (v) => { TU.set('l1_' + d[0], v); } });
     // 进攻时间是“本场”设置（比赛开始界面 / 5V5 会临时改），所以 CFG.shotClock 仍是普通字段，调参改动时同步过去
