@@ -2541,6 +2541,7 @@
     G.intro = null; G.cz = null; G.phase = 'check'; G.phaseT = I.phaseT;
     banner('GAME START', '比赛开始', '#ffd24a', 1.8); G.banner.top = true;
     if (PH.audio && PH.audio.voStop) PH.audio.voStop();
+    if (PH.input && PH.input.flush) PH.input.flush();
     if (G.mode === 't3' && PH.T3 && PH.T3.rearm) PH.T3.rearm();
   }
   function queueScoreReplay(id, s) {
