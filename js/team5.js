@@ -297,7 +297,13 @@
     { k: 't5_sk_dcT', g: 't5', cat: 't5', sub: '团队专属', gm: '5v5', label: '防守指挥 持续时间', v: 8, min: 0, max: 30, step: 0.5, note: '秒。防守指挥触发后全队防守增益持续时间' },
     { k: 't5_sk_dcR', g: 't5', cat: 't5', sub: '团队专属', gm: '5v5', label: '防守指挥 截传范围', v: 1.15, min: 1, max: 2, step: 0.01, note: '倍率。防守指挥期间截传范围 × 这个' },
     { k: 't5_sk_dcS', g: 't5', cat: 't5', sub: '团队专属', gm: '5v5', label: '防守指挥 被挡强度', v: 0.7, min: 0, max: 1, step: 0.05, note: '倍率。防守指挥期间被掩护挡住的强度 × 这个' },
-    { k: 't5_sk_dcC', g: 't5', cat: 't5', sub: '团队专属', gm: '5v5', label: '防守指挥 出手干扰', v: 1.15, min: 1, max: 2, step: 0.01, note: '倍率。防守指挥期间对方出手的干扰 × 这个' }
+    { k: 't5_sk_dcC', g: 't5', cat: 't5', sub: '团队专属', gm: '5v5', label: '防守指挥 出手干扰', v: 1.15, min: 1, max: 2, step: 0.01, note: '倍率。防守指挥期间对方出手的干扰 × 这个' },
+    // 5V5 镜头（暂停 → 镜头）：两种镜头各一套远近 / 高度，跟调参配置一起存云端
+    { k: 't5_camBc', g: 't5', cat: 'pace', sub: '镜头', gm: '5v5', label: '5V5 转播镜头', v: 0, mode: 'bool', note: '开 = 用侧面转播镜头，关 = 2K 镜头（暂停 → 镜头里切换）' },
+    { k: 't5_cam2kZ', g: 't5', cat: 'pace', sub: '镜头', gm: '5v5', label: '5V5 2K 镜头 远近', v: 5, min: 0, max: 10, step: 1, mode: 'int', wide: false, note: '档位 0~10，和 2K 镜头设置一样' },
+    { k: 't5_cam2kH', g: 't5', cat: 'pace', sub: '镜头', gm: '5v5', label: '5V5 2K 镜头 高度', v: 10, min: 0, max: 20, step: 1, mode: 'int', wide: false, note: '档位 0~20，10 是实机取景' },
+    { k: 't5_camBcZ', g: 't5', cat: 'pace', sub: '镜头', gm: '5v5', label: '5V5 转播镜头 远近', v: 5, min: 0, max: 10, step: 1, mode: 'int', wide: false, note: '档位 0~10' },
+    { k: 't5_camBcH', g: 't5', cat: 'pace', sub: '镜头', gm: '5v5', label: '5V5 转播镜头 高度', v: 5, min: 0, max: 10, step: 1, mode: 'int', wide: false, note: '档位 0~10' }
   ];
   // V4.6 和 1V1 共用的参数：直接读 l1_ 键（调参台改 1V1 的值，5V5 一起变），缓存进 TV；没有 TUNE 时用 1V1 默认值
   const L1D = { l1_stLow: 15, l1_contestRange: 2.7, l1_stlCpu0: 0.6, l1_stlCpuD: 0.35, l1_stealMul: 1, l1_gwSkill: 1.7, l1_gwBadge: 1.45, l1_smKy: 0.5 };
@@ -364,7 +370,7 @@
   const U = (p, f) => (p && p.r5 ? p.r5[f] : 0);
   const PASS = PH.game.t5.passProfiles;
   const ICON = ['A', 'B', 'X', 'Y', 'LT'];
-  // V3.9e 默认 2K 镜头（远近 5、高度 10，2K 社区常用值）；转播镜头留作可选。两种镜头各记一套远近 / 高度（只存内存）
+  // V3.9e 默认 2K 镜头（远近 5、高度 10，2K 社区常用值）；转播镜头留作可选。两种镜头各记一套远近 / 高度（调参台 t5_cam*，t5Sync 同步进来）
   const CAM_DEF5 = { broadcast: { zoom: 5, height: 5 }, '2k': { zoom: 5, height: 10 } };
   const CAMS = { preset: '2k', zoom: 5, height: 10, mem: JSON.parse(JSON.stringify(CAM_DEF5)) };
   let A5 = null, G = null;
@@ -2419,8 +2425,19 @@
     // V3.9f 2K 镜头：高度 10 是实机取景，滑条在它两边调（0–20）；转播镜头仍是 0–10
     CAMS.zoom = clamp(Math.round(CAMS.zoom), 0, 10); CAMS.height = clamp(Math.round(CAMS.height), 0, CAMS.preset === '2k' ? 20 : 10);
     CAMS.mem[CAMS.preset] = { zoom: CAMS.zoom, height: CAMS.height };
+    camPush();
   }
-  function resetCam() { CAMS.mem = JSON.parse(JSON.stringify(CAM_DEF5)); CAMS.preset = '2k'; CAMS.zoom = 5; CAMS.height = 10; }
+  // 写回调参台（每次 set 都会 t5Sync 重算 CAMS，所以先拷一份再逐项写）
+  function camPush() {
+    const TU = PH.TUNE; if (!TU || !TU.has('t5_camBc')) return;
+    const m = JSON.parse(JSON.stringify(CAMS.mem)), bc = CAMS.preset === 'broadcast' ? 1 : 0;
+    TU.set('t5_cam2kZ', m['2k'].zoom); TU.set('t5_cam2kH', m['2k'].height); TU.set('t5_camBcZ', m.broadcast.zoom); TU.set('t5_camBcH', m.broadcast.height); TU.set('t5_camBc', bc);
+  }
+  function resetCam() {
+    const TU = PH.TUNE;
+    if (TU && TU.has('t5_camBc')) { for (const k of ['t5_camBc', 't5_cam2kZ', 't5_cam2kH', 't5_camBcZ', 't5_camBcH']) TU.reset(k); return; }
+    CAMS.mem = JSON.parse(JSON.stringify(CAM_DEF5)); CAMS.preset = '2k'; CAMS.zoom = 5; CAMS.height = 10;
+  }
   // V3.9e 2K 镜头朝向 phi（世界坐标里的角度，0 = 朝 +X 篮筐）。球权转换后用 0.5 秒平滑转 180 度，t ≥ 0 表示正在转
   function camTurn(dt) {
     const tg = T.dir[G.off] === 1 ? 0 : Math.PI;
@@ -2448,6 +2465,8 @@
     for (const k in PASS) PASS[k].v = TV['t5_pv_' + k];
     ISO_K.s = TV.t5_iso_s; ISO_K.h = TV.t5_iso_h; ISO_K.b = TV.t5_iso_b; ISO_K.c = TV.t5_iso_c;
     ACC5.up = TV.t5_acc_up; ACC5.upA = TV.t5_acc_upA; ACC5.dn = TV.t5_acc_dn;
+    CAMS.mem['2k'] = { zoom: TV.t5_cam2kZ, height: TV.t5_cam2kH }; CAMS.mem.broadcast = { zoom: TV.t5_camBcZ, height: TV.t5_camBcH };
+    CAMS.preset = TV.t5_camBc ? 'broadcast' : '2k'; CAMS.zoom = CAMS.mem[CAMS.preset].zoom; CAMS.height = CAMS.mem[CAMS.preset].height;
     const C = PH.T5.scrCfg; C.TH[0] = TV.t5_scr_th1; C.TH[1] = TV.t5_scr_th2; C.TH[2] = TV.t5_scr_th3; C.dK = TV.t5_scr_dK; C.sK = TV.t5_scr_sK; C.pK = TV.t5_scr_pK; C.p2 = TV.t5_scr_p2;
   }
   t5Tune(); t5Sync();

@@ -397,6 +397,9 @@ button.pick .pk-c { grid-row: 1 / 3; grid-column: 3; font-size: var(--fs-xs); co
 #campanel .thead { display: flex; justify-content: space-between; align-items: center; margin-bottom: calc(var(--u) * 2); }
 #campanel .thead b { font-size: var(--fs-md); color: var(--gold); font-weight: normal; }
 #campanel .tfoot { display: flex; gap: calc(var(--u) * 3); margin-top: calc(var(--u) * 3); } #campanel .tfoot button { flex: 1; font-size: var(--fs-xs); }
+#campanel .cam-cloud { margin-top: calc(var(--u) * 3); } #campanel .cam-cloud button { width: 100%; font-size: var(--fs-xs); }
+#campanel .cam-cloud small, .c5cs { display: block; margin-top: calc(var(--u) * 1); color: var(--muted); font-size: var(--fs-xs); line-height: 1.35; }
+.c5cs { text-align: center; max-width: 22em; margin: 0 auto; }
 #campanel .cam-push { width: 100%; font-size: var(--fs-xs); margin: calc(var(--u) * 2) 0; }
 .pk-grid { grid-auto-rows: max-content; }
 .pk-grid .pkc { min-height: calc(var(--u) * 20); }
