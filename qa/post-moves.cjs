@@ -404,3 +404,23 @@ console.log('PASS post fake tunables: commit window, stamina cost and defender b
   pads.length = 0;
 }
 console.log('PASS guest post stick: cleanInput preserves shared rs/direction and device presence, rejects invalid values, and hold/release produces a post shot');
+
+for (const mode of ['2p', 't5']) for (const feedback of ['detail', 'simple']) for (const fake of [true, false]) {
+  const { p, d } = fixture(mode); d.off = true;
+  G.fb = feedback; G.floats = [];
+  step(p, { a1: true, post: true });
+  const a = p.action, name = a.V.name;
+  assert(!G.floats.some(f => f.text === name), `${mode}/${feedback} does not announce a shot during gather`);
+  if (!fake) step(p, { a1: true, post: true }, Math.floor(a.ideal / dt) - 1);
+  step(p, { post: true });
+  if (fake) {
+    assert(p.action.postFake);
+    assert.equal(G.floats.filter(f => f.text === '背身假投').length, 1, `${mode}/${feedback} shows the post fake`);
+    assert(!G.floats.some(f => f.text === name), 'A fake never announces the unreleased shot');
+  } else {
+    assert(a.released);
+    assert.equal(G.floats.filter(f => f.text === name).length, 1, 'The shot name appears exactly once on real release');
+    assert(!G.floats.some(f => f.text === '背身假投'));
+  }
+}
+console.log('PASS post feedback: gather has no shot-name float; early fake shows only 背身假投 and real release announces its shot once, in 1V1/5V5 detail/simple');

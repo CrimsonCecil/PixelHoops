@@ -2526,6 +2526,7 @@
     const colr = green ? '#7dff8a' : ae > 0.5 ? '#ff6b5e' : '#ffd24a';
     G.floats = G.floats.filter((f) => f.pid !== pl.id);
     if (info.styleDelta < 0) float('持球投衰减', pl, '#f6efe0', 1);
+    if (kind === 'shot' && a.postOrigin && !SK) float(V.name, pl, '#f6efe0', 1);
     G.floats.push({ text: tl, sub: cl,   // V3.9r 反馈只显示干扰程度，不再带动作名（LED 上的动作名保留）
     shot: true, pid: pl.id, x: pl.x, y: pl.y, z: pl.h + pl.z * 0.5 + 0.55, t: 0, color: colr, subColor: SK ? '#ffcf5a' : c < 0.2 ? '#7dff8a' : c < 0.5 ? '#ffd24a' : '#ff6b5e' }); if (G.floats.length > 5) G.floats.shift();
     if (green) { st.green++; sfx('green'); flash('#7dff8a', 0.1); tkAdd(pl, 5); }
@@ -2974,7 +2975,7 @@
     a.meter = { v: 0, t0: mT0, span: mSp, ideal: (TI - mT0) / mSp, gw: greenWidth(pl, ratingOf(pl, a), a.skill ? 0 : contestOf(pl, df, V.post || V.hook || v === 'postfade' ? 'in' : 'shot') * V.c * (a.ky ? 0.5 : 1), shotKind(a), a) * a.V.g * (a.skill ? K.gwSkill : 1) * 0.2 / mSp, done: false, color: a.skill ? '#ffd24a' : '#fff', label: a.skill ? pl.arch.skill.name : V.name };
     a.uu = pl.uuShot && G.time <= pl.uuShot.until ? pl.uuShot : null;
     pl.action = a; pl.post = false; pl.animT = 0;
-    if (!a.skill && v !== 'set' && v !== 'pullup') float(V.name, pl, '#f6efe0', 1);
+    if (!a.postOrigin && !a.skill && v !== 'set' && v !== 'pullup') float(V.name, pl, '#f6efe0', 1);
   }
   // ---------- 终结：收球(0 步) + 两步 + 起跳（FIBA/NBA 收球后可走两步） ----------
   // V4.1 STEP_T / GATHER_T 改为 K.stepT / K.gathT（调参台 zone 组）
@@ -3668,7 +3669,7 @@
         df.ai.seenAct = pl.action; df.ai.willJump = true; df.ai.jumpAt = G.time + diffOf(df).react * 0.3;
         bpop(pl, 'dream');
       }
-      float('背身假投', pl, '#f6efe0'); return;
+      float('背身假投', pl, '#f6efe0', 1); return;
     }
     pl.action = { type: 'fake', t: 0, T: T, jf: !!jumped }; pl.animT = 0;
     pl.uuFake = { until: G.time + T + K.uuWin, def: -1, bitUntil: -1 };
