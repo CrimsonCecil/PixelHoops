@@ -5013,9 +5013,19 @@
       if (pr.a1 || pr.a2) {
         if (G.needClear) { G.clearPing = G.time; G.illId = pl.id; }
         if (cancelVariant) { startShot(pl, inp, 'a1', cancelVariant); return; }
+        const q = inDir(pl, inp), P = finPlan(pl);
+        const sprintDrive = inp.sprint && !inp.post && !pl.post &&
+          !(pl.lastMove === 'stepback' && G.time - pl.lastMoveT < 1.2) &&
+          !(pl.uuShot && G.time <= pl.uuShot.until && pl.uuShot.mv === 'uuBack') &&
+          q.l > 0.3 && q.fwd > 0.45 && P.fv > 2.6 && (P.lay || P.dunk);
+        if (pr.a1 && sprintDrive) {
+          if (sdZone(pl, P) && !shaqReady(pl)) {
+            if (sdOk(pl)) startDunk(pl, P, 'a1', 'stand'); else startFinish(pl, inp, 'lay', 'a1');
+          } else startFinish(pl, inp, P.dunk ? 'auto' : 'lay', 'a1', true);
+          return;
+        }
         if (pr.a1 && postFollow(pl, inp.rsHold && pl.rsGesture ? pl.rsGesture.t : G.time)) { startShot(pl, inp); return; }
         if (pr.a1 && pl.uuShot && G.time <= pl.uuShot.until && pl.uuShot.mv === 'uuBack') { startShot(pl, inp); return; }
-        const q = inDir(pl, inp), P = finPlan(pl);
         const sdz = sdZone(pl, P), sdBtn = pr.a2 || (pr.a1 && inp.sprint && !(pl.post || (backTurn(pl) && !pr.a2)));
         if (sdz && sdBtn && !shaqReady(pl) && !(pr.a2 && pl.post && OP(pl).seal > G.time)) {
           // V4.1 原地站扣：篮下原地 / 很慢 + 扣篮键（或冲刺 + 投篮），不用摇杆指向篮筐；能力 / 身高 / 体型不够改上篮
