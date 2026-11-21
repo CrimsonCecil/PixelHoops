@@ -5329,13 +5329,14 @@
 
   // ---------- 主循环 ----------
   // ---------- 即时回放 ----------
-  const REPLAY_MAKE_BEAT = 1.25, REPLAY_WIPE_TIME = 0.36;
+  const REPLAY_MAKE_BEAT = 1.25, REPLAY_WIPE_TIME = 0.6, REPLAY_RETURN_TIME = 0.65;
+  const replayMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)');
   const replayReady = () => G.time - G.lastMakeAt >= REPLAY_MAKE_BEAT;
   function advanceReplay(R, dt, ending) {
-    if (ending || R.wipeOut) {
-      R.wipeOut = Math.min(1, R.wipeOut + dt / REPLAY_WIPE_TIME);
-      if (R.wipeOut >= 0.5) R.view = null;
-      return R.wipeOut >= 1 ? 'done' : 'wipe';
+    if (ending || R.returnT != null) {
+      R.view = null;
+      R.returnT = R.returnT == null ? 0 : Math.min(1, R.returnT + dt / REPLAY_RETURN_TIME);
+      return replayMotion?.matches || R.returnT >= 1 ? 'done' : 'return';
     }
     R.wipeIn = Math.min(1, R.wipeIn + dt / REPLAY_WIPE_TIME);
     if (R.wipeIn < 0.5) return 'wipe';
@@ -5344,7 +5345,7 @@
   }
   function replayCover(R) {
     // Keep the midpoint fully covered even when a frame skips past it.
-    const p = R && (R.wipeOut || R.wipeIn);
+    const p = R && R.returnT == null ? R.wipeIn : 0;
     return p > 0 && p < 1 ? Math.min(1, 1.15 * Math.sin(Math.PI * p)) : 0;
   }
   const replayFlow = { makeBeat: REPLAY_MAKE_BEAT, ready: replayReady, advance: advanceReplay, cover: replayCover };
@@ -5363,7 +5364,7 @@
     const t0r = q.mk ? Math.min(q.t - K.rpPre, q.mk.t - 1.4) : q.t - K.rpPre, fr = G.rec.filter((f) => f.t >= t0r && f.t <= q.t + K.rpPost);
     if (fr.length < 30) return;
     const kp = fr[0].p[q.pid];
-    G.replay = { fr: fr, i: 0, rt: fr[0].t, t1: fr[fr.length - 1].t, q: q, fc: { cx: G.focus.cx, cy: G.focus.cy }, skip: false, view: null, age: 0, wipeIn: 0, wipeOut: 0, kx: kp.x, ky: kp.y, kz: kp.z + kp.h * 0.6 };
+    G.replay = { fr: fr, i: 0, rt: fr[0].t, t1: fr[fr.length - 1].t, q: q, fc: { cx: G.focus.cx, cy: G.focus.cy }, skip: false, view: null, age: 0, wipeIn: 0, kx: kp.x, ky: kp.y, kz: kp.z + kp.h * 0.6 };
     sfx('swoosh');
     G.replayLog = (G.replayLog || []).concat([{ t: G.time, s: q.s, ph: G.phase }]);
   }
