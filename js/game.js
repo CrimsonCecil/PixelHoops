@@ -4455,6 +4455,7 @@
 
   const holdingFinish = (p) => p.hasBall && p.action && (p.action.type === 'layup' || p.action.type === 'dunk') && !p.action.released && !p.action.done;
   function finishProtection(p) { return lerp(1, K.stlFinFloor, clamp((p.r.hnd - K.stlFinLo) / Math.max(0.001, K.stlFinHi - K.stlFinLo), 0, 1)); }
+  const stealChinMul = (p) => p.chinT > G.time ? K.stlChin : 1;
   function updateAction(pl, inp, dt, shootPress) {
     const a = pl.action, df = OP(pl), t0 = a.t;
     if (a.sigMove === 'ginobili' && !a.inSteps) for (const d of G.players) {
@@ -4659,14 +4660,14 @@
           if (da && da.type === 'fake' && read.timed) ch += K.stlTimed;
           if (da && da.type === 'shot' && df.z <= 0) ch += K.stlShot;
           if (df.stam < ST.low) ch += K.stlLowSt;
-          ch *= read.pf;
-          if (df.post) ch *= K.stlPost;
-          if (df.post) ch += K.stlTimed * read.away * read.pf;
-          if (df.chinT > G.time) ch *= K.stlChin;
-          if (pl.ctrl === 'cpu') ch *= K.stlCpu0 + K.stlCpuD * G.diff;
           const finishing = holdingFinish(df);
           if (finishing) ch = (K.stlFinB + K.stlFinS * (pl.r.stl - df.r.hnd)) * finishProtection(df) * bk(pl, 'pick', K.stlBdPick) * bk(df, 'tight', K.stlBdTight);
-          else if (gsk(pl, 'steal') && !(df.chinT > G.time)) { ch = 99; fireSkill(pl); }   // V3.9o 追梦掏球：必定掏下（护球 chin 中除外）
+          else ch *= read.pf;
+          if (df.post) ch *= K.stlPost;
+          if (df.post && !finishing) ch += K.stlTimed * read.away * read.pf;
+          ch *= stealChinMul(df);
+          if (pl.ctrl === 'cpu') ch *= K.stlCpu0 + K.stlCpuD * G.diff;
+          if (!finishing && gsk(pl, 'steal') && !(df.chinT > G.time)) { ch = 99; fireSkill(pl); }   // V3.9o 追梦掏球：必定掏下（护球 chin 中除外）
           const chance = ch * CFG.stealMul * (tkIs(pl, 'def') ? K.stlTk : 1);
           if (rnd() < (ch === 99 ? chance : clamp(chance, 0, finishing ? K.stlFinMax : K.stlMax))) {
             a.poked = true;
@@ -6436,7 +6437,7 @@
     const seek = 1 + awareness * (sr.timed ? K.stlAiWindow : -K.stlAiBad * (sr.moving ? 1 : sr.across));
     const angle = (1 + awareness * (sr.ballSide - sr.across * K.stlAiBad)) * lerp(K.stlAiPosFloor, 1, sr.pf);
     const ready = D.steal > 0 && dd < K.aiStlD && ai.stealCd <= 0 && !pl.action && pl.stun <= 0 && pl.cd <= 0 && pl.z <= 0;
-    if (ready && dd < K.stlR && holdingFinish(opp) && rnd() < K.stlFinCpu * dt * clamp(K.stlFumH - opp.r.hnd, 0, 1) * D.steal) {
+    if (ready && dd < K.stlR && holdingFinish(opp) && rnd() < K.stlFinCpu * dt * clamp(K.stlFumH - opp.r.hnd, 0, 1) * D.steal * stealChinMul(opp)) {
       o.a1 = false; o.a2 = true; ai.stealCd = rr(K.aiStlCd0, K.aiStlCd1); return o;
     }
     if (ai.stealPlan && (ai.stealPlan.move !== oa || oa.t + K.stlHitT > sr.windowEnd)) ai.stealPlan = null;
