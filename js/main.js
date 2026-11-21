@@ -1170,7 +1170,7 @@
     PRF: ['完美', (p) => p.green, null, '完美出手（绿区）', { el: (p) => p.green >= 4 }],
     SK: ['必杀', (p) => p.sk || 0, null, '必杀技发动', {}],
     'FG%': ['FG%', (p) => p.fgp, (p) => fp(p.fgp), '投篮命中率', { el: (p) => p.fga >= 8 && p.fgp >= 0.65, bad: (p) => p.fga >= 6 && p.fgp < 0.35 ? (p.fgp < 0.25 ? 2 : 1) : 0 }],
-    '3P%': ['3P%', (p) => p.tpp, (p) => fp(p.tpp), '三分命中率（1 对 1 没有罚球，用它代替 FT%）', { el: (p) => p.tpa >= 4 && p.tpp >= 0.5, bad: (p) => p.tpa >= 4 && p.tpp < 0.2 ? 1 : 0 }],
+    '3P%': ['3P%', (p) => p.tpp, (p) => fp(p.tpp), '三分命中率（比赛没有罚球，用它代替 FT%）', { el: (p) => p.tpa >= 4 && p.tpp >= 0.5, bad: (p) => p.tpa >= 4 && p.tpp < 0.2 ? 1 : 0 }],
     '3PM': ['3PM', (p) => p.tp, null, '三分命中数', { el: (p) => p.tp >= 5 }],
     OREB: ['OREB', (p) => p.oreb, null, '前场篮板', { el: (p) => p.oreb >= 4 }],
     'TS%': ['TS%', (p) => p.ts, (p) => fp(p.ts), '真实命中率 PTS / (2×FGA)，没有罚球', { el: (p) => p.fga >= 8 && p.ts >= 0.7, bad: (p) => p.fga >= 6 && p.ts < 0.42 ? 1 : 0 }],
