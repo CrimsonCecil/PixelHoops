@@ -1916,10 +1916,10 @@
   function fdShotName(pl, pts, kind, name) {
     const s = G.ball.shot && G.ball.shot.shooter === pl.id ? G.ball.shot : null, d = s ? s.d || 0 : 0;
     if (kind === 'dunk') return name || '暴扣';
-    if (kind === 'lay') return !name || name === '上篮' ? '上篮命中' : name === '抛投' ? '抛投命中' : name;
-    if (pts === 3) { if (d > 8.8) return '超远三分'; const n = (name || '').replace(/跳投$/, ''); return n && n !== '定点' && n !== '接球投篮' ? n + '三分' : '三分命中'; }
-    if (!name || name === '定点跳投') return '中投命中';
-    return /跳投|投|勾手|抛投|上篮|挑篮/.test(name) ? name + '命中' : name;
+    if (kind === 'lay') return !name || name === '上篮' ? '上篮' : name;
+    if (pts === 3) { if (d > 8.8) return '超远三分'; const n = (name || '').replace(/跳投$/, ''); return n && n !== '定点' && n !== '接球投篮' ? n + '三分' : '三分'; }
+    if (!name || name === '定点跳投') return '中投';
+    return name;
   }
   function fdHook() {
     const H = G.h5; if (!H || H.__fd) return; H.__fd = true;

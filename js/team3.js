@@ -136,7 +136,7 @@
     const beat = T.replay && G.vopt.replay && G.hlQ ? GM.replayFlow.makeBeat + 0.05 : 1;
     G.phase = 'dead'; G.phaseT = beat; T.next = 1 - tm;
     if (G.score[tm] >= G.target) G.winner = tm;
-    A.banner(name === '空接暴扣' || name === '空接上篮' ? name : pts === 3 ? '三分命中' : '两分命中', p.arch.name + ' · ' + GM.TEAMS[tm].name + ' +' + pts, p.team.css, beat);
+    A.banner(name === '空接暴扣' || name === '空接上篮' ? name : pts === 3 ? '三分' : '两分', p.arch.name + ' · ' + GM.TEAMS[tm].name + ' +' + pts, p.team.css, beat);
   }
   function gotBall(p, change, wasShot) {
     if (T.pass?.to !== p) { p.b5in = null; p.catchT = null; }
