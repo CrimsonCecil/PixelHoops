@@ -260,8 +260,9 @@ function load() {
   assert.ok(voiced.some((v) => v.key === 'lebron' && v.ev === 'dom' && v.mode === 'pri'), 'offensive rebound triggers attacker dom voice');
   assert.ok(voiced.some((v) => v.key === 'curry' && v.ev === 'hurt' && v.mode === 'q'), 'offensive rebound queues defender reply');
 
-  // Defensive rebound triggers rebounder stop + shooter miss ('q')
+  // Defensive rebound triggers rebounder stop + actual shooter miss ('q')
   voiced.length = 0; timers.length = 0;
+  G.lastShot = { who: G.players[1].id };
   for (let i = 0; i < 10; i++) {
     G.off = 1; G.ball.state = 'loose'; G.ball.wasShot = true;
     Gm.t5.pickup(G.players[0]);
@@ -269,6 +270,20 @@ function load() {
   for (const t of timers) if (!t.cleared) t.fn();
   assert.ok(voiced.some((v) => v.key === 'lebron' && v.ev === 'stop'), 'defensive rebound triggers rebounder stop voice');
   assert.ok(voiced.some((v) => v.key === 'curry' && v.ev === 'miss' && v.mode === 'q'), 'defensive rebound queues shooter reply');
+
+  // 3V3 defensive rebound attributes 'miss' reply to the actual shooter, not OP(rebounder)
+  const slots3 = ['lebron', 'curry', 'jokic', 'kobe', 'shaq', 'kyrie'].map((arch, i) => ({ arch, role: i === 0 ? 'p1' : 'cpu' }));
+  ctx.PH.T3.start({ slots: slots3, target: 21, clock: 14, replay: false });
+  G.phase = 'live';
+  G.lastShot = { who: G.players[5].id }; // kyrie shot and missed (OP(lebron) is kobe, not kyrie)
+  voiced.length = 0; timers.length = 0;
+  for (let i = 0; i < 10; i++) {
+    G.off = 1; G.ball.state = 'loose'; G.ball.wasShot = true;
+    Gm.t5.pickup(G.players[0]);
+  }
+  for (const t of timers) if (!t.cleared) t.fn();
+  assert.ok(voiced.some((v) => v.key === 'kyrie' && v.ev === 'miss' && v.mode === 'q'), '3V3 defensive rebound attributes miss reply to actual shooter');
+  assert.ok(!voiced.some((v) => v.key === 'kobe' && v.ev === 'miss'), '3V3 defensive rebound does not make non-shooting matchup admit missing');
 
   // Steal and block fire 100% across many RNG draws
   voiced.length = 0;
