@@ -2,6 +2,23 @@
 
 事件：dunk 扣篮 / three 三分 / make 普通进球 / ankle 晃倒 / block 盖帽 / steal 抢断 / taunt 庆祝嘲讽 / miss 投丢自嘲 / dom 主宰 / win 获胜 / hurt 被打爆不服
 
+## 马努·基诺比利（ginobili，通用中文男声 zh-CN-YunxiNeural，非本人模仿）
+
+- intro：盯着我的第一步。对，就那一步。
+- reply：你是跟上了，可惜跟的是上一步。
+
+## 阿伦·艾弗森（iverson，通用中文男声 zh-CN-YunxiNeural，非本人模仿）
+
+- intro：你看球？那我先走了。
+- reply：别急，第一下是拿来问你的。
+
+## 文斯·卡特（carter，通用中文男声 zh-CN-YunxiNeural，非本人模仿）
+
+- intro：别抬头太早。我还没起跳。
+- reply：刚才那圈？给看台看的。
+
+以上入场语音由 edge-tts 合成，ffmpeg loudnorm（-20 LUFS，峰值 -4 dB）处理后编码为 24kHz 单声道、40kbps CBR MP3（每帧 120 字节 / 24ms），逐句拼接至 vo/p/<key>.mp3；manifest 的 o/n 以帧计。
+
 
 ## 勒布朗·詹姆斯（lebron，音色 fenrir）
 

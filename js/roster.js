@@ -34,7 +34,7 @@ window.PH.RX = {
     WAS: {"name": "奇才", "city": "华盛顿", "jersey": "#002b5c", "shorts": "#e31837", "trim": "#c4ced4"},
     LEG: {"name": "传奇", "city": "", "jersey": "#6a4cc8", "shorts": "#3e2a8a", "trim": "#ffd24a"},
   },
-  team: {"curry": "GSW", "kyrie": "DAL", "luka": "LAL", "lebron": "PHI", "giannis": "MIA", "maxey": "PHI", "sengun": "HOU", "white": "BOS", "bridges": "NYK", "herb": "NOP", "kessler": "LAL", "gafford": "DAL", "joe": "DET", "dosunmu": "MIN", "dybantsa": "WAS", "peterson": "UTA", "boozer": "MEM", "flemings": "ATL", "mara": "OKC", "peat": "PHX", "karaban": "SAC", "delarrea": "DAL", "kobe": "LEG", "shaq": "LEG"},
+  team: {"curry": "GSW", "kyrie": "DAL", "luka": "LAL", "lebron": "PHI", "giannis": "MIA", "maxey": "PHI", "sengun": "HOU", "white": "BOS", "bridges": "NYK", "herb": "NOP", "kessler": "LAL", "gafford": "DAL", "joe": "DET", "dosunmu": "MIN", "dybantsa": "WAS", "peterson": "UTA", "boozer": "MEM", "flemings": "ATL", "mara": "OKC", "peat": "PHX", "karaban": "SAC", "delarrea": "DAL", "kobe": "LEG", "shaq": "LEG", "ginobili": "LEG", "iverson": "LEG", "carter": "LEG"},
   players: [
     // 传奇：太阳时期巴克利、火箭时期姚明、掘金时期穆托姆博
     {key: 'barkley', team: 'LEG', kitTeam: 'PHX', name: '巴克利', full: '查尔斯·巴克利', pos: '大前锋', num: 34, desc: '矮壮低位，靠力量抢位后双脚强起', h: 1.9812, bw: 1.25, wing: 1, three: 0.49, mid: 0.83, lay: 0.95, dunk: 0.95, spd: 0.82, acc: 0.84, hnd: 0.78, str: 0.97, def: 0.78, blk: 0.65, stl: 0.79, vert: 0.89, sta: 0.91, ovr: 95, badges: ['bully', 'poster'], skin: '#754932', hair: '#130e0b', style: 'bald', form: 'big', dpk: 'bruiser', face: 'round', sig: [0.32, 0.39, 0.60], ext: [96, 85, 97, 83, 94, 90], hz: {rim: 2}, cel: ['flex', 'chest'],

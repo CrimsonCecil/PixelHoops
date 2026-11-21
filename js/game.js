@@ -1370,6 +1370,15 @@
       three: 0.15, mid: 0.4, lay: 0.9, dunk: 1, spd: 0.58, acc: 0.55, hnd: 0.45, str: 1, def: 0.6, blk: 0.9, stl: 0.4, vert: 0.7, sta: 0.7,
       badges: ['bully', 'dream', 'rim', 'poster'], skin: '#4e3324', hair: '#0f0b08', style: 'bald', beard: 'goatee',
       skill: { id: 'shaq', name: '篮架摧毁', en: 'SHAQ ATTACK', cond: '背打累计 ≥0.6 秒（松开背打 0.6 秒内也算），离篮筐 4.2 米内、防守人 2.4 米内时按终结键（K / 手柄 Y）', eff: '双手暴扣不可被盖、必进，撞飞防守人，篮板碎裂' } }),
+    ginobili: A({ key: 'ginobili', tier: 'star', name: '基诺比利', full: '马努·基诺比利', pos: '得分后卫', num: 20, desc: '马刺妖刀，左手欧洲步与灵巧终结', h: 1.98, bw: 0.86, wing: 1,
+      three: 0.84, mid: 0.82, lay: 0.97, dunk: 0.72, spd: 0.89, acc: 0.95, hnd: 0.9, str: 0.52, def: 0.76, blk: 0.3, stl: 0.85, vert: 0.78, sta: 0.9,
+      badges: ['acrobat', 'fakes'], skin: '#e8bf98', hair: '#30251f', style: 'receding', beard: 'stubble' }),
+    iverson: A({ key: 'iverson', tier: 'star', name: '艾弗森', full: '阿伦·艾弗森', pos: '控球后卫', num: 3, desc: '76人答案，闪电第一步与致命变向', h: 1.83, bw: 0.65, wing: 1,
+      three: 0.76, mid: 0.86, lay: 0.98, dunk: 0.55, spd: 0.99, acc: 0.99, hnd: 0.99, str: 0.3, def: 0.62, blk: 0.18, stl: 0.96, vert: 0.9, sta: 0.98,
+      badges: ['ankle', 'tight', 'pullup'], skin: '#805034', hair: '#120c08', style: 'braids', beard: 'goatee', band: '#f4f0e0' }),
+    carter: A({ key: 'carter', tier: 'star', name: '卡特', full: '文斯·卡特', pos: '得分后卫/小前锋', num: 15, desc: '猛龙半人半神，风车暴扣与飞天终结', h: 1.98, bw: 1.02, wing: 1,
+      three: 0.83, mid: 0.82, lay: 0.92, dunk: 0.99, spd: 0.94, acc: 0.95, hnd: 0.84, str: 0.76, def: 0.7, blk: 0.55, stl: 0.7, vert: 0.99, sta: 0.9,
+      badges: ['launch', 'poster'], skin: '#9a623f', hair: '#120c08', style: 'bald', beard: 'goatee' }),
     // 主力档
     maxey: A({ key: 'maxey', tier: 'mid', name: '马克西', full: '泰瑞斯·马克西', pos: '控球后卫', num: 0, desc: '联盟顶级速度，快攻与急停跳投', h: 1.88, bw: 0.86, wing: 1.0,
       three: 0.87, mid: 0.85, lay: 0.88, dunk: 0.45, spd: 0.97, acc: 0.96, hnd: 0.88, str: 0.45, def: 0.62, blk: 0.25, stl: 0.62, vert: 0.72, sta: 0.95,
@@ -1439,7 +1448,7 @@
     delete a.sig; delete a.ext; delete a.hz; delete a.cel; delete a.form; delete a.dpk; delete a.face; delete a.ovr;
     ARCH[p.key] = A(a);
   }
-  const OVR = { curry: 96, kyrie: 93, kobe: 96, luka: 95, lebron: 97, giannis: 95, shaq: 95, maxey: 86, sengun: 85, white: 84, bridges: 82, herb: 80, kessler: 79,
+  const OVR = { curry: 96, kyrie: 93, kobe: 96, luka: 95, lebron: 97, giannis: 95, shaq: 95, ginobili: 90, iverson: 93, carter: 92, maxey: 86, sengun: 85, white: 84, bridges: 82, herb: 80, kessler: 79,
     dybantsa: 77, peterson: 76, gafford: 75, joe: 74, boozer: 74, dosunmu: 73, flemings: 70, mara: 68, peat: 66, karaban: 64, delarrea: 62 };
   // 投篮包（参考 2K 的 Base + Release）：sp 出手用时倍率、dip 下蹲时长、jmp 起跳、two 两段式（在出手点停顿）
   // setP/setE 出手点手臂角度与肘、q 肘外翻、lean 身体、kick 踢腿、push 双手推射、blk 被盖倍率（出手点越高越难盖）、ct 干扰倍率
@@ -1471,7 +1480,7 @@
   for (const p of RXP) { OVR[p.key] = p.ovr; if (p.form) FORM_OF[p.key] = p.form; }
   // V3.3：招牌投篮姿势 + 左手球员（Fadeaway World 现役最佳左手榜等）
   Object.assign(FORM_OF, { harden: 'harden', durant: 'kd', jokic: 'jokic', sga: 'sga', lillard: 'dame', trae: 'trae', wemby: 'wemby', booker: 'booker', kawhi: 'kawhi', tatum: 'tatum', embiid: 'embiid', brunson: 'brunson' });
-  for (const k of ['harden', 'brunson', 'avdija', 'zion', 'fox', 'randle', 'barrett', 'mbridges', 'sabonis', 'podz', 'oubre', 'vanderbilt', 'bagley', 'scheierman', 'kolek', 'tshannon', 'ajay', 'hartenstein', 'lmiller', 'battle', 'claxton', 'djj', 'harper', 'mamu', 'conwell', 'camara', 'cmb', 'jase', 'herb']) if (ARCH[k]) ARCH[k].lefty = true;
+  for (const k of ['ginobili', 'harden', 'brunson', 'avdija', 'zion', 'fox', 'randle', 'barrett', 'mbridges', 'sabonis', 'podz', 'oubre', 'vanderbilt', 'bagley', 'scheierman', 'kolek', 'tshannon', 'ajay', 'hartenstein', 'lmiller', 'battle', 'claxton', 'djj', 'harper', 'mamu', 'conwell', 'camara', 'cmb', 'jase', 'herb']) if (ARCH[k]) ARCH[k].lefty = true;
   for (const k in ARCH) ARCH[k].form = FORM_OF[k] || 'std';
   const formOf = (pl) => SF[(pl.arch && pl.arch.form) || 'std'] || SF.std;
   const ROSTER = Object.keys(ARCH).sort((a, b) => OVR[b] - OVR[a]);
@@ -1482,7 +1491,7 @@
   // 能力梯度：总评越低，整体能力按比例下压（86 及以上不变，62 约 ×0.86），保证档位之间有明显差距
   for (const k in ARCH) { const a = ARCH[k]; if (a.star || a.ovr >= 86) continue; const f = gradF(a.ovr); for (const t of ['three', 'mid', 'lay', 'dunk', 'spd', 'acc', 'hnd', 'str', 'def', 'blk', 'stl', 'vert']) a[t] = liftV(a[t] * f); }
   // 招牌动作能力（勾手 / 抛投 / 后仰），按球员真实习惯：不常用的人这一项就低
-  const SIG = { curry: [0.2, 0.8, 0.75], kyrie: [0.45, 0.92, 0.8], kobe: [0.5, 0.7, 0.98], luka: [0.55, 0.85, 0.92], lebron: [0.5, 0.6, 0.72], giannis: [0.6, 0.4, 0.3], shaq: [0.62, 0.1, 0.1],
+  const SIG = { curry: [0.2, 0.8, 0.75], kyrie: [0.45, 0.92, 0.8], kobe: [0.5, 0.7, 0.98], luka: [0.55, 0.85, 0.92], lebron: [0.5, 0.6, 0.72], giannis: [0.6, 0.4, 0.3], shaq: [0.62, 0.1, 0.1], ginobili: [0.25, 0.88, 0.65], iverson: [0.1, 0.9, 0.6], carter: [0.2, 0.65, 0.7],
     maxey: [0.2, 0.86, 0.6], sengun: [0.88, 0.6, 0.55], white: [0.25, 0.62, 0.55], bridges: [0.3, 0.55, 0.72], herb: [0.3, 0.45, 0.4], kessler: [0.5, 0.2, 0.15], gafford: [0.45, 0.15, 0.1],
     joe: [0.15, 0.4, 0.55], dosunmu: [0.2, 0.66, 0.45], dybantsa: [0.35, 0.6, 0.72], peterson: [0.2, 0.7, 0.6], boozer: [0.72, 0.45, 0.5], flemings: [0.2, 0.7, 0.5], mara: [0.55, 0.2, 0.2],
     peat: [0.6, 0.4, 0.35], karaban: [0.35, 0.35, 0.55], delarrea: [0.2, 0.5, 0.4] };
@@ -1490,7 +1499,7 @@
   for (const k in ARCH) { const v = SIG[k] || [0.4, 0.4, 0.4], f = ARCH[k].star || ARCH[k].ovr >= 86 ? 1 : gradF(ARCH[k].ovr); ARCH[k].sig = { hook: v[0] * f, flo: v[1] * f, fade: v[2] * f }; }
   // 细分属性（0~99）：近距离 / 原地扣篮 / 背打控制 / 内线防守 / 进攻篮板 / 防守篮板
   const EXT = { curry: [85, 25, 40, 45, 35, 55], kyrie: [92, 30, 55, 45, 35, 50], kobe: [90, 60, 85, 70, 55, 65], luka: [90, 30, 85, 50, 45, 85], lebron: [92, 80, 75, 82, 60, 82],
-    giannis: [95, 92, 70, 88, 80, 95], shaq: [97, 95, 96, 92, 95, 92], maxey: [82, 35, 40, 40, 30, 45], sengun: [90, 60, 90, 70, 75, 85], white: [78, 40, 45, 72, 45, 60],
+    giannis: [95, 92, 70, 88, 80, 95], shaq: [97, 95, 96, 92, 95, 92], ginobili: [90, 35, 45, 45, 40, 65], iverson: [88, 20, 20, 25, 30, 45], carter: [90, 80, 50, 50, 50, 65], maxey: [82, 35, 40, 40, 30, 45], sengun: [90, 60, 90, 70, 75, 85], white: [78, 40, 45, 72, 45, 60],
     bridges: [75, 50, 55, 70, 40, 55], herb: [70, 55, 45, 78, 50, 62], kessler: [85, 85, 60, 88, 82, 88], gafford: [85, 88, 55, 80, 80, 78], joe: [55, 30, 30, 40, 30, 45],
     dosunmu: [72, 50, 45, 55, 45, 55], dybantsa: [72, 55, 60, 50, 50, 60], peterson: [70, 45, 45, 48, 40, 52], boozer: [80, 62, 75, 65, 72, 75], flemings: [62, 35, 30, 35, 30, 40],
     mara: [80, 75, 65, 75, 72, 78], peat: [75, 60, 70, 55, 65, 65], karaban: [58, 40, 45, 50, 45, 58], delarrea: [55, 30, 35, 35, 30, 45] };
@@ -1589,7 +1598,7 @@
 
   function pair(h) { return [PH.shade(h, 0.72), h]; }
   // 脸型：round 圆 / square 方 / oval 鹅蛋 / long 长 / wide 宽；尽量贴近球员本人
-  const FACE = { curry: 'oval', kyrie: 'long', kobe: 'long', luka: 'round', lebron: 'square', giannis: 'long', shaq: 'wide', maxey: 'round', sengun: 'wide', white: 'oval', bridges: 'long', herb: 'long', kessler: 'round',
+  const FACE = { curry: 'oval', kyrie: 'long', kobe: 'long', luka: 'round', lebron: 'square', giannis: 'long', shaq: 'wide', ginobili: 'long', iverson: 'long', carter: 'oval', maxey: 'round', sengun: 'wide', white: 'oval', bridges: 'long', herb: 'long', kessler: 'round',
     gafford: 'long', joe: 'oval', dosunmu: 'oval', dybantsa: 'long', peterson: 'oval', boozer: 'square', flemings: 'oval', mara: 'long', peat: 'wide', karaban: 'square', delarrea: 'oval' };
   const SIGNATURE_LOOK = {
     curry: { style: 'curlfade', face: 'youthful', skin: '#be8b66', beard: '', eyes: 'open', mouthguard: true, build: -0.2, shoulder: 0.94 },
@@ -1606,6 +1615,9 @@
     yao: { shoulder: 1.03, build: 0.05, neckScale: 1.05 },
     mutombo: { shoulder: 1.13, legs: 1.06, neckScale: 1.04 },
     kobe: { style: 'buzz', beard: 'goatee', brow: 'heavy', sleeve: 'R' },
+    ginobili: { style: 'receding', face: 'long', build: -0.18, shoulder: 0.94, legs: 1.07 },
+    iverson: { style: 'braids', face: 'long', band: '#f4f0e0', sleeve: 'R', build: -0.42, shoulder: 0.86, headScale: 0.94, neckScale: 0.86 },
+    carter: { style: 'bald', face: 'oval', build: 0.12, muscle: 0.48, shoulder: 1.12, waistScale: 0.6, hipScale: 0.7, shortsScale: 0.7, taper: true },
     kyrie: { style: 'curlfade', face: 'tapered', beard: 'trimmed', band: '', brow: 'soft', build: -0.27 },
     lillard: { face: 'long', beardFit: 'close' },
     dosunmu: { style: 'longbraids', hair: '#191311', headScale: 0.97, neckScale: 0.94 },
@@ -2736,8 +2748,8 @@
     return o;
   }
   // 开场入场：双方从两侧边线走到开球站位 → 主角依次做招牌动作（镜头推近）→ 对话框互相垃圾话，空格 / 点击下一句，Esc 跳过
-  const ISIG = { lebron: 'chalk', curry: 'night', kobe: 'cool', shaq: 'flex', giannis: 'roar', luka: 'shrug', kyrie: 'shush', herb: 'wag', barkley: 'flex', yao: 'cool', mutombo: 'wag' };
-  const ISIG_CN = { chalk: '撒镁粉', night: '晚安手势', shimmy: '抖肩', flex: '秀肌肉', roar: '仰天怒吼', chest: '捶胸', toosmall: 'Too Small', shush: '嘘声', cool: '抱臂冷视', point: '隔空点名', dance: '尬舞', shrug: '耸肩', wag: '摇手指' };
+  const ISIG = { lebron: 'chalk', curry: 'night', kobe: 'cool', shaq: 'flex', ginobili: 'step', iverson: 'cool', carter: 'flex', giannis: 'roar', luka: 'shrug', kyrie: 'shush', herb: 'wag', barkley: 'flex', yao: 'cool', mutombo: 'wag' };
+  const ISIG_CN = { step: '脚步点名', chalk: '撒镁粉', night: '晚安手势', shimmy: '抖肩', flex: '秀肌肉', roar: '仰天怒吼', chest: '捶胸', toosmall: 'Too Small', shush: '嘘声', cool: '抱臂冷视', point: '隔空点名', dance: '尬舞', shrug: '耸肩', wag: '摇手指' };
   // 宿敌台词：[说话人, 语音事件, 序号] 全部走各球员原声语音包并同步显示对应字幕
   const TALK = {
     'curry|lebron': [['lebron', 'taunt', 3], ['curry', 'taunt', 0], ['lebron', 'dom', 2], ['curry', 'dom', 0]],
@@ -2750,7 +2762,7 @@
     'curry|luka': [['luka', 'taunt', 2], ['curry', 'taunt', 3], ['luka', 'dom', 1], ['curry', 'dom', 0]],
     'kobe|kyrie': [['kyrie', 'taunt', 0], ['kobe', 'taunt', 0], ['kyrie', 'taunt', 3]] };
   // 入场走位时的造势动作（上半身），走到位后再做招牌动作
-  const IWALK = { lebron: ['raise', 'wave'], curry: ['wave', 'shimmy'], kobe: ['wave', 'point'], shaq: ['raise', 'dance'], giannis: ['chest', 'flex'], luka: ['wave', 'wag'], kyrie: ['point', 'wave'], herb: ['flex', 'chest'] };
+  const IWALK = { lebron: ['raise', 'wave'], curry: ['wave', 'shimmy'], kobe: ['wave', 'point'], shaq: ['raise', 'dance'], ginobili: ['point', 'wave'], iverson: ['cool', 'point'], carter: ['raise', 'flex'], giannis: ['chest', 'flex'], luka: ['wave', 'wag'], kyrie: ['point', 'wave'], herb: ['flex', 'chest'] };
   const IWA = 3.8;
   // 非宿敌对局：按双方最强项套模板开场 + 回呛，最后用语音包里的真实嘲讽收尾
   const TSTAT = {
@@ -2770,10 +2782,20 @@
     hnd: ['{o}，你连我的影子都摸不到。', '{o}，晃你只需要一个变向。'],
     def: ['{o}，今天你拿一分都得流汗。', '想得分？{o}，先过了我再说。'],
     post: ['{o}，你在我面前太小了。', '{o}，篮下不是你该来的地方。'] };
+  const INTRO_TALK = {
+    ginobili: ['盯着我的第一步。对，就那一步。', '你是跟上了，可惜跟的是上一步。'],
+    iverson: ['你看球？那我先走了。', '别急，第一下是拿来问你的。'],
+    carter: ['别抬头太早。我还没起跳。', '刚才那圈？给看台看的。']
+  };
   const bestStat = (a) => Object.keys(TSTAT).reduce((b, k) => (TSTAT[k](a) > TSTAT[b](a) ? k : b), 'three');
   function genTalk(fa, fb, h) {
     const pick = (L, n) => L[n % L.length], o = (p) => p.arch.name || p.arch.full;
     const authored = (p, i) => ({ id: p.id, t: p.arch.intro[i], v: 'intro', i });
+    const a = INTRO_TALK[fa.arch.key], b = INTRO_TALK[fb.arch.key];
+    if (a || b) return [
+      !a && fa.arch.intro ? authored(fa, 0) : { id: fa.id, t: '', fb: a ? a[0] : pick(TOPEN[bestStat(fa.r || fa.arch)], h).replace('{o}', o(fb)), v: a ? 'intro' : 'dom', i: 0, gen: 1 },
+      !b && fb.arch.intro ? authored(fb, 1) : { id: fb.id, t: '', fb: b ? b[1] : pick(TREPLY[bestStat(fb.r || fb.arch)], h >>> 5).replace('{o}', o(fa)), v: b ? 'reply' : 'taunt', i: 0, gen: 1 }
+    ];
     return [
       fa.arch.intro ? authored(fa, 0) : { id: fa.id, t: '', fb: pick(TOPEN[bestStat(fa.r || fa.arch)], h).replace('{o}', o(fb)), v: 'dom', i: h % 3, gen: 1 },
       fb.arch.intro ? authored(fb, 1) : { id: fb.id, t: '', fb: pick(TREPLY[bestStat(fb.r || fb.arch)], h >>> 5).replace('{o}', o(fa)), v: 'taunt', i: (h >>> 5) % 4, gen: 1 },
@@ -2787,6 +2809,10 @@
     if (!A.length || !B.length) return;
     let fa = null, fb = null, sc = null;
     for (const a of A) for (const b of B) { const k = [a.arch.key, b.arch.key].sort().join('|'); if (!sc && TALK[k] && a.arch.key !== b.arch.key) { fa = a; fb = b; sc = TALK[k]; } }
+    if (ps.some((p) => INTRO_TALK[p.arch.key])) {
+      const feature = (L) => L.find((p) => INTRO_TALK[p.arch.key]) || L.slice().sort((x, y) => y.arch.ovr - x.arch.ovr)[0];
+      fa = feature(A); fb = feature(B); sc = null;
+    }
     if (!fa) { const best = (L) => L.slice().sort((x, y) => (OVR[y.arch.key] || 0) - (OVR[x.arch.key] || 0))[0]; fa = best(A); fb = best(B); }
     if (sc && sc[0][0] === fb.arch.key) { const t = fa; fa = fb; fb = t; }
     let h = 0; for (const c of fa.arch.key + fb.arch.key) h = (h * 31 + c.charCodeAt(0)) >>> 0;
@@ -4993,6 +5019,7 @@
         shush: { lean: -0.05, aLp: 0.25, aLq: 0.3, aLe: 0.2, aRp: 2.15, aRq: 0.05, aRe: 2.5 },
         chest: { lean: -0.1, aLp: 1.0 + 0.25 * Math.max(0, w2), aLq: 0.2, aLe: 2.3, aRp: 1.0 + 0.25 * Math.max(0, -w2), aRq: 0.2, aRe: 2.3 },
         point: { lean: 0.08, aLp: 0.35, aLq: 0.9, aLe: 1.6, aRp: 1.6, aRq: 0.05, aRe: 0.05 + 0.1 * Math.abs(w) },
+        step: { lean: 0.2, lA: 0.35, lB: 0.3, aLp: 0.4, aLq: 0.4, aLe: 0.7, aRp: 0.15, aRq: 0.25, aRe: 0.05 },
         dance: { lean: 0.05 * w, aLp: 1.8 + 0.8 * w, aLq: 0.9, aLe: 0.6, aRp: 1.8 - 0.8 * w, aRq: 0.9, aRe: 0.6, lA: 0.4 * w, lB: 0.5, rA: -0.4 * w, rB: 0.5 },
         shrug: { lean: -0.05, aLp: 0.8, aLq: 1.3, aLe: 1.5, aRp: 0.8, aRq: 1.3, aRe: 1.5 },
         wag: { lean: 0, aLp: 0.3, aLq: 0.4, aLe: 0.3, aRp: 2.3, aRq: 0.25 + 0.35 * w2, aRe: 0.3 },

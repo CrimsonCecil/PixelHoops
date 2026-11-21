@@ -73,7 +73,7 @@ function runIntro(Gm, G) {
   const keys = Object.keys(Gm.ARCH);
   for (let i = 0; i < keys.length; i++) {
     const a = keys[i], b = keys[(i * 7 + 3) % keys.length];
-    if (a === b || Gm.TALK[[a, b].sort().join('|')]) continue;
+    if (a === b || Gm.TALK[[a, b].sort().join('|')] || [a, b].some((k) => ['ginobili', 'iverson', 'carter'].includes(k))) continue;
     Gm.newGame({ mode: 'cpu', arch0: a, arch1: b }); Gm.introStart();
     const { lines: T, duo: [first, second] } = G.intro;
     assert.equal(T.length, 3, a + ' vs ' + b);

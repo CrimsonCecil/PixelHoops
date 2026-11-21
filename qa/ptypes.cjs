@@ -17,6 +17,10 @@ for (const id of ids) console.log(PT.types[id].name.padEnd(6, '　'), String((by
 assert.equal(ids.filter((id) => (by[id] || []).length >= 3).length, ids.length, 'every type has at least 3 players');
 const show = (k) => { const a = A[k]; console.log(a.name, PT.of(a).name, NEW.map((f) => f + '=' + Math.round(a[f] * 99)).join(' ')); };
 ['curry', 'shaq', 'giannis', 'gobert', 'zion', 'jokic', 'wemby', 'caruso'].filter((k) => A[k]).forEach(show);
+for (const key of ['ginobili', 'iverson', 'carter']) {
+  assert.equal(PT.of(A[key]).id, 'slasher', key);
+  show(key);
+}
 // 类型特性：三分射手接球 0.6 秒内三分绿区 +8%
 gm.seed(7); gm.newGame({ mode: '2p', arch0: 'lillard', arch1: 'gobert', target: 11 });
 { const [p] = gm.G.players; assert.equal(gm.ptOf(p), 'sniper'); p.hc = 0; p.gotT = gm.G.time; const g1 = gm._qa.greenWidth(p, p.r.three, 0, 'three'); p.gotT = -9; const g0 = gm._qa.greenWidth(p, p.r.three, 0, 'three'); assert(Math.abs(g1 / g0 - 1.08) < 1e-9, 'sniper catch ' + g1 / g0); }
