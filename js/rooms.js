@@ -29,7 +29,7 @@
     if (!input || typeof input !== 'object') return null;
     const o = {};
     for (const key of ['mx', 'my', 'dx', 'dy']) o[key] = Number.isFinite(input[key]) ? Math.max(-1, Math.min(1, input[key])) : 0;
-    for (const key of ['sprint', 'a1', 'a2', 'a3', 'post', 'dribble', 'pass']) o[key] = input[key] === true;
+    for (const key of ['sprint', 'a1', 'a2', 'a3', 'post', 'dribble', 'pass', 'screen']) o[key] = input[key] === true;
     return o;
   }
   function incoming(conn, handlers, token) {

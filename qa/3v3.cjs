@@ -150,12 +150,14 @@ function fixture(options = {}) {
   assert.match($('pc0').innerHTML, /<u class="ro">进攻<\/u>/);
   assert.match($('pc1').innerHTML, /<u class="rd">防守<\/u>/);
   assert.match($('hint').innerHTML, /^进攻.*<b>Y<\/b> 抢篮板/);
+  assert.match($('hint').innerHTML, /<b>R3<\/b> 掩护/);
   assert.equal($('tb1').textContent, '篮板');
 
   T3.holder().hasBall = false;
   api.pickup(G.players[2]);
   vm.runInContext('hud()', ctx);
   assert.match($('hint').innerHTML, /^进攻.*<b>X<\/b> 投篮/);
+  assert.doesNotMatch($('hint').innerHTML, /掩护/);
   assert.equal($('tb1').textContent, '投篮');
 
   T3.holder().hasBall = false;
@@ -166,6 +168,177 @@ function fixture(options = {}) {
   assert.equal($('tb1').textContent, '盖帽');
   console.log('PASS: an off-ball 3V3 guest gets offensive card and control hints until their team loses possession.');
 }
+
+function tactics(cpu = []) {
+  const f = fixture({ slots: ['curry', 'edwards', 'jokic', 'lebron', 'durant', 'giannis'].map((arch, id) => ({
+    arch, role: cpu.includes(id) ? 'cpu' : 'human'
+  })) });
+  const { G, T3, api } = f;
+  G.phase = 'live';
+  G.time = 5;
+  T3.T.acquired = G.time;
+  const put = (id, x, y, vx = 0, vy = 0) => Object.assign(G.players[id], { x, y, vx, vy });
+  const run = (count, inputs = {}) => f.run(count, Object.fromEntries(
+    Object.entries(inputs).map(([id, input]) => [id, { ...api.zeroInp(), ...input }])
+  ));
+  return { ...f, put, run };
+}
+
+{
+  const events = {}, touchEvents = {};
+  const pad = { connected: true, axes: [], buttons: [] };
+  const ctx = vm.createContext({ addEventListener: (event, fn) => { events[event] = fn; }, navigator: { getGamepads: () => [pad] } });
+  ctx.window = ctx;
+  vm.runInContext(fs.readFileSync(path.join(__dirname, '../js/input.js'), 'utf8'), ctx);
+  const room = fs.readFileSync(path.join(__dirname, '../js/rooms.js'), 'utf8');
+  const clean = vm.runInContext(room.slice(room.indexOf('  function cleanInput('), room.indexOf('  function incoming(')) + '\ncleanInput;', ctx);
+  const input = ctx.PH.input;
+  events.keydown({ code: 'KeyF' });
+  assert.equal(clean(input.read3(false)).screen, true);
+  events.keyup({ code: 'KeyF' });
+  input.endTick();
+  assert.equal(input.read3(false).screen, false);
+  pad.buttons[11] = { pressed: true };
+  assert.equal(clean(input.read3(false)).screen, true);
+  pad.buttons[11].pressed = false;
+  const html = fs.readFileSync(path.join(__dirname, '../index.html'), 'utf8');
+  const button = html.match(/<button data-tb="([^"]+)"[^>]+id="tbscreen"/);
+  assert(button);
+  input.initTouch({
+    querySelector: () => ({ addEventListener() {} }),
+    querySelectorAll: () => [{ getAttribute: () => button[1], addEventListener: (event, fn) => { touchEvents[event] = fn; }, classList: { add() {}, remove() {} } }]
+  });
+  touchEvents.touchstart({ preventDefault() {} });
+  assert.equal(clean(input.read3(false)).screen, true);
+  touchEvents.touchend({ preventDefault() {} });
+  assert.equal(input.read3(false).screen, false);
+  assert.equal(clean({ screen: 1 }).screen, false);
+  console.log('PASS: F, R3 and the touch button produce a screen input preserved by the host sanitizer.');
+}
+
+{
+  const contact = (fight, switchCover) => {
+    const { G, T3, put, run } = tactics(switchCover ? [4] : []);
+    put(0, 0, 5); put(1, 0.79, 7); put(3, 0, 7);
+    put(4, switchCover ? 0.9 : 4, switchCover ? 5.5 : 8);
+    const d = G.players[3];
+    d.r.lat = d.r.def = d.tendency.help = fight;
+    run(1, { 0: { screen: true }, 4: { screen: true } });
+    assert(!T3.T.pick, 'neither the holder nor a defender can screen');
+    run(1, { 1: { screen: true, mx: 1, my: 0 } });
+    assert(G.players[1].screen3, 'off-ball player is planted');
+    run(8);
+    if (switchCover) put(4, 0.9, 5.5);
+    put(3, 0.23, 7, 3);
+    run(1, { 3: { mx: 1, my: 0, sprint: true } });
+    assert(d.screenSlow3 > G.time && d.vx < 3, 'screen contact reduces defender movement');
+    assert(Math.hypot(d.x - G.players[1].x, d.y - G.players[1].y) >= 0.77, 'the shared player collision separates screener and defender');
+    if (switchCover) {
+      assert.equal(G.players[4].opp.id, 0, 'screen defender switches onto the ball');
+      assert.equal(d.opp.id, 1, 'original defender takes the screener');
+    }
+    return { time: d.screenSlow3 - G.time, speed: d.screenSpeed3 };
+  };
+  const weak = contact(0.2, true), strong = contact(0.95, false);
+  assert(strong.time < weak.time && strong.speed > weak.speed, 'better defenders fight through more quickly');
+  console.log('PASS: human screen plants and obstructs the defender, better defenders fight through faster, and a nearby CPU switches.');
+}
+
+for (const pop of [false, true]) {
+  const { G, T3, put, run } = tactics([1]);
+  put(0, 0, 5); put(1, 0.78, 6.2); put(3, 0, 6.2); put(4, 5, 9); put(5, -6, 8);
+  const s = G.players[1], h = T3.holder();
+  s.r.three = pop ? 0.95 : 0.4;
+  s.r.str = s.tendency.move = 0.9;
+  T3.T.acquired = G.time - 1;
+  run(2);
+  assert(T3.T.pick?.s === s && s.screen3, 'CPU uses ratings and spacing to get set');
+  run(9);
+  put(3, 0.23, 6.2, 3);
+  run(18);
+  assert.equal(T3.T.pick?.phase, 'roll');
+  assert(!s.screen3);
+  assert(pop ? s.vx > s.vy : s.vy > s.vx, 'shooter runs toward the arc and finisher runs toward the rim');
+  put(1, pop ? 6.65 : 0.95, pop ? 8.8 : 11.3);
+  put(3, -2, 7); put(4, -4, 10); put(5, -6, 8);
+  h.ctrl = 'cpu';
+  T3.T.nextPass = 0;
+  run(1);
+  assert.equal(T3.T.pass?.to, s, 'CPU handler finds an open screener after the break');
+}
+console.log('PASS: CPU teammates set screens, roll or pop by tendency, and receive the open pass.');
+
+{
+  const { G, T3, put, run } = tactics([3, 4, 5]);
+  put(0, 0, 5.9); put(3, 0, 3.4); put(4, 0.95, 6.6);
+  run(1);
+  assert.equal(G.players[4].opp.id, 0, 'the closer teammate takes over a lost matchup');
+  assert.equal(G.players[3].opp.id, 1);
+  assert.equal(T3.T.cover, null, 'a perimeter switch is not a paint rotation');
+}
+
+function driveCoverage(helpIQ) {
+  const { G, T3, api, put, run } = tactics([3, 4, 5]);
+  put(0, 0, 9, 0, 2); put(3, 0, 7); put(4, 1.7, 10.8); put(5, -3, 8);
+  put(1, 7, 12); put(2, -6, 5);
+  G.players[1].r.three = 0.99; G.players[2].r.three = 0.55;
+  G.players[4].tendency.help = helpIQ;
+  const step = api.step;
+  let effort;
+  api.step = (inputs, dt) => {
+    const { mx, my } = inputs[4];
+    effort = Math.hypot(mx, my);
+    return step(inputs, dt);
+  };
+  run(1);
+  assert.equal(T3.T.cover?.helper.id, 4, 'nearest helper leaves the strong shooter to defend the paint');
+  assert(T3.T.cover.spot.y > G.players[0].y);
+  assert.equal(G.players[4].opp.id, 0);
+  assert.equal(G.players[5].opp.id, 1, 'second helper covers the most dangerous open player');
+  assert.equal(G.players[3].opp.id, 2);
+  api.step = step;
+  put(0, 0, 5); put(3, 0, 7);
+  run(1);
+  assert.equal(T3.T.cover, null);
+  assert.deepEqual(Array.from(G.players.slice(3), (d) => d.opp.id), [0, 1, 2], 'recover the man assignments after the drive ends');
+  return effort;
+}
+{
+  assert(driveCoverage(0.95) > driveCoverage(0.25), 'help IQ scales the movement input sent to the shared engine');
+  console.log('PASS: beaten defenders switch on the perimeter; drives trigger paint-first help, a second rotation, and recovery.');
+}
+
+{
+  const { G, T3, put, run } = tactics([1, 2]);
+  put(0, 0, 5); put(1, -6.5, 10); put(2, 4, 6);
+  put(3, 0, 6.3); put(4, -3, 7); put(5, 5.5, 10);
+  const [h, shooter, slasher] = G.players;
+  shooter.r.three = 0.97; shooter.r.lay = 0.6;
+  slasher.r.three = 0.45; slasher.r.dunk = 0.9;
+  T3.T.nextPick = 99;
+  run(1);
+  assert(shooter.vx < 0 && shooter.vy > 0, 'shooter spots up in the corner');
+  assert(slasher.cutUntil > G.time && slasher.vx < 0 && slasher.vy > 0, 'slasher still cuts to the rim');
+  h.post = true;
+  put(0, 3, 6); put(1, -6.5, 10); put(2, 0, 8);
+  run(1, { 0: { post: true, mx: 0, my: 0 } });
+  assert(slasher.cutUntil === 0 && slasher.vx < 0 && slasher.vy < 0, 'on isolation both mates clear to the weak side at separate depths');
+  console.log('PASS: 3V3 shooters spot up in the corner, slashers cut, and both clear the lane for isolation.');
+}
+
+for (const [passIQ, separation, blockedLane, expectPass] of [[0.9, 1.6, false, true], [0.2, 1.6, false, false], [0.9, 1.6, true, false], [0.9, 0.85, false, false]]) {
+  const { G, T3, put, run } = tactics();
+  const h = T3.holder();
+  h.ctrl = 'cpu'; h.tendency.pass = passIQ;
+  T3.T.acquired = G.time - 1;
+  put(0, 0, 5); put(1, 4, 5); put(2, -6, 10);
+  put(3, 0, 8); put(4, 4, 5 + separation); put(5, blockedLane ? 2 : -5, 5);
+  run(1, { 1: { pass: true } });
+  assert.equal(T3.T.pass?.to.id === 1, expectPass);
+  assert.equal(G.floats.some((f) => f.pid === 1 && f.text === '暂不传球'), !expectPass);
+  if (expectPass) assert(G.floats.some((f) => f.pid === 1 && f.text === '要球'));
+}
+console.log('PASS: a CPU honors an open call according to pass IQ, vetoes a blocked lane, and signals a declined call.');
 
 {
   const { G, Gm, T3, api, run } = fixture({ human: 1, target: 5 });

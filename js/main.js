@@ -399,7 +399,7 @@
     GM.newGame({ mode: opts.mode, diff: opts.diff, target: opts.target, arch0: lastArch.a0, arch1: lastArch.a1, fb: opts.fb, glen: opts.glen });
     PH.audio.voPreload(G.players.map((p) => p.arch.key));
     screen = 'play'; paused = false; PH.input.clearSys(); clearPf();
-    show('tbpass', false); show('btn-restart', true); show('btn-again', true);
+    show('tbpass', false); show('tbscreen', false); show('btn-restart', true); show('btn-again', true);
     show('menu', false); show('picker', false); show('pause', false); show('over', false); show('help', false); show('hud', true); show('touch', isTouch); show('shotcard', false);
     show('scorebar', !tr); show('trainbar', tr); show('btn-panel', tr);
     panelOpen = tr && !narrow(); show('train', panelOpen); stage.classList.toggle('panel', panelOpen); camShift();
@@ -1116,8 +1116,8 @@
       const P = '背打中　<b>' + kb.a1 + '</b> 勾手 / 按住后方向后仰 <b>' + kb.a2 + '</b> 转身终结　松开时按左右 转身';
       const D = '<b>' + kb.d1 + '</b> 封盖 <b>' + kb.d2 + '</b> 抢断 <b>' + kb.st + '</b> 举手干扰 <b>' + kb.sp + '</b> 加速';
       show('hint', train || !!(t3 && local) || opts.fb === 'detail');
-      $('hint').innerHTML = two ? '玩家 1：WASD + J K L，Q 背打　玩家 2：方向键 + 小键盘 1 2 3，O 背打' : (post ? P : off ? '进攻　' + (offBall ? B : O) : '防守　' + D) + (t3 && local ? '　<b>' + (hasPad ? 'B' : 'E') + '</b> 传球 / 要球' : '') + (train ? '　<b>' + (hasPad ? 'View' : 'Tab') + '</b> 参数 <b>R</b> 重置' : '');
-      if (isTouch) { $('tb1').textContent = offBall ? '篮板' : off ? '投篮' : '盖帽'; $('tb2').textContent = offBall ? '扑球' : off ? '终结' : '抢断'; $('tb3').textContent = offBall ? '卡位' : off ? '运球' : '姿态'; $('tbalt').textContent = '背打'; show('tbalt', off && !offBall); }
+      $('hint').innerHTML = two ? '玩家 1：WASD + J K L，Q 背打　玩家 2：方向键 + 小键盘 1 2 3，O 背打' : (post ? P : off ? '进攻　' + (offBall ? B : O) : '防守　' + D) + (t3 && local ? '　<b>' + (hasPad ? 'B' : 'E') + '</b> 传球 / 要球' : '') + (offBall ? '　<b>' + (hasPad ? 'R3' : 'F') + '</b> 掩护' : '') + (train ? '　<b>' + (hasPad ? 'View' : 'Tab') + '</b> 参数 <b>R</b> 重置' : '');
+      if (isTouch) { $('tb1').textContent = offBall ? '篮板' : off ? '投篮' : '盖帽'; $('tb2').textContent = offBall ? '扑球' : off ? '终结' : '抢断'; $('tb3').textContent = offBall ? '卡位' : off ? '运球' : '姿态'; $('tbalt').textContent = '背打'; show('tbalt', off && !offBall); show('tbscreen', offBall); }
     }
     // 终结提示（脚下）
     for (let i = 0; i < 2; i++) {
@@ -1268,6 +1268,7 @@
     screen = 'play5'; paused = false; over5Shown = false; h5 = {}; fdReset(); PH.input.clearSys(); clearPf();
     show('menu', false); show('picker', false); show('tpicker', false); show('pause', false); show('over', false); show('over5', false); show('help', false);
     show('hud', false); show('hud5', true); show('touch', isTouch && opts.side >= 0); show('shotcard', false); show('train', false); show('banner', false); show('campanel', false); stage.classList.remove('panel');
+    show('tbscreen', false);
     show('btn-cam', true); show('btn-disp', true); show('btn-box5', true); show('box5', false); PH.box5.reset(); b5Pause = false;
     $('btn-restart').textContent = '重新开始'; $('btn-resume').textContent = '继续比赛';
     for (let i = 0; i < 2; i++) { const tm = T5.T.tm[i]; $('h5n' + i).textContent = tm.name; $('h5t' + i).style.setProperty('--tc', tm.col.ui); $('h5t' + i).classList.toggle('me', opts.side === i); }

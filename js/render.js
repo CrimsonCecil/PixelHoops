@@ -542,7 +542,7 @@
           if (!h.dust) { h.dust = 1; dust(pl, h.dx || 0, h.dy || 0, 5, 0.7); }
         } else if (h.tier === 4 && !h.dust) { h.dust = 1; dust(pl, h.dx || 0, h.dy || 0, 7, 0.9); }
       }
-      const T5 = PH.T5 && PH.T5.T, P = T5 && T5.on && T5.pick, im = pl.scrImp, setNow = P && P.s === pl && P.ph === 'set';
+      const T5 = PH.T5 && PH.T5.T, P = T5 && T5.on && T5.pick, im = pl.scrImp, setNow = pl.screen3 || P && P.s === pl && P.ph === 'set';
       const imE = im ? now - im.t : 9;
       if ((setNow || imE < 0.6) && !a && pl.z <= 0.01 && !(pl.stun > 0) && !pl.hasBall) {
         // 站定：脚分开、膝微屈、两臂张开护在胸前

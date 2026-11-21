@@ -88,6 +88,7 @@
   function read3(onOffense) {
     const input = read(0, onOffense, true), gp = lock.on ? null : pads()[0];
     input.pass = held(['KeyE']) || !!(gp && gp.buttons[1] && gp.buttons[1].pressed) || !!touch.pass;
+    input.screen = held(['KeyF']) || !!(gp && gp.buttons[11]?.pressed) || !!touch.screen;
     if (gp && gp.buttons[1] && gp.buttons[1].pressed && !(gp.buttons[0] && gp.buttons[0].pressed) && !held(MAPS[0].a3) && !touch.a3 && Math.hypot(input.dx, input.dy) <= 0.6) input.a3 = input.dribble = false;
     return input;
   }
