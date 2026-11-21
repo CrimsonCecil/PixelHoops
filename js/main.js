@@ -1510,7 +1510,7 @@
   document.addEventListener('keydown', (e) => {
     if (e.code !== 'Enter' || screen !== 'menu' || e.target.id === 'room-code') return;
     const root = navRoot();
-    if (root && (root.id === 'menu' || root.id === 'picker')) e.preventDefault();
+    if (root && (root.id === 'menu' || root.id === 'picker' || root.id === 'pause')) e.preventDefault();
   });
 
   // ---------- 循环 ----------
