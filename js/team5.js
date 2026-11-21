@@ -1027,15 +1027,14 @@
   // 接球即投：接球 0.5 秒内起跳的跳投出手更快（跳过一段收球），准备好的接球（面向篮筐、原地 / 移动 / hop 接球）有节奏加成，难接的球没有加成且稍差
   // V3.9m 接球投篮徽章（类 2K Catch & Shoot）：接球 0.6 秒内出手 → 命中 / 绿区 / 出手速度按档加成；
   // 配合收益：战术跑出来的接球（f5.playT，C2 战术写入）、挡拆或无球掩护后（自己是掩护人 / 自己的防守人刚被挡）、空位接球（最近防守人 > 1.8 米）再加一层
-  const CSB = { p: [0, 0.02, 0.035, 0.055, 0.075], g: [0, 0.08, 0.15, 0.25, 0.36], t: [0, 0.02, 0.035, 0.05, 0.065] };
+  const CSB = PH.game.t5.CSB;
   function csBadge(p, a) {
     const k = p.csT || 0; if (!k) return;
     const now = T.time, play = (p.f5.playT || -9) > now - 3;
     const scr = (T.pick && T.pick.s === p) || !!p.f5.scrSet || (p.f5.setT || -9) > now - 2 || defs().some((d) => (d.opp === p || d.mark === p) && d.f5.scr > now - 1.5);
     let nd = 9; for (const d of defs()) nd = Math.min(nd, dist(d, p));
-    const x = scr || nd > 1.8, xp = x ? (play ? 0.006 : 0.012) + 0.004 * k : 0, xg = x ? TV.t5_csb_xg : 0;
-    a.t += CSB.t[k];
-    a.V = Object.assign({}, a.V, { p: (a.V.p || 1) * (1 + CSB.p[k] + xp), g: (a.V.g || 1) * (1 + CSB.g[k] + xg) });
+    const x = scr || nd > 1.8;
+    PH.game.t5.csBadge(p, a, k, x, play, TV.t5_csb_xg);
     T.cnt.csB = (T.cnt.csB || 0) + 1; if (x) T.cnt.csBx = (T.cnt.csBx || 0) + 1;
     a.csB = k;
     if (G.mode !== 'demo') {
