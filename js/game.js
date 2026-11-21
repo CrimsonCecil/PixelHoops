@@ -1521,6 +1521,7 @@
   function fxUpdate(dt) {
     for (const p of G.players) comboTick(p);
     const F = G.fx;
+    if (F.possession) { F.possession.t += dt; if (F.possession.t >= F.possession.dur) F.possession = null; }
     if (G.cz) { G.cz.t += dt; if (G.cz.t > G.cz.T) G.cz = null; }
     F.shake = Math.max(0, F.shake - dt * 22); F.flash = Math.max(0, F.flash - dt); F.cheer = Math.max(0, F.cheer - dt); F.board = Math.max(0, F.board - dt); F.shatter = Math.max(0, F.shatter - dt);
     if (F.led) { F.led.t += dt; if (F.led.t > F.led.dur) F.led = null; }
@@ -2145,6 +2146,19 @@
     oreb: { col: '#7dff8a', cols: ['#7dff8a', '#ffffff', '#ffe14a'], led: 'OFFENSIVE REBOUND  进攻篮板', sfx: 'oreb' },
   };
   function bigPlay(kind, pl, x, y, z, tier, hs) { const B = BIG[kind]; hype(tier == null ? 1 : tier, pl, Object.assign({ x: x, y: y, z: z, hs: hs || 0 }, B)); }
+  function passIntercept(pl, friendly, teamName) {
+    const F = G.fx, b = G.ball, col = friendly == null ? '#5ee0ff' : friendly ? '#7dff8a' : '#ff6b5e';
+    const x = b.x, y = b.y, z = Math.max(0.5, b.z);
+    for (let i = 0; i < 24; i++) {
+      const a = i * Math.PI / 12, speed = 2.5 + i % 3;
+      part(x, y, z, Math.cos(a) * speed, Math.sin(a) * speed, 1 + i % 4 * 0.3, i % 3 ? col : '#ffffff', 0.5, 5, 3);
+    }
+    for (let i = 0; i < 2; i++) F.rings.push({ x, y, z, t: -i * 0.08, T: 0.55, R: 2.4 + i * 0.4, col: i ? '#ffffff' : col });
+    flash(col, 0.12); shake(4); pl.flash = 0.3;
+    F.possession = { text: '抢断！攻防转换', sub: teamName + ' · ' + pl.arch.name + ' 获得球权', col, t: 0, dur: 1.35 };
+    float('抢断传球', pl, col, 1);
+    sfx(friendly == null ? 'steal' : friendly ? 'interceptGood' : 'interceptBad');
+  }
   // 盖帽四种：单手大帽（默认，球被扇飞）/ 抓帽（直接把球摘下来，球权转换）/ 双手呼脸（正面压制，球砸回对手脸上）/ 追身封盖（从身后追上）
   function blockStyle(df, sh, kind) {
     const a = df.action, rel = a && a.rel != null ? a.rel : 1, q = a ? a.q || 0 : 0;
@@ -5447,7 +5461,7 @@
   }
   const T5API = { begin: t5begin, end: t5end, step: t5step, trackReplay, replayTick, makePlayer: makePlayer, aiInput: aiInput, zeroInp: zeroInp, newStats: newStats, contestOf: contestOf, contestInfo: contestInfo,
     distHoop: distHoop, isThree: isThree, finPlan: finPlan, OP: OP, TM: TM, pickup: pickup, float: float, led: led, sfx: sfx, vo: vo, burst: burst, part: part, hasB: hasB, powOf: powOf,
-    knock: knock, bpop: bpop, tkAdd: tkAdd, fxReset: fxReset, rebBall: rebBall, hustle: hustle, HOOP: HOOP, cold: cold, scoreBy: scoreBy, banner: banner };
+    knock: knock, bpop: bpop, tkAdd: tkAdd, fxReset: fxReset, rebBall: rebBall, hustle: hustle, HOOP: HOOP, cold: cold, scoreBy: scoreBy, banner: banner, passIntercept: passIntercept };
   // V4.0 区域可视化（调参台打开时 render.js 画）：单位米。lay / float / dunk / euro 以篮筐地面投影为圆心，表示“从这个圈内开始收球能做出该终结”（= 起跳上限 + 两步步幅）；
   // r0 = 最远起跳点圈（起跳距离本身）。contest / block 以防守人（pl 的对手）脚下为圆心；contest 的 ang/arc = 正面干扰扇区（出手人站在这个方向上受正面干扰）
   function zones(pl) {

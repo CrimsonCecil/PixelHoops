@@ -1716,6 +1716,21 @@
     offsetY3 = Math.max(36 - scaledY(board.y), 16 - scaledY(top),
       Math.min(40 - scaledY(board.y), footLimit - scaledY(bottom), nameLimit - scaledY(nameAnchor)));
   }
+  function drawPossession(G) {
+    const p = G.fx.possession;
+    if (!p || G.replay) return;
+    ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.globalAlpha = Math.min(1, (p.dur - p.t) / 0.2);
+    const w = Math.min(W - 24, 310), x = Math.round((W - w) / 2), y = Math.round(H * 0.22);
+    ctx.fillStyle = '#0b1020'; ctx.fillRect(x - 2, y - 2, w + 4, 53);
+    ctx.fillStyle = p.col; ctx.fillRect(x, y, w, 3); ctx.fillRect(x, y + 46, w, 3);
+    ctx.textAlign = 'center'; ctx.textBaseline = 'top'; ctx.fillStyle = '#ffffff';
+    ctx.font = "16px 'Fusion Pixel 12px Proportional SC', monospace";
+    ctx.fillText(p.text, W / 2, y + 7, w - 12);
+    ctx.font = "12px 'Fusion Pixel 12px Proportional SC', monospace"; ctx.fillStyle = p.col;
+    ctx.fillText(p.sub, W / 2, y + 29, w - 12);
+    ctx.restore();
+  }
   function render(G, dt = 1 / 60, hintY) {
     // 回放时用录下来的画面快照代替实时状态
     const RP = G.replay && G.replay.view;
@@ -1831,9 +1846,10 @@
       ctx.font = "12px 'Fusion Pixel 12px Proportional SC', monospace"; ctx.textBaseline = 'top'; ctx.fillStyle = '#ffffff'; ctx.fillText('REPLAY', 22, H - 15);
       ctx.fillStyle = '#ffd24a'; ctx.fillText('精彩回放', 76, H - 15);
     }
+    if (!RP) drawPossession(G);
   }
 
-  PH.render = { init: init, resize: resize, get W() { return W; }, get H() { return H; }, render: render, setTheme: setTheme, proj: proj, cam: cam, CAMV: CAMV, CAM_DEF: CAM_DEF, setCam: setCam, HOOP: HOOP, BOARD_Y: BOARD_Y, BALL_R: BALL_R, curCol: curCol,
+  PH.render = { init: init, resize: resize, get W() { return W; }, get H() { return H; }, render: render, drawPossession: drawPossession, setTheme: setTheme, proj: proj, cam: cam, CAMV: CAMV, CAM_DEF: CAM_DEF, setCam: setCam, HOOP: HOOP, BOARD_Y: BOARD_Y, BALL_R: BALL_R, curCol: curCol,
     // 5V5 全场模式复用的绘制图元（不影响 1V1）
     drawCombos: drawCombos, drawMeter: (pl, hp) => drawMeter(pl, hp), drawPlayer: drawPlayer, drawHead: drawHead, drawBall: drawBall, shadow: shadow, ellipse: ellipse, ring: ring, brush: brush, getCtx: () => ctx, BAYER: BAYER };
 })();
