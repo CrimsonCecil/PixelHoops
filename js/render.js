@@ -1028,14 +1028,14 @@
     T[arm + 'e'] = lerpN(T[arm + 'e'], 0.08, w);
   }
 
-  function gripArm(k, side, end, gathering) {
+  function gripArm(k, side, end, gathering, bounded = false) {
     const sh = k['sh' + side], el = k['el' + side], hand = k['hand' + side];
     const diff = (a, b) => a.map((x, i) => x - b[i]), dot = (a, b) => a.reduce((s, x, i) => s + x * b[i], 0);
     const axis = diff(end, sh), d0 = Math.hypot(...axis);
     if (d0 < 0.001) return;
     const v = axis.map((x) => x / d0), upper = diff(el, sh);
     let ua = Math.hypot(...upper), fa = Math.hypot(...diff(hand, el));
-    const d = gathering ? Math.min(d0, (ua + fa) * 1.04) : d0;
+    const d = bounded ? Math.min(d0, (ua + fa) * 0.99) : gathering ? Math.min(d0, (ua + fa) * 1.04) : d0;
     if (d < d0) end = sh.map((x, i) => x + v[i] * d);
     const reach = Math.max(1, d / ((ua + fa) * 0.99)); ua *= reach; fa *= reach;
     const along = Math.max(-ua, Math.min(ua, (d * d + ua * ua - fa * fa) / (2 * d)));
@@ -1135,7 +1135,7 @@
     // 用比赛骨架的手部落点，保持持球、触球和盖帽动作对齐。
     if (pl.grip || pl.hasBall || pl.anim === 'block' || pl.anim === 'steal' || pl.armS || pl.pose.passHands) {
       const live = rig(pl);
-      for (const side of ['L', 'R']) gripArm(k, side, live['hand' + side], false);
+      for (const side of ['L', 'R']) gripArm(k, side, live['hand' + side], false, true);
     }
     return k;
   }
@@ -1804,19 +1804,30 @@
     const q = proj(p.x, p.y - (t3 ? 0 : 0.25), 0);
     return { x: q.x, y: q.y + 0.34 * q.s * (t3 ? 0.62 : 1) };
   }
-  function teamNameTags(players, maxY) {
+  function staminaOn(p, G, replay) {
+    if (replay || G.intro || G.vopt?.stamina === false || p.off || p.dummy) return false;
+    if (G.mode !== 't3') return G.mode === 'cpu' || G.mode === '2p' ? true : !!p.ring;
+    const h = G.ball.state === 'held' && G.players[G.ball.holder];
+    return !!h && (p === h || p.tm !== h.tm && p.opp === h);
+  }
+  function playerStamina(p, y, x, G) {
+    stamBar(ctx, x - STB.w1 / 2, y - STB.h1 - STB.gap, STB.w1, STB.h1, p.stam, 'g' + p.id, G.time);
+  }
+  function teamNameTags(players, maxY, G) {
     const placed = [], stamina = STB.h1 + STB.gap, height = PH.PT.SIZE;
     for (const p of players.filter(p => !p.off && p.arch && !p.dummy).sort((a, b) => Number(b.ring) - Number(a.ring))) {
       const q = nameFoot(p, true);
-      const y = Math.max(3, Math.min(maxY, Math.round(q.y) + 3 + (p.ring ? stamina : 0)));
+      const bar = staminaOn(p, G, false);
+      const y = Math.max(3 + (bar ? stamina : 0), Math.min(maxY, Math.round(q.y) + 3 + (bar ? stamina : 0)));
       const box = nameBounds(ctx, p.arch, q.x, y, true);
       const nearby = placed.filter(tag => tag.x0 < box.x1 + 2 && box.x0 < tag.x1 + 2);
       const candidates = [y, ...nearby.flatMap(tag => [tag.y0 - height, tag.y1 + 3])];
       candidates.sort((a, b) => Math.abs(a - y) - Math.abs(b - y));
       const row = candidates.find(row => row >= 3 && row <= maxY &&
-        nearby.every(tag => row - 2 >= tag.y1 + 1 || row - 2 + height <= tag.y0 - 1)) ?? y;
+        nearby.every(tag => row - 2 - (bar ? stamina : 0) >= tag.y1 + 1 || row - 2 + height <= tag.y0 - 1)) ?? y;
       const tag = curName(ctx, p.arch, q.x, row, p.col.ringCol, true);
-      if (p.ring) {
+      if (bar) {
+        playerStamina(p, row, q.x, G);
         tag.x0 = Math.min(tag.x0, q.x - STB.w1 / 2);
         tag.x1 = Math.max(tag.x1, q.x + STB.w1 / 2);
         tag.y0 = Math.min(tag.y0, row - stamina - 2);
@@ -1973,12 +1984,6 @@
     if (!G.intro) shadow(b.x, b.y, b.z, 0.16);
     const teamTags = G.mode === 't3' && !RP;
     const maxNameY = teamTags ? Math.min(H - 13, Math.floor((hintY ?? H) - 14)) : H - 13;
-    // 脚下体力条（V4.4 30×2 + 刻度 + 阈值 + 残影，见 stamBar）
-    for (const p of G.players) {
-      if (!p.ring || p.off) continue;
-      const q = nameFoot(p, teamTags), w = STB.w1, x = Math.round(q.x - w / 2), y = Math.min(maxNameY - (STB.h1 + STB.gap), Math.round(q.y) + 3);   // 靠底线时整组（条 + 名字）上移，不叠
-      stamBar(ctx, x, y, w, STB.h1, p.stam, 'g' + p.id, G.time);
-    }
     // 运球（没在做动作）时球总画在持球人身前，背对镜头时也不会被身体挡住
     const hb = b.state === 'held' ? G.players[b.holder] : null, hbFront = hb && hb.action && hb.action.type === 'shot' && hb.action.V && hb.action.V.hook;
     const items = [{ y: HOOP.y, t: 'rim' }];
@@ -1998,14 +2003,16 @@
     drawTuneLabs(G);
     // V3.9s 光标下方的名字（1V1 双方）：小号像素字、光标同色、深色描边；有体力条时放在体力条下面。
     // 画在球员之后（不被腿挡住）；永远在脚下
-    if (teamTags) teamNameTags(G.players, maxNameY);
+    if (teamTags) teamNameTags(G.players, maxNameY, G);
     else { const tags = [];
       for (const p of G.players) {
         if (!(p.ring || curOn(p, G)) || p.off || !p.arch || RP || p.dummy) continue;
-        const q = nameFoot(p, false); let y = p.ring ? Math.min(H - 13 - (STB.h1 + STB.gap), Math.round(q.y) + 3) + STB.h1 + STB.gap : Math.round(q.y) + 3;   // 有体力条：在条（含下方阈值短刻度）下面
+        const bar = staminaOn(p, G, RP);
+        const q = nameFoot(p, false); let y = bar ? Math.min(H - 13 - (STB.h1 + STB.gap), Math.round(q.y) + 3) + STB.h1 + STB.gap : Math.round(q.y) + 3;
         // V4.0 名字一律在脚下（用户：名称都在脚下显示就好，不用担心遮挡），只夹在画面内，不再挪到头顶
         if (y < 2) continue; y = Math.min(H - 13, y);
         for (const o of tags) if (Math.abs(o.y0 - y) < 12 && Math.abs((o.x0 + o.x1) / 2 - q.x) < 40) y = o.y0 > y ? o.y0 - 13 : o.y1 + 1;
+        if (bar) playerStamina(p, y, q.x, G);
         tags.push(curName(ctx, p.arch, q.x, y, p.col.ringCol));
       } }
     // 粒子

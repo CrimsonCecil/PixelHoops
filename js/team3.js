@@ -133,13 +133,14 @@
     if (G.score[tm] >= G.target) G.winner = tm;
     A.banner(name === '空接暴扣' || name === '空接上篮' ? name : pts === 3 ? '三分命中' : '两分命中', p.arch.name + ' · ' + GM.TEAMS[tm].name + ' +' + pts, p.team.css, beat);
   }
-  function gotBall(p, change) {
+  function gotBall(p, change, wasShot) {
     if (T.missedPass && p.tm !== T.missedPass.tm) G.stats[T.missedPass.id].tov++;
     T.missedPass = null;
     T.acquired = G.time; T.pass = null; T.lastPass = null;
     if (change) { clearPick(); matchups(); }
     p.ai.hold = false; p.ai.su = null;
     if (p.ctrl !== 'cpu') { const input = T.inputs && T.inputs[p.id]; if (input) Object.assign(p.prev, { a1: input.a1, a2: input.a2, a3: input.a3 }); }
+    if (wasShot && p.ctrl !== 'cpu') p.prev.a1 = p.prev.a2 = true;
   }
   function start(o) {
     const players = o.slots.map((s, i) => {
@@ -307,7 +308,7 @@
         const local = G.players.find(p => p.ring && p.ctrl !== 'cpu');
         G.stats[d.id].stl++; G.stats[from.id].tov++;
         A.passIntercept(d, local ? local.tm : null);
-        A.pickup(d, 'intercept'); A.float('抢断传球', d, '#7dff8a', 1); return;
+        A.pickup(d, 'intercept'); A.float('抢断传球', d, '#7dff8a', 1); A.vo(d, 'steal', 'pri'); if (A.vic) A.vic(from, 'stolen'); return;
       }
     }
     if (u === 1) {

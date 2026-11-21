@@ -912,7 +912,7 @@
         G.stats[P.from.id].tov++; if (r && r.rk) r.rk.st.drop++; T.cnt.intc++; T.cnt.tov++; T.cnt.steals++;
         A5.passIntercept(d, T.hum >= 0 ? T.hum : null);
         T.ps = null; b.state = 'loose'; b.vz = 0; b.vx = b.vy = 0; b.x = d.x; b.y = d.y; b.z = 1;
-        G.stats[d.id].stl++; fltS('抢断', d); A5.vo(d, 'steal');
+        G.stats[d.id].stl++; fltS('抢断', d); A5.vo(d, 'steal', 'pri'); if (A5.vic) A5.vic(P.from, 'stolen');
         if (P.rec) P.rec.res = 'int';
         A5.pickup(d, 'intercept'); return;
       }
@@ -1082,7 +1082,7 @@
   function dblC() {
     for (const p of ps()) {
       const a = p.action; if (!a || (a.type !== 'shot' && a.type !== 'layup') || a.released || !a.k5 || !a.V || a.skill) continue;
-      const cls = a.type === 'layup' || a.V.hook || a.v === 'postfade' ? 'in' : 'shot', L = [];
+      const cls = a.type === 'layup' || a.V.hook || a.V.post || a.v === 'postfade' ? 'in' : 'shot', L = [];
       for (const d of defs()) if (dist(d, p) < TV.t5_dbl_r) { const c = A5.contestInfo(p, d, cls).c; if (c > 0) L.push(c); }
       L.sort((x, y) => y - x);
       const o = p.opp, co = o ? A5.contestInfo(p, o, cls).c : 0, base = a.V.c / (a.dR || 1);
@@ -1224,6 +1224,9 @@
     }
     const inbBy = T.phase === 'inb' && T.inb && T.inb.by === p;
     if (inbBy) { o.mx = o.my = 0; passKeys(p, L); return o; }
+    if (p.hasBall && p.uuFake && (G.time <= p.uuFake.until || p.action && p.action.type === 'fake') && R.B && hyp(L.x, L.y) > 0.3) {
+      o.a3 = o.dribble = true; o.dx = L.x; o.dy = L.y; return o;
+    }
     if (p.hasBall && p.action && p.action.type !== 'move' && jpOk(p) && (E.A || E.B || E.Y)) {
       if (jumpPass(p, E.B ? 'bounce' : E.Y ? 'lob' : 'chest', pickTarget(p, L))) { T.aDown = null; T.yDown = null; return o; }
     }
@@ -1247,9 +1250,10 @@
       }
       // 2K：RT + X 突破中 = 扣篮（1V1 的扣篮键 a2）
       if (X && R.RT && dHoop(p) < 6.5 && p.speed > 2.5) { o.a2 = true; o.a1 = false; }
-      if (rsM > 0.5) { o.a3 = true; o.dx = RS.x / rsM; o.dy = RS.y / rsM; }
+      if (rsM > 0.5) { o.a3 = o.rs = true; o.dx = RS.x / rsM; o.dy = RS.y / rsM; }
       if (R.hesi) o.a3 = o.hesi = true;
       o.post = R.LT;
+      if (R.rsPad) o.rsPad = true;
       passKeys(p, L);
       if (E.LB) callPick(p, true);
       return o;
