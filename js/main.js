@@ -404,7 +404,8 @@
     GM.newGame({ mode: opts.mode, diff: opts.diff, target: opts.target, arch0: lastArch.a0, arch1: lastArch.a1, fb: opts.fb, glen: opts.glen });
     PH.audio.voPreload(G.players.map((p) => p.arch.key));
     screen = 'play'; paused = false; PH.input.clearSys(); clearPf();
-    show('tbpass', false); show('tbscreen', false); show('btn-restart', true); show('btn-again', true);
+    show('tbpass', false); show('tbscreen', false); show('tbbounce', false); show('tblob', false); show('tballey', false);
+    show('btn-restart', true); show('btn-again', true);
     show('menu', false); show('picker', false); show('pause', false); show('over', false); show('help', false); show('hud', true); show('touch', isTouch); show('shotcard', false);
     show('scorebar', !tr); show('trainbar', tr); show('btn-panel', tr);
     panelOpen = tr && !narrow(); show('train', panelOpen); stage.classList.toggle('panel', panelOpen); camShift();
@@ -743,19 +744,22 @@
     const base = pl.rBase || pl.r, raw = is5 && pl.r5 ? pl.r5.raw : null;
     const heat = is5 ? 0 : Math.round(GM.hcMod(pl) * 99);
     const keys = is5 ? (isOff ? PC_OFF_5 : PC_DEF_5) : (isOff ? PC_OFF : PC_DEF);
-    return keys.map(([k, name]) => {
+    const cells = keys.map(([k, name]) => {
       if (k === 'spd') return pcCell(name, pcRating(k, base, null, 0), 0);
       const v = pcRating(k, pl.r, raw, heat);
       const original = base !== pl.r || heat ? pcRating(k, base, raw, 0) : v;
       return pcCell(name, v, v != null && original != null ? v - original : 0);
     }).join('');
+    if (G.mode !== 't3' || !pl.tendency) return cells;
+    const { accuracy, vision, passIQ } = pl.tendency;
+    return cells + [['传球', accuracy], ['视野', vision], ['传球智商', passIQ]].map(([name, v]) => pcCell(name, Math.round(v * 100), 0)).join('');
   }
   function cardHTML(pl, isOff, st, is5 = false) {
     const a = pl.arch, tkOn = pl.tkOn > 0;
     const cells = pcRatings(pl, isOff, is5);
     const TD = tkOn && pl.tkT ? GM.TKD[pl.tkT] : null;
     const tkl = TD ? '<div class="pctki"><div class="tkh"><b>主宰 · ' + TD.n + '</b><span>' + Math.ceil(pl.tkOn) + '秒</span></div><div class="tkg">' + ['全属性 +5', TD.n + '类 +20'].concat(TD.ab, ['体力消耗 -30%']).map((x) => '<i>' + x + '</i>').join('') + '</div></div>' : '';
-    const sl = st && is5 ? '<div class="pcs pcs5">' + [[st.pts, '分'], [st.fg + '/' + st.fga, '投'], [st.reb, '板'], [st.ast, '助'], [st.stl, '断'], [st.blk, '帽'], [st.tov, '误']].map((x) => '<b' + (x[0] === 0 ? ' class="z"' : '') + '>' + x[0] + '</b>' + x[1]).join('') + '</div>' : st ? '<div class="pcs"><b>' + st.pts + '</b>分<b>' + st.fg + '/' + st.fga + '</b>投<b>' + st.reb + '</b>板<b>' + st.blk + '</b>帽<b>' + st.stl + '</b>断</div>' : '';
+    const sl = st && (is5 || G.mode === 't3') ? '<div class="pcs pcs5">' + [[st.pts, '分'], [st.fg + '/' + st.fga, '投'], [st.reb, '板'], [st.ast, '助'], [st.stl, '断'], [st.blk, '帽'], [st.tov, '误']].map((x) => '<b' + (x[0] === 0 ? ' class="z"' : '') + '>' + x[0] + '</b>' + x[1]).join('') + '</div>' : st ? '<div class="pcs"><b>' + st.pts + '</b>分<b>' + st.fg + '/' + st.fga + '</b>投<b>' + st.reb + '</b>板<b>' + st.blk + '</b>帽<b>' + st.stl + '</b>断</div>' : '';
     // V4.5 信息卡徽章行（1V1 / 5V5 同一套）：档位配色的六边形图标，正在触发的徽章高亮
     const bl = bList(pl, is5), hot = new Set((G.bpops || []).filter((x) => G.time - x.t0 < 1.8 && G.time >= x.t0 && G.players[x.pid] === pl).map((x) => x.key));
     const brow = bl.length ? '<div class="pcb" data-testid="pc-badges">' + bl.map((x) => '<span class="tr' + x[1] + (hot.has(x[0]) ? ' hot' : '') + '" title="' + GM.BADGES[x[0]].name + '">' + bHex(x[0], x[1]) + '</span>').join('') + '</div>' : '';
@@ -782,7 +786,7 @@
       const on = screen === 'play' && opts.info === 'show' && pl && !pl.dummy && !(G.mode === 'train' && i === 1 && TR.dummy === 'none');
       el.classList.toggle('hidden', !on); if (!on) continue;
       const S = G.stats && G.stats[pl.id];
-      const html = cardHTML(pl, G.off === (G.mode === 't3' ? pl.tm : i), S && G.mode !== 'train' ? { pts: G.mode === 't3' ? S.pts || 0 : G.score[i], fg: S.fg, fga: S.fga, reb: S.reb, blk: S.blk, stl: S.stl } : null);
+      const html = cardHTML(pl, G.off === (t3 ? pl.tm : i), S && G.mode !== 'train' ? { pts: t3 ? S.pts || 0 : G.score[i], fg: S.fg, fga: S.fga, reb: S.reb, blk: S.blk, stl: S.stl, ast: S.ast, tov: S.tov } : null);
       el.classList.toggle('tk', pl.tkOn > 0);
       if (el._h !== html) { el._h = html; el.innerHTML = html; }
     }
@@ -1123,8 +1127,15 @@
       const P = '背打中　<b>' + kb.a1 + '</b> 勾手 / 按住后方向后仰 <b>' + kb.a2 + '</b> 转身终结　松开时按左右 转身';
       const D = '<b>' + kb.d1 + '</b> 封盖 <b>' + kb.d2 + '</b> 抢断 <b>' + kb.st + '</b> 举手干扰 <b>' + kb.sp + '</b> 加速';
       show('hint', train || !!(t3 && local) || opts.fb === 'detail');
-      $('hint').innerHTML = two ? '玩家 1：WASD + J K L，Q 背打　玩家 2：方向键 + 小键盘 1 2 3，O 背打' : (post ? P : off ? '进攻　' + (offBall ? B : O) : '防守　' + D) + (t3 && local ? '　<b>' + (hasPad ? 'B' : 'E') + '</b> 传球 / 要球' : '') + (offBall ? '　<b>' + (hasPad ? 'R3' : 'F') + '</b> 掩护' : '') + (train ? '　<b>' + (hasPad ? 'View' : 'Tab') + '</b> 参数 <b>R</b> 重置' : '');
-      if (isTouch) { $('tb1').textContent = offBall ? '篮板' : off ? '投篮' : '盖帽'; $('tb2').textContent = offBall ? '扑球' : off ? '终结' : '抢断'; $('tb3').textContent = offBall ? '卡位' : off ? '运球' : '姿态'; $('tbalt').textContent = '背打'; show('tbalt', off && !offBall); show('tbscreen', offBall); }
+      const passing = t3 && local && off ? offBall ? '　<b>' + (hasPad ? 'B' : 'E') + '</b> 要球' : hasPad
+        ? '　<b>B</b> 胸传　<b>RT+B</b> 过顶　<b>LB+B</b> 击地　<b>LT+B</b> 高吊　<b>LB+LT+B</b> 空接'
+        : '　<b>E</b> 胸传　<b>Shift+E</b> 过顶　<b>Z</b> 击地　<b>X</b> 高吊　<b>V</b> 空接' : '';
+      $('hint').innerHTML = two ? '玩家 1：WASD + J K L，Q 背打　玩家 2：方向键 + 小键盘 1 2 3，O 背打' : (post ? P : off ? '进攻　' + (offBall ? B : O) : '防守　' + D) + passing + (offBall ? '　<b>' + (hasPad ? 'R3' : 'F') + '</b> 掩护' : '') + (train ? '　<b>' + (hasPad ? 'View' : 'Tab') + '</b> 参数 <b>R</b> 重置' : '');
+      if (isTouch) {
+        $('tb1').textContent = offBall ? '篮板' : off ? '投篮' : '盖帽'; $('tb2').textContent = offBall ? '扑球' : off ? '终结' : '抢断'; $('tb3').textContent = offBall ? '卡位' : off ? '运球' : '姿态'; $('tbalt').textContent = '背打';
+        show('tbalt', off && !offBall); show('tbscreen', offBall);
+        for (const id of ['tbbounce', 'tblob', 'tballey']) show(id, t3 && off && !offBall);
+      }
     }
     // 终结提示（脚下）
     for (let i = 0; i < 2; i++) {
@@ -1275,7 +1286,7 @@
     screen = 'play5'; paused = false; over5Shown = false; h5 = {}; fdReset(); PH.input.clearSys(); clearPf();
     show('menu', false); show('picker', false); show('tpicker', false); show('pause', false); show('over', false); show('over5', false); show('help', false);
     show('hud', false); show('hud5', true); show('touch', isTouch && opts.side >= 0); show('shotcard', false); show('train', false); show('banner', false); show('campanel', false); stage.classList.remove('panel');
-    show('tbscreen', false);
+    show('tbscreen', false); show('tbbounce', false); show('tblob', false); show('tballey', false);
     show('btn-cam', true); show('btn-disp', true); show('btn-box5', true); show('box5', false); PH.box5.reset(); b5Pause = false;
     $('btn-restart').textContent = '重新开始'; $('btn-resume').textContent = '继续比赛';
     for (let i = 0; i < 2; i++) { const tm = T5.T.tm[i]; $('h5n' + i).textContent = tm.name; $('h5t' + i).style.setProperty('--tc', tm.col.ui); $('h5t' + i).classList.toggle('me', opts.side === i); }

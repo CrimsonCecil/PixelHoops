@@ -87,7 +87,13 @@
 
   function read3(onOffense) {
     const input = read(0, onOffense, true), gp = lock.on ? null : pads()[0];
-    input.pass = held(['KeyE']) || !!(gp && gp.buttons[1] && gp.buttons[1].pressed) || !!touch.pass;
+    const B = (i) => !!(gp?.buttons[i]?.pressed || ((i === 6 || i === 7) && gp?.buttons[i]?.value > 0.3));
+    input.pass = held(['KeyE']) || B(1) || !!touch.pass;
+    const bounce = held(['KeyZ']) || touch.bounce || B(1) && B(4);
+    const lob = held(['KeyX']) || touch.lob || B(1) && B(6);
+    const alley = held(['KeyV']) || touch.alley || bounce && lob;
+    if (onOffense && (bounce || lob || alley)) input.pass = true;
+    if (input.pass) input.passKind = alley ? 'alley' : lob ? 'lob' : bounce ? 'bounce' : input.sprint ? 'skip' : 'chest';
     input.screen = held(['KeyF']) || !!(gp && gp.buttons[11]?.pressed) || !!touch.screen;
     if (gp && gp.buttons[1] && gp.buttons[1].pressed && !(gp.buttons[0] && gp.buttons[0].pressed) && !held(MAPS[0].a3) && !touch.a3 && Math.hypot(input.dx, input.dy) <= 0.6) input.a3 = input.dribble = false;
     return input;

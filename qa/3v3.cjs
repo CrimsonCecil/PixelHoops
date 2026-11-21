@@ -228,6 +228,17 @@ function tactics(cpu = []) {
   pad.buttons[11] = { pressed: true };
   assert.equal(clean(input.read3(false)).screen, true);
   pad.buttons[11].pressed = false;
+  events.keydown({ code: 'KeyZ' });
+  assert.equal(clean(input.read3(true)).passKind, 'bounce');
+  events.keyup({ code: 'KeyZ' });
+  input.endTick();
+  pad.buttons[1] = { pressed: true };
+  pad.buttons[6] = { pressed: true };
+  assert.equal(clean(input.read3(true)).passKind, 'lob');
+  pad.buttons[4] = { pressed: true };
+  assert.equal(clean(input.read3(true)).passKind, 'alley');
+  pad.buttons[1].pressed = pad.buttons[4].pressed = pad.buttons[6].pressed = false;
+  assert.equal(clean({ pass: true, passKind: 'invalid' }).passKind, undefined);
   const html = fs.readFileSync(path.join(__dirname, '../index.html'), 'utf8');
   const button = html.match(/<button data-tb="([^"]+)"[^>]+id="tbscreen"/);
   assert(button);
@@ -386,6 +397,63 @@ for (const [passIQ, separation, blockedLane, expectPass] of [[0.9, 1.6, false, t
   if (expectPass) assert(G.floats.some((f) => f.pid === 1 && f.text === '要球'));
 }
 console.log('PASS: a CPU honors an open call according to pass IQ, vetoes a blocked lane, and signals a declined call.');
+
+{
+  const { G, T3, put, run } = tactics();
+  put(0, 0, 5); put(1, 3, 6); put(2, -5, 6);
+  put(3, 0, 10); put(4, 4, 10); put(5, -4, 10);
+  T3.holder().stun = 0.12;
+  run(1, { 0: { pass: true, passKind: 'bounce', mx: 1 } });
+  assert.equal(G.ball.state, 'held');
+  run(9);
+  assert.equal(T3.T.pass?.kind, 'bounce', 'one tap is buffered through contact with its direction and type');
+  assert.equal(T3.T.pass?.to.id, 1);
+  run(30);
+  assert.equal(T3.holder().id, 1);
+  console.log('PASS: a 3V3 pass tap buffers through contact without a second press.');
+}
+
+{
+  function delivery(kind, accuracy) {
+    const { G, Gm, T3, api, put, run } = tactics();
+    put(0, -1, 5); put(1, 5, 7); put(2, -5, 7);
+    put(3, 0, 11); put(4, 5, 11); put(5, -4, 11);
+    Object.assign(G.ball, { x: -1, y: 5, z: 1.25 });
+    T3.holder().tendency.accuracy = accuracy;
+    run(1, { 0: { pass: true, passKind: kind, mx: 1 } });
+    const P = T3.T.pass;
+    assert.equal(P?.kind, kind);
+    let low = Infinity, high = 0;
+    while (T3.T.pass) {
+      run(1);
+      low = Math.min(low, G.ball.z); high = Math.max(high, G.ball.z);
+    }
+    assert.equal(T3.holder()?.id, 1);
+    const r = T3.holder(), quality = r.passQuality;
+    Gm._dbg.startShot(r, api.zeroInp(), 'a1');
+    assert(r.action.catchShot, 'clean catch opens the catch-and-shoot window');
+    const shot = { power: r.action.V.p, green: r.action.V.g, t: r.action.t };
+    api.scoreBy(1, 2, 'shot');
+    assert.equal(G.stats[0].ast, 1, 'the passer earns an assist on a prompt score');
+    return { duration: P.duration, error: P.error, quality, low, high, shot };
+  }
+  const chest = delivery('chest', 0.95), poor = delivery('chest', 0.3);
+  assert(chest.duration < poor.duration && chest.error < poor.error && chest.quality > poor.quality);
+  assert(chest.shot.power > poor.shot.power && chest.shot.green > poor.shot.green && chest.shot.t > poor.shot.t);
+  const bounce = delivery('bounce', 0.95), skip = delivery('skip', 0.95), lob = delivery('lob', 0.95), alley = delivery('alley', 0.95);
+  assert(bounce.low < 0.25 && skip.duration < chest.duration && lob.high > chest.high + 1 && alley.high > chest.high + 1);
+  console.log('PASS: five pass types have distinct trajectories; accuracy improves speed, catch-and-shoot and assist opportunities.');
+}
+
+{
+  const { T3, put, run } = tactics();
+  put(0, -2, 6); put(1, 1, 11); put(2, -6, 5);
+  put(3, -5, 8); put(4, 5, 8); put(5, -5, 12);
+  run(1, { 0: { pass: true, passKind: 'alley', mx: 0.5, my: 0.87 } });
+  while (T3.T.pass) run(1);
+  assert(['layup', 'dunk'].includes(T3.holder()?.action?.type), 'an accurate lob at the rim starts a shared finish');
+  console.log('PASS: a clean alley-oop catch at the rim starts a shared finish.');
+}
 
 {
   const { G, Gm, T3, api, run } = fixture({ human: 1, target: 5 });

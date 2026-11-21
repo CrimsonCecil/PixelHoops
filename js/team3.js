@@ -95,7 +95,7 @@
     const off = teams(team), def = teams(1 - team);
     const h = off.find((p) => p.ctrl !== 'cpu') || off[0];
     clearPick();
-    T.pass = null; T.request = null; G.phase = 'check'; G.phaseT = 0.9; G.off = team;
+    T.pass = null; T.request = null; T.passQueue = null; T.lastPass = null; G.phase = 'check'; G.phaseT = 0.9; G.off = team;
     G.shotClock = T.clock; G.needClear = false; G.illId = -1;
     const spots = [[0, 4.65], [-6.8, 9.0], [6.8, 9.0]];
     const order = [h, ...off.filter((p) => p !== h)];
@@ -103,7 +103,7 @@
       const d = p.tm !== team;
       Object.assign(p, { x: spots[i][0] * (d ? 0.9 : 1), y: spots[i][1] + (d ? 1.15 : 0), z: 0, vx: 0, vy: 0, vz: 0, speed: 0,
         hasBall: p === h, action: null, stun: 0, knock: null, post: false, stance: false, box: false, ib: null, finQ: null, recT: 0,
-        face: d ? -Math.PI / 2 : Math.PI / 2, stam: Math.min(100, p.stam + 15), opp: null, cutUntil: 0, screen3: false, screenSlow3: 0 });
+        face: d ? -Math.PI / 2 : Math.PI / 2, stam: Math.min(100, p.stam + 15), opp: null, cutUntil: 0, screen3: false, screenSlow3: 0, passCatchT: null });
       Object.assign(p.ai, { t: 0, hold: false, su: null, om: null, dm: null, comboAt: -1 });
     }
     T.acquired = G.time; T.nextPass = G.time + 1.4; T.nextPick = G.time + 2.5;
@@ -122,12 +122,17 @@
     const tm = p.tm;
     G.score[tm] += pts;
     G.stats[p.id].pts = (G.stats[p.id].pts || 0) + pts;
+    const pass = T.lastPass;
+    if (pass?.to === p && G.time - pass.at < 4 && Math.floor((p.drib || 0) / Math.PI) <= 2 && p.lastMoveT <= pass.at) {
+      G.stats[pass.from.id].ast++;
+    }
+    T.lastPass = null;
     G.phase = 'dead'; G.phaseT = 1.0; T.next = 1 - tm;
     if (G.score[tm] >= G.target) G.winner = tm;
     A.banner(pts === 3 ? '三分命中' : '两分命中', p.arch.name + ' · ' + GM.TEAMS[tm].name + ' +' + pts, p.team.css, 1.0);
   }
   function gotBall(p, change) {
-    T.acquired = G.time; T.pass = null;
+    T.acquired = G.time; T.pass = null; T.lastPass = null;
     if (change) { clearPick(); matchups(); }
     p.ai.hold = false; p.ai.su = null;
     if (p.ctrl !== 'cpu') { const input = T.inputs && T.inputs[p.id]; if (input) Object.assign(p.prev, { a1: input.a1, a2: input.a2, a3: input.a3 }); }
@@ -136,7 +141,8 @@
     const players = o.slots.map((s, i) => {
       const tm = i < 3 ? 0 : 1, p = A.makePlayer(i, s.arch, s.role === 'cpu' || s.role === 'waiting' ? 'cpu' : 'p1', GM.TEAMS[tm]);
       p.tm = tm; p.ring = i === o.local;
-      p.tendency = { pass: (rating(p, 'piq', 70) + rating(p, 'vis', 54)) / 2, accuracy: rating(p, 'pac', 69),
+      const passIQ = rating(p, 'piq', 70), vision = rating(p, 'vis', 54);
+      p.tendency = { pass: (passIQ + vision) / 2, passIQ, accuracy: rating(p, 'pac', 69), vision,
         move: rating(p, 'iq', 60), help: rating(p, 'hlp', 71), read: rating(p, 'ppc', 67), shot: rating(p, 'siq', 70) };
       p.nextCut = 1 + i % 3; return p;
     });
@@ -146,6 +152,7 @@
       turnover: (to, msg) => lost(G.players[G.ball.lastTouch], msg, G.players[to] && G.players[to].tm),
       oob: (id) => lost(G.players[id], '球出界', G.players[id] ? 1 - G.players[id].tm : 1 - G.off)
     } });
+    for (const st of G.stats) st.ast = 0;
     G.fb = o.fb || 'simple';
     G.focus = { cx: 0, cy: -10.5 };
     check(0, '开球');
@@ -234,7 +241,7 @@
       return u > 0.15 && u < 0.92 && Math.hypot(q.x - from.x - (p.x - from.x) * u, q.y - from.y - (p.y - from.y) * u) < 0.7;
     });
     const rolling = T.pick?.phase === 'roll' && T.pick.s === p && width > 1.35 && !risk && (T.pick.pop ? three : close);
-    const value = 3 * aim + Math.min(3, width) * 0.45 + (three ? p.r.three * 0.8 : close ? p.r.lay * 0.8 : p.r.mid * 0.25) - 0.06 * d - (risk ? 1.5 : 0) + (G.needClear && three ? 3 : 0) + (rolling ? 1.3 : 0);
+    const value = 3 * aim + Math.min(3, width) * (0.31 + 0.24 * from.tendency.vision) + (three ? p.r.three * 0.8 : close ? p.r.lay * 0.8 : p.r.mid * 0.25) - 0.06 * d - (risk ? 1.5 : 0) + (G.needClear && three ? 3 : 0) + (rolling ? 1.3 : 0);
     return { p, value, width, risk, rolling };
   }
   function target(from, inp) {
@@ -259,14 +266,20 @@
     A.float('暂不传球', T.request.p, '#ffd24a', 1);
     T.request = null;
   }
-  function send(from, to) {
+  function send(from, to, kind = 'chest') {
     if (!to || from === to || !from.hasBall || from.action || from.stun > 0 || G.phase !== 'live') return false;
-    const b = G.ball, duration = Math.max(0.17, dist(from, to) / (13 + 5 * from.tendency.accuracy));
+    const b = G.ball, t = from.tendency, d = dist(from, to), profile = A.passProfiles[kind];
+    const duration = Math.max(0.22, d / (profile.v * (0.83 + 0.35 * t.accuracy + 0.08 * t.pass)));
+    const difficulty = kind === 'alley' ? 1.5 : kind === 'chest' ? 0.7 : 1.1;
+    const error = (1 - t.accuracy) ** 2 * (0.45 + d * 0.09) * difficulty * (1.2 - 0.35 * t.passIQ) * (0.55 + 0.9 * A.rnd());
+    const angle = A.rnd() * Math.PI * 2;
+    const lead = duration * (0.55 + 0.4 * t.vision);
     from.hasBall = false; from.post = false;
     from.face = Math.atan2(to.y - from.y, to.x - from.x);
-    T.pass = { from, to, x: from.x, y: from.y, z: from.h * 0.66, t: 0, duration };
-    Object.assign(b, { state: 'pass', holder: -1, lastTouch: from.id, wasShot: false, trail: null, vx: 0, vy: 0, vz: 0, dead: false });
-    T.nextPass = G.time + 0.85; T.request = null;
+    T.pass = { from, to, kind, x: b.x, y: b.y, z: Math.max(0.6, b.z), t: 0, duration, error,
+      tx: to.x + (to.vx || 0) * lead + Math.cos(angle) * error, ty: to.y + (to.vy || 0) * lead + Math.sin(angle) * error };
+    Object.assign(b, { state: 'pass', holder: -1, lastTouch: from.id, wasShot: false, shot: null, trail: null, vx: 0, vy: 0, vz: 0, dead: false });
+    T.nextPass = G.time + 0.85; T.request = null; T.lastPass = null;
     return true;
   }
   function passStep(dt) {
@@ -274,15 +287,39 @@
     if (!P) return;
     P.t += dt;
     const u = Math.min(1, P.t / P.duration);
-    b.x = P.x + (P.to.x - P.x) * u; b.y = P.y + (P.to.y - P.y) * u;
-    b.z = P.z + (P.to.h * 0.64 - P.z) * u + 0.25 * Math.sin(Math.PI * u);
+    const { from, to, kind } = P, profile = A.passProfiles[kind];
+    const px = b.x, py = b.y;
+    const dx = to.x - P.tx, dy = to.y - P.ty, correction = Math.min(1, (2 + 5 * from.tendency.accuracy) * dt / (Math.hypot(dx, dy) || 1));
+    if (u < 0.82) { P.tx += dx * correction; P.ty += dy * correction; }
+    b.x = P.x + (P.tx - P.x) * u; b.y = P.y + (P.ty - P.y) * u;
+    const end = kind === 'alley' ? Math.min(profile.tz, to.h + 0.5) : profile.tz;
+    b.z = A.passHeight(kind, P.z, end, profile.ap, u);
+    b.vx = (b.x - px) / dt; b.vy = (b.y - py) / dt; b.spin += dt * 10;
+    if (kind === 'bounce' && u >= 0.55 && !P.bounced) { P.bounced = true; A.sfx('bounce'); }
     if (u > 0.12) {
-      const d = nearest(teams(1 - P.from.tm), b);
-      if (!d.stun && dist(d, b) < 0.22 + d.tendency.read * 0.35) {
-        G.stats[d.id].stl++; G.stats[P.from.id].tov++; A.pickup(d); A.float('抢断传球', d, '#7dff8a', 1); return;
+      const d = nearest(teams(1 - from.tm).filter((p) => !p.off && !p.stun && b.z <= p.z + p.h + 0.35), b);
+      const reach = d && (0.25 + d.tendency.read * 0.37 + 0.12 * d.r.stl) * (kind === 'bounce' ? 0.8 : 1) * (1.1 - 0.25 * from.tendency.accuracy);
+      if (d && dist(d, b) < reach) {
+        G.stats[d.id].stl++; G.stats[from.id].tov++; A.pickup(d); A.float('抢断传球', d, '#7dff8a', 1); return;
       }
     }
-    if (u === 1) A.pickup(P.to);
+    if (u === 1) {
+      const miss = dist(to, b);
+      if (to.off || to.stun > 0.3 || miss > 1.05 + 0.4 * to.r.hnd) {
+        T.pass = null;
+        G.stats[from.id].tov++;
+        A.looseBall({ x: b.x, y: b.y, z: b.z }, b.vx * 0.2, b.vy * 0.2, 0, from.id);
+        return;
+      }
+      A.pickup(to);
+      if (b.z > to.z + to.h * 0.85) to.catchAt = G.time;
+      to.passCatchT = G.time;
+      to.passQuality = clamp(0.65 + (from.tendency.accuracy - 0.65) * 0.7 - 0.32 * miss - 0.42 * P.error, 0.1, 1);
+      T.lastPass = { from, to, at: G.time };
+      if (kind === 'alley' && !G.needClear && !to.action && !to.stun && GM.distHoop(to) < 3.2 && to.passQuality >= 0.5) {
+        A.startFinish(to, { ...A.zeroInp(), my: 1, sprint: true }, 'auto', 'a2', true);
+      }
+    }
   }
   function cpu(p, h, dt) {
     if (G.phase !== 'live') return A.zeroInp();
@@ -293,7 +330,8 @@
         const best = target(p);
         const driveKick = GM.distHoop(p) < 4 && gap(p) < 1.4 && best.p && arc(best.p.x, best.p.y) && gap(best.p) > 1.7;
         if ((G.needClear && best.value > 3.7) || best.rolling || (best.value > 1.85 && gap(p) < 1.6 && (driveKick || t.pass > 0.72 || GM.distHoop(best.p) < 2.7))) {
-          if (send(p, best.p)) return A.zeroInp();
+          const kind = best.rolling && GM.distHoop(best.p) < 2.7 ? (best.p.r.dunk > 0.75 && t.accuracy > 0.78 ? 'alley' : 'bounce') : best.risk ? 'lob' : dist(p, best.p) > 8 ? 'skip' : 'chest';
+          if (send(p, best.p, kind)) return A.zeroInp();
         }
         T.nextPass = G.time + 0.3;
       }
@@ -341,6 +379,13 @@
     if (G.replay) { A.replayTick(dt); return; }
     T.inputs = inputs || {};
     const h = holder();
+    for (const p of G.players) {
+      const inp = T.inputs[p.id], pass = !!(inp?.pass && p.ctrl !== 'cpu');
+      if (pass && !T.prev[p.id] && p === h && (G.phase === 'check' || G.phase === 'live')) {
+        T.passQueue = { p, inp, until: G.time + 1 };
+      }
+      if (p === h || G.phase !== 'live') T.prev[p.id] = pass;
+    }
     if (G.phase === 'live') {
       defense(h);
       if (T.request && (T.request.h !== h || T.request.until <= G.time)) declineCall();
@@ -353,8 +398,7 @@
         }
         T.screenPrev[p.id] = screen;
         if (pass && !T.prev[p.id] && h && p.tm === h.tm) {
-          if (p === h) send(p, target(p, inp).p);
-          else if (h.ctrl === 'cpu') {
+          if (h.ctrl === 'cpu') {
             T.request = { p, h, until: G.time + 0.7 };
             A.float('要球', p, '#9ef0ff', 1);
           }
@@ -362,6 +406,8 @@
         T.prev[p.id] = pass;
       }
     }
+    const queued = T.passQueue;
+    if (queued && (queued.p !== h || queued.until <= G.time || send(h, target(h, queued.inp).p, queued.inp.passKind))) T.passQueue = null;
     const current = holder();
     if (G.phase === 'live') pickTick(current);
     else clearPick();
