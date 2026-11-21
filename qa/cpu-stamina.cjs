@@ -5,7 +5,8 @@ const vm = require('node:vm');
 const { execFileSync } = require('node:child_process');
 
 const dt = 1 / 60;
-function fixture(mode) {
+const profile = process.env.CPU_STAMINA_PROFILE ? JSON.parse(fs.readFileSync(process.env.CPU_STAMINA_PROFILE, 'utf8')).data : {};
+function fixture(mode, options = {}) {
   let seed = 7;
   const math = Object.create(Math);
   math.random = () => ((seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0) / 4294967296);
@@ -13,22 +14,27 @@ function fixture(mode) {
   ctx.window = ctx;
   ctx.PH = { input: { read: () => ({}), read5: () => ({}), endTick() {} } };
   ctx.charges = [];
+  ctx.inputFrames = [];
+  ctx.moveCharges = [];
   for (const name of ['tune', 'ptype', 'render', 'roster', 'measurements', 'r5', 'game', 'b5', 'team5', 'team3']) {
     let source = fs.readFileSync(path.join(__dirname, '../js', name + '.js'), 'utf8');
     if (name === 'game' && process.env.CPU_STAMINA_BASE) {
       source = execFileSync('git', ['show', process.env.CPU_STAMINA_BASE + ':js/game.js'], { cwd: path.resolve(__dirname, '..'), encoding: 'utf8' });
-      source = source.replace(/(\w+)\.stam = Math.max\(0, \1\.stam - /g, 'spendStamina($1, ')
+      if (!source.includes('function spendStamina(')) source = source.replace(/(\w+)\.stam = Math.max\(0, \1\.stam - /g, 'spendStamina($1, ')
         .replace('  function stamK(', '  function spendStamina(pl, cost) { pl.stam = Math.max(0, pl.stam - cost); }\n  function stamK(');
     }
     if (name === 'game') source = source.replace('PH.game = {', 'PH.cpuQA = { updatePlayer, collide, fat, bodyPow }; PH.game = {')
-      .replace('function spendStamina(pl, cost) {', 'function spendStamina(pl, cost) { window.charges.push({ id: pl.id, ctrl: pl.ctrl, cost, action: pl.action?.type });');
+      .replace('function spendStamina(pl, cost) {', 'function spendStamina(pl, cost) { window.charges.push({ t: G.time, id: pl.id, ctrl: pl.ctrl, cost, before: pl.stam, action: pl.action?.type, kind: pl.action?.kind });')
+      .replace('spendStamina(pl, CFG.moveCost', 'window.moveCharges.push({ t: G.time, id: pl.id, kind, index: window.charges.length }); spendStamina(pl, CFG.moveCost')
+      .replace('function updatePlayer(pl, inp, dt) {', 'function updatePlayer(pl, inp, dt) { window.inputFrames.push({ t: G.time, id: pl.id, action: pl.action?.type, kind: pl.action?.kind, moving: Math.hypot(inp.mx, inp.my) > 0.1, speed: pl.speed, stam: pl.stam, ctT: pl.ctT });');
     vm.runInContext(source, ctx, { filename: name + '.js' });
   }
   const { game: gm, T5, T3 } = ctx.PH;
+  ctx.PH.TUNE.load(profile || {});
   gm.seed(7);
   if (mode === 't5') T5.start({ home: 'LAL', away: 'BOS', human: -1, qlen: 720 });
   else if (mode === 't3') T3.start({ slots: Array.from({ length: 6 }, () => ({ arch: 'lebron', role: 'cpu' })), target: 999, clock: 24, replay: false });
-  else gm.newGame({ mode: 'cpu', arch0: 'lebron', arch1: 'lebron', target: 999 });
+  else gm.newGame({ mode: 'cpu', arch0: 'lebron', arch1: 'lebron', target: 999, ...options });
   gm.t5.checkStep(9);
   const G = gm.G;
   Object.assign(G, { phase: 'live', needClear: false, intro: null, tips: null });
@@ -37,7 +43,7 @@ function fixture(mode) {
 
 function scenario(mode, ctrl, kind, stamina = 100) {
   const f = fixture(mode), { ctx, gm, G, qa } = f;
-  ctx.PH.TUNE.load({ l1_stamRegen: kind === 'recovery' ? 1.68 : 0 });
+  ctx.PH.TUNE.load({ ...profile, l1_stamRegen: kind === 'recovery' ? (profile?.l1_stamRegen ?? 1.68) : 0 });
   const p = G.players[0], d = G.players.find(q => gm.t5.TM(q) !== gm.t5.TM(p));
   for (const q of G.players) q.off = q !== p && q !== d;
   Object.assign(p, { ctrl, x: 0, y: 5, z: 0, vx: 0, vy: 0, speed: 2, stam: stamina, hasBall: true, action: null, post: false, stun: 0, cd: 0, opp: d, prev: {} });
@@ -55,7 +61,7 @@ function scenario(mode, ctrl, kind, stamina = 100) {
   }
   if (kind === 'off') p.off = true;
   if (kind === 'sustained sprint') {
-    for (let i = 0; i < 600; i++) {
+    for (let i = 0; i < 900; i++) {
       p.x = 0; p.y = 5;
       qa.updatePlayer(p, { ...o, mx: 1, sprint: true }, dt);
     }
@@ -70,6 +76,7 @@ function scenario(mode, ctrl, kind, stamina = 100) {
   return { drop: stamina - p.stam, cost, action: p.action?.type, fatigue: qa.fat(p), power: qa.bodyPow(p) };
 }
 
+function run() {
 for (const mode of ['cpu', 't5', 't3']) {
   for (const kind of ['dribble', 'sprint', 'sustained sprint', 'contact', 'post contact', 'post', 'steal', 'jump', 'idle', 'off', 'recovery']) {
     const stamina = kind === 'recovery' ? 20 : 100;
@@ -109,3 +116,6 @@ for (const mode of ['cpu', 't5', 't3']) {
   assert(minStamina < 99, `${mode} CPU stamina actually falls`);
   console.log(`PASS ${mode} autonomous AI: ${cpu.length} paid actions, ${cpu.filter(c => c.action === 'move').length} move charges, minimum stamina=${minStamina.toFixed(2)}`);
 }
+}
+if (require.main === module) run();
+module.exports = { fixture };

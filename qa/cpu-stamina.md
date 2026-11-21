@@ -2,11 +2,11 @@
 
 ## Result
 
-Audited stamina references across `js/*.js`, including all writes to player/roster stamina, all action-cost callers, controller dispatch, recovery, fatigue and substitutions. **No competitive CPU-only stamina discount, recovery multiplier, stamina floor, or cost bypass was found on main.** The new regression also passes against main, with identical deterministic output. This change consolidates all 14 action/contact drain sites into `spendStamina`; it intentionally does not change the human rules, rates, training options or AI decisions.
+Audited stamina references across `js/*.js`, including all writes to player/roster stamina, all action-cost callers, controller dispatch, recovery, fatigue and substitutions. **No competitive CPU-only stamina discount, recovery multiplier, stamina floor, or cost bypass was found on main.** The initial consolidation (`0096fbb`) passed the same-input regression against main with identical output. The subsequent C1 investigation below found a behavioral recovery asymmetry missed by same-input comparisons: scripted dribbling with a neutral movement stick received standing recovery. The shared recovery classifier now includes physical movement and active dribble moves, without changing costs, rates, training options or AI decisions.
 
-The reported visual symptom is not reproduced by the headless simulation. Under default recovery, autonomous CPU stamina reached 66.00 in 1V1, 57.11 in 5V5, and 76.60 in 3V3 in the seeded 40-second samples. Controlled uninterrupted sprinting takes either controller below 3 stamina in all three modes. A final-frame-only assertion initially failed in 1V1 because the CPU had already recovered; sampling every frame records the actual drops. Browser visuals and the owner's saved tuning profile were not checked.
+The initial default-profile simulation reached CPU stamina minima of 66.00 in 1V1, 57.11 in 5V5, and 76.60 in 3V3. That established CPU costs existed, but did not establish equivalent recovery during human/AI movement. C1 was subsequently fetched GET-only and is reproduced below. Browser visuals and the owner's exact live input sequence remain unchecked.
 
-Shared recovery is fast: defaults give 21.84 points/second standing and 10.92 moving, with additional recovery below 30 stamina. Recovery also runs during actions when not sprinting/backing down. Possession resets add 25 in 1V1 and 15 in 3V3. These can hide brief drains, but are not CPU exceptions; whether they explain the owner's session is unverified. Changing them would change human gameplay too, so they are preserved.
+Shared recovery is fast: defaults give 21.84 points/second standing and 10.92 moving, with additional recovery below 30 stamina. Recovery still runs during actions when not sprinting/backing down. Possession resets add 25 in 1V1 and 15 in 3V3. These rates and resets are preserved; only the asymmetric movement classification is corrected.
 
 ## Audit table
 
@@ -29,7 +29,7 @@ Line numbers refer to this branch. `C = ST.cost` (default 0.8), `S = stamK(playe
 | Dive | `js/game.js:4363` | `dvCost * C * hustle badge` | Same `startDive`; HUD prompt alone is human-only | Same, shared drain |
 | Sprint on/off ball, offense/defense | `js/game.js:5034–5039` | `sprintDrain * S * takeover * dt`; needs movement, no action/post, stamina >3 | AI emits `sprint`; same gate and drain | Same, shared drain |
 | Moving post-up | `js/game.js:5043` | `5.5 * C * S * dt` while moving/not stuck | Same | Same, shared drain |
-| Idle/moving/post recovery | `js/game.js:5041–5044` | `(post ? stRgPost : moving ? stRgMove : stRgIdle) * lowStaminaBonus * R * dt`; delayed after pressure | Same; stance itself has no extra idle drain | Same |
+| Idle/moving/post recovery | `js/game.js:5041–5045` | `(post ? stRgPost : recoveringMoving ? stRgMove : stRgIdle) * lowStaminaBonus * R * dt`; delayed after pressure | Same formula, but neutral-stick AI dribble got idle rate | Physical speed >=0.7 or active dribble also counts as moving, for either controller; stationary stance remains idle |
 | Continuous collision pressure, both players | `js/game.js:6584–6587` | Penetration/speed-based `bdStam/60 * strengthRatio * C * S`; defender uses `resistCost` when pressed | Same | Same, shared drain |
 | Defensive stance under contact | `js/game.js:2118,6587,6651–6661` | Defense multiplier * strength ratio * `(1 + bdStSt)`; post/low-speed push charges both via bodyCost | Same | Same |
 | Explicit training infinite-stamina option | `js/game.js:2115,6587,6701` | Slot 0 is exempt from contact costs/restored to 100 when selected | Not a competitive CPU setting | Preserved explicit training option |
@@ -54,8 +54,58 @@ Kept AI decision-only tuning: `ai_cb_stLo`, `ai_cb_stMin` (shorten/stop combos),
 
 `node qa/cpu-stamina.cjs` compares identical human/CPU scenarios in real 1V1/5V5/3V3 fixtures: dribble, sprint, sustained exhaustion, defensive contact/post pressure, moving post, steal, jump, idle, inactive, recovery, zero-stamina action gates, fatigue and power. It instruments the shared drain without loading `input.js`. Separate 40-second autonomous samples exercise actual AI input dispatch and assert paid dribble/movement/contact actions, not just direct debug move calls.
 
-`CPU_STAMINA_BASE=main node qa/cpu-stamina.cjs` audits pre-refactor behavior by instrumenting the original inline subtraction expressions with the mathematically identical helper. Its deterministic output matches the branch exactly. This confirms the observed competitive parity predates this change rather than claiming a CPU-specific bug was fixed.
+`CPU_STAMINA_BASE=main node qa/cpu-stamina.cjs` audits pre-refactor behavior by instrumenting the original inline subtraction expressions with the mathematically identical helper. At the initial consolidation commit its deterministic output matched exactly. It no longer matches autonomous outcomes after correcting recovery classification; gross action costs remain unchanged.
 
 Other QA run: stamina, chain-stamina, contact-stamina, stamina-hud, pushback, stance-crab, sprint-dribble-tiers, sprint-trail, dribble-combo, combo-window, hesitation, post-moves, post-turn, move-ratings, steal-timing, poke-steal, rebound-input, rebound-hold, up-and-under, double-clutch, contested-layups, layup-fumble, check-ball, 3v3, b3-badges, box3, and seeded block-contact.
 
 Known existing failure: `qa/alley-oop.cjs:92`, `AssertionError [ERR_ASSERTION]: automatic layup/dunk must complete without input`. Reproduced with the unchanged `main:js/game.js` loaded into the same harness. It is not changed here.
+
+## C1 live-profile follow-up
+
+GET `https://pixelhoops-api.cecilcai322.workers.dev/api/profiles` returned default `pmwly6cz9cafb`, name `C1`, updated `1795265545.88`. Only GET was used; `qa/cpu-stamina-c1.json` is the complete returned C1 profile. `index.html` supplies this API base, and `cfgstore.js:138–141` selects the cloud default on a timely clean boot. A late request or pre-existing local overrides can prevent auto-selection; the owner's actual browser boot was not observed.
+
+### Reachable cause and fix
+
+1. `game.js:6686` dispatches CPU players through `aiInput`; humans through the input provider. `aiInputCore` initializes `zeroInp()`, then `if (a) return o` at line 6122 returns neutral movement during most active dribble frames (apart from occasional chain presses). Real C1 series before the fix recorded 95.16% / 96.25% neutral-input CPU dribble frames and 511 / 524 physically-moving neutral-input frames. The scripted human held direction throughout dribbles.
+2. `updatePlayer` calls `updateAction` before recovery. The dribble action writes `vx/vy` around line 4647 independently of joystick direction. The former recovery branch classified only `Math.hypot(inp.mx, inp.my) > 0.1`. Thus a physically moving CPU dribble got standing recovery; a direction-held human dribble got moving recovery. A human releasing the stick had the same unintended advantage, disproving a CPU-only cost exemption.
+3. C1 has `stRgIdle=18`, `stRgMove=8`, `stRgPost=10`; effective `stamRegen=1.68` is the unchanged default. This is **30.24/s idle versus 13.44/s moving**, not the default-profile 21.84/s idle. Over the matched 0.25s including the initiation frame, the extra recovery is 4.2 stamina.
+4. Matched Kyrie crossover, start stamina 60, no opponent contact: gross charge **4.4813** for either controller/input. Before: released-stick net drop **-3.0787** (actually gained stamina), held-stick drop **1.1213**. After: both drop **1.1213**, final **58.8787**. Same cost and human direction-held behavior; no CPU tuning added. `CPU_STAMINA_BASE=0096fbb node qa/cpu-stamina-live.cjs` fails the new input-independent recovery assertion as expected.
+5. Shared `recoveringMoving` uses input movement, physical speed >=0.7 (the existing stuck threshold), or an active dribble action. This also stops physical gliding/knockback receiving idle recovery solely because the input vector is neutral. Human neutral-stick scripted moves/gliding intentionally change by the same corrected rule. Sprint eligibility, post cost, pressure delay, low-stamina bonus and all rates remain unchanged. Idle, post, pressure-delayed and low-stamina recovery have explicit 1V1/5V5/3V3 tests.
+
+This is a reproduced C1 simulation mechanism capable of hiding CPU dribble drains, not proof of the owner's particular rendered browser session. There is no evidence that CPU stamina is universally higher: the realistic games below actually have lower CPU overall mean stamina, because its decisions/action counts differ.
+
+### C1 keys and difficulty
+
+All C1 overrides load through the shared TUNE getters. Relevant explicit overrides: `l1_stRgIdle=18`, `l1_stRgMove=8`, `l1_stRgPost=10`, `l1_moveCost=10`, `l1_sprintDrain=10`, `l1_stlCost=10`, `l1_bkCost=15.1`, `l1_bdStam=7`, `l1_bdStSt=0.65`, `l1_bdPressCost=0.4`, `l1_cbCost=0.3`, `l1_uuCost=0.38`, `l1_sprintSp=1.4`, `l1_speedMul=0.9`. None selects controller-specific cost/recovery values. Remaining C1 overrides affect movement/finishing/contact geometry, success or rendering rather than a CPU stamina account. No CPU-only stamina multiplier/slider was found.
+
+`diffOf` (`game.js:1935`) selects `pl.D` or `DIFF[G.diff]`; `newGame` installs `cpuD` on `players[1].D` (`1839`). King-of-the-Court (`main.js:466–472,587`) interpolates only lag, reaction, bite, steal, timing, move-bite and open-shot fields. These affect actions/timing, hence indirectly the elapsed recovery/actions chosen, not per-player stamina rates or costs. The matched test exercises ordinary difficulties 0/1/2 and all five actual `kingD` configurations, asserting the real `newGame(cpuD)` assignment on player 1 and identical gross/net crossover results.
+
+### Defense and HUD: no separate defect reproduced
+
+`collide` identifies handler/defender by possession, not controller or attacker ID. `pressing` uses relative physical velocity; it sets **both** `ctT` values to `G.time` and charges both participants. `bodyCost` and post/low-speed pressure also use shared costs. Idle stance is legitimately idle if there is no motion/contact pressure; there is no stance-only cost for either controller. Under sustained identical C1 pressure over 10s, human and CPU defenders both have minimum **25.5199**, mean **63.1543**, final **25.3371**. This disproves a blanket CPU defender charge/delay exemption in the tested situation; it does not reproduce every possible owner contact geometry.
+
+1V1 `render.js:2069` passes `p.stam` to the same `PH.stamBar` for both players. 5V5 `render5.js:587` also passes `p.stam`; `team5.js:2342–2349` applies the same `100-r.fat` cap and stores it back to the roster. There is no CPU-specific smoothing. The common bar immediately shortens the colored fill but retains a 0.6s pale damage ghost; an 8-point loss in the 30px duel bar is only 2px. At C1 standing recovery, 8 points return in 0.265s, before the ghost expires. Canvas-call assertions verify identical immediate values and ghost behavior, and existing `qa/stamina-hud.cjs` passes. No browser visual check was performed.
+
+### Realistic series at 10 Hz
+
+Two seeded 7200-frame 1V1 runs with identical Kyrie archetypes, difficulty 2, C1 overrides, scripted human dribble/drives/finishes on offense and stance/closing pressure on defense, actual autonomous CPU decisions, and starting possession swapped. Both sides subsequently attack and defend naturally. Samples use simulation time; hit-stop/slow motion means roughly 116–119 simulated seconds per 120 frame-seconds. Possession resets remain enabled. CSVs include role, stamina, action, raw movement input, speed and pressure delay. Gross is the charge at move initiation; net is the mean start-to-end change of completed move actions and includes concurrent contact/recovery, not an isolated cost. Different move counts/finishes make whole-game means observational, not equivalent-work comparisons; the matched move and pressure tests above isolate accounting.
+
+| Version | First attacker | Controller | Samples | Min | Mean | Moves | Gross/move | Net/move |
+|---|---|---|---:|---:|---:|---:|---:|---:|
+| Before | Human | Human | 1179 | 49.6287 | 96.0495 | 10 | 3.9435 | 0.7179 |
+| Before | Human | CPU | 1179 | 38.5716 | 89.7518 | 57 | 5.1350 | 7.4155 |
+| Before | CPU | Human | 1173 | 55.0194 | 95.8619 | 13 | 4.0207 | 1.0460 |
+| Before | CPU | CPU | 1173 | 36.3269 | 87.8575 | 60 | 5.6206 | 6.3597 |
+| After | Human | Human | 1185 | 49.6231 | 94.4894 | 12 | 3.4715 | 0.5099 |
+| After | Human | CPU | 1185 | 34.3716 | 87.0441 | 50 | 4.8593 | 7.8880 |
+| After | CPU | Human | 1163 | 80.0092 | 97.8367 | 15 | 4.0224 | 1.2040 |
+| After | CPU | CPU | 1163 | 29.2475 | 91.6824 | 47 | 5.1952 | 7.1870 |
+
+Reproduce current results:
+
+```sh
+CPU_STAMINA_PROFILE=qa/cpu-stamina-c1.json node qa/cpu-stamina.cjs
+node qa/cpu-stamina-live.cjs /home/ubuntu/cpu-stamina-c1-after.csv
+```
+
+Default and C1 regressions pass after the fix. C1 autonomous minima in 1V1/5V5/3V3 are **34.49 / 59.06 / 41.98**. Affected existing QA rerun: stamina, chain-stamina, contact-stamina, stamina-hud, pushback, stance-crab, sprint-dribble-tiers, sprint-trail, dribble-combo, combo-window, hesitation, post-moves, post-turn, move-ratings, check-ball, 3v3, b3-badges, box3; all pass. Required seeded block-contact passes: 18 blocks / 340 FGA (5.29%) across eight CPU games; shared 5V5 test reaches 120s and audits one block. Logs and before/after CSVs are saved under `/home/ubuntu/cpu-stamina-c1-*`. The separately documented pre-existing alley-oop failure was not rerun in this follow-up.

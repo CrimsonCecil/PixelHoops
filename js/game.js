@@ -5040,8 +5040,9 @@
     else {
       // 体力恢复：背打移动额外消耗，贴身承压后缓一缓再回；体力越低回得越快
       const low = pl.stam < 30 ? 1 + (30 - pl.stam) / 30 * 0.6 : 1, stuck = pl.speed < 0.7;
+      const recoveringMoving = moving || !stuck || a && a.type === 'move';
       if (pl.post && moving && !stuck) spendStamina(pl, 5.5 * ST.cost * stamK(pl) * dt);
-      else if (!(pl.ctT <= G.time && pl.ctT > G.time - K.bdPbCd * 2)) pl.stam = Math.min(100, pl.stam + (pl.post ? K.stRgPost : moving ? K.stRgMove : K.stRgIdle) * low * CFG.stamRegen * dt);
+      else if (!(pl.ctT <= G.time && pl.ctT > G.time - K.bdPbCd * 2)) pl.stam = Math.min(100, pl.stam + (pl.post ? K.stRgPost : recoveringMoving ? K.stRgMove : K.stRgIdle) * low * CFG.stamRegen * dt);
     }
     if (pl.blkR && pl.blkR.tier === 1) ms *= 0.55;   // V3.9q 轻档被盖：原地晃一下，移动减速
     if (pl.hasBall) { ms *= 0.93 * clamp((0.8 + 0.2 * (pl.r.spdB || pl.r.spd)) / (0.8 + 0.2 * pl.r.spd), 0.9, 1.08); if (ptIs(pl, 'slasher')) acc *= 1.06; } ms *= 1 - 0.24 * fat(pl); acc *= 1 - 0.35 * fat(pl);
