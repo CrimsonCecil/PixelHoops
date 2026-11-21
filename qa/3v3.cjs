@@ -19,6 +19,11 @@ const vm = require('node:vm');
   console.log('PASS: 3V3 badge popups for slots 2 and 5 use the home and away HUD columns.');
 }
 
+function settleCheck(G, T3, inputs) {
+  for (let i = 0; i < 120 && G.phase === 'check'; i++) T3.tick(1 / 60, inputs);
+  assert.equal(G.phase, 'live', 'check ball reaches the offense');
+}
+
 function fixture(options = {}) {
   const ctx = vm.createContext({ performance: { now: () => 0 }, setTimeout: () => {} });
   ctx.window = ctx;
@@ -30,6 +35,7 @@ function fixture(options = {}) {
   game.seed(7);
   const slots = ['curry', 'edwards', 'jokic', 'lebron', 'durant', 'giannis'].map((arch, i) => ({ arch, role: options.human === i ? 'human' : 'cpu' }));
   T3.start({ slots, target: 21, clock: 14, replay: false, ...options });
+  if (options.settle !== false) settleCheck(game.G, T3);
   return { ctx, G: game.G, Gm: game, api: game.t5, T3, run: (count, inputs) => { for (let i = 0; i < count; i++) T3.tick(1 / 60, inputs); } };
 }
 
@@ -574,11 +580,15 @@ console.log('PASS: a CPU honors an open call according to pass IQ, vetoes a bloc
 }
 
 {
-  const { G, Gm, T3, api, run } = fixture({ human: 1, target: 5 });
+  const { G, Gm, T3, api, run } = fixture({ human: 1, target: 5, settle: false });
   assert.equal(G.players.length, 6);
-  assert.equal(T3.holder().id, 1);
   assert.equal(G.phase, 'check');
+  assert.equal(T3.holder(), null, 'the defender holds the check ball');
+  assert.equal(G.ball.state, 'pass');
+  assert.equal(G.players[G.ball.lastTouch].tm, 1, 'a defender checks the ball');
   assert.equal(G.shotClock, 14);
+  settleCheck(G, T3);
+  assert.equal(T3.holder().id, 1);
   assert(Gm.isThree(T3.holder().x, T3.holder().y));
   run(60);
   api.scoreBy(1, 2, 'lay');
@@ -586,6 +596,7 @@ console.log('PASS: a CPU honors an open call according to pass IQ, vetoes a bloc
   run(62);
   assert.equal(G.phase, 'check');
   assert.equal(G.off, 1);
+  settleCheck(G, T3);
   assert(!G.needClear && Gm.isThree(T3.holder().x, T3.holder().y));
   assert.equal(G.shotClock, 14);
   run(60);

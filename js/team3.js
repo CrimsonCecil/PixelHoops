@@ -112,6 +112,7 @@
     for (const [d, o] of T.marks) { d.x = o.x * 0.9; d.y = o.y + 1.15; }
     restoreMarks();
     A.banner(message || '弧顶交换球', GM.TEAMS[team].name + '球权', GM.TEAMS[team].css, 0.9);
+    A.checkBall([...T.marks].find(([, o]) => o === h)?.[0] || def[0], h);
   }
   function lost(by, text, receiving) {
     if (by) G.stats[by.id].tov++;
@@ -385,10 +386,10 @@
     if (!T.on) return;
     if (G.replay) { A.replayTick(dt); return; }
     T.inputs = inputs || {};
-    const h = holder();
+    const h = holder(), owner = h || (G.phase === 'check' && G.chk ? G.players[G.chk.o] : null);
     for (const p of G.players) {
       const inp = T.inputs[p.id], pass = !!(inp?.pass && p.ctrl !== 'cpu');
-      if (pass && !T.prev[p.id] && p === h && (G.phase === 'check' || G.phase === 'live')) {
+      if (pass && !T.prev[p.id] && p === owner && (G.phase === 'check' || G.phase === 'live')) {
         T.passQueue = { p, inp, until: G.time + 1 };
       }
       if (p === h || G.phase !== 'live') T.prev[p.id] = pass;
@@ -414,7 +415,7 @@
       }
     }
     const queued = T.passQueue;
-    if (queued && (queued.p !== h || queued.until <= G.time || send(h, target(h, queued.inp).p, queued.inp.passKind))) T.passQueue = null;
+    if (queued && (queued.p !== owner || queued.until <= G.time || h && send(h, target(h, queued.inp).p, queued.inp.passKind))) T.passQueue = null;
     const current = holder();
     if (G.phase === 'live') pickTick(current);
     else clearPick();
@@ -426,7 +427,7 @@
     if (G.replay) return;
     if (G.phase === 'check' || G.phase === 'dead') {
       G.phaseT -= dt;
-      if (G.phaseT <= 0) {
+      if (G.phase === 'check' ? A.checkStep(dt) : G.phaseT <= 0) {
         if (G.phase === 'check') G.phase = 'live';
         else if (G.winner >= 0) { G.phase = 'over'; G.phaseT = 0; A.sfx('win'); }
         else check(T.next);
