@@ -2502,12 +2502,12 @@
     }
     if (G.h5) G.h5.score(pl, pts, kind, name);
   }
-  function pickup(pl) {
+  function pickup(pl, reason) {
     for (const p of G.players) comboEnd(p);
     const b = G.ball;
     if (b.wasShot && b.z > pl.z + pl.h * 0.85) pl.catchAt = G.time; // 高球：双手举起接球的姿势
     b.cT = 0.1; b.cx = b.x; b.cy = b.y; b.cz = b.z;
-    if (b.state === 'loose' && pl.ctrl !== 'cpu' && G.phase === 'live') { b.fl = 0.5; pl.grabT = G.time; sfx('grab'); G.fx.rings.push({ x: pl.x, y: pl.y, z: 0.1, t: 0, T: 0.42, col: '#ffffff', R: 1.5 }, { x: pl.x, y: pl.y, z: 0.1, t: -0.08, T: 0.4, col: pl.team.css || '#5ee0ff', R: 1.0 }); burst(b.x, b.y, b.z, 8, ['#ffffff', '#fff6c8', '#ffd24a'], 2.2, 0.3, 8); }
+    if (reason !== 'intercept' && b.state === 'loose' && pl.ctrl !== 'cpu' && G.phase === 'live') { b.fl = 0.5; pl.grabT = G.time; sfx('grab'); G.fx.rings.push({ x: pl.x, y: pl.y, z: 0.1, t: 0, T: 0.42, col: '#ffffff', R: 1.5 }, { x: pl.x, y: pl.y, z: 0.1, t: -0.08, T: 0.4, col: pl.team.css || '#5ee0ff', R: 1.0 }); burst(b.x, b.y, b.z, 8, ['#ffffff', '#fff6c8', '#ffd24a'], 2.2, 0.3, 8); }
     b.state = 'held'; b.holder = pl.id; pl.hasBall = true; b.shot = null; b.under = false; b.trail = null;
     pl.drib = 0; pl.gotT = G.time; pl.passCatchT = null; pl.catchDribbled = false;
     const change = !isO(pl), keepClk = teamPlay() && !change && !b.wasShot, clk0 = G.shotClock, wasShot = b.wasShot, train = G.mode === 'train' && G.train.role === 'off';

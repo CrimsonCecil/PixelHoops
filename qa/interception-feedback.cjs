@@ -76,7 +76,8 @@ function interception(mode, local, stealing, result = 'int', network = false) {
   const room = network ? roomHarness(f, local * 3, 'host') : null;
   const api = mode === 3 ? PH.T3 : PH.T5, T = api.T;
   const fromTeam = 1 - stealing, from = G.players.find(p => p.tm === fromTeam);
-  const to = G.players.find(p => p.tm === fromTeam && p !== from), d = G.players.find(p => p.tm === stealing);
+  const to = G.players.find(p => p.tm === fromTeam && p !== from);
+  const d = mode === 5 && local === stealing ? T.ctl : G.players.find(p => p.tm === stealing);
   Object.assign(G, { phase: 'live', off: fromTeam, banner: null }); Object.assign(T, { phase: 'live', off: fromTeam });
   for (const p of G.players) Object.assign(p, { x: -7, y: -12, hasBall: false, stun: 0, action: null });
   Object.assign(from, { x: -3, y: 4, face: 0, hasBall: true });
@@ -122,6 +123,9 @@ function interception(mode, local, stealing, result = 'int', network = false) {
   assert.equal(G.stats[d.id].stl, 1); assert.equal(G.stats[from.id].tov, 1);
   assert.equal(G.fx.possession, undefined); assert.equal(G.banner, null);
   assert.equal(G.fx.flash, 0); assert.equal(G.fx.shake, 0);
+  assert.equal(G.fx.rings.length, 0, 'Interceptions must not trigger ordinary pickup floor rings');
+  assert.equal(G.fx.parts.length, 8, 'Only the eight hand sparks remain, without an ordinary pickup burst');
+  assert(!sounds.includes('grab'), 'Interceptions must not play the loose-ball grab cue');
   const sparks = G.fx.parts.filter(q => q.interceptTeam != null);
   assert.equal(sparks.length, 8);
   const sign = mode === 5 ? -1 : 1;
@@ -153,6 +157,29 @@ for (const mode of [3, 5]) {
 interception(5, 0, 1, 'defl');
 console.log('PASS stunned defenders do not trigger interception feedback; 5V5 deflections retain existing feedback.');
 for (const host of [0, 1]) for (const stealing of [0, 1]) interception(3, host, stealing, 'int', true);
+
+for (const mode of [3, 5]) {
+  for (const ctrl of ['p1', 'cpu']) {
+    const { G, game, PH, sounds } = fixture(mode, 0);
+    const p = mode === 5 ? PH.T5.T.ctl : G.players[0];
+    p.ctrl = ctrl;
+    Object.assign(G, { phase: 'live', off: p.tm });
+    G.fx.parts.length = 0; G.fx.rings.length = 0; sounds.length = 0;
+    Object.assign(G.ball, { state: 'loose', holder: -1, x: p.x, y: p.y, z: 1, wasShot: false });
+    game.t5.pickup(p, 'intercept');
+    assert.equal(G.ball.holder, p.id);
+    assert.equal(G.fx.parts.length, 0); assert.equal(G.fx.rings.length, 0); assert(!sounds.includes('grab'));
+    p.ctrl = ctrl;
+    Object.assign(G.ball, { state: 'loose', holder: -1, wasShot: false });
+    game.t5.pickup(p);
+    assert.equal(G.ball.holder, p.id);
+    assert.equal(G.fx.rings.length, ctrl === 'p1' ? 2 : 0);
+    assert.equal(G.fx.parts.length, ctrl === 'p1' ? 8 : 0);
+    assert.equal(sounds.filter(s => s === 'grab').length, ctrl === 'p1' ? 1 : 0);
+    if (ctrl === 'p1') assert.equal(JSON.stringify(G.fx.rings.map(r => [r.R, r.T])), JSON.stringify([[1.5, 0.42], [1, 0.4]]));
+  }
+  console.log(`PASS ${mode}V${mode}: interception pickups suppress rings/burst/grab; subsequent ordinary human and CPU loose-ball pickups unchanged`);
+}
 
 {
   const frequencies = [];

@@ -911,7 +911,7 @@
         T.ps = null; b.state = 'loose'; b.vz = 0; b.vx = b.vy = 0; b.x = d.x; b.y = d.y; b.z = 1;
         G.stats[d.id].stl++; fltS('抢断', d); A5.vo(d, 'steal');
         if (P.rec) P.rec.res = 'int';
-        A5.pickup(d); return;
+        A5.pickup(d, 'intercept'); return;
       }
       if (d.stun <= 0 && dist(d, b) < TV.t5_int_deflD && rnd() < I.ch * TV.t5_int_defl) {   // 碰到球：挡出
         T.ps = null; b.state = 'loose'; b.vx = -b.vx * 0.3 + rr(-2, 2); b.vy = -b.vy * 0.3 + rr(-2, 2); b.vz = 1.5; b.lastTouch = d.id; b.noPick = 0.15;
