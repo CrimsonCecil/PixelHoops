@@ -2147,8 +2147,9 @@
       if (G.phaseT > 0) return;
       if (!down) F.ready = true;
       if (!cpu && (!down || !F.ready)) return;
-      const ideal = CFG.shotIdeal * formOf(pl).sp, span = ideal + 0.12;
-      const gw = Math.min(K.ftGreenBase + K.ftGreenRating * pl.r.ft, ideal, span - ideal) / span;
+      const ideal = CFG.shotIdeal * formOf(pl).sp;
+      const halfWidth = clamp(K.ftGreenBase + K.ftGreenRating * pl.r.ft, 0, Math.min(ideal, 0.22));
+      const span = ideal + Math.max(0.12, halfWidth), gw = halfWidth / span;
       pl.action = { type: 'shot', v: 'set', V: SV.set, F: formOf(pl), lefty: !!pl.arch.lefty, jT: ideal * 0.45, t: 0, ideal, ft: true,
         cpuRelease: cpu ? ideal + rr(-K.ftCpuError, K.ftCpuError) : 0,
         meter: { v: 0, span, ideal: ideal / span, gw, done: false, color: '#fff', label: '罚球' } };

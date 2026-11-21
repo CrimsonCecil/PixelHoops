@@ -56,6 +56,10 @@ assert.equal(halfWidth(startFT(hi, true)), hw, 'same green window for CPU and pl
 const sameRelease = (hw + lw) / 2;
 assert(release(startFT(hi, false), false, sameRelease).green);
 assert(!release(startFT(lo, false), false, sameRelease).green);
+const baseWindow = K.ftGreenBase, ratingWindow = K.ftGreenRating;
+set('ftGreenBase', 0.08); set('ftGreenRating', 0.1);
+assert(release(startFT(1, false), false, 0.15).green, 'large tuned windows include offsets beyond 120 ms');
+set('ftGreenBase', baseWindow); set('ftGreenRating', ratingWindow);
 for (let i = 0; i < 160; i++) {
   const human = startFT(hi, false, i);
   seed(i);
