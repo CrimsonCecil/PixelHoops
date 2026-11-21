@@ -7,9 +7,10 @@ const root = path.resolve(__dirname, '..');
 function load(before = false) {
   const ctx = vm.createContext({ console, performance: { now: () => 0 }, setTimeout() {}, clearTimeout() {} });
   ctx.window = ctx; ctx.PH = { input: { endTick() {}, read: () => ({}) } };
-  for (const name of ['render', 'tune', 'roster', 'game']) {
+  for (const name of ['render', 'tune', 'roster', 'r5', 'game', 'b5', 'team5']) {
     let src = before && ['game', 'render'].includes(name) ? execFileSync('git', ['show', `main:js/${name}.js`], { cwd: root, encoding: 'utf8' }) : fs.readFileSync(path.join(root, 'js', name + '.js'), 'utf8');
     if (name === 'game') src = src.replace('PH.game = {', 'PH.farQA = { laySide, buildSteps, releaseShot, LVR, poseTarget, updatePlayer, stepPose }; PH.game = {');
+    if (name === 'team5') src = src.replace('PH.T5 = {', 'PH.farTeamQA = (g) => { G = g; T.tm = [0, 1].map(tm => ({ on: g.players.filter(p => p.tm === tm) })); shotAdj(); }; PH.T5 = {');
     vm.runInContext(src, ctx, { filename: name + '.js' });
   }
   return ctx;
@@ -36,6 +37,21 @@ function action(ctx, f, seed) {
   return a;
 }
 const before = load(true), after = load();
+{
+  const f = setup(after, 3.4, 0.9, 't5');
+  let a;
+  for (let i = 1; !a || a.lsv !== 'far'; i++) a = action(after, f, i * 100003);
+  Object.assign(f.p, { x: 0, y: f.H.y - 1.7, z: 0.15, action: a });
+  f.d.off = true;
+  f.gm.G.off = 0;
+  const initial = a.V.p;
+  after.PH.farTeamQA(f.gm.G);
+  assert(Math.abs(a.V.p / initial - 1.7) < 1e-9, 'exercise real team5 shotAdj');
+  after.PH.farQA.releaseShot(f.p, 0, 'lay');
+  const prob = f.gm.G.ball.shot.info.prob, cap = f.gm.K.lvFarP + f.gm.K.lvFarLay * (f.p.r.lay - 0.75);
+  console.log(`5V5 calibrated open green: prob=${prob.toFixed(4)}, far cap=${cap.toFixed(4)}`);
+  assert(prob <= cap + 1e-9, 'team5 saturation cannot bypass the far-hand multiplier');
+}
 let count = 0, min = Infinity, max = 0;
 for (const mode of ['2p', 't5']) for (const cpu of [false, true]) {
   for (const distance of [2, 2.6, 3, 3.4, 4, 4.1, 5, 6]) {
