@@ -2660,14 +2660,14 @@
         const it = PH.audio && PH.audio.voLine ? PH.audio.voLine(p.arch.key, L.v, L.i) : null;
         if (!it) return false;
         L.t = it.t; L.d = it.d;
-        G.intro.ld = clamp(Math.max(0.8 + L.t.length * 0.1, (L.d || 0) + 0.55), 1.9, 4.5);
+        G.intro.ld = Math.max(clamp(0.8 + L.t.length * 0.1, 1.9, 4.5), (L.d || 0) + 0.55);
         if (G.mode !== 'demo') PH.audio.voSay(it);
         return true;
       };
       if (!sayVo() && PH.audio && PH.audio.voWhenReady) PH.audio.voWhenReady(sayVo);
     }
     if (!L.t) L.t = L.fb || (L.v === 'dom' ? '别急，看看最后谁笑。' : '今天这场，我拿下了！');
-    L.done = false; I.lt = G.time; I.ld = clamp(Math.max(0.8 + L.t.length * 0.1, (L.d || 0) + 0.55), 1.9, 4.5);
+    L.done = false; I.lt = G.time; I.ld = Math.max(clamp(0.8 + L.t.length * 0.1, 1.9, 4.5), (L.d || 0) + 0.55);
   }
   // 按键：字没打完先补全，打完了才翻下一句
   function introPress() {

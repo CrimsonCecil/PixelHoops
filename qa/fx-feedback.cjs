@@ -56,7 +56,7 @@ function load() {
 
 // 1b. Delayed vo/manifest.json load still plays voiced intro dialogue line once ready
 {
-  const { Gm, G, said, setManifestReady } = load();
+  const { ctx, Gm, G, said, setManifestReady } = load();
   setManifestReady(false);
   Gm.newGame({ mode: 'cpu', arch0: 'maxey', arch1: 'joe' });
   Gm.introStart();
@@ -66,7 +66,11 @@ function load() {
   setManifestReady(true);
   assert.equal(said.length, 1, 'voiced intro line plays once manifest resolves');
   assert.match(G.intro.lines[0].t, /^maxey:dom:/, 'subtitle updates to resolved voice line');
-  console.log('PASS: delayed vo/manifest.json load still triggers voiced intro dialogue line.');
+  // Long voice line (>4.5s) is never truncated by the line duration cap
+  ctx.PH.audio.voLine = (k, ev, i) => ({ f: k + ev + i, t: '长台词测试', d: 4.72 });
+  Gm.introPress(); Gm.introPress(); // advance to line 1
+  assert.ok(G.intro.ld >= 4.72 + 0.5, 'long voice line keeps full duration without truncation (' + G.intro.ld + 's)');
+  console.log('PASS: delayed vo/manifest.json load still triggers voiced intro dialogue line and preserves long voice durations.');
 }
 
 // 1c. Skipping walk-in suppresses pending walk-in voices during dialogue
