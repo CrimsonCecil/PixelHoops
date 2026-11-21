@@ -320,7 +320,7 @@
     show('btn-start', !guest && (!online || room.role === 'host' && room.links.has(1)));
     $('row-diff').classList.toggle('hidden', opts.mode !== 'cpu' && !t5 && !t3);
     for (const id of ['row-fb', 'row-p1', 'row-p2']) show(id, setup && !t5);
-    show('row-intro', setup && !t5 && opts.mode !== 'train');
+    show('row-intro', !t5 && opts.mode !== 'train');
     for (const id of ['row-qlen', 'row-teams', 'row-side']) $(id).classList.toggle('hidden', !t5);
     for (const id of ['row-target', 'row-clock']) show(id, !tr && !t5);
     show('row-glen', !tr && !t5 && !t3);
