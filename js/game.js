@@ -3309,13 +3309,13 @@
     const oppS = G.score[1 - id], win = !andOne && !train && winsWith(id, pts), buzzer = win && (oppS >= G.target - 2 || G.sd || (G.glen > 0 && G.gclock <= 2));
     if (!train) { G.score[id] += pts; { const o2 = G.stats[1 - id]; st.lead = Math.max(st.lead, G.score[id] - G.score[1 - id]); st.runC += pts; o2.runC = 0; st.run = Math.max(st.run, st.runC); } G.phase = 'dead'; G.phaseT = win ? 2.6 : 1.7; }
     const hot = G.streak[id] >= K.hcHotN;
-    const title = kind === 'dunk' ? (name || '暴扣得分') : name === '空接上篮' ? name : pts === 3 ? '三分命中' : (name && name !== '定点跳投' ? name + '命中' : '两分命中');
+    const title = kind === 'dunk' ? (name || '暴扣得分') : name === '空接上篮' ? name : pts === 3 ? '三分' : (name && name !== '定点跳投' ? name : '两分');
     banner(title, (train ? '' : t.name + ' +' + pts) + (hot ? (train ? '' : ' · ') + '连中 ' + G.streak[id] + ' 球' : ''), t.css, train ? 0.9 : 1.4);
     sfx(kind === 'dunk' ? 'dunk' : 'swish');
     const F = G.fx, hx = HOOP.x, hy = HOOP.y, hz = HOOP.z, pa = pl.action;
     const special = kind === 'dunk' && (/隔人|长距离|^长 · /.test(name || '') || (pa && pa.type === 'dunk' && (pa.v === 'windmill' || pa.v === '360' || pa.v === 'cock' || pa.v === 'cradle' || pa.v === 'scissor' || pa.v === 'pump' || pa.long)));
     const afterAnkle = pl.ankleT && G.time - pl.ankleT < 3.5, clutch = isClutch() && CFG.shotClock > 0 && G.shotClock <= 2;
-    let tier = kind === 'dunk' ? (special ? 2 : 1) : pts === 3 ? 1 : 0, ledT = kind === 'dunk' ? 'SLAM DUNK  ' + (name || '暴扣') + '  +2' : pts === 3 ? '3 POINTS  三分命中  +3' : '+2  ' + (name || '两分命中');
+    let tier = kind === 'dunk' ? (special ? 2 : 1) : pts === 3 ? 1 : 0, ledT = kind === 'dunk' ? 'SLAM DUNK  ' + (name || '暴扣') + '  +2' : pts === 3 ? '3 POINTS  三分  +3' : '+2  ' + (name || '两分');
     let hs = (kind === 'dunk' && /隔人/.test(name || '')) ? 25 : special ? 15 : 0;
     if (pts === 3 && distHoop(pl) > 8.2) hs += 10;
     if (afterAnkle) { hs += 25; tier = Math.max(tier, 2); ledT = 'ANKLE BREAKER  晃倒  +' + pts; pl.ankleT = 0; }
@@ -3351,7 +3351,7 @@
     if (kind === 'dunk') { G.fx.board = Math.max(G.fx.board, special ? 0.9 : 0.6); shake(special ? 14 : 9); flash(special ? '#ffffff' : '#ff8a2a', special ? 0.15 : 0.09); }
     burst(HOOP.x, HOOP.y, HOOP.z - 0.2, 8 + 8 * tier, [col, '#ffffff'], 2.5 + tier, 0.5, 6);
     triggerScoreFx(pl, pts, kind, tier);
-    if (tier >= 1) { G.fx.cheer = Math.max(G.fx.cheer, 1.5 + tier); sfx(tier >= 2 ? 'cheer2' : 'cheer'); led(kind === 'dunk' ? 'SLAM DUNK  ' + (name || '暴扣') + '  +2' : '3 POINTS  三分命中  +3', col, 2); }
+    if (tier >= 1) { G.fx.cheer = Math.max(G.fx.cheer, 1.5 + tier); sfx(tier >= 2 ? 'cheer2' : 'cheer'); led(kind === 'dunk' ? 'SLAM DUNK  ' + (name || '暴扣') + '  +2' : '3 POINTS  三分  +3', col, 2); }
     else sfx('cheerSoft');
     if (hot) { led('ON FIRE  手感火热  连中 ' + G.streak[id] + ' 球', '#ff6b5e', 2.6); if (G.streak[id] === 3) float('手感火热', pl, '#ff8a2a', 1); }
     vo(pl, kind === 'dunk' ? 'dunk' : pts === 3 ? 'three' : hot && G.streak[id] === 3 ? 'hot' : 'make');
