@@ -392,6 +392,42 @@ console.log(`PASS planted steal foot: hit/miss, six distances including 0.94m, b
   console.log('PASS planted steal foot transforms: broadcast and rotated 2K, both directions, possession flip; grounded and attached to shin');
 }
 
+for (const fps of [60, 120]) for (const opposite of [false, true]) for (const initialSide of [-1, 1]) {
+  const visual = fixture(), { G, K, _qa, t5 } = visual, [p, d] = G.players, dt = 1 / fps;
+  Object.assign(d.r, { stl: 1 });
+  Object.assign(G, { phase: 'live', needClear: false, time: 0 });
+  Object.assign(p, { x: 0, y: 5, hasBall: true, action: null, opp: d, face: Math.PI / 2 });
+  Object.assign(d, { x: initialSide * 0.564, y: 5.752, hasBall: false, action: null, opp: p, face: -Math.PI / 2 });
+  visual.CFG.stealMul = 100; K.stlMax = 1;
+  const resetBall = () => {
+    p.hasBall = true; d.hasBall = false;
+    Object.assign(G.ball, { state: 'held', holder: p.id, dead: false });
+    _qa.updateBall(0);
+  };
+  const step = () => { G.time += dt; _qa.updatePlayer(p, t5.zeroInp(), dt); _qa.updatePlayer(d, t5.zeroInp(), dt); _qa.updateBall(dt); };
+  resetBall();
+  for (let i = 0; i < fps / 2; i++) step();
+  const stance = visual.rig(d);
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const side = opposite && attempt % 2 ? -initialSide : initialSide;
+    p.hand = side; p.handX = side * 0.33; p.drib = 1;
+    resetBall();
+    _qa.startSteal(d); d.action.swipe = side;
+    const action = d.action, lead = side < 0 ? 'footL' : 'footR';
+    for (let frame = 0; frame < Math.ceil(0.22 * fps); frame++) {
+      step();
+      if (frame * dt >= 0.1 && frame * dt < K.stlHitT) {
+        const foot = visual.rig(d)[lead], home = stance[lead];
+        const stride = Math.hypot(foot[0] - home[0], foot[1] - home[1]);
+        assert(stride <= K.stlLungeStep * d.h / 1.95 + 0.04, `${fps}fps ${opposite ? 'opposite' : 'same'} side attempt=${attempt}: stride accumulated to ${stride}m`);
+        assert(Math.abs(foot[2] - home[2]) < 0.01, 'repeated steal lands on court, not above previous airborne foot');
+      }
+    }
+    assert(action.poked && !d.action && d.stealFoot, 'next steal begins legally after quick-hit timer but during visual foot recovery');
+  }
+}
+console.log('PASS repeated steal stride: same/opposite sides, both initial arms, three quick hits, 60/120fps; capped stance-relative stride and grounded landing');
+
 if (process.env.STEAL_BASELINE) {
   const before = fixture(fs.readFileSync(process.env.STEAL_BASELINE, 'utf8'));
   rates(before, 'before');

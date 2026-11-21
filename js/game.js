@@ -4988,7 +4988,9 @@
     pl.handX = lerp(pl.handX, pl.hand * 0.33, Math.min(1, dt * 16));
     if (an === 'steal' && (!pl.stealFoot || pl.stealFoot.action !== a)) {
       const side = a.swipe < 0 ? 'L' : 'R', start = PH.rig(pl)['foot' + side].slice(), length = K.stlLungeStep * pl.h / 1.95;
-      pl.stealFoot = { action: a, side, start, end: [start[0] + Math.cos(pl.face) * length, start[1] + Math.sin(pl.face) * length, start[2]], pos: start.slice(), t: 0 };
+      const stance = Object.assign(Object.create(pl), { anim: 'def', action: null, stealFoot: null, crab: null, sq: 1, speed: 0 });
+      const home = PH.rig(stance, poseTarget(stance), false)['foot' + side], floor = pl.z + 0.06 * (1 + (pl.h / 1.95 - 1) * 1.7);
+      pl.stealFoot = { action: a, side, start, end: [home[0] + Math.cos(pl.face) * length, home[1] + Math.sin(pl.face) * length, floor], pos: start.slice(), t: 0 };
     }
     const T = poseTarget(pl), P = pl.pose, kq = postBlend ? 1 - Math.exp(-2 * dt / blendT) : Math.min(1, dt * 22);
     if (postBlend && T.yaw == null) T.yaw = 0;
