@@ -3510,7 +3510,7 @@
     const btn = a.btn || 'a2', held = !a.rel; f.action = null;
     const ok = startFinish(f, { mx: 0, my: 0, dx: 0, dy: 0 }, 'lay', btn, false, !!a.alley);
     if (!ok || !f.action || f.action.type !== 'layup') { f.action = a; return false; }
-    const na = f.action; na.alley = a.alley; na.cHit = true; na.bump = Math.max(na.bump || 0, bump); na.run0 = a.run0; na.dk0 = a.name;
+    const na = f.action; na.alley = a.alley; na.cHit = true; na.bump = Math.max(na.bump || 0, bump); na.run0 = a.run0; na.dk0 = a.name; na.fumbleChecked = a.fumbleChecked;
     if (now) { na.wp.length = 0; layMeter(na); }
     if (!held && f.ctrl !== 'cpu') na.rearm = true;
     if (cvOk(f, true)) cvSet(f, na, 'dunk2lay'); else { na.cv = 'dunk2lay'; na.cvT = 0; na.cvR = na.ideal; na.lsv = ''; }
