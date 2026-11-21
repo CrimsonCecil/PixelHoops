@@ -2852,6 +2852,7 @@
     if (change) { if (playCPU(pl)) { pl.ai.call = null; pl.ai.su = null; } G.illId = -1; G.off = TM(pl); G.needClear = !train && G.mode !== 't5' && !isThree(pl.x, pl.y); if (!train && G.mode !== 't5') float(G.needClear ? '球权转换 · 先出三分线' : '球权转换', pl, '#5ee0ff', 0); }
     if (wasShot) {
       pl.ib = pl.buf = pl.finQ = null; pl.jbuf = 0;
+      pl.rsGesture = null; pl.reboundRS = true;
       // 手柄 X/Y 在拿球后换用途；已按住的键不能算一次新的投篮或终结。
       if (!teamPlay() && pl.ctrl !== 'cpu') {
         const held = PH.input.read(pl.ctrl === 'p1' ? 0 : 1, true, G.mode !== '2p');
@@ -4333,6 +4334,10 @@
     return inp;
   }
   function rightStickInput(pl, inp) {
+    if (pl.reboundRS) {
+      if (!inp.rs) pl.reboundRS = false;
+      else inp = Object.assign({}, inp, { rs: false, a3: !!(inp.dribble || inp.hesi), dx: 0, dy: 0 });
+    }
     if (!pl.hasBall || G.phase !== 'live' || G.ball.dead || pl.stun > 0 || inp.hesi || inp.dribble || pl.action && pl.action.hesiHold) {
       const rs = pl.rsGesture;
       if (rs && pl.action === rs.move && (!pl.hasBall || G.phase !== 'live' || G.ball.dead || pl.stun > 0)) {
