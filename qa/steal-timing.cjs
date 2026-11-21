@@ -261,10 +261,10 @@ for (const mode of ['2p', 't5', 't3']) for (const outcome of ['hit', 'miss', 'ou
 }
 console.log('PASS steal wrist recoil within 200ms, unchanged gameplay timers, mirrored hit/miss/empty/out-of-range poses in 1V1/5V5/3V3');
 
-let maxElbowStep = 0, maxWristStep = 0, minHipDrop = Infinity, minLeadStep = Infinity;
+let maxElbowStep = 0, maxWristStep = 0, minHipDrop = Infinity, minLeadStep = Infinity, maxGroundStep = 0;
 for (const mode of ['2p', 't5', 't3']) for (const fps of [60, 120]) for (const hit of [true, false]) {
   const visual = fixture(), { G, K, _qa, t5 } = visual, dt = 1 / fps;
-  for (const range of [0.55, 0.8, 1.01, 1.3, 1.35]) for (const phase of [0, 1, 2, 3]) for (const hand of [-1, 1]) {
+  for (const range of [0.55, 0.8, 0.94, 1.01, 1.3, 1.35]) for (const phase of [0, 1, 2, 3]) for (const hand of [-1, 1]) {
     visual.newGame({ mode: '2p', arch0: 'lyles', arch1: 'djmurray', target: 999 });
     visual.CFG.stealMul = hit ? 100 : 0; K.stlMax = 1;
     const [p, d] = G.players;
@@ -287,6 +287,8 @@ for (const mode of ['2p', 't5', 't3']) for (const fps of [60, 120]) for (const h
       const rig = visual.rig(d);
       return { elbows: [d.pose.aLe, d.pose.aRe], wrists: [rig.handL, rig.handR] };
     };
+    const leadName = action.swipe < 0 ? 'footL' : 'footR', rest = stanceRig[leadName][2];
+    let previousFoot = stanceRig[leadName], landed = false, liftedBack = false;
     let previous = joints(), duration = null, raised = false;
     for (let i = 1; i <= Math.ceil(0.9 * fps); i++) {
       if (!action.done && action.t + dt >= K.stlHitT) {
@@ -295,8 +297,16 @@ for (const mode of ['2p', 't5', 't3']) for (const fps of [60, 120]) for (const h
           + K.stlMissWeakT * (1 - d.r.stl) + K.stlFarT * Math.max(0, ratio - 1) + K.stlRiskT * read.risk);
       }
       const contact = !action.done && action.t + dt >= K.stlHitT;
+      const stepping = !!d.stealFoot || d.action === action;
       step();
       const current = joints();
+      const foot = visual.rig(d)[leadName], groundStep = Math.hypot(foot[0] - previousFoot[0], foot[1] - previousFoot[1]);
+      if (stepping && foot[2] < rest + 0.01) {
+        maxGroundStep = Math.max(maxGroundStep, groundStep);
+        assert(groundStep <= 0.02, `${label}: grounded lead foot slid ${groundStep}m at ${i * dt}s`);
+        if (i * dt >= K.stlHitT * 0.75) landed = true;
+      } else if (stepping && landed && foot[2] > rest + 0.05) liftedBack = true;
+      previousFoot = foot;
       if (contact) {
         const rig = visual.rig(d), lead = action.swipe < 0 ? 'footL' : 'footR', trail = action.swipe < 0 ? 'footR' : 'footL';
         const drop = stanceRig.pelvis[2] - rig.pelvis[2];
@@ -327,11 +337,13 @@ for (const mode of ['2p', 't5', 't3']) for (const fps of [60, 120]) for (const h
       previous = current;
     }
     assert(raised, label + ': quick recoil still lifts wrist within 200ms');
+    assert(liftedBack, label + ': planted lead foot returns with visible clearance');
     assert.equal(d.action, null, label + ': recovery completes');
   }
 }
-console.log(`PASS steal contact continuity: hit/miss, 0.55/0.8/1.01/1.3/1.35m, both arms, four dribble phases, 60/120fps, 1V1/5V5/3V3; max elbow=${maxElbowStep.toFixed(3)}rad, wrist=${maxWristStep.toFixed(3)}m/frame`);
+console.log(`PASS steal contact continuity: hit/miss, 0.55/0.8/0.94/1.01/1.3/1.35m, both arms, four dribble phases, 60/120fps, 1V1/5V5/3V3; max elbow=${maxElbowStep.toFixed(3)}rad, wrist=${maxWristStep.toFixed(3)}m/frame`);
 console.log(`PASS visual steal lunge: contact pelvis drop >=${minHipDrop.toFixed(3)}m, lead-foot advance >=${minLeadStep.toFixed(3)}m, grounded lead foot and unchanged gameplay position`);
+console.log(`PASS planted steal foot: hit/miss, six distances including 0.94m, both sides, 60/120fps, all modes; max grounded motion=${maxGroundStep.toFixed(3)}m/frame; lifted return`);
 
 if (process.env.STEAL_BASELINE) {
   const before = fixture(fs.readFileSync(process.env.STEAL_BASELINE, 'utf8'));

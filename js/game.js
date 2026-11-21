@@ -4986,6 +4986,10 @@
       if (p0 * Math.sin(pl.drib) < 0) { if (!(pl.f5 && pl.f5.ck)) pl.catchDribbled = true; sfx('bounce'); if (pl.z <= 0.01) pl.sqv = (pl.sqv || 0) - 3.0; }
     }
     pl.handX = lerp(pl.handX, pl.hand * 0.33, Math.min(1, dt * 16));
+    if (an === 'steal' && (!pl.stealFoot || pl.stealFoot.action !== a)) {
+      const side = a.swipe < 0 ? 'L' : 'R', start = PH.rig(pl)['foot' + side].slice(), length = K.stlLungeStep * pl.h / 1.95;
+      pl.stealFoot = { action: a, side, start, end: [start[0] + Math.cos(pl.face) * length, start[1] + Math.sin(pl.face) * length, start[2]], pos: start.slice(), t: 0 };
+    }
     const T = poseTarget(pl), P = pl.pose, kq = postBlend ? 1 - Math.exp(-2 * dt / blendT) : Math.min(1, dt * 22);
     if (postBlend && T.yaw == null) T.yaw = 0;
     if (a && a.type === 'block') { pl.armS = null; T.reachL = T.reachR = P.reachL = P.reachR = 1; }
@@ -4997,6 +5001,18 @@
     }
     dunkIK(pl);
     squash(pl, a, dt);
+    if (pl.stealFoot) {
+      const f = pl.stealFoot; f.t += dt;
+      const back = Math.max(K.stlHitT + 0.05, f.action.T - 0.02), returning = f.t > back;
+      const phase = clamp(returning ? (f.t - back) / 0.16 : f.t / Math.max(0.02, K.stlHitT * 0.75), 0, 1);
+      f.sampling = true;
+      const home = PH.rig(pl)['foot' + f.side];
+      f.sampling = false;
+      const travel = sm(clamp((phase - 0.2) / 0.6, 0, 1)), from = returning ? f.end : f.start, to = returning ? home : f.end;
+      f.pos = from.map((v, i) => lerp(v, to[i], travel));
+      f.pos[2] += 0.16 * Math.sin(Math.PI * phase);
+      if (returning && phase >= 1) pl.stealFoot = null;
+    }
     updateGrip(pl, a, dt);
     // 残影
     const gs = pl.ghosts || (pl.ghosts = []);
