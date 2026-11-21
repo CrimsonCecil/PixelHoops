@@ -15,7 +15,8 @@ function fixture(baseline = false, seed = 7) {
     let source = baseline && name === 'game'
       ? execFileSync('git', ['show', `${process.env.PUSHBACK_BASE || 'main'}:js/game.js`], { cwd: root, encoding: 'utf8' })
       : fs.readFileSync(path.join(root, 'js', name + '.js'), 'utf8');
-    if (name === 'game') source = source.replace('PH.game = {', 'PH.pushQA = { collide }; PH.game = {');
+    if (name === 'game') source = source.replace('PH.game = {', 'PH.pushQA = { collide }; PH.game = {')
+      .replace('const A = Math.abs(adv), win =', 'window.bumpAdv = adv; const A = Math.abs(adv), win =');
     vm.runInContext(source, ctx, { filename: name + '.js' });
   }
   const gm = ctx.PH.game;
@@ -28,17 +29,18 @@ function fixture(baseline = false, seed = 7) {
     p.hasBall = p === hd;
   }
   Object.assign(gm.G.ball, { state: 'held', holder: hd.id });
-  return { ctx, gm, hd, df, collide: ctx.PH.pushQA.collide };
+  return { ctx, gm, hd, df, collide: ctx.PH.pushQA.collide, seed: value => { seed = value; gm.seed(value); } };
 }
 
 function walk(kind, baseline = false) {
   const { gm, hd, df } = fixture(baseline);
+  if (!baseline && kind !== 'weaker') df.stance = true;
   if (kind === 'slightly weaker') df.r.str = 0.5;
   if (kind === 'stronger') Object.assign(df.r, { str: 1, bw: 1.7 });
   if (kind === 'weaker') Object.assign(df.r, { str: 0.1, bw: 0.5 });
   let retreat = 0, passed = false;
   for (let i = 0; i < 150; i++) {
-    gm.tick(1 / 60, p => p === hd ? { mx: 0.07, my: 0.2 } : { mx: 0, my: 0 });
+    gm.tick(1 / 60, p => p === hd ? { mx: 0.07, my: 0.2 } : { mx: 0, my: 0, a3: !baseline && kind !== 'weaker' });
     retreat = Math.max(retreat, -hd.vy);
     passed ||= gm.distHoop(hd) < gm.distHoop(df);
   }
@@ -55,7 +57,49 @@ for (const k of ['equal', 'slightly weaker', 'stronger']) {
 }
 assert(results.stronger.retreat > results.equal.retreat, 'stronger defender must push further');
 assert(results.weaker.passed, 'clearly stronger handler must still get through');
-console.log('PASS diagonal non-sprint live play: equal/slightly weaker defenders hold; stronger defender pushes further; weak defender beaten; baseline slides past');
+console.log('PASS diagonal non-sprint live play: stance defenders hold; stronger defender pushes further; weak standing defender beaten; baseline slides past');
+
+function winRate(ratio, stance, sprint = false, bonus = 0.25) {
+  const f = fixture(), { ctx, gm, hd, df, collide } = f;
+  gm.K.bdStPow = bonus;
+  const power = gm._qa.bodyPow(hd);
+  df.r.bw = (power * ratio - 0.25 * (df.h - 1.7) / 0.4 - 0.45 * df.r.str) / 0.55;
+  assert(Math.abs(gm._qa.bodyPow(df) / power - ratio) < 1e-9);
+  let wins = 0;
+  for (let i = 1; i <= 2000; i++) {
+    f.seed(i * 7919);
+    Object.assign(gm.G, { time: 1, pushT: -9, bumpT: -9 });
+    for (const p of [hd, df]) Object.assign(p, { x: 0, y: p === hd ? 6.1 : 6.7, vx: 0, vy: p === hd ? (sprint ? 5 : 1) : 0, stam: 100, stun: 0, action: null, stance: p === df && stance });
+    ctx.bumpAdv = null;
+    collide(hd, df);
+    if (sprint) {
+      assert.equal(gm.G.bumpT, 1, 'sprint must reach shared bump event');
+      assert.equal(gm.G.pushT, -9, 'bump must take priority over push-back');
+      if (ctx.bumpAdv < 0) wins++;
+    } else {
+      assert.equal(gm.G.pushT, 1, 'slow contact must reach push-back roll');
+      if (hd.vy < 0) wins++;
+    }
+  }
+  return wins / 2000;
+}
+const rates = {
+  standingEqual: winRate(1, false),
+  standingWeaker: winRate(0.85, false),
+  stanceWeaker: winRate(0.85, true),
+  stanceHugeGap: winRate(0.6, true),
+  stanceDisabled: winRate(0.85, true, false, 0),
+  sprintStanding: winRate(1, false, true),
+  sprintStance: winRate(1, true, true),
+};
+console.log('Defender win rates over 2000 seeded trials each:', JSON.stringify(rates));
+assert(rates.standingEqual >= 0.35 && rates.standingEqual <= 0.65);
+assert(rates.standingWeaker < rates.standingEqual);
+assert(rates.stanceWeaker > 0.6);
+assert(rates.stanceHugeGap < 0.4);
+assert.equal(rates.stanceDisabled, rates.standingWeaker);
+assert(rates.sprintStance > rates.sprintStanding);
+console.log('PASS standing parity, percentage stance advantage, large-gap limit, zero multiplier and sprint-bump stance benefit');
 
 for (const excluded of ['no ball', 'same team', 'post', 'shot', 'layup', 'dunk', 'stunned handler', 'stunned defender', 'dead', 'diving']) {
   const { gm, hd, df, collide } = fixture();

@@ -547,17 +547,17 @@
     ['bdR', 'ct', '身体碰撞 半径', 0.78, 0.4, 1.4, 0.01, '米：两人中心距离小于这个就算顶在一起'],
     ['bdStam', 'stam', '身体顶住 体力消耗', 5, 0, 20, 0.1, '点/秒：顶得越深越用力越多，× 吨位比'],
     ['bdWBall', 'ct', '身体碰撞 持球人吃亏', 0.12, 0, 0.5, 0.01, '比例：位移分配时持球人多让出的份额'],
-    ['bdWSt', 'ct', '身体碰撞 防守站姿加成', 0.08, 0, 0.5, 0.01, '比例'],
+    ['bdStPow', 'ct', '防守站姿 力量加成', 0.25, 0, 0.6, 0.01, '比例：站姿者接触力量 × (1 + 加成)，用于卡位、顶回与冲撞；大吨位差仍占优，不影响背打'],
     ['bdWBox', 'ct', '身体碰撞 卡位加成', 0.15, 0, 0.5, 0.01, '比例'],
     ['bdVn', 'ct', '冲撞 触发相对速度', 2.2, 0.5, 6, 0.05, '米/秒：两人对冲速度超过这个才算一次冲撞'],
     ['bdCd', 'ct', '冲撞 冷却', 0.45, 0, 2, 0.05, '秒'],
     ['bdBoxP', 'ct', '冲撞 卡位力量倍率', 1.4, 1, 3, 0.05, '倍率'],
     ['bdLog', 'ct', '冲撞 吨位比权重', 1.6, 0, 4, 0.05, '比例：优势 = 权重 × ln(力量比) + 体型差 + 站姿 + 速度 + 随机'],
     ['bdFat', 'ct', '冲撞 体型差权重', 0.7, 0, 3, 0.05, '比例'],
-    ['bdStA', 'ct', '冲撞 冲方站稳加成', 0.1, 0, 0.5, 0.01, '比例'],
-    ['bdStB', 'ct', '冲撞 被冲方站稳加成', 0.15, 0, 0.5, 0.01, '比例'],
+    ['bdStA', 'ct', '冲撞 冲方卡篮板加成', 0.1, 0, 0.5, 0.01, '比例：仅卡篮板，防守站姿使用力量倍率'],
+    ['bdStB', 'ct', '冲撞 被冲方卡篮板加成', 0.15, 0, 0.5, 0.01, '比例：仅卡篮板，防守站姿使用力量倍率'],
     ['bdSlip', 'ct', '身体接触 防守卡位', 0.85, 0, 1, 0.05, '比例：持球迎撞时削减横向滑步，随吨位比、防守与站姿增强'],
-    ['bdPbBias', 'ct', '身体接触 顶回防守优势', 0.5, 0, 1.5, 0.05, '优势：同吨位或略轻的防守人也能顶回，叠加外防与控球差'],
+    ['bdPbBias', 'ct', '身体接触 顶回防守优势', 0, 0, 1.5, 0.05, '优势：默认无偏置，同力量常态约各半；叠加外防与控球差'],
     ['bdPbCd', 'ct', '身体接触 顶回间隔', 0.5, 0.1, 2, 0.05, '秒：与高速冲撞共用身体对抗判定，背打不受影响'],
     ['bdPbVn', 'ct', '身体接触 顶回最低速度', 0.6, 0, 2.2, 0.1, '米/秒：持球人朝防守人的速度，低速接触也可触发'],
     ['bdPbBase', 'ct', '身体接触 顶回基础速度', 2.4, 0, 6, 0.1, '米/秒：向后并远离篮筐弹回'],
@@ -1829,9 +1829,10 @@
   // 体力越低身体越软：吨位按体力打折（满体力 ×1，空体力 ×0.65）
   const fatOf = (p) => clamp((p.stam == null ? 100 : p.stam) / 100, 0, 1);
   const bodyPow = (p) => powOf(p) * (0.65 + 0.35 * fatOf(p));
+  const ctPow = (p) => bodyPow(p) * (1 + (p.stance ? K.bdStPow : 0));
   // 对抗优势：吨位比 + 体力差 + 额外项 + 随机；双方都没体力时整体向 0 收缩 → 互相弹开的"君子对抗"
-  function contactAdv(m, o, extra) {
-    const raw = Math.log(bodyPow(m) / bodyPow(o)) * 1.6 + 0.7 * (fatOf(m) - fatOf(o)) + (extra || 0) + (rnd() + rnd() + rnd() - 1.5) * 0.5;
+  function contactAdv(m, o, extra, powerRatio = bodyPow(m) / bodyPow(o)) {
+    const raw = Math.log(powerRatio) * 1.6 + 0.7 * (fatOf(m) - fatOf(o)) + (extra || 0) + (rnd() + rnd() + rnd() - 1.5) * 0.5;
     return raw * lerp(0.35, 1, (fatOf(m) + fatOf(o)) / 2);
   }
   // 每次身体接触双方都掉体力：输的一方掉得多，I 为撞击强度（约 0~1.5）
@@ -5563,14 +5564,14 @@
     const R = K.bdR;
     if (!a.off && !c.off && d < R && Math.abs(a.z - c.z) < 1.1 && !(a.action && a.action.type === 'dunk') && !(c.action && c.action.type === 'dunk') && !ghost(a) && !ghost(c)) {
       if (d < 0.01) { dx = 0.01; dy = 0; d = 0.01; }
-      const nx = dx / d, ny = dy / d, pen = R - d, Pa = powOf(a), Pc = powOf(c);
+      const nx = dx / d, ny = dy / d, pen = R - d, Pa = ctPow(a), Pc = ctPow(c);
       // 身体顶在一起就持续掉体力：顶得越深、越用力掉得越快，吨位小的一方更吃亏
       if (G.phase === 'live' && TM(a) !== TM(c) && !a.dummy && !c.dummy && G.mode !== 'demo') {
         const push = clamp(pen / 0.25, 0.2, 1) * (0.5 + 0.5 * clamp((Math.hypot(a.vx, a.vy) + Math.hypot(c.vx, c.vy)) / 4, 0, 1)) * K.bdStam / 60;
         for (const [m, o] of [[a, c], [c, a]]) if (!(G.mode === 'train' && G.train && G.train.infStam && m.id === 0)) m.stam = Math.max(0, m.stam - push * clamp(powOf(o) / powOf(m), 0.7, 1.5) * ST.cost * stamK(m));
       }
       // 位移分配看吨位：重的人顶着轻的人走；持球人略吃亏（防守站位合法）
-      let wa = clamp(Pc / (Pa + Pc) + (a.hasBall ? K.bdWBall : c.hasBall ? -K.bdWBall : 0) + (c.stance ? K.bdWSt : 0) - (a.stance ? K.bdWSt : 0) + (c.box ? K.bdWBox : 0) - (a.box ? K.bdWBox : 0), 0.08, 0.92);
+      let wa = clamp(Pc / (Pa + Pc) + (a.hasBall ? K.bdWBall : c.hasBall ? -K.bdWBall : 0) + (c.box ? K.bdWBox : 0) - (a.box ? K.bdWBox : 0), 0.08, 0.92);
       const hd = a.hasBall ? a : c.hasBall ? c : null;
       if (hd && hd.post) { const df = hd === a ? c : a; const wh = clamp(0.5 - 0.45 * (powOf(hd) - powOf(df)) - 0.35 * (hd.r.post - df.r.intD) + (df.stance ? 0.12 : -0.05), 0.12, 0.88); wa = hd === a ? wh : 1 - wh; }
       // 冲撞：相对速度够大才算一次碰撞事件，按吨位比决定谁被撞开 / 撞倒
@@ -5584,11 +5585,11 @@
         G.bumpT = G.time;
         bumped = true;
         const va0 = a.vx * nx + a.vy * ny, vc0 = -(c.vx * nx + c.vy * ny), mv = va0 >= vc0 ? a : c, ot = mv === a ? c : a, s = mv === a ? 1 : -1;
-        const Pm = bodyPow(mv) * (mv.box ? K.bdBoxP : 1), Po = bodyPow(ot) * (ot.box ? K.bdBoxP : 1), I = vn / 6 * Math.max(Pm, Po);
+        const Pm = ctPow(mv) * (mv.box ? K.bdBoxP : 1), Po = ctPow(ot) * (ot.box ? K.bdBoxP : 1), I = vn / 6 * Math.max(Pm, Po);
         // 对抗结果是概率：吨位比决定"期望优势"，每次再叠加随机（发力时机、重心），所以力量大不是每次都赢
         // 优势值 → 五档：势均力敌（双方各退半步）/ 轻微占优（对方踉跄）/ 明显占优（对方被撞开）/ 完全压制（撞倒）；负值反过来是冲的人被弹回
         const fz = lerp(K.bdFz0, 1, (fatOf(mv) + fatOf(ot)) / 2);
-        const adv = (Math.log(Pm / Po) * K.bdLog + K.bdFat * (fatOf(mv) - fatOf(ot)) + (mv.stance || mv.box ? K.bdStA : 0) - (ot.stance || ot.box ? K.bdStB : 0) + K.bdSpd * (vn - 3) / 3 + (rnd() + rnd() + rnd() - 1.5) * K.bdRnd) * fz;
+        const adv = (Math.log(Pm / Po) * K.bdLog + K.bdFat * (fatOf(mv) - fatOf(ot)) + (mv.box ? K.bdStA : 0) - (ot.box ? K.bdStB : 0) + K.bdSpd * (vn - 3) / 3 + (rnd() + rnd() + rnd() - 1.5) * K.bdRnd) * fz;
         const A = Math.abs(adv), win = adv >= 0 ? mv : ot, los = win === mv ? ot : mv, sgn = los === ot ? s : -s;
         bodyCost(win, I * 0.6, false); bodyCost(los, I, A >= K.bdT1);
         if (A < K.bdT1) {
@@ -5620,12 +5621,12 @@
         const df = hd === a ? c : a, sg = hd === a ? 1 : -1, hx = nx * sg, hy = ny * sg;
         const into = hd.vx * hx + hd.vy * hy;
         if (into > 0 && !(df.dummy && (T.dummy === 'stand' || T.dummy === 'hands'))) {
-          const hold = clamp(1 + Math.log(bodyPow(df) / bodyPow(hd)) * K.bdLog + 0.35 * (df.r.def - hd.r.hnd) + (df.stance ? K.bdStB : 0), 0, 1);
+          const hold = clamp(1 + Math.log(ctPow(df) / ctPow(hd)) * K.bdLog + 0.35 * (df.r.def - hd.r.hnd), 0, 1);
           const tangent = -hd.vx * hy + hd.vy * hx, slip = K.bdSlip * hold;
           hd.vx += hy * tangent * slip; hd.vy -= hx * tangent * slip;
           if (into > K.bdPbVn && G.time - G.pushT > K.bdPbCd) {
             G.pushT = G.time;
-            const adv = contactAdv(df, hd, K.bdPbBias + 0.35 * (df.r.def - hd.r.hnd) + (df.stance ? K.bdStB : 0));
+            const adv = contactAdv(df, hd, K.bdPbBias + 0.35 * (df.r.def - hd.r.hnd), ctPow(df) / ctPow(hd));
             if (adv > 0) {
               const away = hoopDir(hd), bx = -hx - away.x * 0.5, by = -hy - away.y * 0.5, bl = Math.hypot(bx, by) || 1;
               const speed = K.bdPbBase + K.bdPbScale * adv, I = clamp(speed / 6, 0.2, 1);
