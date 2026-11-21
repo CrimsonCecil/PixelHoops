@@ -393,13 +393,22 @@
   const KING_T = [0, 0.6, 1.2, 2, 2.6]; // 0 简单 · 1 普通 · 2 困难，超过 2 的部分在困难基础上继续外推
   const KING_TARGET = 11;
   let kingLadder = null, KR = null;
+  // 按能力档各抽一人；位置尽量错开：相邻两关不同位置，同一位置（后卫 / 锋线 / 内线）最多两人
   function kingRoll() {
-    const used = new Set([opts.arch0]), ov = (k) => GM.ARCH[k].ovr;
-    kingLadder = KING_BANDS.map(([lo, hi]) => {
-      let pool = GM.ROSTER.filter((k) => !used.has(k) && ov(k) >= lo && ov(k) <= hi);
-      if (!pool.length) pool = GM.ROSTER.filter((k) => !used.has(k)).sort((a, b) => Math.abs(ov(a) - lo) - Math.abs(ov(b) - lo)).slice(0, 3);
-      const k = pool[(Math.random() * pool.length) | 0]; used.add(k); return k;
-    });
+    const ov = (k) => GM.ARCH[k].ovr, grp = (k) => PH.T3.position(GM.ARCH[k]), rnd = (a) => a[(Math.random() * a.length) | 0];
+    const pools = KING_BANDS.map(([lo, hi]) => { const p = GM.ROSTER.filter((k) => k !== opts.arch0 && ov(k) >= lo && ov(k) <= hi); return p.length ? p : GM.ROSTER.filter((k) => k !== opts.arch0).sort((a, b) => Math.abs(ov(a) - lo) - Math.abs(ov(b) - lo)).slice(0, 6); });
+    let best = null, bestBad = 1e9;
+    for (let n = 0; n < 200 && bestBad; n++) {
+      const L = [], cnt = {}; let bad = 0;
+      for (const p of pools) {
+        const prev = L.length ? grp(L[L.length - 1]) : null, free = p.filter((k) => !L.includes(k));
+        const ok = free.filter((k) => grp(k) !== prev && (cnt[grp(k)] || 0) < 2);
+        if (!ok.length) bad++;
+        const k = rnd(ok.length ? ok : free.length ? free : p); L.push(k); cnt[grp(k)] = (cnt[grp(k)] || 0) + 1;
+      }
+      if (bad < bestBad) { best = L; bestBad = bad; }
+    }
+    kingLadder = best;
   }
   function kingD(s) {
     const D = GM.DIFF, t = KING_T[s], i = Math.min(1, Math.floor(t)), f = t - i, o = { name: KING_AI[s] };
@@ -411,7 +420,7 @@
   const kingPips = (s) => '<i class="kpip">' + [0, 1, 2, 3, 4].map((i) => '<b' + (i <= s ? ' class="on"' : '') + '></b>').join('') + '</i>';
   function kingLadderView() {
     if (!kingLadder || kingLadder.includes(opts.arch0)) kingRoll();
-    $('lk-list').innerHTML = kingLadder.map((k, i) => { const a = GM.ARCH[k]; return '<li class="lk-i s' + i + '" data-testid="king-rung-' + (i + 1) + '"><em>' + (i + 1) + '</em><canvas width="32" height="32" data-k="' + k + '"></canvas><span class="lk-n">' + a.name + '<small>' + KING_STAGE[i] + '</small></span><span class="lk-ai">AI ' + KING_AI[i] + kingPips(i) + '</span><b class="lk-o">' + a.ovr + '</b></li>'; }).join('');
+    $('lk-list').innerHTML = kingLadder.map((k, i) => '<li class="lk-i s' + i + '" data-testid="king-rung-' + (i + 1) + '"><em>' + (i + 1) + '</em><span class="ksil"><canvas width="32" height="32" data-k="' + k + '"></canvas></span><span class="lk-n">???<small>' + KING_STAGE[i] + '</small></span><span class="lk-ai">AI ' + KING_AI[i] + kingPips(i) + '</span><b class="lk-o">??</b></li>').join('');
     $('lk-list').querySelectorAll('canvas').forEach((cv) => portrait(cv, GM.ARCH[cv.getAttribute('data-k')], GM.TEAMS[1]));
   }
   function kingNew() { kingLadderView(); KR = { arch: opts.arch0, ladder: kingLadder.slice(), stage: 0, res: [], retry: 0, from: -1, last: null, done: false }; kingVS(); }
@@ -424,11 +433,11 @@
   function kingVS() {
     const s = KR.stage, me = GM.ARCH[KR.arch], k = KR.ladder[s], op = GM.ARCH[k], boss = s === 4, adv = KR.from === s - 1 && s > 0;
     const pct = (n) => (n / 4 * 100) + '%';
-    const track = '<div class="kl"><div class="kl-bar"><i style="width:' + pct(adv ? s - 1 : s) + '"></i></div>' + KR.ladder.map((x, i) => '<div class="kn' + (i < s ? ' done' : i === s ? ' cur' : '') + (adv && i === s - 1 ? ' fresh' : '') + '"><canvas width="32" height="32" data-k="' + x + '"></canvas><span>' + GM.ARCH[x].name + '</span><small>' + GM.ARCH[x].ovr + '</small>' + (i < s ? '<b class="kstamp">已击败</b>' : '') + '</div>').join('') + '</div>';
+    const track = '<div class="kl"><div class="kl-bar"><i style="width:' + pct(adv ? s - 1 : s) + '"></i></div>' + KR.ladder.map((x, i) => '<div class="kn' + (i < s ? ' done' : i === s ? ' cur' : '') + (adv && i === s - 1 ? ' fresh' : '') + '"><span class="' + (i > s || i === s && !KR.retry ? 'ksil' : '') + '"><canvas width="32" height="32" data-k="' + x + '"></canvas></span><span>' + (i > s || i === s && !KR.retry ? '???' : GM.ARCH[x].name) + '</span><small>' + (i > s || i === s && !KR.retry ? '??' : GM.ARCH[x].ovr) + '</small>' + (i < s ? '<b class="kstamp">已击败</b>' : '') + '</div>').join('') + '</div>';
     const head = boss ? '最终关 · 王座之战' : '第 ' + (s + 1) + ' / 5 关 · ' + KING_STAGE[s];
     $('king-panel').innerHTML = '<div class="kv-top"><b>斗牛之王</b><span data-testid="king-stage">' + head + '</span></div>' + track +
       '<div class="kvs"><div class="kp me"><canvas width="64" height="64" class="kf0"></canvas><b>' + me.name + '</b><small>' + me.ovr + ' · ' + me.pos + '</small></div>' +
-      '<div class="kx">VS</div><div class="kp op"><canvas width="64" height="64" class="kf1"></canvas><b data-testid="king-opp">' + op.name + '</b><small>' + op.ovr + ' · ' + op.pos + '</small><span class="kai">AI ' + KING_AI[s] + kingPips(s) + '</span></div></div>' +
+      '<div class="kx">VS</div><div class="kp op' + (KR.retry ? '' : ' rv') + '"><span class="kop-f"><canvas width="64" height="64" class="kf1"></canvas></span><b data-testid="king-opp">' + (KR.retry ? op.name : '???') + '</b><small>' + (KR.retry ? op.ovr + ' · ' + op.pos : '?? · ???') + '</small><span class="kai">AI ' + KING_AI[s] + kingPips(s) + '</span></div></div>' +
       '<p class="kq">' + (KR.retry ? '再战第 ' + (s + 1) + ' 关 · 已重试 ' + KR.retry + ' 次' : boss ? '击败他，你就是新的斗牛之王' : adv ? '赢了 ' + GM.ARCH[KR.ladder[s - 1]].name + '，下一位更强' : '五关连胜才能称王 · 先到 ' + KING_TARGET + ' 分') + '</p>' +
       '<div class="actions"><button class="primary" id="kv-go" data-testid="king-go">' + (boss ? '挑战王座' : '开始第 ' + (s + 1) + ' 关') + '</button><button id="kv-menu" data-testid="king-menu">放弃闯关</button></div>';
     $('king').className = 'overlay kvs-on' + (boss ? ' boss' : '');
@@ -437,6 +446,7 @@
     kingFace('.kf0', KR.arch, 0); kingFace('.kf1', k, 1);
     $('king-panel').querySelectorAll('.kn canvas').forEach((cv) => portrait(cv, GM.ARCH[cv.getAttribute('data-k')], GM.TEAMS[1]));
     if (adv) setTimeout(() => { const b = $('king-panel').querySelector('.kl-bar i'); if (b) b.style.width = pct(s); }, 350);
+    if (!KR.retry) { const run = KR; setTimeout(() => { const c = $('king-panel').querySelector('.kp.op'); if (KR !== run || screen !== 'king' || !c) return; c.querySelector('b').textContent = op.name; c.querySelector('small').textContent = op.ovr + ' · ' + op.pos; c.classList.add('shown'); const n = $('king-panel').querySelector('.kn.cur'); if (n) { n.firstChild.className = ''; n.children[1].textContent = op.name; n.children[2].textContent = op.ovr; } PH.audio.play('combo'); }, 1150); }
     $('kv-go').addEventListener('click', kingPlay); $('kv-menu').addEventListener('click', toMenu);
     PH.audio.play(boss ? 'horn' : adv ? 'badge' : 'ui');
   }
@@ -453,8 +463,7 @@
     if (win && s === 4) { setTimeout(kingVictory, 200); return true; }
     $('over-title').textContent = win ? '第 ' + (s + 1) + ' 关 胜利！' : '挑战失败 · 止步第 ' + (s + 1) + ' 关';
     $('over-title').style.color = win ? 'var(--gold, #ffd34d)' : 'var(--red)';
-    const nx = win ? GM.ARCH[KR.ladder[s + 1]] : null;
-    $('over-king').innerHTML = '<div class="ok-dots">' + KR.ladder.map((x, i) => '<i class="' + (KR.res[i] ? 'w' : i === s ? 'l' : '') + '"></i>').join('') + '</div><span>' + (win ? '已击败 ' + (s + 1) + ' / 5 · 下一关：<b>' + nx.name + ' ' + nx.ovr + '</b> · AI ' + KING_AI[s + 1] : '本关重打，已赢的关卡保留') + '</span>';
+    $('over-king').innerHTML = '<div class="ok-dots">' + KR.ladder.map((x, i) => '<i class="' + (KR.res[i] ? 'w' : i === s ? 'l' : '') + '"></i>').join('') + '</div><span>' + (win ? '已击败 ' + (s + 1) + ' / 5 · 下一关：<b>???</b> · AI ' + KING_AI[s + 1] : '本关重打，已赢的关卡保留') + '</span>';
     show('over-king', true);
     $('btn-again').textContent = win ? '下一关 ▶' : '重打本关';
     return false;
@@ -829,7 +838,6 @@
   $('btn-quit').addEventListener('click', toMenu);
   $('btn-again').addEventListener('click', () => startMatch(true));
   $('btn-menu').addEventListener('click', toMenu);
-  $('lk-reroll').addEventListener('click', () => { kingLadder = null; kingLadderView(); PH.audio.play('ui'); });
   $('btn-panel').addEventListener('click', () => togglePanel());
   $('tr-fold').addEventListener('click', () => togglePanel(false));
   $('tr-exit').addEventListener('click', toMenu);
