@@ -3,7 +3,7 @@
   const PH = window.PH, GM = PH.game, G = GM.G, R = PH.render, CFG = GM.CFG, TR = G.train;
   const $ = (id) => document.getElementById(id);
   const stage = $('stage'), canvas = $('game'), replayWipe = $('replay-wipe');
-  const opts = { format: 'duel', opponent: 'cpu', get mode() { return this.format === 'duel' ? this.opponent : this.format; }, diff: 1, target: 21, clock: 24, glen: 0, arch0: GM.ROSTER[(Math.random() * GM.ROSTER.length) | 0], arch1: 'random', fb: 'simple', info: 'show', home: 'LAL', away: 'BOS', qlen: 300, side: 0 };
+  const opts = { format: 'duel', opponent: 'cpu', get mode() { return this.format === 'duel' ? this.opponent : this.format; }, diff: 1, target: 21, clock: 24, glen: 0, arch0: GM.ROSTER[(Math.random() * GM.ROSTER.length) | 0], arch1: 'random', fb: 'simple', info: 'show', intro: 'on', home: 'LAL', away: 'BOS', qlen: 300, side: 0 };
   const lobbyRoles = { human: '你', cpu: '电脑', waiting: '等待玩家' };
   const lobby3 = ['curry', 'lebron', 'jokic', 'edwards', 'durant', 'giannis'].map((arch, i) => ({ arch, role: i === 0 ? 'human' : i % 3 === 2 ? 'waiting' : 'cpu' }));
   const rooms = PH.rooms, room = rooms.room;
@@ -263,6 +263,7 @@
   }
   function roomState(state) {
     if (!state || !Array.isArray(state.players) || state.players.length !== G.players.length) return;
+    if (G.intro) GM.introEnd();
     for (const key of NET_STATE) G[key] = state[key];
     for (let i = 0; i < G.players.length; i++) {
       const p = state.players[i];
@@ -327,6 +328,7 @@
     show('btn-start', !guest && (!online || room.role === 'host' && room.links.has(1)));
     $('row-diff').classList.toggle('hidden', opts.mode !== 'cpu' && !t5 && !t3);
     for (const id of ['row-fb', 'row-p1', 'row-p2']) show(id, setup && !t5);
+    show('row-intro', !t5 && opts.mode !== 'train');
     for (const id of ['row-qlen', 'row-teams', 'row-side']) $(id).classList.toggle('hidden', !t5);
     for (const id of ['row-target', 'row-clock']) show(id, !tr && !t5);
     show('row-glen', !tr && !t5 && !t3);
@@ -372,6 +374,7 @@
     if (config.mode === 't3') PH.T3.start({ ...config, local: slot, replay: !room.active });
     else { CFG.shotClock = config.clock; GM.newGame({ ...config, mode: '2p' }); }
     PH.audio.voPreload(G.players.map((p) => p.arch.key));
+    if (opts.intro !== 'off') GM.introStart();
     screen = 'play'; paused = false; panelOpen = false; overShown = false; PH.input.clearSys(); clearPf(); camShift();
     syncBackgroundMatch();
     for (const id of ['menu', 'picker', 'pause', 'over', 'help', 'shotcard', 'trainbar', 'btn-panel', 'train']) show(id, false);
@@ -406,6 +409,7 @@
     if (!tr) CFG.shotClock = opts.clock;
     GM.newGame({ mode: opts.mode, diff: opts.diff, target: opts.target, arch0: lastArch.a0, arch1: lastArch.a1, fb: opts.fb, glen: opts.glen });
     PH.audio.voPreload(G.players.map((p) => p.arch.key));
+    if (opts.intro !== 'off') GM.introStart();
     screen = 'play'; paused = false; PH.input.clearSys(); clearPf();
     show('tbpass', false); show('tbscreen', false); show('tbbounce', false); show('tblob', false); show('tballey', false);
     show('btn-restart', true); show('btn-again', true);
@@ -1155,7 +1159,7 @@
     }
     drawFloats();
     const b = G.banner, be = $('banner');
-    if (b) { if (be.classList.contains('hidden') || be.firstElementChild.textContent !== b.text) { be.classList.remove('hidden'); be.style.animation = 'none'; void be.offsetWidth; be.style.animation = ''; } be.firstElementChild.textContent = b.text; be.firstElementChild.style.color = b.color; be.lastElementChild.textContent = b.sub; be.style.borderLeftColor = b.color; }
+    if (b) { if (be.classList.contains('hidden') || be.firstElementChild.textContent !== b.text) { be.classList.remove('hidden'); be.style.animation = 'none'; void be.offsetWidth; be.style.animation = ''; } be.firstElementChild.textContent = b.text; be.firstElementChild.style.color = b.color; be.lastElementChild.textContent = b.sub; be.style.borderLeftColor = b.color; be.classList.toggle('top', !!b.top); }
     else be.classList.add('hidden');
     const hr = G.hero, he = $('hero');
     if (hr && G.time - hr.t0 < hr.T && G.time >= hr.t0) {
@@ -1505,6 +1509,7 @@
     const key = replay && I.sysAny(); // 先读键盘，避免把手柄导航连发当成新按键
     const button = I.pollPads();
     if (replay) { I.clearSys(); if (key || button) skipReplay(); return; }
+    if (screen === 'play' && G.intro && !paused) { if (I.sysPressed('Escape') || I.sysPressed('PadStart') || I.sysPressed('PadB')) GM.introEnd(); else if (I.sysAny() || button) GM.introPress(); I.clearSys(); return; }
     if (I.sysPressed('KeyM')) toggleMusic();
     if (I.sysPressed('KeyI') && screen === 'play') toggleInfo();
     if (I.sysPressed('KeyC') && screen === 'play' && G.phase !== 'over') toggleCam();
@@ -1669,6 +1674,7 @@
   }
   function tickMatch() {
     if (screen === 'play5') { if (!paused) tick5(DT); return; }
+    if (G.intro) { GM.introTick(DT); PH.input.endTick(); roomAudio.length = 0; return; }
     if (!matchConfig) { GM.tick(DT); return; }
     const p = G.players[localSlot], a = p && p.action, t3 = G.mode === 't3', I = PH.input;
     const off = !!(p && (p.hasBall || a && ['shot', 'layup', 'dunk', 'fake'].includes(a.type)));
@@ -1736,12 +1742,30 @@
     if (screen === 'play5') { PH.render5.render(PH.T5.T, manual ? 0.05 : 1 / Math.max(30, fps)); hud5(); cutin(); return; }
     const hint = screen === 'play' && G.mode === 't3' && !G.replay?.view ? $('hint') : null;
     const hintY = hint?.offsetHeight ? hint.offsetTop / scale : undefined;
-    R.render(G, dt, hintY); hud(); cutin();
+    R.render(G, dt, hintY); hud(); cutin(); talkBox();
     const dbg = $('debug');
     if (debug) { dbg.classList.remove('hidden'); dbg.textContent = 'FPS ' + fps.toFixed(0) + ' · ' + G.phase + ' · 进攻 ' + G.off + ' · 球 ' + G.ball.state; } else dbg.classList.add('hidden');
   }
 
   let ciSeq = 0;
+  // 开场对话框：G.intro 当前这句台词逐字打出，左右按队伍站边
+  let talkKey = '';
+  function talkBox() {
+    const I = G.intro, on = screen === 'play' && !!I, L = on && I.li >= 0 ? I.lines[I.li] : null;
+    stage.classList.toggle('intro', on); show('talk', !!L);
+    if (!L) { talkKey = ''; return; }
+    const p = G.players.find((q) => q.id === L.id), key = I.t0 + ':' + I.li, box = $('talk'), side = (pl) => (pl.tm == null ? pl.id : pl.tm);
+    if (talkKey !== key) {
+      if (!talkKey.startsWith(I.t0 + ':')) for (const id of I.duo) { const q = G.players.find((z) => z.id === id); portrait($(side(q) === 1 ? 'talk-fr' : 'talk-fl'), q.arch, q.team); }
+      talkKey = key; $('talk-name').textContent = p.arch.full;
+      box.style.setProperty('--tc', p.team.css); box.classList.toggle('sp-r', side(p) === 1); box.classList.toggle('sp-l', side(p) !== 1);
+      box.classList.remove('pop'); void box.offsetWidth; box.classList.add('pop');
+    }
+    const n = L.done ? L.t.length : Math.min(L.t.length, Math.floor((G.time - I.lt) * 30));
+    $('talk-text').textContent = L.t.slice(0, n); box.classList.toggle('done', n >= L.t.length);
+  }
+  $('talk').addEventListener('pointerdown', (e) => { e.stopPropagation(); GM.introPress(); });
+  $('intro-skip').addEventListener('pointerdown', (e) => { e.stopPropagation(); GM.introEnd(); });
   function cutin() {
     const c = G.cutin, el = $('cutin');
     for (let i = 0; i < 2; i++) { const pl = G.players[i], n = $('n' + i); if (n && pl) n.classList.toggle('skr', !!(pl.sk && pl.sk.hint === 'ready')); }
