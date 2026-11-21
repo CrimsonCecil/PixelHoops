@@ -602,6 +602,12 @@
     ['bdStam', 'stam', '身体顶住 体力消耗', 5, 0, 20, 0.1, '点/秒：顶得越深越用力越多，× 吨位比'],
     ['bdWBall', 'ct', '身体碰撞 持球人吃亏', 0.12, 0, 0.5, 0.01, '比例：位移分配时持球人多让出的份额'],
     ['bdStPow', 'ct', '防守站姿 力量加成', 0.25, 0, 0.6, 0.01, '比例：站姿者接触力量 × (1 + 加成)，用于卡位、顶回与冲撞；大吨位差仍占优，不影响背打'],
+    ['stDepth', 'def', '防守马步 下蹲深度', 1, 0.6, 1.2, 0.01, '倍率：只影响主动防守姿态的屈髋和屈膝'],
+    ['stWidth', 'def', '防守马步 双脚宽度', 0.42, 0.3, 0.5, 0.01, '米：单脚离身体中线的距离，随身高缩放'],
+    ['stStep', 'def', '螃蟹步 每步距离', 0.42, 0.2, 0.6, 0.01, '米：身体移动此距离后换脚，支撑脚保持落地点'],
+    ['stLift', 'def', '螃蟹步 抬脚高度', 0.12, 0, 0.2, 0.01, '米：迈步脚的最高离地高度'],
+    ['drCrouch', 'drib', '跑动运球 速度下蹲', 0.32, 0, 0.5, 0.01, '弧度：速度越快膝盖越弯，冲刺最深；保留跑步摆腿'],
+    ['drHeight', 'drib', '运球频率 身高差异', 1.8, 0, 3, 0.05, '指数：按实际模型身高缩放拍球频率，越矮越快；0 为无差异'],
     ['bdWBox', 'ct', '身体碰撞 卡位加成', 0.15, 0, 0.5, 0.01, '比例'],
     ['bdVn', 'ct', '冲撞 触发相对速度', 2.2, 0.5, 6, 0.05, '米/秒：两人对冲速度超过这个才算一次冲撞'],
     ['bdCd', 'ct', '冲撞 冷却', 0.45, 0, 2, 0.05, '秒'],
@@ -4631,10 +4637,11 @@
     else if (G.phase === 'dead' && G.lastScorer === pl.id && G.phaseT < 1.3 && G.mode !== 'train') an = 'win';
     else if (pl.post) an = 'post';
     else if (pl.box) an = 'box';
-    else if (!pl.hasBall && opp.hasBall && (pl.stance || Math.hypot(opp.x - pl.x, opp.y - pl.y) < 3.2) && pl.speed < 5.4) an = 'def';
+    else if (!pl.hasBall && opp.hasBall && (pl.stance || Math.hypot(opp.x - pl.x, opp.y - pl.y) < 3.2 && pl.speed < 5.4)) an = 'def';
     else if (pl.speed > 0.9) an = 'run';
     else an = 'idle';
     if (an !== pl.anim) { pl.anim = an; if (!a) pl.animT = 0; }
+    if (PH.gait && PH.gait.crab) PH.gait.crab(pl, dt);
     pl.animT += dt; pl.runPh += (PH.gait ? PH.gait.cad(pl) : pl.speed * 2.7) * dt;
     pl.gasp = Math.max(0, (pl.gasp || 0) - dt);
     if (pl.stam < 35 && G.phase !== 'over') {
@@ -4654,7 +4661,7 @@
     const T = poseTarget(pl), P = pl.pose, kq = Math.min(1, dt * 22);
     if (a && a.type === 'block') { pl.armS = null; T.reachL = T.reachR = P.reachL = P.reachR = 1; }
     // 肩部转角按最短路径插值（风车扣篮手臂转一整圈后，不会再倒着从最下面绕回去）
-    for (const n in T) { if ((n === 'aLp' || n === 'aRp') && Math.abs(T[n] - P[n]) > Math.PI) P[n] += Math.round((T[n] - P[n]) / (2 * Math.PI)) * 2 * Math.PI; P[n] = lerp(P[n], T[n], kq); }
+    for (const n in T) { if ((n === 'aLp' || n === 'aRp') && Math.abs(T[n] - P[n]) > Math.PI) P[n] += Math.round((T[n] - P[n]) / (2 * Math.PI)) * 2 * Math.PI; P[n] = n.startsWith('foot') ? T[n] : lerp(P[n] || 0, T[n], kq); }
     dunkIK(pl);
     squash(pl, a, dt);
     updateGrip(pl, a, dt);
@@ -4749,6 +4756,7 @@
       const s = Math.sin(ph * 1.4) * Math.min(1, pl.speed / 2);
       const deep = pl.stance ? 1 : 0.75;
       set({ lean: 0.3 * deep, lA: 0.48 * deep, lB: 0.9 * deep, rA: 0.48 * deep, rB: 0.9 * deep, lS: 0.36 + 0.14 * s, rS: 0.36 - 0.14 * s, aLp: 0.55, aLq: 1.05, aLe: 0.55, aRp: 0.55, aRq: 1.05, aRe: 0.55 });
+      if (pl.stance) set({ lean: 0.12, lA: 0.8 * K.stDepth, rA: 0.8 * K.stDepth, lB: 1.6 * K.stDepth, rB: 1.6 * K.stDepth, lS: 0.6, rS: 0.6 });
       if (pl.stance) set({ aRp: 2.5, aRq: 0.25, aRe: 0.25, aLp: 0.7, aLq: 1.1 });
       if (pl.rx === 'press') set({ lean: 0.42, aLp: 2.3, aLq: 0.35, aLe: 0.3 }); else if (pl.rx === 'sag') set({ lean: 0.08, lB: 0.6, rB: 0.6 });
     } else if (an === 'box') {
@@ -6319,7 +6327,7 @@
   }
   // V4.0 注册到调参台（ST / GW_TYPE / BLK_K / BLK_T / LSV 这些对象保持同一引用，值随调参刷新）
   if (TU) {
-    TU.reg(TDEF.map((d) => ({ k: 'l1_' + d[0], g: d[1], label: d[2], v: d[3], min: d[4], max: d[5], step: d[6], note: d[7], mode: d[8] || 'num', tmp: !!d[9], ...(/^(alley|selfAlley)/.test(d[0]) ? { cat: 'fin', sub: '上篮', gm: 'both' } : {}) })));
+    TU.reg(TDEF.map((d) => ({ k: 'l1_' + d[0], g: d[1], label: d[2], v: d[3], min: d[4], max: d[5], step: d[6], note: d[7], mode: d[8] || 'num', tmp: !!d[9], ...(/^(alley|selfAlley)/.test(d[0]) ? { cat: 'fin', sub: '上篮', gm: 'both' } : {}), ...(/^(stDepth|stWidth|stStep|stLift|drCrouch|drHeight)$/.test(d[0]) ? { cat: 'pace', sub: '特效', gm: 'both' } : {}) })));
     TU.reg(RDEF.map((d) => ({ k: 'l1_' + d[0], g: 'rules', label: d[1], v: CFG_DEF[d[0]], min: d[2], max: d[3], step: d[4], note: d[5], mode: d[6] || 'num' })));
     for (const d of RDEF) if (d[0] !== 'shotClock') Object.defineProperty(CFG, d[0], { enumerable: true, configurable: true, get: () => TU.get('l1_' + d[0]), set: (v) => { TU.set('l1_' + d[0], v); } });
     // 进攻时间是“本场”设置（比赛开始界面 / 5V5 会临时改），所以 CFG.shotClock 仍是普通字段，调参改动时同步过去
