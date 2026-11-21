@@ -28,7 +28,7 @@ function shot(ctx, { mode = '2p', defense = 0.9, rating = 0.7, gap = 0.3, cpu = 
   Object.assign(p, { x: 0, y: 10, z: 0.15, face: Math.PI / 2, vx: 0, vy: 0, speed: 0, stam: 100, hasBall: true, ctrl: cpu ? 'cpu' : 'p1' });
   Object.assign(d, { x: 0, y: p.y + gap, z: 0, stance: true, stun: 0, off: false, stam: 100, action: null });
   Object.assign(p.r, { lay: rating, close: rating, flo: rating, str: 0.6, badges: [] });
-  Object.assign(d.r, { intD: defense, str: 0.6, badges: [] });
+  Object.assign(d.r, { intD: defense, blk: 0.6, str: 0.6, badges: [] });
   p.arch = { ...p.arch, key: 'qa', _bt: {} };
   d.arch = { ...d.arch, key: 'qa', _bt: {} };
   if (mode === 't5') { p.tm = 0; d.tm = 1; p.opp = d; }

@@ -165,6 +165,9 @@
     ['ctLayCap', 'ct', '上篮 贴防命中上限', 0.55, 0, 1, 0.01, '70终结对60内防的贴防命中上限；绿区同样受限'],
     ['ctLayCapR', 'ct', '上篮 上限终结系数', 0.6, 0, 2, 0.05, '终结能力每高于70一点，上限增加此比例'],
     ['ctLayCapD', 'ct', '上篮 上限内防系数', 0.65, 0, 2, 0.05, '防守人内防每高于60一点，上限降低此比例'],
+    ['ctLayCapB', 'ct', '上篮 重干扰盖帽系数', 0.15, 0, 1, 0.01, '严重干扰时，盖帽能力每高于60一点，命中上限降低此比例；与内防系数叠加'],
+    ['ctLayGreen', 'ct', '上篮 重干扰完美加成', 0.04, 0, 0.15, 0.01, '严重干扰时，完美出手只给命中上限加此概率，不能无视内防与盖帽'],
+    ['ctLayLate', 'ct', '上篮 重干扰时机惩罚', 0.04, 0, 0.15, 0.01, '严重干扰非完美出手：命中上限再减此值×时机误差'],
     ['ctBlkE', 'ct', '被盖率 对抗斜率', 1.0, 0, 4, 0.05, '上篮 / 扣篮被盖率 × clamp(1 − 差值×此, 0.25, 1.8)'],
     ['ctBlkH', 'ct', '严重封堵 被盖倍率', 1.0, 1, 3, 0.05, '干扰 ≥ 0.5 时上篮被盖率再乘'],
     ['ctBlkD', 'ct', '双人封堵 被盖倍率', 1.2, 1, 3, 0.05, '双人封堵时上篮被盖率再乘'],
@@ -2679,7 +2682,10 @@
     let cm = 1;
     if (kind === 'lay') { cm *= K.smLayC0 - K.smLayCS * pl.r.str; cm *= bk(pl, 'acrobat', K.bgAcroC) * bk(pl, 'bully', K.bgBullyC); }
     else { if (a.F && !V.hook) cm *= a.F.ct; cm *= bk(pl, 'deadeye', K.bgDeadC); if (hasB(pl, 'fade') && (V.fade || a.v === 'fade' || a.v === 'postfade' || a.v === 'turn')) cm *= bk(pl, 'fade', K.bgFadeC); if (hasB(pl, 'stepper') && a.v === 'stepback') cm *= bk(pl, 'stepper', K.bgStepC); }
-    const c = SK ? 0 : clamp(ci.c * V.c * cm * (a.ky ? K.smKy : 1) + (kind === 'lay' && a.bump ? a.bump * K.smBump : 0), 0, 1);
+    const shotContest = clamp(ci.c * V.c * cm * (a.ky ? K.smKy : 1) + (kind === 'lay' && a.bump ? a.bump * K.smBump : 0), 0, 1);
+    const c = SK ? 0 : shotContest;
+    const cd = kind === 'lay' ? ctDef(pl, df) : df;
+    const heavyLay = kind === 'lay' && !cd.off && shotContest >= 0.5;
     const st = G.stats[pl.id]; st.fga++; if (three) st.tpa++; if (kind === 'lay') st.ina++;
     const hp = heldShotPos(pl);
     a.released = true; pl.hasBall = false;
@@ -2741,7 +2747,7 @@
       const cd = ctDef(pl, df), cc = cd === df ? ci.c : contestOf(pl, cd, 'in');
       const w = clamp((cc - K.ctLayCapStart) / Math.max(0.05, K.ctLayCapSpan), 0, 1);
       const cap = clamp(K.ctLayCap + K.ctLayCapR * (r - 0.7) - K.ctLayCapD * (cd.r.intD - 0.6), K.smMin, 1);
-      prob = Math.min(prob, 1 - w * (1 - cap));
+      prob = Math.min(prob, 1 - w * (1 - cap) - (heavyLay && !green ? K.ctLayLate * Math.min(1, ae) : 0));
     }
     if (kind === 'shot' && !V.hook && !SK) {
       const cs = a.catchShot;
@@ -2753,6 +2759,10 @@
     info.uuBonus = uu && ud && ud.id === uu.def && (ud.z > 0.05 || G.time <= uu.bitUntil) ? K.uuBonus * uuQuality(pl) : 0;
     const movePenalty = SK && green ? 0 : a.stride ? K.poStrideMiss * (1 - postQuality(pl)) : uu ? K.uuMiss * (1 - uuQuality(pl)) : 0;
     prob = alleyProb(a, clamp((prob + info.uuBonus) * (1 - movePenalty), K.smMin, 1)); pl.uuShot = null; pl.postFakeCount = 0;
+    if (heavyLay) {
+      const cap = K.ctLayCap + K.ctLayCapR * (r - 0.7) - K.ctLayCapD * (cd.r.intD - 0.6) - K.ctLayCapB * (cd.r.blk - 0.6);
+      prob = Math.min(prob, clamp(cap + (green ? K.ctLayGreen : -K.ctLayLate * Math.min(1, ae)), K.smMin, 1));
+    }
     if (kind === 'lay' && (a.farLsv || a.lsv === 'far') && !SK) prob *= clamp(K.lvFarP + K.lvFarLay * (pl.r.lay - 0.75), 0.25, 1);
     const made = G.tips && G.tips.mk && pl.id === 0 ? true : rnd() < prob;
     const cl = SK ? '无视干扰' : c < 0.2 ? '空位' : c < 0.5 ? '轻微干扰' : '严重干扰';
