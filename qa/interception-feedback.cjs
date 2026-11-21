@@ -34,8 +34,46 @@ function fixture(mode, local = 0) {
   return { PH, G, game, sounds, text };
 }
 
-function interception(mode, local, stealing, result = 'int') {
+function roomHarness(f, slot, role) {
+  const main = source('main');
+  const ctx = vm.createContext({ G: f.G, GM: f.game, PH: f.PH, localSlot: slot, room: { role, active: true, links: new Map([[3, true]]) } });
+  vm.runInContext(main.slice(main.indexOf('  const NET_STATE ='), main.indexOf('  function roomAction(')), ctx);
+  vm.runInContext('resetRoomAudio()', ctx);
+  return {
+    snapshot: () => vm.runInContext('roomSnapshot()', ctx),
+    receive: state => { ctx.packet = state == null ? state : JSON.parse(JSON.stringify(state)); vm.runInContext('roomState(packet)', ctx); }
+  };
+}
+
+function networkPerspectives(host, room, hostTeam, stealing) {
+  const packet = room.snapshot();
+  assert.equal(JSON.stringify(packet.audio.filter(e => e[0] === 'intercept')), JSON.stringify([['intercept', stealing]]));
+  assert(!packet.audio.some(e => e[0] === 'play' && ['interceptGood', 'interceptBad', 'steal'].includes(e[1])), 'Never relay host-resolved interception sound');
+  for (const local of [0, 1, -1]) {
+    const guest = fixture(3, local), client = roomHarness(guest, local < 0 ? -1 : local * 3, 'guest');
+    client.receive(null); client.receive({ players: [] }); assert.equal(guest.sounds.length, 0);
+    client.receive(packet);
+    const expected = local < 0 ? { col: '#5ee0ff', sound: 'steal' } : local === stealing ? { col: '#7dff8a', sound: 'interceptGood' } : { col: '#ff6b5e', sound: 'interceptBad' };
+    const F = guest.G.fx;
+    assert.equal(guest.sounds.filter(s => ['steal', 'interceptGood', 'interceptBad'].includes(s)).join(), expected.sound);
+    assert.equal(F.possession.team, stealing); assert.equal(F.possession.col, expected.col);
+    assert.equal(F.possession.text, '抢断！攻防转换'); assert.equal(F.possession.t, host.G.fx.possession.t);
+    assert.equal(F.flashCol, expected.col);
+    for (const q of [...F.parts, ...F.rings]) assert.equal(q.col, q.interceptTeam == null ? '#ffffff' : expected.col);
+    assert.equal(guest.G.floats.find(f => f.interceptTeam === stealing).color, expected.col);
+    assert.equal(guest.G.players.find(p => p.ring)?.tm ?? -1, local);
+    guest.sounds.length = 0;
+    client.receive({ ...packet, audio: [] });
+    assert.equal(guest.G.fx.possession.col, expected.col); assert.equal(guest.sounds.length, 0, 'State refresh must not replay the cue');
+  }
+  assert.equal(room.snapshot().audio.length, 0, 'Neutral event drains once');
+  assert.equal(host.G.fx.possession.col, stealing === hostTeam ? '#7dff8a' : '#ff6b5e', 'Guest recoloring must not mutate host state');
+  console.log(`PASS online 3V3: host=${hostTeam} interceptor=${stealing}; same-team guest, opposing guest and spectator resolve their own sound and all effect colors`);
+}
+
+function interception(mode, local, stealing, result = 'int', network = false) {
   const f = fixture(mode, local), { PH, G, game, sounds } = f;
+  const room = network ? roomHarness(f, local * 3, 'host') : null;
   const api = mode === 3 ? PH.T3 : PH.T5, T = api.T;
   const fromTeam = 1 - stealing, from = G.players.find(p => p.tm === fromTeam);
   const to = G.players.find(p => p.tm === fromTeam && p !== from), d = G.players.find(p => p.tm === stealing);
@@ -83,6 +121,7 @@ function interception(mode, local, stealing, result = 'int') {
   assert.equal(G.floats.filter(x => x.text === '抢断传球').length, 1, 'Existing float remains visible in simple feedback');
   const expected = local < 0 ? 'steal' : local === stealing ? 'interceptGood' : 'interceptBad';
   assert.equal(sounds.filter(s => ['interceptGood', 'interceptBad', 'steal'].includes(s)).join(), expected);
+  if (network) networkPerspectives(f, room, local, stealing);
 
   for (const camera of mode === 3 ? ['half-court'] : ['broadcast', '2k']) {
     f.text.length = 0;
@@ -106,6 +145,7 @@ for (const mode of [3, 5]) {
 }
 interception(5, 0, 1, 'defl');
 console.log('PASS stunned defenders do not trigger interception feedback; 5V5 deflections retain existing feedback.');
+for (const host of [0, 1]) for (const stealing of [0, 1]) interception(3, host, stealing, 'int', true);
 
 {
   const frequencies = [];

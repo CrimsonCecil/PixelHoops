@@ -1517,7 +1517,7 @@
   function burst(x, y, z, n, cols, sp, life, g, size) { for (let i = 0; i < n; i++) { const a = rr(0, 6.283), u = rr(-0.3, 1), v = rr(0.4, 1) * sp; part(x, y, z, Math.cos(a) * v, Math.sin(a) * v * 0.6, u * sp, cols[(rnd() * cols.length) | 0], life * rr(0.6, 1.1), g, size); } }
   function led(text, col, dur) { G.fx.led = { text: text, col: col, t: 0, dur: dur || 2.2 }; }
   function shake(v) { G.fx.shake = Math.max(G.fx.shake, v); }
-  function flash(col, v) { G.fx.flash = v; G.fx.flashCol = col; }
+  function flash(col, v) { G.fx.flash = v; G.fx.flashCol = col; delete G.fx.interceptFlash; }
   function fxUpdate(dt) {
     for (const p of G.players) comboTick(p);
     const F = G.fx;
@@ -2146,18 +2146,31 @@
     oreb: { col: '#7dff8a', cols: ['#7dff8a', '#ffffff', '#ffe14a'], led: 'OFFENSIVE REBOUND  进攻篮板', sfx: 'oreb' },
   };
   function bigPlay(kind, pl, x, y, z, tier, hs) { const B = BIG[kind]; hype(tier == null ? 1 : tier, pl, Object.assign({ x: x, y: y, z: z, hs: hs || 0 }, B)); }
-  function passIntercept(pl, friendly, teamName) {
-    const F = G.fx, b = G.ball, col = friendly == null ? '#5ee0ff' : friendly ? '#7dff8a' : '#ff6b5e';
+  function interceptionStyle(team, localTeam) {
+    return localTeam == null ? { col: '#5ee0ff', sfx: 'steal' } : team === localTeam ? { col: '#7dff8a', sfx: 'interceptGood' } : { col: '#ff6b5e', sfx: 'interceptBad' };
+  }
+  function localizeInterception(localTeam) {
+    const F = G.fx;
+    for (const q of [...F.parts, ...F.rings]) if (q.interceptTeam != null) q.col = interceptionStyle(q.interceptTeam, localTeam).col;
+    for (const f of G.floats) if (f.interceptTeam != null) f.color = interceptionStyle(f.interceptTeam, localTeam).col;
+    if (F.possession) F.possession.col = interceptionStyle(F.possession.team, localTeam).col;
+    if (F.interceptFlash != null) F.flashCol = interceptionStyle(F.interceptFlash, localTeam).col;
+  }
+  function passIntercept(pl, localTeam, teamName) {
+    const F = G.fx, b = G.ball, style = interceptionStyle(pl.tm, localTeam), col = style.col;
     const x = b.x, y = b.y, z = Math.max(0.5, b.z);
     for (let i = 0; i < 24; i++) {
       const a = i * Math.PI / 12, speed = 2.5 + i % 3;
       part(x, y, z, Math.cos(a) * speed, Math.sin(a) * speed, 1 + i % 4 * 0.3, i % 3 ? col : '#ffffff', 0.5, 5, 3);
+      if (i % 3) F.parts[F.parts.length - 1].interceptTeam = pl.tm;
     }
-    for (let i = 0; i < 2; i++) F.rings.push({ x, y, z, t: -i * 0.08, T: 0.55, R: 2.4 + i * 0.4, col: i ? '#ffffff' : col });
-    flash(col, 0.12); shake(4); pl.flash = 0.3;
-    F.possession = { text: '抢断！攻防转换', sub: teamName + ' · ' + pl.arch.name + ' 获得球权', col, t: 0, dur: 1.35 };
+    for (let i = 0; i < 2; i++) F.rings.push({ x, y, z, t: -i * 0.08, T: 0.55, R: 2.4 + i * 0.4, col: i ? '#ffffff' : col, interceptTeam: i ? null : pl.tm });
+    flash(col, 0.12); F.interceptFlash = pl.tm; shake(4); pl.flash = 0.3;
+    F.possession = { text: '抢断！攻防转换', sub: teamName + ' · ' + pl.arch.name + ' 获得球权', team: pl.tm, col, t: 0, dur: 1.35 };
     float('抢断传球', pl, col, 1);
-    sfx(friendly == null ? 'steal' : friendly ? 'interceptGood' : 'interceptBad');
+    G.floats[G.floats.length - 1].interceptTeam = pl.tm;
+    audioSink?.('intercept', pl.tm);
+    if (PH.audio) PH.audio.play(style.sfx);
   }
   // 盖帽四种：单手大帽（默认，球被扇飞）/ 抓帽（直接把球摘下来，球权转换）/ 双手呼脸（正面压制，球砸回对手脸上）/ 追身封盖（从身后追上）
   function blockStyle(df, sh, kind) {
@@ -5461,7 +5474,7 @@
   }
   const T5API = { begin: t5begin, end: t5end, step: t5step, trackReplay, replayTick, makePlayer: makePlayer, aiInput: aiInput, zeroInp: zeroInp, newStats: newStats, contestOf: contestOf, contestInfo: contestInfo,
     distHoop: distHoop, isThree: isThree, finPlan: finPlan, OP: OP, TM: TM, pickup: pickup, float: float, led: led, sfx: sfx, vo: vo, burst: burst, part: part, hasB: hasB, powOf: powOf,
-    knock: knock, bpop: bpop, tkAdd: tkAdd, fxReset: fxReset, rebBall: rebBall, hustle: hustle, HOOP: HOOP, cold: cold, scoreBy: scoreBy, banner: banner, passIntercept: passIntercept };
+    knock: knock, bpop: bpop, tkAdd: tkAdd, fxReset: fxReset, rebBall: rebBall, hustle: hustle, HOOP: HOOP, cold: cold, scoreBy: scoreBy, banner: banner, passIntercept: passIntercept, interceptionStyle: interceptionStyle, localizeInterception: localizeInterception };
   // V4.0 区域可视化（调参台打开时 render.js 画）：单位米。lay / float / dunk / euro 以篮筐地面投影为圆心，表示“从这个圈内开始收球能做出该终结”（= 起跳上限 + 两步步幅）；
   // r0 = 最远起跳点圈（起跳距离本身）。contest / block 以防守人（pl 的对手）脚下为圆心；contest 的 ang/arc = 正面干扰扇区（出手人站在这个方向上受正面干扰）
   function zones(pl) {
