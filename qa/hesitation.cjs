@@ -3,7 +3,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
 
-function fixture(hand = 1, arch0 = 'luka') {
+function fixture(hand = 1, arch0 = 'luka', hooks = false) {
   const listeners = {};
   const pads = [];
   const ctx = vm.createContext({
@@ -14,7 +14,9 @@ function fixture(hand = 1, arch0 = 'luka') {
   });
   ctx.window = ctx;
   for (const name of ['tune', 'render', 'input', 'roster', 'r5', 'game', 'b5', 'team5', 'team3']) {
-    vm.runInContext(fs.readFileSync(path.join(__dirname, '..', 'js', name + '.js'), 'utf8'), ctx);
+    let source = fs.readFileSync(path.join(__dirname, '..', 'js', name + '.js'), 'utf8');
+    if (hooks && name === 'game') source = source.replace('  PH.game = {', '  PH.game = { testStartCombo: cbStart,');
+    vm.runInContext(source, ctx);
   }
   const { game, rig } = ctx.PH;
   game.seed(7);
@@ -180,7 +182,7 @@ for (const [hand, dir, kind, side, nextHand] of [
   assert(p.hasBall);
   if (side) assert(p.x * side > 0.15);
   if (kind === 'inout') assert(p.y > y + 0.2 && p.action.hesiDrive);
-  if (kind === 'stepback') assert(p.y < y - 0.2);
+  if (kind === 'stepback') { assert(p.y < y - 0.2); assert(!p.action.hesiBurst); }
 }
 
 // Release before the fake reaches its peak: keep the release-frame direction.
@@ -314,4 +316,78 @@ for (const [x, y, face] of [[0, 13.75, -Math.PI / 2], [0, -13.75, Math.PI / 2], 
   }
 }
 
+for (const mode of ['cpu', 't5']) for (const hand of [1, -1]) for (const lateral of [0, -0.4, 0.4]) {
+  const { game, p: solo, d: soloDef, key, pads, team5 } = fixture(hand);
+  let p = solo, d = soloDef;
+  game.G.mode = mode;
+  if (mode === 't5') {
+    team5.start({ home: 'LAL', away: 'BOS', human: 0 });
+    Object.assign(team5.T, { phase: 'live', off: 0 });
+    p = team5.T.ctl;
+    d = game.G.players.find(q => q.tm !== p.tm);
+    for (const other of game.G.players) if (other !== p && other !== d) Object.assign(other, { x: -6 + other.id, y: 1, stun: 3 });
+  }
+  Object.assign(game.G, { phase: 'live', off: 0, needClear: false });
+  Object.assign(p, { x: 0, y: 6.8, face: Math.PI / 2, hand, handX: hand * 0.33, hasBall: true, catchT: -9 });
+  p.r.hnd = 0.9;
+  Object.assign(d, { x: 0, y: 8.05, dummy: false, D: null, hasBall: false, stun: 0 });
+  Object.assign(game.G.ball, { state: 'held', holder: p.id, dead: false, lastTouch: p.id });
+  const pad = { connected: true, axes: [0, 0, 0, 0], buttons: Array.from({ length: 16 }, () => ({ pressed: false })) };
+  pads.push(pad);
+  const step = () => mode === 't5' ? team5.tick(1 / 120) : game.tick(1 / 120);
+  key('KeyH'); for (let i = 0; i < 24; i++) step();
+  const dfX = d.x, dfY = d.y, h = game.t5.HOOP;
+  const hl = Math.hypot(h.x - dfX, h.y - dfY), fx = (h.x - dfX) / hl, fy = (h.y - dfY) / hl;
+  const offset = () => (p.x - dfX) * -fy + (p.y - dfY) * fx;
+  key('KeyH', false); pad.axes[0] = lateral; pad.axes[1] = -Math.sqrt(1 - lateral * lateral); step();
+  const a = p.action;
+  assert(a.hesiBurst, mode + ' release is a shoulder-lane burst');
+  const side = Math.sign(a.dx * -fy + a.dy * fx);
+  assert.notEqual(side, 0, 'forward release picks a shoulder instead of the defender body');
+  let prev = offset(), frames = 0;
+  while (p.action === a && frames++ < 150) {
+    step();
+    assert((offset() - prev) * side >= -1e-6, mode + ' burst never steers back toward the defender–hoop line');
+    prev = offset();
+  }
+  assert(frames < 150);
+  assert(Math.abs(offset()) > 0.3, 'exit has readable shoulder clearance');
+  if (!lateral) {
+    const heldOffset = offset();
+    for (let i = 0; i < 60; i++) step();
+    assert((offset() - heldOffset) * side >= -1e-6, 'holding forward after the burst does not recenter the lane');
+  }
+}
+
+for (const hand of [1, -1]) {
+  const { game, p, d } = fixture(hand, 'luka', true);
+  game.seed(11); game.G.mode = 'cpu';
+  Object.assign(d, { dummy: false, D: null, x: 0, y: 5.65, stun: 0 });
+  p.ctrl = 'cpu';
+  game._dbg.startMove(p, { mx: 0, my: 0 }, 'hesi');
+  game.testStartCombo(p, 'H', 1);
+  p.ai.plan = 'drive'; p.ai.t = 1.5;
+  let burst = null, prev = 0, side = 0;
+  for (let i = 0; i < 120; i++) {
+    game.tick(1 / 120);
+    if (!burst && p.action && p.action.hesiBurst) { burst = p.action; side = Math.sign(burst.dx); prev = p.x; }
+    else if (burst && p.action === burst) { assert((p.x - prev) * side >= -1e-6, 'CPU hesitation exit must not use the reversing inout path'); prev = p.x; }
+    else if (burst) break;
+  }
+  assert(burst && burst.hesiDrive);
+}
+
+for (const absent of [false, true]) {
+  const { game, p, d } = fixture();
+  const h = game.t5.HOOP;
+  Object.assign(p, { x: 0, y: h.y - 2 });
+  Object.assign(d, { x: h.x, y: h.y, off: absent });
+  game._dbg.startMove(p, { mx: 0, my: 0 }, 'hesi');
+  game._dbg.startMove(p, { mx: 0, my: 1 }, 'inout');
+  assert(Number.isFinite(p.action.dx) && Number.isFinite(p.action.dy));
+  assert(Math.abs(Math.hypot(p.action.dx, p.action.dy) - 1) < 1e-9);
+  if (absent) { assert.equal(p.action.dx, 0); assert.equal(p.action.dy, 1); }
+}
+
 console.log('Hesitation: sideways one-hand fake, release directions, buffering, move requirements, post-up, possession loss, and 5V5 passed.');
+console.log('PASS hesitation shoulder lanes: forward/diagonal releases, both hands, 1V1/5V5, forward-held recovery, and CPU combo exits');
