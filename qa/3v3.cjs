@@ -456,6 +456,25 @@ console.log('PASS: a CPU honors an open call according to pass IQ, vetoes a bloc
 }
 
 {
+  const { G, T3, put, run } = tactics();
+  put(0, -2, 6); put(1, 1, 11); put(2, -6, 5);
+  put(3, -5, 8); put(4, 5, 8); put(5, -5, 12);
+  const receiver = G.players[1];
+  receiver.r.dunk = receiver.r.sdunk = 0.25;
+  run(1, { 0: { pass: true, passKind: 'alley', mx: 0.5, my: 0.87 } });
+  while (T3.T.pass) run(1);
+  const a = receiver.action;
+  assert.equal(a?.type, 'layup');
+  run(1);
+  assert(!Number.isFinite(a.tapAt), 'an unpressed finish button must not count as a release');
+  run(1, { 1: { a2: true } });
+  assert(!Number.isFinite(a.tapAt), 'holding the finish button still does not release');
+  run(1);
+  assert(Number.isFinite(a.tapAt), 'the human release is registered after holding the finish button');
+  console.log('PASS: a human can time the layup on a non-dunk alley-oop.');
+}
+
+{
   const { G, Gm, T3, api, run } = fixture({ human: 1, target: 5 });
   assert.equal(G.players.length, 6);
   assert.equal(T3.holder().id, 1);

@@ -317,7 +317,8 @@
       to.passQuality = clamp(0.65 + (from.tendency.accuracy - 0.65) * 0.7 - 0.32 * miss - 0.42 * P.error, 0.1, 1);
       T.lastPass = { from, to, at: G.time };
       if (kind === 'alley' && !G.needClear && !to.action && !to.stun && GM.distHoop(to) < 3.2 && to.passQuality >= 0.5) {
-        A.startFinish(to, { ...A.zeroInp(), my: 1, sprint: true }, 'auto', 'a2', true);
+        if (A.startFinish(to, { ...A.zeroInp(), my: 1, sprint: true }, 'auto', 'a2', true) &&
+          to.ctrl !== 'cpu' && to.action?.type === 'layup') to.action.rearm = true;
       }
     }
   }
