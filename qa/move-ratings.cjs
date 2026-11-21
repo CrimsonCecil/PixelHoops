@@ -79,9 +79,8 @@ for (const mode of ['2p', 't3', 't5']) {
     }
     if (tier < 3) {
       const a = early(p);
-      assert(a.released && !p.hasBall && G.ball.state === 'shot', `${mode} tier ${tier} over-limit release commits`);
-      assert.equal(G.stats[p.id].fga, 1); assert.equal(p.postFakeCount, 0);
-      assert.equal(G.lastShot.tl, '很早');
+      assert(!a.released && p.hasBall && p.action.postFake, `${mode} tier ${tier} over-limit release stays a fake`);
+      assert.equal(G.stats[p.id].fga, 0); assert.equal(p.postFakeCount, limit + 1);
     }
   }
   for (const mv of ['uuForward', 'uuBack', 'uuLeft', 'uuRight']) {
@@ -116,7 +115,7 @@ for (const mode of ['2p', 't3', 't5']) for (const rating of [0.4, 0.98]) {
 }
 console.log('PASS zero duration tuning: low/high multipliers keep all UU and post strides finite in every mode');
 console.log('PASS move quality: post Spin/Back/Front and all four UU steps are larger/faster at high ratings in 1V1/3V3/5V5');
-console.log('PASS fake limits: no dream=1, bronze=2, silver=3, gold/HOF unlimited; excess early releases become rushed real shots in all modes');
+console.log('PASS fake limits: no dream=1, bronze=2, silver=3, gold/HOF unlimited effective fakes; excess early releases retain the ball in all modes');
 
 for (const mode of ['2p', 't3', 't5']) for (const [tier, limit] of [[0, 1], [1, 2], [2, 3], [3, 5], [4, 5]]) {
   const { p } = fixture(mode); badge(p, 'dream', tier);
@@ -128,14 +127,12 @@ for (const mode of ['2p', 't3', 't5']) for (const [tier, limit] of [[0, 1], [1, 
     const a = p.action;
     assert.equal(a.type, 'shot', `${mode} held stick converts its preliminary move to a shot`);
     step(p, { post: true, rsPad: true });
-    if (i < limit) {
-      assert(p.action.postFake && p.hasBall, `${mode} tier ${tier} stick fake ${i + 1}`);
-      assert.equal(p.postFakeCount, i + 1, `${mode} stick conversion preserves the fake count`);
-      finishFake(p);
-    } else assert(a.released && !p.hasBall, `${mode} tier ${tier} over-limit stick release must commit`);
+    assert(p.action.postFake && p.hasBall && !a.released, `${mode} tier ${tier} stick fake ${i + 1}`);
+    assert.equal(p.postFakeCount, i + 1, `${mode} stick conversion preserves the fake count`);
+    finishFake(p);
   }
 }
-console.log('PASS right-stick fake limits: preliminary post moves cannot reset no/bronze/silver Dream limits; gold/HOF remain unlimited in all modes');
+console.log('PASS right-stick fake limits: preliminary post moves preserve Dream counts; excess releases remain fakes in all modes');
 
 for (const end of ['flick', 'direction', 'exit']) {
   const { p } = fixture(); early(p); finishFake(p);

@@ -675,7 +675,7 @@ for (const bite of [0, 1]) {
 {
   const { p } = fixture(); tune.set('l1_poFakeCommit', 0);
   step(p, { a1: true, post: true }); const a = p.action; step(p, { post: true });
-  assert(a.released && !p.action.postFake, 'The fake commit window is live tunable');
+  assert(!a.released && p.action.postFake && p.hasBall, 'A legacy zero commit window cannot force a pre-takeoff shot');
 }
 {
   const { p } = fixture(); p.ctrl = 'cpu'; G.mode = 'cpu'; p.ai.fakeNext = true;
@@ -683,7 +683,7 @@ for (const bite of [0, 1]) {
   for (let i = 0; i < 24 && p.action.type === 'shot'; i++) step(p, qa.aiInput(p, dt));
   assert(p.action.postFake && p.post && p.hasBall, 'AI releases its post fake before committing');
 }
-console.log('PASS post fake tunables: commit window, stamina cost and defender bite; CPU early release preserves posting and ball');
+console.log('PASS post fake tunables: legacy commit compatibility, stamina cost and defender bite; CPU early release preserves posting and ball');
 
 {
   const source = fs.readFileSync(path.join(__dirname, '../js/rooms.js'), 'utf8');

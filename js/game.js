@@ -40,7 +40,7 @@
     ['selfAlleyCatch', 'lay', '自抛空接 接球离筐', 1.7, 1, 2.5, 0.1, '米：自抛后的自动跑动目标'],
     ['selfAlleySpeed', 'lay', '自抛空接 最低向筐速度', 1, 0.3, 3, 0.1, '米/秒：静止或背离篮筐时不触发'],
     ['selfAlleyCpu', 'lay', '自抛空接 电脑尝试率', 0.16, 0, 1, 0.01, '每秒：擅长扣篮且路线空旷的电脑尝试自抛的概率率'],
-    ['poFakeCommit', 'shot', '背打 假投收球窗口', 0.24, 0, 0.5, 0.01, '秒：起跳前且在窗口内松手保持背打假投'],
+    ['poFakeCommit', 'shot', '背打 假投收球窗口（旧）', 0.24, 0, 0.5, 0.01, '秒：保留旧配置兼容；起跳前松手始终保持背打假投'],
     ['poFakeBite', 'def', '背打 假投骗跳', 0.35, 0, 1, 0.01, '概率：梦幻舞步提升骗跳效果'],
     ['poFakeCost', 'stam', '背打 假投消耗', 0, 0, 10, 0.1, '体力：沿用动作固定消耗倍率，默认假投免费'],
     ['aiPoFake', 'ai', '电脑 背打假投频率', 0.12, 0, 1, 0.01, '概率：背打出手前假投，梦幻舞步提升使用率'],
@@ -346,10 +346,10 @@
     ['poFakeBiteLow', 'shot', '背身假投 低能力骗跳', 0.35, 0, 2, 0.01, '倍率'],
     ['poFakeBiteHigh', 'shot', '背身假投 高能力骗跳', 1.15, 0, 2, 0.01, '倍率'],
     ['poStrideMiss', 'shot', '背打跨步 低能力失误惩罚', 0.12, 0, 1, 0.01, '比例：跨步后命中率最多下降此比例'],
-    ['poFakeLimitNone', 'shot', '连续背身假投 无徽章上限', 1, 0, 12, 1, '次数：0 为不限', 'int'],
-    ['poFakeLimitBronze', 'shot', '连续背身假投 铜档上限', 2, 0, 12, 1, '次数：0 为不限', 'int'],
-    ['poFakeLimitSilver', 'shot', '连续背身假投 银档上限', 3, 0, 12, 1, '次数：0 为不限', 'int'],
-    ['poFakeLimitGold', 'shot', '连续背身假投 金档以上上限', 0, 0, 12, 1, '次数：0 为不限', 'int'],
+    ['poFakeLimitNone', 'shot', '连续背身假投 无徽章有效上限', 1, 0, 12, 1, '次数：超过后仍可假投但不再诱骗；0 为不限', 'int'],
+    ['poFakeLimitBronze', 'shot', '连续背身假投 铜档有效上限', 2, 0, 12, 1, '次数：超过后仍可假投但不再诱骗；0 为不限', 'int'],
+    ['poFakeLimitSilver', 'shot', '连续背身假投 银档有效上限', 3, 0, 12, 1, '次数：超过后仍可假投但不再诱骗；0 为不限', 'int'],
+    ['poFakeLimitGold', 'shot', '连续背身假投 金档以上有效上限', 0, 0, 12, 1, '次数：超过后仍可假投但不再诱骗；0 为不限', 'int'],
     ['bgFakesBite', 'rules', '假动作大师 假投骗跳倍率', 1.5, 0, 4, 0.01, '倍率（金档数值；铜 / 银 / 名人堂按徽章档位系数缩放）'],
     ['bgFakesStep', 'rules', '假动作大师 上下步位移倍率', 1.15, 0, 3, 0.01, '倍率（金档数值；铜 / 银 / 名人堂按徽章档位系数缩放）'],
     ['aiPoSpinShot', 'ai', '背打 跨步转身投篮倾向', 0.4, 0, 1, 0.01, '概率：梦幻舞步加权'],
@@ -4056,10 +4056,7 @@
   function pumpFake(pl, T, jumped) {
     const shot = pl.action;
     if (shot && shot.postOrigin && !jumped) {
-      if (!postFakeAllowed(pl)) {
-        if (shot.stride) { strideShotSpot(pl, shot); shot.stride.moving = false; }
-        pl.vx = pl.vy = 0; releaseJumpShot(pl, -1); return;
-      }
+      const canBite = postFakeAllowed(pl);
       pl.postFakeCount = (pl.postFakeCount || 0) + 1;
       const side = shot.fakeSide, n = pl.postFakeN = (pl.postFakeN || 0) + 1;
       pl.postFakeSide = side;
@@ -4071,7 +4068,7 @@
       if (pl.ctrl === 'cpu') pl.ai.postChain = postFakeAllowed(pl) && rnd() < K.aiPoFakeChain * bk(pl, 'dream', 1.4) ? -side : 0;
       pl.stam = Math.max(0, pl.stam - K.poFakeCost * ST.cost);
       const df = nearestDefender(pl);
-      if (df && Math.hypot(df.x - pl.x, df.y - pl.y) < K.aiJmpD && rnd() < K.poFakeBite * (0.5 + pl.r.post) * bk(pl, 'dream', 1.5) * lerp(K.poFakeBiteLow, K.poFakeBiteHigh, postQuality(pl)) * bk(pl, 'fakes', K.bgFakesBite)) {
+      if (canBite && df && Math.hypot(df.x - pl.x, df.y - pl.y) < K.aiJmpD && rnd() < K.poFakeBite * (0.5 + pl.r.post) * bk(pl, 'dream', 1.5) * lerp(K.poFakeBiteLow, K.poFakeBiteHigh, postQuality(pl)) * bk(pl, 'fakes', K.bgFakesBite)) {
         df.ai.seenAct = pl.action; df.ai.willJump = true; df.ai.jumpAt = G.time + diffOf(df).react * 0.3;
         bpop(pl, 'dream'); bpop(pl, 'fakes');
       }
@@ -4527,8 +4524,8 @@
     if (a.type === 'shot') {
       const TI = a.ideal;
       if (!a.released) {
-        const strideRelease = a.stride && a.t < a.jT && (a.vh == null || a.vh <= 1 && a.vt >= a.vh);
-        if (a.postOrigin && !a.jumped && (strideRelease || !a.stride && a.vh == null && a.t < Math.min(a.jT || K.shotJump, K.poFakeCommit)) && !btnHeld(pl, a, inp, a.btn || 'a1')) { pumpFake(pl, 0.26, false); return; }
+        const postRelease = a.vh == null || a.vh <= 1 && a.vt >= a.vh;
+        if (a.postOrigin && !a.jumped && postRelease && !btnHeld(pl, a, inp, a.btn || 'a1')) { pumpFake(pl, 0.26, false); return; }
         if (a.stride) {
           const s = a.stride; s.moving = false;
           if (t0 < s.T) {
@@ -4556,7 +4553,7 @@
         const rp = a.vh != null, hT = rp ? a.vh : pl.ctrl === 'cpu' ? a.t : (a.vt || a.t); // 假投判定用玩家实际按住的时长（不含 cs 提前量）
         if (rp && a.vh > 1) { if (a.t >= TI) releaseJumpShot(pl, 0); }
         else if (rp ? a.vt >= a.vh : !btnHeld(pl, a, inp, a.btn || 'a1')) {
-          if (a.postOrigin && !a.jumped && (a.stride || hT < K.poFakeCommit)) { pumpFake(pl, 0.26, false); return; }
+          if (a.postOrigin && !a.jumped) { pumpFake(pl, 0.26, false); return; }
           // 假投窗口避开最早绿区；起跳前松开 = 原地假投，离地后仍在窗口内 = 快速落地假投。
           // fkT 之后到绿区之间松开仍按偏早出手结算；按住到绿区永远是出手。电脑球员仍是 0.17 秒，不改 AI 节奏；ibuf 缓冲的点按（a.vh）回放按住时长后也走这里
           if (a.fkT == null) a.fkT = pl.ctrl === 'cpu' ? K.fkCpu : Math.max(K.fkFloor, Math.min(a.ideal - (a.meter ? a.meter.gw * a.meter.span : 0) - K.fkGap, Math.max(K.fkMin, K.fkFrac * a.ideal))); // 条涨到约 40% 前松手 = 假投
