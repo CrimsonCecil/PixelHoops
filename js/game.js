@@ -5628,7 +5628,9 @@
     'sk-giannis': { a0: 'giannis', y: 4.2, T: 4.4, mk: 1, dm: 'stand', p1: [0.4, 10.9], s0: SEQ([[0.1, 4.4, { m: 'F', sp: 1 }], [0.1, 4.4, (t, pl, o, S) => S.go || (distHoop(pl) < 7.4 && (S.go = 1)) ? { a1: true } : {}]]) },
     'sk-shaq': { a0: 'shaq', x: 1.0, y: 8.4, gap: 0.9, T: 4.8, mk: 1, s0: SEQ([[0.3, 4.8, (t, pl, o, S) => S.k ? { a2: true, post: true } : (pl.sk.postT >= 0.65 && distHoop(pl) < 3.8 ? ((S.k = 1), { a2: true, post: true }) : { post: true, m: t > 0.62 ? 'F' : '' })]]) },
     'sk-barkley': { a0: 'barkley', y: HOOP.y - 5.2, dm: 'stand', p1: [2.5, HOOP.y - 1.4], T: 4.5,
-      s0: SEQ([[0.25, 0.85, { m: 'F', sp: 1 }], [0.85, 0.94, { m: 'F', sp: 1, a2: true }], [0.94, 1.55, { m: 'F', sp: 1 }]]) },
+      s0: SEQ([[0.25, 1.55, { m: 'F', sp: 1 }], [0.25, 1.55, (t, pl, o, S) => {
+        const P = finPlan(pl); if (!S.k && P.flying && P.dunk && P.d <= P.reach + 0.25) { S.k = 1; return { a2: true }; }
+      }]]) },
     'sk-yao': { a0: 'yao', x: 1.3, y: 9.25, dm: 'stand', p1: [1.42, 10.25], T: 4.5, mk: 1,
       s0: SEQ([[0.25, 1.13, { post: true }], TAP(0.95, { d: 'FL' }), [1.48, 2.2, PF()]]) },
     'sk-mutombo': { a0: 'mutombo', a1: 'joe', def: 1, p0: [-1.7, 10.65], p1: [-2, 10.1], T: 4.5,
