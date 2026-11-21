@@ -88,6 +88,19 @@ for (const mode of ['1V1', '3V3', '5V5']) {
     f.ctx.navigator.getGamepads = () => [{ connected: true, id: 'DualSense' }];
     assert.equal(input.diveLabel(0, true), '□');
     f.ctx.navigator.getGamepads = () => [];
+    if (mode === '5V5') {
+      input.touch.on = true; input.touch.a1 = true;
+      assert.equal(input.read5().X, true, 'first touch button maps to dive input X');
+      for (const label of ['投篮', '抢断']) {
+        f.ctx.document = { getElementById: (id) => id === 'tb1' ? { textContent: label } : null };
+        assert.equal(input.diveLabel(0, true), label, '5V5 uses current first touch button label');
+        assert.equal(gm.pokeCue().prompts[0].text, 'P1 扑球！按 ' + label);
+      }
+      delete f.ctx.document;
+      assert.equal(input.diveLabel(0, true), '投篮/抢断', 'touch label remains headless safe');
+      input.touch.on = false; input.touch.a1 = false;
+      console.log('PASS 5V5: touch dive input and actual first-button prompt label');
+    }
     gm.t5.pickup(p);
     assert.equal(gm.pokeCue().active, false, 'pickup clears flash');
     assert.equal(gm.pokeCue().prompts.length, 0, 'pickup clears prompt');

@@ -53,7 +53,10 @@
   function diveLabel(slot, five) {
     const gp = lock.on ? null : pads()[slot];
     if (gp) return /dualsense|dualshock|playstation|sony/i.test(gp.id || '') ? '□' : 'X';
-    if (!five && slot === 0 && touch.on) return '扣篮/抢断';
+    if (slot === 0 && touch.on) {
+      const button = typeof document !== 'undefined' && document.getElementById(five ? 'tb1' : 'tb2');
+      return button && button.textContent || (five ? '投篮/抢断' : '扣篮/抢断');
+    }
     return five ? 'J / Space' : slot === 1 ? 'Num2 / .' : 'K';
   }
   function pads() {
