@@ -1662,7 +1662,7 @@
     p.pose.passHands = { L: [c[0] - rx, c[1] - ry, c[2]], R: [c[0] + rx, c[1] + ry, c[2]], follow: 0 };
   }
   // 2K 式站位：进攻人在弧顶三分线外，防守人在三分线内正面对着他、离 1.5 米（稍偏一点免得镜头被进攻人挡住）
-  const CHK_GAP = 1.5, CHK_SIDE = 0.45;
+  const CHK_GAP = 1.5, CHK_SIDE = 0.7;
   function checkStart(d, o) {
     d.x = o.x + CHK_SIDE; d.y = o.y + CHK_GAP; d.vx = d.vy = 0;
     const b = G.ball;
