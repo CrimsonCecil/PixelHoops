@@ -1516,10 +1516,44 @@
   }
 
   // ---------- 特效 ----------
-  function fxReset() { G.fx = { shake: 0, flash: 0, flashCol: '#ffffff', cheer: 0, led: null, hit: 0, board: 0, slow: 0, slowC: 0, shatter: 0, parts: [], rings: [] }; }
+  function fxReset() { G.fx = { shake: 0, flash: 0, flashCol: '#ffffff', cheer: 0, led: null, hit: 0, board: 0, slow: 0, slowC: 0, shatter: 0, parts: [], rings: [], confetti: [], scoreFx: null }; }
   fxReset();
   function part(x, y, z, vx, vy, vz, col, life, g, size) { const P = G.fx.parts; if (P.length > 260) P.shift(); P.push({ x: x, y: y, z: z, vx: vx, vy: vy, vz: vz, col: col, t: 0, life: life, g: g == null ? 9 : g, s: size || 1 }); }
   function burst(x, y, z, n, cols, sp, life, g, size) { for (let i = 0; i < n; i++) { const a = rr(0, 6.283), u = rr(-0.3, 1), v = rr(0.4, 1) * sp; part(x, y, z, Math.cos(a) * v, Math.sin(a) * v * 0.6, u * sp, cols[(rnd() * cols.length) | 0], life * rr(0.6, 1.1), g, size); } }
+  function spawnConfetti(n, cols, mode) {
+    const C = G.fx.confetti; if (!C) return;
+    for (let i = 0; i < n; i++) {
+      if (C.length >= 180) C.shift();
+      const col = cols[(rnd() * cols.length) | 0];
+      let x, y, vx, vy, g, drag, life;
+      if (mode === 'cannon') {
+        const left = (i & 1) === 0;
+        x = left ? rr(-0.02, 0.06) : rr(0.94, 1.02); y = rr(0.32, 0.88);
+        vx = (left ? 1 : -1) * rr(0.28, 0.88); vy = rr(-0.98, -0.35);
+        g = rr(0.55, 0.85); drag = 0.85; life = rr(1.3, 2.4);
+      } else if (mode === 'burst') {
+        x = rr(0.12, 0.88); y = rr(0.02, 0.28);
+        vx = rr(-0.48, 0.48); vy = rr(-0.35, 0.18);
+        g = rr(0.42, 0.72); drag = 0.75; life = rr(0.85, 1.65);
+      } else {
+        x = rr(0.02, 0.98); y = rr(-0.08, 0.02);
+        vx = rr(-0.12, 0.12); vy = rr(0.16, 0.38);
+        g = rr(0.05, 0.14); drag = 0.25; life = rr(1.8, 3.0);
+      }
+      C.push({ x, y, vx, vy, g, drag, col, t: 0, life, w: rnd() < 0.5 ? 3 : 2, h: rnd() < 0.5 ? 2 : 3, ang: rr(0, 6.28), spin: rr(5, 12) * (rnd() < 0.5 ? 1 : -1), wf: rr(3, 7), wa: rr(0.04, 0.11), ph: rr(0, 6.28) });
+    }
+  }
+  function triggerScoreFx(pl, pts, kind, tier) {
+    const col = (pl && pl.team && pl.team.css) || '#ffd24a';
+    const col2 = kind === 'dunk' ? '#ff8a2a' : pts === 3 ? '#5ee0ff' : '#ffd24a';
+    const own = !pl || pl.ctrl !== 'cpu' || G.players.every((p) => p.ctrl === 'cpu');
+    const dur = 0.62 + tier * 0.24;
+    G.fx.scoreFx = { t: 0, dur, col, col2, kind: kind || 'shot', pts: pts || 2, tier, own };
+    if (kind === 'dunk') spawnConfetti(tier >= 2 ? 64 : 42, [col, '#ffd24a', '#ff8a2a', '#ffffff'], 'cannon');
+    else if (pts === 3) spawnConfetti(tier >= 2 ? 44 : 30, [col, '#ffd24a', '#5ee0ff', '#ffffff'], 'burst');
+    else spawnConfetti(tier >= 2 ? 32 : 16, [col, '#ffd24a', '#ffffff'], 'burst');
+    G.fx.cheer = Math.max(G.fx.cheer, kind === 'dunk' ? 2.4 + tier * 0.5 : pts === 3 ? 1.8 : 0.95);
+  }
   function led(text, col, dur) { G.fx.led = { text: text, col: col, t: 0, dur: dur || 2.2 }; }
   function shake(v) { G.fx.shake = Math.max(G.fx.shake, v); }
   function flash(col, v) { G.fx.flash = v; G.fx.flashCol = col; }
@@ -1529,9 +1563,12 @@
     if (G.cz) { G.cz.t += dt; if (G.cz.t > G.cz.T) G.cz = null; }
     F.shake = Math.max(0, F.shake - dt * 22); F.flash = Math.max(0, F.flash - dt); F.cheer = Math.max(0, F.cheer - dt); F.board = Math.max(0, F.board - dt); F.shatter = Math.max(0, F.shatter - dt);
     if (F.led) { F.led.t += dt; if (F.led.t > F.led.dur) F.led = null; }
+    if (F.scoreFx) { F.scoreFx.t += dt; if (F.scoreFx.t > F.scoreFx.dur) F.scoreFx = null; }
     for (let i = F.rings.length - 1; i >= 0; i--) { const r = F.rings[i]; r.t += dt; if (r.t > r.T) F.rings.splice(i, 1); }
     const P = F.parts;
     for (let i = P.length - 1; i >= 0; i--) { const q = P[i]; q.t += dt; if (q.t > q.life) { P.splice(i, 1); continue; } q.x += q.vx * dt; q.y += q.vy * dt; q.z += q.vz * dt; q.vz -= q.g * dt; if (q.z < 0.02) { q.z = 0.02; q.vz = -q.vz * 0.35; q.vx *= 0.6; q.vy *= 0.6; } }
+    const C = F.confetti;
+    if (C) for (let i = C.length - 1; i >= 0; i--) { const c = C[i]; c.t += dt; if (c.t > c.life || c.y > 1.12) { C.splice(i, 1); continue; } c.vy += c.g * dt; c.vx *= Math.max(0, 1 - dt * c.drag); c.x += (c.vx + Math.sin(c.t * c.wf + c.ph) * c.wa) * dt; c.y += c.vy * dt; c.ang += c.spin * dt; }
   }
 
   const OFFP = { id: -1, off: true, x: 0, y: 99, z: 0, vx: 0, vy: 0, h: 2, r: { def: 0.5, intD: 0.5, str: 0.5, spd: 0.5, three: 0.5, stl: 0.5, oreb: 0.5, dreb: 0.5, wing: 1, bw: 1 }, stun: 0, action: null, ai: {}, sk: {}, prev: {} };
@@ -1656,7 +1693,7 @@
   // ---------- 专属技能 ----------
   let cutSeq = 0;
   // sc：进攻时间门槛（秒），默认 5；V4.2 布伦森专属技能用 K.brClutch（5V5：第四节关键时刻 或 进攻时间 ≤ sc）
-  function isClutch(sc) { const S = sc || 5; if (G.mode === 't5') return (G.h5 && G.h5.clutch ? G.h5.clutch() : false) || (sc ? G.shotClock <= S : !(G.h5 && G.h5.clutch) && G.shotClock <= 5); return (CFG.shotClock < 90 && G.shotClock <= S) || G.score[0] >= G.target - 2 || G.score[1] >= G.target - 2 || G.sd || G.mp >= 0 || (G.glen > 0 && G.gclock <= 24); }
+  function isClutch(sc) { const S = sc || 5; if (G.mode === 't5') return (G.h5 && G.h5.clutch ? G.h5.clutch() : false) || (sc ? G.shotClock <= S : !(G.h5 && G.h5.clutch) && G.shotClock <= 5); return (CFG.shotClock > 0 && CFG.shotClock < 90 && G.shotClock <= S) || G.score[0] >= G.target - 2 || G.score[1] >= G.target - 2 || G.sd || G.mp >= 0 || (G.glen > 0 && G.gclock <= 24); }
   // 胜负：先到目标分且领先 2 分才算赢；限时赛时间到领先方赢，平分进加时（下一球定胜负）
   function winsWith(id, add) { if (G.mode === 'train') return false; if (G.mode === 't3') return !G.needClear && G.score[TM(G.players[id])] + add >= G.target; const a = G.score[id] + add, b = G.score[1 - id]; if (G.sd) return add > 0 && a > b; return a >= G.target && a - b >= 2; }
   function winnerNow() {
@@ -2478,9 +2515,9 @@
     const t0 = G.time;
     const sigOf = (p) => ISIG[p.arch.key] || (CELS[p.arch.key] || ['flex'])[0], walk = [];
     for (const s of spots) { const p = s.p, star = p === fa || p === fb; s.w0 = t0 + (TM(p) === TM(fa) ? 0 : IWA); s.w1 = s.w0 + IWA;
-      (star ? [(IWALK[p.arch.key] || ['wave'])[0], sigOf(p)] : ['wave']).forEach((ty, j) => walk.push({ id: p.id, ty: ty, t0: s.w0 + (star ? 0.3 + j * 1.75 : 0.9 + (p.id % 3) * 0.3), T: 1.6, fx: false })); }
+      (star ? [(IWALK[p.arch.key] || ['wave'])[0], sigOf(p)] : ['wave']).forEach((ty, j) => walk.push({ id: p.id, ty: ty, t0: s.w0 + (star ? 0.3 + j * 1.75 : 0.9 + (p.id % 3) * 0.3), T: 1.6, fx: false, sig: star && j === 1 })); }
     G.intro = { t0: t0, duo: [fa.id, fb.id], walk: walk, spots: spots, lines: lines, li: -1, lt: 0, ld: 0, tT: t0 + 2 * IWA + 0.4, cam: null, foc: null, banner: G.banner, phaseT: G.phaseT,
-      sig: [] };
+      sig: [], confettiT: 0 };
     G.cz = null; G.cutin = null; G.phase = 'intro';
   }
   const introSig = (pl) => { const I = G.intro; if (!I) return null; for (const S of I.sig) if (S.id === pl.id && G.time >= S.t0 && G.time < S.t0 + S.T) return S; return null; };
@@ -2503,12 +2540,28 @@
       updatePlayer(p, inp, dt);
     }
     updateBall(dt);
-    for (const S of I.walk) if (S.ty === 'chalk' && !S.fx && now >= S.t0 + 0.42) { S.fx = true; const p = plById(S.id); burst(p.x, p.y, p.h + 0.45, 70, ['#ffffff', '#f4f1e8', '#e2ded2', '#fffbe9'], 2.3, 1.7, 1.1, 2); sfx('cheer'); }
+    for (const S of I.walk) {
+      if (S.ty === 'chalk' && !S.fx && now >= S.t0 + 0.42) { S.fx = true; const p = plById(S.id); burst(p.x, p.y, p.h + 0.45, 70, ['#ffffff', '#f4f1e8', '#e2ded2', '#fffbe9'], 2.3, 1.7, 1.1, 2); spawnConfetti(28, [p.team.css, '#ffd24a', '#ffffff'], 'burst'); sfx('cheer'); }
+      else if (S.sig && !S.fx && now >= S.t0 + 0.35) { S.fx = true; const p = plById(S.id); spawnConfetti(26, [p.team.css, '#ffd24a', '#ffffff', '#ff8a2a'], 'burst'); flash('#ffffff', 0.08); G.fx.cheer = Math.max(G.fx.cheer, 2.6); sfx('cheer'); }
+    }
     if (I.li < 0 ? now >= I.tT : now >= I.lt + I.ld) introNext();
     if (!G.intro) return;
     const A = plById(I.duo[0]), B2 = plById(I.duo[1]), mid = { x: (A.x + B2.x) / 2, y: (A.y + B2.y) / 2 };
     const sh = I.li < 0 ? (now < I.t0 + IWA ? A : B2) : null;
-    if (sh) { if (I.shot !== sh.id) { I.shot = sh.id; I.snap = true; banner(sh.arch.full, '入场 · ' + (ISIG_CN[(I.walk.find((S) => S.id === sh.id && S.ty === (ISIG[sh.arch.key] || S.ty)) || {}).ty] || '登场'), sh.team.css, 2.6); } I.cam = { x: sh.x, y: sh.y, u: G.mode === 't3' ? 0.08 : 0.3 }; }
+    if (sh) {
+      G.fx.cheer = Math.max(G.fx.cheer, 2.2);
+      I.confettiT = (I.confettiT || 0) - dt;
+      if (I.confettiT <= 0) { I.confettiT = 0.14; spawnConfetti(7, [sh.team.css, '#ffd24a', '#ffffff', '#5ee0ff', '#ff6b5e'], 'shower'); }
+      if (I.shot !== sh.id) {
+        I.shot = sh.id; I.snap = true;
+        banner(sh.arch.full, '入场 · ' + (ISIG_CN[(I.walk.find((S) => S.id === sh.id && S.ty === (ISIG[sh.arch.key] || S.ty)) || {}).ty] || '登场'), sh.team.css, 2.6);
+        led('NOW ENTERING  ' + sh.arch.full + '  震撼登场', sh.team.css, IWA);
+        G.fx.cheer = 3.2; flash(sh.team.css, 0.12);
+        spawnConfetti(48, [sh.team.css, '#ffd24a', '#ffffff', '#ff8a2a'], 'cannon');
+        sfx('introCheer');
+      }
+      I.cam = { x: sh.x, y: sh.y, u: G.mode === 't3' ? 0.08 : 0.3 };
+    }
     else if (I.li >= 0) I.cam = { x: mid.x, y: mid.y, u: 0.1 };
     const cut = I.snap; I.snap = false;
     const C = I.cam;
@@ -2539,6 +2592,7 @@
     const I = G.intro; if (!I) return;
     for (const s of I.spots) Object.assign(s.p, { x: s.x, y: s.y, face: s.face, vx: 0, vy: 0, speed: 0 });
     G.intro = null; G.cz = null; G.phase = 'check'; G.phaseT = I.phaseT;
+    if (G.fx && G.fx.confetti) G.fx.confetti.length = 0;
     banner('GAME START', '比赛开始', '#ffd24a', 1.8); G.banner.top = true;
     if (PH.audio && PH.audio.voStop) PH.audio.voStop();
     if (G.mode === 't3' && PH.T3 && PH.T3.rearm) PH.T3.rearm();
@@ -2565,15 +2619,17 @@
     sfx(kind === 'dunk' ? 'dunk' : 'swish');
     const F = G.fx, hx = HOOP.x, hy = HOOP.y, hz = HOOP.z, pa = pl.action;
     const special = kind === 'dunk' && (/隔人|长距离/.test(name || '') || (pa && pa.type === 'dunk' && (pa.v === 'windmill' || pa.v === '360' || pa.v === 'cock' || pa.v === 'cradle' || pa.v === 'scissor' || pa.v === 'pump' || pa.long)));
-    const afterAnkle = pl.ankleT && G.time - pl.ankleT < 3.5, clutch = isClutch() && G.shotClock <= 2;
+    const afterAnkle = pl.ankleT && G.time - pl.ankleT < 3.5, clutch = isClutch() && CFG.shotClock > 0 && G.shotClock <= 2;
     let tier = kind === 'dunk' ? (special ? 2 : 1) : pts === 3 ? 1 : 0, ledT = kind === 'dunk' ? 'SLAM DUNK  ' + (name || '暴扣') + '  +2' : pts === 3 ? '3 POINTS  三分命中  +3' : '+2  ' + (name || '两分命中');
     let hs = (kind === 'dunk' && /隔人/.test(name || '')) ? 25 : special ? 15 : 0;
     if (pts === 3 && distHoop(pl) > 8.2) hs += 10;
     if (afterAnkle) { hs += 25; tier = Math.max(tier, 2); ledT = 'ANKLE BREAKER  晃倒  +' + pts; pl.ankleT = 0; }
     if (clutch) { hs += 15; tier = Math.max(tier, 2); ledT = 'CLUTCH  关键球  +' + pts; }
     if (win) { hs += 20; tier = buzzer ? 3 : 2; ledT = buzzer ? 'GAME WINNER  绝杀' : 'GAME POINT  致胜一击'; }
-    if (kind === 'dunk') F.board = Math.max(F.board, 0.6);
+    if (kind === 'dunk') { F.board = Math.max(F.board, tier >= 2 ? 0.9 : 0.6); shake(tier >= 2 ? 14 : 9); flash(tier >= 2 ? '#ffffff' : '#ff8a2a', tier >= 2 ? 0.16 : 0.1); }
     hype(tier, pl, { x: hx, y: hy, z: hz - (kind === 'dunk' ? 0 : 0.3), col: kind === 'dunk' ? '#ff8a2a' : pts === 3 ? '#ffd24a' : t.css, cols: kind === 'dunk' ? ['#ffd24a', '#ff8a2a', '#ffffff'] : pts === 3 ? ['#ffd24a', '#5ee0ff', '#ffffff'] : ['#ffffff', '#f6efe0'], led: ledT, hs: hs, hero: buzzer ? ['绝杀', pl.arch.name + ' · ' + (name || (pts === 3 ? '三分' : '两分'))] : null });
+    triggerScoreFx(pl, pts, kind, tier);
+    if (tier === 0) sfx('cheerSoft');
     if (G.mode !== 'demo' && G.mode !== 'train' && kind === 'lay' && (attempt ?? pa)?.clutchT != null) queueScoreReplay(id, 60);
     if (tier === 0) led(ledT, t.css, 1.6);
     if (hot) { led('ON FIRE  手感火热  连中 ' + G.streak[id] + ' 球', '#ff6b5e', 2.6); if (G.streak[id] === 3) float('手感火热', pl, '#ff8a2a'); }
@@ -2596,9 +2652,11 @@
     const hot = G.streak[id] >= K.hcHotN, pa = pl.action;
     const special = kind === 'dunk' && (/隔人|长距离/.test(name || '') || (pa && pa.type === 'dunk' && (pa.v === 'windmill' || pa.v === '360' || pa.v === 'cock' || pa.v === 'cradle' || pa.v === 'scissor' || pa.v === 'pump' || pa.long)));
     const tier = kind === 'dunk' ? (special ? 2 : 1) : pts === 3 ? 1 : 0, col = kind === 'dunk' ? '#ff8a2a' : pts === 3 ? '#ffd24a' : pl.team.css;
-    if (kind === 'dunk') G.fx.board = Math.max(G.fx.board, 0.6);
+    if (kind === 'dunk') { G.fx.board = Math.max(G.fx.board, special ? 0.9 : 0.6); shake(special ? 14 : 9); flash(special ? '#ffffff' : '#ff8a2a', special ? 0.15 : 0.09); }
     burst(HOOP.x, HOOP.y, HOOP.z - 0.2, 8 + 8 * tier, [col, '#ffffff'], 2.5 + tier, 0.5, 6);
+    triggerScoreFx(pl, pts, kind, tier);
     if (tier >= 1) { G.fx.cheer = Math.max(G.fx.cheer, 1.5 + tier); sfx(tier >= 2 ? 'cheer2' : 'cheer'); led(kind === 'dunk' ? 'SLAM DUNK  ' + (name || '暴扣') + '  +2' : '3 POINTS  三分命中  +3', col, 2); }
+    else sfx('cheerSoft');
     if (hot) { led('ON FIRE  手感火热  连中 ' + G.streak[id] + ' 球', '#ff6b5e', 2.6); if (G.streak[id] === 3) float('手感火热', pl, '#ff8a2a', 1); }
     vo(pl, kind === 'dunk' ? 'dunk' : pts === 3 ? 'three' : hot && G.streak[id] === 3 ? 'hot' : 'make');
     if (G.mode === 't3' && (tier >= 1 || (kind === 'lay' && (attempt ?? pa)?.clutchT != null) || winsWith(id, pts))) {

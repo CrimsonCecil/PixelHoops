@@ -1586,6 +1586,134 @@
     ctx.fillStyle = '#ffffff'; if (fh > 0) ctx.fillRect(x, y + h - fh, wd, 1);
   }
 
+  function hexRgb(hex) {
+    if (!hex || hex[0] !== '#') return [255, 210, 74];
+    const s = hex.length === 4 ? hex[1] + hex[1] + hex[2] + hex[2] + hex[3] + hex[3] : hex.slice(1, 7);
+    const n = parseInt(s, 16);
+    return isNaN(n) ? [255, 210, 74] : [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+  }
+  function drawConfetti(F) {
+    const C = F && F.confetti; if (!C || !C.length) return;
+    ctx.save();
+    for (const c of C) {
+      const px = Math.round(c.x * W), py = Math.round(c.y * H);
+      if (px < -6 || px > W + 6 || py < -6 || py > H + 6) continue;
+      const u = c.t / c.life, a = u > 0.72 ? Math.max(0, (1 - u) / 0.28) : 1;
+      const flip = Math.abs(Math.cos(c.ang)), w = Math.max(1, Math.round(c.w * (0.35 + 0.65 * flip))), h = c.h;
+      ctx.globalAlpha = a;
+      ctx.fillStyle = c.col;
+      ctx.fillRect(px, py, w, h);
+      if (flip > 0.78 && w >= 2) { ctx.fillStyle = '#ffffff'; ctx.fillRect(px, py, 1, 1); }
+    }
+    ctx.restore();
+  }
+  function drawIntroFx(G) {
+    const I = G.intro; if (!I || I.li >= 0) return;
+    const sh = I.shot != null ? G.players.find((p) => p.id === I.shot) : null;
+    if (!sh) return;
+    const t = G.time, rgb = hexRgb(sh.team && sh.team.css), cStr = rgb[0] + ',' + rgb[1] + ',' + rgb[2];
+    const qp = proj(sh.x, sh.y, sh.h * 0.65);
+    ctx.save();
+    // 舞台追光束：两道从顶棚扫向出场球星的柔和光柱
+    for (let k = -1; k <= 1; k += 2) {
+      const ox = W * (0.5 + k * 0.32) + Math.sin(t * 2.1 + k) * 28;
+      const tx = Math.max(40, Math.min(W - 40, qp.d > 1 ? qp.x : W * 0.5)) + Math.sin(t * 3.2 + k) * 10;
+      const g = ctx.createLinearGradient(ox, 0, tx, H * 0.88);
+      g.addColorStop(0, 'rgba(255,250,225,0.20)');
+      g.addColorStop(0.55, 'rgba(' + cStr + ',0.11)');
+      g.addColorStop(1, 'rgba(' + cStr + ',0)');
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.moveTo(ox - 10, 0); ctx.lineTo(ox + 10, 0);
+      ctx.lineTo(tx + 54, H * 0.92); ctx.lineTo(tx - 54, H * 0.92);
+      ctx.closePath(); ctx.fill();
+    }
+    // 屏幕边缘球馆欢呼光晕（脉动）
+    const pulse = 0.55 + 0.45 * Math.sin(t * 7.5);
+    const vg = ctx.createRadialGradient(W * 0.5, H * 0.52, H * 0.28, W * 0.5, H * 0.52, W * 0.66);
+    vg.addColorStop(0, 'rgba(' + cStr + ',0)');
+    vg.addColorStop(0.7, 'rgba(' + cStr + ',' + (0.10 + 0.08 * pulse).toFixed(3) + ')');
+    vg.addColorStop(1, 'rgba(' + cStr + ',' + (0.28 + 0.14 * pulse).toFixed(3) + ')');
+    ctx.fillStyle = vg; ctx.fillRect(0, 0, W, H);
+    // 顶/底能量细边
+    ctx.globalAlpha = 0.5 + 0.35 * pulse;
+    ctx.fillStyle = sh.team.css;
+    ctx.fillRect(0, 0, W, 2); ctx.fillRect(0, H - 2, W, 2);
+    // 全场闪光灯（看台与屏幕上方）
+    for (let i = 0; i < 6; i++) {
+      const h = hash(((t * 24) | 0) * 197 + i * 733);
+      if ((h & 3) > 1) continue;
+      const fx = h % W, fy = 8 + ((h >>> 9) % Math.round(H * 0.42));
+      ctx.globalAlpha = 0.85;
+      ctx.fillStyle = '#ffffff'; ctx.fillRect(fx, fy, 2, 2);
+      ctx.fillStyle = '#fff6c8'; ctx.fillRect(fx - 2, fy, 6, 1); ctx.fillRect(fx, fy - 2, 1, 6);
+    }
+    ctx.restore();
+  }
+  function drawScoreFx(G) {
+    const S = G.fx && G.fx.scoreFx; if (!S) return;
+    const u = Math.max(0, Math.min(1, S.t / S.dur));
+    const env = (u < 0.12 ? u / 0.12 : 1) * (1 - u) * (1 - u);
+    if (env <= 0.005) return;
+    const rgb = hexRgb(S.col), cStr = rgb[0] + ',' + rgb[1] + ',' + rgb[2];
+    const rgb2 = hexRgb(S.col2), c2Str = rgb2[0] + ',' + rgb2[1] + ',' + rgb2[2];
+    const kOwn = S.own ? 1 : 0.72;
+    const tierBoost = S.kind === 'dunk' ? 1.25 : S.pts === 3 ? 1.1 : 0.82;
+    const str = Math.min(1.35, (0.75 + S.tier * 0.22) * kOwn * tierBoost);
+    ctx.save();
+    // 1. 全屏四周能量光晕（中心完全通透，不遮挡球场与投篮）
+    const vg = ctx.createRadialGradient(W * 0.5, H * 0.5, H * 0.30, W * 0.5, H * 0.5, W * 0.66);
+    vg.addColorStop(0, 'rgba(' + cStr + ',0)');
+    vg.addColorStop(0.66, 'rgba(' + cStr + ',' + (0.09 * env * str).toFixed(3) + ')');
+    vg.addColorStop(0.88, 'rgba(' + cStr + ',' + (0.26 * env * str).toFixed(3) + ')');
+    vg.addColorStop(1, 'rgba(' + c2Str + ',' + (0.42 * env * str).toFixed(3) + ')');
+    ctx.fillStyle = vg; ctx.fillRect(0, 0, W, H);
+    // 2. 四边像素高光脉冲边框
+    const bw = Math.max(1, Math.round((S.kind === 'dunk' ? 4 : S.pts === 3 ? 3 : 2) * env));
+    ctx.globalAlpha = Math.min(0.95, 0.78 * env * kOwn);
+    ctx.fillStyle = S.col;
+    ctx.fillRect(0, 0, W, bw); ctx.fillRect(0, H - bw, W, bw);
+    ctx.fillRect(0, 0, bw, H); ctx.fillRect(W - bw, 0, bw, H);
+    if (S.tier >= 1 || S.kind === 'dunk' || S.pts === 3) {
+      ctx.globalAlpha = Math.min(0.85, 0.6 * env * kOwn);
+      ctx.fillStyle = S.col2;
+      const ins = bw + 2;
+      ctx.fillRect(ins, ins, W - ins * 2, 1); ctx.fillRect(ins, H - ins - 1, W - ins * 2, 1);
+      // 3. 角落放射速度线（三分/扣篮/高光得分瞬间冲击感，避开中心区域）
+      const rays = S.kind === 'dunk' ? 20 : 14;
+      const cx = W * 0.5, cy = H * 0.5;
+      ctx.lineWidth = S.kind === 'dunk' ? 2 : 1;
+      for (let i = 0; i < rays; i++) {
+        const an = (i / rays) * Math.PI * 2 + 0.17;
+        const r1 = Math.max(W, H) * 0.62;
+        const len = (24 + (i % 3) * 14) * (0.45 + 0.55 * env) * (S.kind === 'dunk' ? 1.25 : 0.9);
+        const r0 = r1 - len;
+        ctx.strokeStyle = i % 2 === 0 ? S.col2 : '#ffffff';
+        ctx.globalAlpha = Math.min(0.8, 0.52 * env * kOwn);
+        ctx.beginPath();
+        ctx.moveTo(Math.round(cx + Math.cos(an) * r0), Math.round(cy + Math.sin(an) * r0 * 0.62));
+        ctx.lineTo(Math.round(cx + Math.cos(an) * r1), Math.round(cy + Math.sin(an) * r1 * 0.62));
+        ctx.stroke();
+      }
+    }
+    // 4. 场馆闪光灯爆闪（前 65% 时长）
+    if (u < 0.65) {
+      const fn = S.kind === 'dunk' ? 6 : S.pts === 3 ? 4 : 2;
+      for (let i = 0; i < fn; i++) {
+        const h = hash(((G.time * 28) | 0) * 151 + i * 887);
+        const fx = h % W, fy = 6 + ((h >>> 8) % Math.round(H * 0.35));
+        ctx.globalAlpha = 0.85 * (1 - u / 0.65);
+        ctx.fillStyle = '#ffffff'; ctx.fillRect(fx, fy, 2, 2);
+        ctx.fillStyle = '#fff6c8'; ctx.fillRect(fx - 2, fy, 5, 1); ctx.fillRect(fx, fy - 2, 1, 5);
+      }
+    }
+    ctx.restore();
+  }
+  function drawScreenFx(G) {
+    drawIntroFx(G);
+    drawScoreFx(G);
+    drawConfetti(G.fx);
+  }
   function drawCrowdFx(G, bx, by) {
     const F = G.fx, t = G.time, MP = (G.mp >= 0 || G.sd) && G.phase !== 'over', mpc = G.sd ? '#ffd24a' : G.mpCol || '#ffd24a';
     const chv = Math.max(F.cheer, MP ? 0.55 + 0.2 * Math.sin(t * 2.4) : 0);
@@ -1828,6 +1956,7 @@
       }
     }
     ctx.setTransform(1, 0, 0, 1, 0, 0);
+    if (!RP) drawScreenFx(G);
     if (F.flash > 0) { ctx.globalAlpha = Math.min(0.5, F.flash * 3.2); ctx.fillStyle = F.flashCol; ctx.fillRect(0, 0, W, H); ctx.globalAlpha = 1; }
     if (F.slow > 0) { ctx.fillStyle = '#05070f'; ctx.fillRect(0, 0, W, 14); ctx.fillRect(0, H - 14, W, 14); }
     if (RP) {
@@ -1840,5 +1969,5 @@
 
   PH.render = { init: init, resize: resize, get W() { return W; }, get H() { return H; }, render: render, particleSize: particleSize, setTheme: setTheme, proj: proj, cam: cam, CAMV: CAMV, CAM_DEF: CAM_DEF, setCam: setCam, HOOP: HOOP, BOARD_Y: BOARD_Y, BALL_R: BALL_R, curCol: curCol,
     // 5V5 全场模式复用的绘制图元（不影响 1V1）
-    drawCombos: drawCombos, drawMeter: (pl, hp) => drawMeter(pl, hp), drawPlayer: drawPlayer, drawHead: drawHead, drawBall: drawBall, shadow: shadow, ellipse: ellipse, ring: ring, brush: brush, getCtx: () => ctx, BAYER: BAYER };
+    drawCombos: drawCombos, drawScreenFx: drawScreenFx, drawMeter: (pl, hp) => drawMeter(pl, hp), drawPlayer: drawPlayer, drawHead: drawHead, drawBall: drawBall, shadow: shadow, ellipse: ellipse, ring: ring, brush: brush, getCtx: () => ctx, BAYER: BAYER };
 })();
