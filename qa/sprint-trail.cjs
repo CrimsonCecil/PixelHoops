@@ -10,8 +10,12 @@ for (const name of ['tune', 'ptype', 'render', 'roster', 'measurements', 'r5', '
 const { game, render, TUNE } = ctx.PH;
 game.newGame({ mode: 'train', arch0: 'dmitchell', arch1: 'herb' });
 const G = game.G, p = G.players[0], frame = { time: 0, scene: G.players, view: 'test' };
-let captures = 0;
-const capture = () => { captures++; return { image: {}, s: 30, dx: -20, dy: -60 }; };
+let captures = 0, allocations = 0;
+const capture = (snapshot) => {
+  captures++;
+  if (!snapshot) { allocations++; snapshot = { image: {} }; }
+  return Object.assign(snapshot, { s: 30, dx: -20, dy: -60 });
+};
 const sample = () => {
   const before = JSON.stringify(G);
   const result = render.sprintTrail(p, frame, capture);
@@ -46,3 +50,15 @@ for (const hasBall of [true, false]) {
 }
 assert(captures < 80, 'samples reused rather than captured for every copy/frame');
 console.log('PASS fx metadata, bounded sampling, repeated-frame reuse; render-only history never enters simulation state');
+frame.scene = {};
+Object.assign(p, { speed: 7, sprW: 1, anim: 'run' });
+for (let i = 0; i < 120; i++) { frame.time += 1 / 60; p.x += 7 / 60; sample(); }
+const warmedAllocations = allocations, warmedCaptures = captures;
+for (let i = 0; i < 600; i++) { frame.time += 1 / 60; p.x += 7 / 60; sample(); }
+assert.equal(allocations, warmedAllocations, 'steady sprint reuses its bounded image pool');
+assert(captures - warmedCaptures <= 301, 'capture rate capped by half-spacing, not copy count');
+p.speed = 2.8; p.sprW = 0; sample();
+p.speed = 7; p.sprW = 1;
+for (let i = 0; i < 120; i++) { frame.time += 1 / 60; p.x += 7 / 60; sample(); }
+assert.equal(allocations, warmedAllocations, 'sprint restart reuses images too');
+console.log('PASS warmed pool: no new snapshot/image allocations over 600 sprint frames or jog/sprint restart');

@@ -1495,23 +1495,30 @@
     const count = Math.max(0, Math.min(5, Math.round(K.fxTrailCount)));
     const spacing = Math.max(0.025, Math.min(0.1, K.fxTrailSpacing));
     const w = PH.gait.spW(pl), weight = Math.max(0, Math.min(1, (w - 0.15) / 0.85));
+    let state = trailHistory.get(pl.id);
     if (!alpha || !count || !weight || pl.anim !== 'run' || !(pl.speed > 0.9) || pl.off) {
-      trailHistory.delete(pl.id); return [];
+      if (state) while (state.history.length) state.pool.push(state.history.pop());
+      return [];
     }
-    let history = trailHistory.get(pl.id) || [];
+    if (!state) { state = { history: [], pool: [] }; trailHistory.set(pl.id, state); }
+    const { history, pool } = state;
     const last = history[history.length - 1], t = frame.time;
-    if (last && (t < last.t || t - last.t > 0.2 || Math.hypot(pl.x - last.x, pl.y - last.y) > 2)) history = [];
-    history = history.filter(g => t - g.t <= spacing * (count + 1));
+    if (last && (t < last.t || t - last.t > 0.2 || Math.hypot(pl.x - last.x, pl.y - last.y) > 2)) {
+      while (history.length) pool.push(history.pop());
+    }
+    while (history.length && t - history[0].t > spacing * (count + 1)) pool.push(history.shift());
     const copies = [];
     for (let i = count; i >= 1; i--) {
       const target = t - spacing * i;
-      const g = history.findLast(g => g.t <= target + 1e-6);
+      let g;
+      for (let j = history.length - 1; j >= 0; j--) if (history[j].t <= target + 1e-6) { g = history[j]; break; }
       if (g && Math.hypot(pl.x - g.x, pl.y - g.y) > 0.08) copies.push({ ...g, a: alpha * weight * Math.pow(1 - (i - 1) / count, 1.5) });
     }
     if (!history.length || t - history[history.length - 1].t >= spacing / 2 - 1e-6) {
-      history.push({ ...capture(), x: pl.x, y: pl.y, t });
+      const snapshot = capture(pool.pop());
+      snapshot.x = pl.x; snapshot.y = pl.y; snapshot.t = t;
+      history.push(snapshot);
     }
-    trailHistory.set(pl.id, history);
     return copies;
   }
 
@@ -1604,23 +1611,30 @@
       silx.globalCompositeOperation = 'source-in'; silx.fillStyle = opts.ghost.c; silx.fillRect(0, 0, SZ, SZ);
       ctx.globalAlpha = opts.ghost.a; ctx.drawImage(sil, ox, oy); ctx.globalAlpha = 1; return null;
     }
-    const trail = sprintTrail(pl, opts && opts.trail, () => {
-      const points = Object.values(J), pad = Math.ceil(s * 0.4 + 4);
-      const x = Math.max(0, Math.floor(Math.min(...points.map(p => p.x)) - pad));
-      const y = Math.max(0, Math.floor(Math.min(...points.map(p => p.y)) - pad));
-      const w = Math.max(1, Math.min(SZ - x, Math.ceil(Math.max(...points.map(p => p.x)) + pad) - x));
-      const h = Math.max(1, Math.min(SZ - y, Math.ceil(Math.max(...points.map(p => p.y)) + pad) - y));
-      const image = document.createElement('canvas'); image.width = w; image.height = h;
-      image.getContext('2d').drawImage(spr, x, y, w, h, 0, 0, w, h);
-      return { image, dx: x - OX, dy: y - OY, s };
+    const trail = sprintTrail(pl, opts && opts.trail, (snapshot = {}) => {
+      const pad = Math.ceil(s * 0.4 + 4);
+      let minX = SZ, minY = SZ, maxX = 0, maxY = 0;
+      for (const n in J) { const p = J[n]; minX = Math.min(minX, p.x); minY = Math.min(minY, p.y); maxX = Math.max(maxX, p.x); maxY = Math.max(maxY, p.y); }
+      const x = Math.max(0, Math.min(SZ - 1, Math.floor(minX - pad)));
+      const y = Math.max(0, Math.min(SZ - 1, Math.floor(minY - pad)));
+      const w = Math.max(1, Math.min(SZ - x, Math.ceil(maxX + pad) - x));
+      const h = Math.max(1, Math.min(SZ - y, Math.ceil(maxY + pad) - y));
+      const image = snapshot.image || document.createElement('canvas');
+      if (!snapshot.image || image.width < w || image.height < h) {
+        image.width = Math.max(snapshot.image ? image.width : 0, Math.ceil(w / 16) * 16);
+        image.height = Math.max(snapshot.image ? image.height : 0, Math.ceil(h / 16) * 16);
+      }
+      const c = image.getContext('2d'); c.clearRect(0, 0, image.width, image.height);
+      c.drawImage(spr, x, y, w, h, 0, 0, w, h);
+      return Object.assign(snapshot, { image, dx: x - OX, dy: y - OY, s, w, h });
     });
-    ctx.save();
+    if (trail.length) ctx.save();
     for (const g of trail) {
       const p = proj(g.x, g.y, 0), scale = p.s / g.s;
       ctx.globalAlpha = g.a;
-      ctx.drawImage(g.image, Math.round(p.x + g.dx * scale), Math.round(p.y + g.dy * scale), Math.round(g.image.width * scale), Math.round(g.image.height * scale));
+      ctx.drawImage(g.image, 0, 0, g.w, g.h, Math.round(p.x + g.dx * scale), Math.round(p.y + g.dy * scale), Math.round(g.w * scale), Math.round(g.h * scale));
     }
-    ctx.restore();
+    if (trail.length) ctx.restore();
     const skA = pl.skAu && pl.skAu > PH.game.G.time, grA = !skA && pl.grabT && PH.game.G.time - pl.grabT < 0.36 && ((PH.game.G.time - pl.grabT) * 16 | 0) % 2 === 0;
     if (pl.tkOn > 0 || skA || grA) {
       // 主宰：身上一圈跳动的橙色火光描边；专属技能触发：金白色
