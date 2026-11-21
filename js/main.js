@@ -1609,7 +1609,7 @@
   }
   function tickMatch() {
     if (screen === 'play5') { if (!paused) tick5(DT); return; }
-    if (G.intro) { GM.introTick(DT); PH.input.endTick(); return; }
+    if (G.intro) { GM.introTick(DT); PH.input.endTick(); roomAudio.length = 0; return; }
     if (!matchConfig) { GM.tick(DT); return; }
     const p = G.players[localSlot], a = p && p.action, t3 = G.mode === 't3', I = PH.input;
     const off = !!(p && (p.hasBall || a && ['shot', 'layup', 'dunk', 'fake'].includes(a.type)));
