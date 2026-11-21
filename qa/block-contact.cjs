@@ -192,6 +192,25 @@ console.log('PASS block multipliers: dunk double tap has no effect; double-cover
   console.log('PASS help: main.js parses, moves help builds with early/middle/final groups; four skill descriptions require hand-ball contact');
 }
 
+{
+  const { PH } = load(), { game: gm, T5 } = PH, { G } = gm;
+  T5.start({ home: 'LAL', away: 'BOS', human: 0 });
+  T5.T.phase = 'live';
+  const tm = T5.T.tm[0], p = tm.on[0], out = p.rk, incoming = tm.ros.find(r => r.slot < 0);
+  Object.assign(p, { x: 0, y: 10, hasBall: true });
+  Object.assign(G.ball, { state: 'held', holder: p.id, dead: false });
+  gm._dbg.startDunk(p, gm._dbg.finPlan(p), 'a2', 'two');
+  Object.assign(p.action, { inSteps: false, sx: p.x, sy: p.y, t: p.action.T * 0.8 });
+  assert(T5.sub(0, out.key, incoming.key));
+  gm.seed(9999);
+  PH.contactQA.updateAction(p, gm.t5.zeroInp(), 0);
+  assert.equal(G.players[p.id].rk, incoming);
+  assert.equal(out.st.fgm, 1);
+  assert.equal(out.st.fga, 1, 'the scorer’s attempt is archived with the make');
+  assert.equal(G.stats[p.id].fga, 0, 'the incoming player is not credited for the dunk');
+  console.log('PASS 5V5 made dunk: make and attempt are archived before the scoring player is subbed out');
+}
+
 function cpuRuns(baseline) {
   const ctx = load(baseline), gm = ctx.PH.game;
   let blocks = 0, attempts = 0;

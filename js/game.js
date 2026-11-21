@@ -4869,6 +4869,7 @@
               const l = Math.hypot(df.x - pl.x, df.y - pl.y) || 1; df.action = null; df.z = 0;
               bpop(pl, 'poster'); knock(df, (df.x - pl.x) / l, (df.y - pl.y) / l, 2.5 + 2 * (powOf(pl) - powOf(df)), 1.0, 'fall'); impactFx(df.x, df.y, true, 2.4);
             }
+            st.fga++; st.ina++;
             const nm = a.alley ? '空接暴扣' : SK ? pl.arch.skill.name : poster ? '隔人暴扣' : a.long ? '长距离起跳 · ' + a.name : a.name; scoreBy(pl.id, 2, 'dunk', nm); float(nm, pl, '#ffd24a', 1);
             if (SK) led(SK === 'shaq' ? 'BACKBOARD DOWN  篮架摧毁' : SK === 'giannis' ? 'GREEK FREAK  一步登天' : pl.arch.skill.en + '  ' + pl.arch.skill.name, '#ffd24a', 3.2); else if (a.brk) led('SHAQ BROKE THE GLASS  篮板碎了', '#ffd24a', 3.4);
           } else if (!df.off && c > 0.4 && edge < 0 && Math.hypot(df.x - pl.x, df.y - pl.y) < 1.5 && rnd() < 0.65) {
@@ -4878,7 +4879,7 @@
             float('干扰扣篮不进', pl, '#ff6b5e'); sfx('rim'); info.reason = '内线防守干扰，扣篮不进'; cold(pl.id);
             pl.vx += (pl.x - df.x) / l * 2.2; pl.vy += (pl.y - df.y) / l * 2.2; impactFx(df.x, df.y, powOf(df) > 1.3, 1.6);
           } else { G.ball.wasShot = true; looseBall(grip, rr(-1.4, 1.4), -rr(0.8, 2.2), rr(2, 3.2), pl.id); float('扣篮不进', pl, '#ff6b5e'); sfx('rim'); shake(3); G.fx.board = 0.3; cold(pl.id); info.reason = c > 0.3 ? '防守干扰大（' + ci.src + '）' : pl.stam < ST.layLow ? '体力不足' : '运气不佳（本次命中率 ' + Math.round(prob * 100) + '%）'; }
-          if (made || !a.shootingFoul) { st.fga++; st.ina++; }
+          if (!made && !a.shootingFoul) { st.fga++; st.ina++; }
           publishShot(info);
           if (a.shootingFoul) awardFreeThrows(pl.id, 2, made);
         }
