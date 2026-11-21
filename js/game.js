@@ -2579,7 +2579,7 @@
     const uu = a.uu, ud = nearestDefender(pl);
     info.uuBonus = uu && ud && ud.id === uu.def && (ud.z > 0.05 || G.time <= uu.bitUntil) ? K.uuBonus : 0;
     prob = alleyProb(a, clamp(prob + info.uuBonus, K.smMin, 1)); pl.uuShot = null;
-    if (kind === 'lay' && a.lsv === 'far' && !SK) prob *= clamp(K.lvFarP + K.lvFarLay * (pl.r.lay - 0.75), 0.25, 1);
+    if (kind === 'lay' && (a.farLsv || a.lsv === 'far') && !SK) prob *= clamp(K.lvFarP + K.lvFarLay * (pl.r.lay - 0.75), 0.25, 1);
     const made = G.tips && G.tips.mk && pl.id === 0 ? true : rnd() < prob;
     const cl = SK ? '无视干扰' : c < 0.2 ? '空位' : c < 0.5 ? '轻微干扰' : '严重干扰';
     const tl = a.alley ? '自动终结' : green ? '完美' : e < 0 ? (ae > 0.5 ? '很早' : '稍早') : (ae > 0.5 ? '很晚' : '稍晚');
@@ -3203,7 +3203,7 @@
   // 侧翼 / 底线切入、防守人在正面或正在封盖时更倾向侧面出手，用远离防守人一侧的手；被盖率略降、命中略降
   const LSV = { reach: { name: '侧身上篮', blk: 0.8, p: 0.97, c: 0.92 }, far: { name: '远端手上篮', blk: 0.78, p: 0.96, c: 0.9 }, rev: { name: '反手上篮', blk: 0.72, p: 0.95, c: 0.88 } };
   function laySide(pl, a, P, df, baseline) {
-    a.side = 0; a.lsv = '';
+    a.side = 0; a.lsv = ''; a.farLsv = false;
     if (a.v === 'floater' || a.v === 'power' || a.v === 'back') return;
     const h = P.h, dx = df.x - pl.x, dy = df.y - pl.y, dd = Math.hypot(dx, dy) || 1, live = !df.off && dd < 3.2;
     const lat = (dx * h.y - dy * h.x) / dd, front = live ? (dx * h.x + dy * h.y) / dd : -1, ang = Math.atan2(Math.abs(pl.x - HOOP.x), Math.max(0.1, HOOP.y - pl.y));
@@ -3218,7 +3218,7 @@
     else if (baseline || (ang > 0.9 && rnd() < K.sRevAng)) lsv = 'rev';
     else lsv = 'far';
     if (lsv === 'far' && (P.d < K.lvFarMin || P.d > K.lvFarMax || P.d > K.lvFarTk * K.layK + P.L * (1 + K.step2Max))) lsv = 'reach';
-    a.side = side; a.lsv = lsv; a.hand = side;
+    a.side = side; a.lsv = lsv; a.farLsv = lsv === 'far'; a.hand = side;
     if (a.v !== 'reverse') { const M = LSV[lsv]; a.V = Object.assign({}, a.V, { name: M.name, blk: a.V.blk * M.blk, p: a.V.p * (lsv === 'far' ? 1 : M.p), c: a.V.c * M.c }); }
   }
   // want: 'lay' | 'floater' | 'auto'(终结键：能扣就扣)

@@ -9,7 +9,7 @@ function load(before = false) {
   ctx.window = ctx; ctx.PH = { input: { endTick() {}, read: () => ({}) } };
   for (const name of ['render', 'tune', 'roster', 'r5', 'game', 'b5', 'team5']) {
     let src = before && ['game', 'render'].includes(name) ? execFileSync('git', ['show', `main:js/${name}.js`], { cwd: root, encoding: 'utf8' }) : fs.readFileSync(path.join(root, 'js', name + '.js'), 'utf8');
-    if (name === 'game') src = src.replace('PH.game = {', 'PH.farQA = { laySide, buildSteps, releaseShot, LVR, poseTarget, updatePlayer, stepPose }; PH.game = {');
+    if (name === 'game') src = src.replace('PH.game = {', 'PH.farQA = { laySide, buildSteps, releaseShot, LVR, poseTarget, updatePlayer, stepPose, cvSet }; PH.game = {');
     if (name === 'team5') src = src.replace('PH.T5 = {', 'PH.farTeamQA = (g) => { G = g; T.tm = [0, 1].map(tm => ({ on: g.players.filter(p => p.tm === tm) })); shotAdj(); }; PH.T5 = {');
     vm.runInContext(src, ctx, { filename: name + '.js' });
   }
@@ -51,6 +51,19 @@ const before = load(true), after = load();
   const prob = f.gm.G.ball.shot.info.prob, cap = f.gm.K.lvFarP + f.gm.K.lvFarLay * (f.p.r.lay - 0.75);
   console.log(`5V5 calibrated open green: prob=${prob.toFixed(4)}, far cap=${cap.toFixed(4)}`);
   assert(prob <= cap + 1e-9, 'team5 saturation cannot bypass the far-hand multiplier');
+}
+{
+  const f = setup(after), Q = after.PH.farQA;
+  let a;
+  for (let i = 1; !a || a.lsv !== 'far'; i++) a = action(after, f, i * 100003);
+  Q.cvSet(f.p, a, 'scoop');
+  assert.equal(a.lsv, '', 'CV conversion clears the visual variant');
+  Object.assign(f.p, { y: f.H.y - 1.7, z: 0.15, action: a });
+  f.d.off = true;
+  Q.releaseShot(f.p, 0, 'lay');
+  const prob = f.gm.G.ball.shot.info.prob, cap = f.gm.K.lvFarP + f.gm.K.lvFarLay * (f.p.r.lay - 0.75);
+  console.log(`CV-converted far scoop: prob=${prob.toFixed(4)}, far cap=${cap.toFixed(4)}`);
+  assert(prob <= cap + 1e-9, 'CV conversion must preserve the originating far-hand penalty');
 }
 let count = 0, min = Infinity, max = 0;
 for (const mode of ['2p', 't5']) for (const cpu of [false, true]) {
