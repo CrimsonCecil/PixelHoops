@@ -303,7 +303,7 @@
   }
   // 指定一条语音（开场对话用）：voLine 按序号取条目，voSay 打断当前语音直接播
   function voLine(key, ev, i) { const L = voM && voM[key] && voM[key].lines && voM[key].lines[ev]; return L && L.length ? L[(i || 0) % L.length] : null; }
-  function voStop() { if (voCur) { try { voCur.stop(); } catch (e) { /* 已停 */ } voCur = null; } voBusy = 0; }
+  function voStop() { voSayF = ''; if (voCur) { try { voCur.stop(); } catch (e) { /* 已停 */ } voCur = null; } voBusy = 0; }
   function voSay(it) {
     if (!it || !voOn || !sfxOn || pauseOn || !ensure()) return;
     voStop(); const want = it.f; voSayF = want;
