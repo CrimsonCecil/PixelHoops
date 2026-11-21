@@ -330,6 +330,15 @@
         c = pl.crab = { x: pl.x, y: pl.y, width: w, phase: 0, side: lat < 0 ? 'L' : 'R', L: base(-1), R: base(1) };
         c.from = c[c.side].slice(); c.to = c.from.slice();
       }
+      const oldFace = c.face == null ? pl.face : c.face, ox = Math.cos(oldFace), oy = Math.sin(oldFace);
+      const previous = {};
+      for (const side of ['L', 'R']) {
+        const f = c[side], x = f[0] - c.x, y = f[1] - c.y;
+        previous[side] = [x * oy - y * ox, x * ox + y * oy, f[2]];
+        f[0] = c.x + fy * previous[side][0] + fx * previous[side][1];
+        f[1] = c.y - fx * previous[side][0] + fy * previous[side][1];
+      }
+      c.face = pl.face;
       const dx = pl.x - c.x, dy = pl.y - c.y, distance = Math.hypot(dx, dy);
       c.x = pl.x; c.y = pl.y;
       if (distance < 0.00001) { c[c.side][2] = Math.max(0, c[c.side][2] - dt); c.rest = true; }
@@ -356,6 +365,9 @@
       for (const side of ['L', 'R']) {
         const f = c[side], center = base(side === 'L' ? -1 : 1), x = f[0] - center[0], y = f[1] - center[1], d = Math.hypot(x, y);
         if (d > reach) { f[0] = center[0] + x * reach / d; f[1] = center[1] + y * reach / d; }
+        const prev = previous[side], px = pl.x + fy * prev[0] + fx * prev[1], py = pl.y - fx * prev[0] + fy * prev[1];
+        const travel = Math.hypot(f[0] - px, f[1] - py), budget = Math.sqrt(Math.max(0, Math.pow(0.84 * dt, 2) - Math.pow(f[2] - prev[2], 2)));
+        if (travel > budget) { f[0] = px + (f[0] - px) * budget / travel; f[1] = py + (f[1] - py) * budget / travel; }
       }
     }
     // 跑动运球：球在最低点往身前推多少（米）

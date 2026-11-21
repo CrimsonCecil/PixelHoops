@@ -11,6 +11,11 @@ for (const name of ['tune', 'ptype', 'render', 'roster', 'measurements', 'r5', '
   vm.runInContext(source, ctx, { filename: name + '.js' });
 }
 const { game, gait, rig, poseQA, TUNE } = ctx.PH;
+assert.equal(TUNE.meta('l1_stLift').min, 0, 'UI slider minimum');
+assert.equal(TUNE.meta('l1_stLift').max, 0.15, 'UI slider maximum');
+vm.runInContext(fs.readFileSync(path.join(__dirname, '../js/tuneui.js'), 'utf8').replace('PH.TUNEUI = {', 'PH.rowQA = rowHTML; PH.TUNEUI = {'), ctx);
+assert.match(ctx.PH.rowQA(TUNE.meta('l1_stLift')), /min="0" max="0.15"/, 'rendered UI slider bounds');
+console.log('PASS rendered stLift UI slider range 0–0.15m');
 game.newGame({ mode: '2p', arch0: 'herb', arch1: 'wemby' });
 Object.assign(game.G, { phase: 'live', intro: null, tips: null });
 const [p, opponent] = game.G.players;
@@ -288,3 +293,32 @@ for (const liftSetting of [0, 0.15]) {
 }
 TUNE.reset('l1_stLift');
 console.log('PASS lift slider 0–0.15m: zero lift, maximum lift, matched knee rise and continuous feet');
+
+for (const moving of [false, true]) {
+  const a = game.t5.makePlayer(0, 'mrobinson', 'p1');
+  Object.assign(a, { x: 0, y: 6, z: 0, sq: 1, face: 0, stance: true, anim: 'def', action: null, hasBall: false, speed: moving ? 1.2 : 0 });
+  a.pose = poseQA.poseTarget(a);
+  let previous, peak = 0;
+  const shins = [[], []];
+  for (let i = 0; i < 360; i++) {
+    a.face += i % 80 === 0 ? Math.PI / 2 : 0.04;
+    if (moving) a.x += 1.2 / 60;
+    gait.crab(a, 1 / 60); a.pose = poseQA.poseTarget(a);
+    const k = rig(a, a.pose, false, a.col.body), fx = Math.cos(a.face), fy = Math.sin(a.face);
+    const feet = ['L', 'R'].map(s => {
+      const f = k['foot' + s], x = f[0] - a.x, y = f[1] - a.y;
+      if (s !== a.crab.side) assert.equal(a.crab[s][2], 0, 'pivot support grounded');
+      const neutral = rig(a, { ...a.pose, crab: 0 }, false, a.col.body), knee = k['knee' + s];
+      assert(Math.hypot(knee[0] - neutral['knee' + s][0], knee[1] - neutral['knee' + s][1]) < 1e-8, 'pivot horizontal knee pinned');
+      const dx = f[0] - knee[0], dy = f[1] - knee[1], dz = f[2] - knee[2], length = Math.hypot(dx, dy, dz);
+      const shin = [(dx * fy - dy * fx) / length, (dx * fx + dy * fy) / length, dz / length], samples = shins[s === 'L' ? 0 : 1];
+      for (const prev of samples) assert(Math.acos(Math.max(-1, Math.min(1, shin.reduce((sum, v, j) => sum + v * prev[j], 0)))) * 180 / Math.PI <= 8, 'pivot shin sweep limit');
+      samples.push(shin);
+      return [x * fy - y * fx, x * fx + y * fy, f[2]];
+    });
+    if (previous) for (let s = 0; s < 2; s++) peak = Math.max(peak, Math.hypot(...feet[s].map((v, j) => v - previous[s][j])));
+    previous = feet;
+  }
+  console.log(`Pivot ${moving ? 'moving' : 'in place'} peak body-relative foot shift: ${(peak * 100).toFixed(3)}cm`);
+  assert(peak <= 0.01501, 'pivot foot continuity');
+}
