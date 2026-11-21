@@ -5,6 +5,11 @@
   const arc = GM.isThree, hoop = A.HOOP;
   const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
   const teams = (tm) => G.players.filter((p) => p.tm === tm);
+  const badges = {
+    get on() { return T.on; }, get time() { return G.time; }, get phase() { return G.phase; },
+    get tm() { return [0, 1].map((tm) => ({ on: teams(tm), score: G.score[tm] })); },
+    get pick() { return T.pick; }, get ps() { return T.pass; }, get cnt() { return T.cnt; }, get session() { return T.session; }
+  };
   const holder = () => G.ball.state === 'held' ? G.players[G.ball.holder] : null;
   const nearest = (list, spot) => list.reduce((best, p) => !best || dist(p, spot) < dist(best, spot) ? p : best, null);
   const shooting = (p) => p.action && ['shot', 'layup', 'dunk'].includes(p.action.type);
@@ -103,7 +108,7 @@
       const d = p.tm !== team;
       Object.assign(p, { x: spots[i][0] * (d ? 0.9 : 1), y: spots[i][1] + (d ? 1.15 : 0), z: 0, vx: 0, vy: 0, vz: 0, speed: 0,
         hasBall: p === h, action: null, stun: 0, knock: null, post: false, stance: false, box: false, ib: null, finQ: null, recT: 0,
-        face: d ? -Math.PI / 2 : Math.PI / 2, stam: Math.min(100, p.stam + 15), opp: null, cutUntil: 0, screen3: false, screenSlow3: 0, passCatchT: null });
+        face: d ? -Math.PI / 2 : Math.PI / 2, stam: Math.min(100, p.stam + 15), opp: null, cutUntil: 0, screen3: false, screenSlow3: 0, passCatchT: null, catchT: null, b5in: null });
       Object.assign(p.ai, { t: 0, hold: false, su: null, om: null, dm: null, comboAt: -1 });
     }
     T.acquired = G.time; T.nextPass = G.time + 1.4; T.nextPick = G.time + 2.5;
@@ -134,6 +139,7 @@
     A.banner(name === '空接暴扣' || name === '空接上篮' ? name : pts === 3 ? '三分命中' : '两分命中', p.arch.name + ' · ' + GM.TEAMS[tm].name + ' +' + pts, p.team.css, beat);
   }
   function gotBall(p, change, wasShot) {
+    if (T.pass?.to !== p) { p.b5in = null; p.catchT = null; }
     if (T.missedPass && p.tm !== T.missedPass.tm) G.stats[T.missedPass.id].tov++;
     T.missedPass = null;
     T.acquired = G.time; T.pass = null; T.lastPass = null;
@@ -151,7 +157,7 @@
         move: rating(p, 'iq', 60), help: rating(p, 'hlp', 71), read: rating(p, 'ppc', 67), shot: rating(p, 'siq', 70) };
       p.nextCut = 1 + i % 3; return p;
     });
-    Object.assign(T, { on: true, replay: o.replay !== false, pass: null, clock: o.clock == null ? 24 : o.clock, next: 0, prev: {}, screenPrev: {}, inputs: {}, request: null });
+    Object.assign(T, { on: true, session: {}, replay: o.replay !== false, pass: null, cnt: {}, clock: o.clock == null ? 24 : o.clock, next: 0, prev: {}, screenPrev: {}, inputs: {}, request: null });
     A.begin(players, { half: true, clock: T.clock, target: o.target || 21, diff: o.diff, hooks: {
       pickup: gotBall, score,
       turnover: (to, msg) => lost(G.players[G.ball.lastTouch], msg, G.players[to] && G.players[to].tm),
@@ -198,10 +204,18 @@
           const dx = s.x - d.x, dy = s.y - d.y, approach = d.vx * dx + d.vy * dy;
           if (approach > 0.2 || (dist(h, d) > 0.85 && (h.x - d.x) * dx + (h.y - d.y) * dy > 0.18)) {
             const fight = 0.40 * (d.r.lat || d.r.spd) + 0.35 * d.tendency.help + 0.25 * d.r.def;
-            const strength = 0.6 * s.r.str + 0.4 * s.tendency.move;
+            const strength = (0.6 * s.r.str + 0.4 * s.tendency.move) * (PH.B5 ? PH.B5.scrK(s, d) : 1);
             const speed = clamp(0.24 + 0.62 * fight - 0.18 * strength, 0.28, 0.82);
             d.vx *= speed; d.vy *= speed;
             d.screenSlow3 = G.time + clamp(0.72 + 0.24 * strength - 0.64 * fight, 0.2, 0.8);
+            if (PH.B5) {
+              PH.B5.scrT(s, d, 1, 'pnr');
+              const hit = { scrD: d.screenSlow3 - G.time };
+              PH.B5.scrD(s, d, 1, hit);
+              d.screenSlow3 = G.time + hit.scrD;
+              const sway = 0.25 * PH.B5.scrSway(s), l = Math.hypot(dx, dy) || 1;
+              s.vx -= dx / l * sway; s.vy -= dy / l * sway;
+            }
             d.screenSpeed3 = speed;
             P.hit = true; P.release = G.time + 0.24;
             A.float('掩护', s, '#9ef0ff', s.ctrl !== 'cpu' ? 1 : 0);
@@ -247,7 +261,7 @@
       return u > 0.15 && u < 0.92 && Math.hypot(q.x - from.x - (p.x - from.x) * u, q.y - from.y - (p.y - from.y) * u) < 0.7;
     });
     const rolling = T.pick?.phase === 'roll' && T.pick.s === p && width > 1.35 && !risk && (T.pick.pop ? three : close);
-    const value = 3 * aim + Math.min(3, width) * (0.31 + 0.24 * from.tendency.vision) + (three ? p.r.three * 0.8 : close ? p.r.lay * 0.8 : p.r.mid * 0.25) - 0.06 * d - (risk ? 1.5 : 0) + (G.needClear && three ? 3 : 0) + (rolling ? 1.3 : 0);
+    const value = 3 * aim + Math.min(3, width) * (0.31 + 0.24 * from.tendency.vision) + (three ? p.r.three * 0.8 : close ? p.r.lay * 0.8 : p.r.mid * 0.25) - 0.06 * d - (risk ? 1.5 : 0) + (G.needClear && three ? 3 : 0) + (rolling ? 1.3 : 0) + (PH.B5 ? PH.B5.passV(from, p, d) : 0);
     return { p, value, width, risk, rolling };
   }
   function target(from, inp) {
@@ -280,10 +294,16 @@
     const error = (1 - t.accuracy) ** 2 * (0.45 + d * 0.09) * difficulty * (1.2 - 0.35 * t.passIQ) * (0.55 + 0.9 * A.rnd());
     const angle = A.rnd() * Math.PI * 2;
     const lead = duration * (0.55 + 0.4 * t.vision);
+    const badgeState = PH.B5 ? PH.B5.passState(from, to, kind) : null;
     from.hasBall = false; from.post = false;
     from.face = Math.atan2(to.y - from.y, to.x - from.x);
     T.pass = { from, to, kind, x: b.x, y: b.y, z: Math.max(0.6, b.z), t: 0, duration, error,
       tx: to.x + (to.vx || 0) * lead + Math.cos(angle) * error, ty: to.y + (to.vy || 0) * lead + Math.sin(angle) * error };
+    if (PH.B5) {
+      Object.assign(T.pass, { badgeState, T: duration, er: error });
+      PH.B5.pass(from, to, kind, T.pass, duration, null);
+      T.pass.duration = T.pass.T; T.pass.error = T.pass.er;
+    }
     Object.assign(b, { state: 'pass', holder: -1, lastTouch: from.id, wasShot: false, shot: null, trail: null, vx: 0, vy: 0, vz: 0, dead: false });
     T.nextPass = G.time + 0.85; T.request = null; T.lastPass = null;
     return true;
@@ -304,12 +324,21 @@
     if (kind === 'bounce' && u >= 0.55 && !P.bounced) { P.bounced = true; A.sfx('bounce'); }
     if (u > 0.12) {
       const d = nearest(teams(1 - from.tm).filter((p) => !p.off && !p.stun && b.z <= p.z + p.h + 0.35), b);
-      const reach = d && (0.25 + d.tendency.read * 0.37 + 0.12 * d.r.stl) * (kind === 'bounce' ? 0.8 : 1) * (1.1 - 0.25 * from.tendency.accuracy);
-      if (d && dist(d, b) < reach) {
-        const local = G.players.find(p => p.ring && p.ctrl !== 'cpu');
-        G.stats[d.id].stl++; G.stats[from.id].tov++;
-        A.passIntercept(d, local ? local.tm : null);
-        A.pickup(d, 'intercept'); A.float('抢断传球', d, '#7dff8a', 1); A.vo(d, 'steal', 'pri'); if (A.vic) A.vic(from, 'stolen'); return;
+      const reach = d && (0.25 + d.tendency.read * 0.37 + 0.12 * d.r.stl) * (kind === 'bounce' ? 0.8 : 1) * (1.1 - 0.25 * from.tendency.accuracy) * (PH.B5 ? PH.B5.reachK(d, from) : 1);
+      if (d && dist(d, b) < reach && !P.tried?.has(d.id)) {
+        (P.tried || (P.tried = new Set())).add(d.id);
+        const V = PH.T5 && PH.T5.TV;
+        const lx = P.tx - P.x, ly = P.ty - P.y, along = clamp(((d.x - P.x) * lx + (d.y - P.y) * ly) / (lx * lx + ly * ly || 1), 0, 1);
+        const lane = Math.hypot(d.x - P.x - lx * along, d.y - P.y - ly * along);
+        const first = { d, ch: clamp((reach - lane) / reach * ((V?.t5_int_c0 ?? 0.45) + (V?.t5_int_cS ?? 0.5) * d.r.stl) * (1 + (V?.t5_int_cP ?? 0.6) * (d.tendency.read - 0.67)), 0, 0.6) };
+        if (PH.B5) PH.B5.passChance(P.badgeState, first);
+        P.int = first;
+        if (A.rnd() < first.ch) {
+          const local = G.players.find(p => p.ring && p.ctrl !== 'cpu');
+          G.stats[d.id].stl++; G.stats[from.id].tov++;
+          A.passIntercept(d, local ? local.tm : null);
+          A.pickup(d, 'intercept'); A.float('抢断传球', d, '#7dff8a', 1); A.vo(d, 'steal', 'pri'); if (A.vic) A.vic(from, 'stolen'); return;
+        }
       }
     }
     if (u === 1) {
@@ -323,6 +352,7 @@
       A.pickup(to);
       if (b.z > to.z + to.h * 0.85) to.catchAt = G.time;
       to.passCatchT = G.time;
+      to.catchT = G.time;
       to.passQuality = clamp(0.65 + (from.tendency.accuracy - 0.65) * 0.7 - 0.32 * miss - 0.42 * P.error, 0.1, 1);
       T.lastPass = { from, to, at: G.time };
       if (kind === 'alley' && !G.needClear && !to.action && !to.stun && GM.distHoop(to) < 4.2) {
@@ -388,6 +418,7 @@
     if (G.replay) { A.replayTick(dt); return; }
     T.inputs = inputs || {};
     const h = holder(), owner = h || (G.phase === 'check' && G.chk ? G.players[G.chk.o] : null);
+    if (PH.B5) PH.B5.tick(badges, dt);
     for (const p of G.players) {
       const inp = T.inputs[p.id], pass = !!(inp?.pass && p.ctrl !== 'cpu');
       if (pass && !T.prev[p.id] && p === owner && (G.phase === 'check' || G.phase === 'live')) {
@@ -451,5 +482,5 @@
     }
   }
   function rearm() { T.acquired = G.time; T.nextPass = G.time + 1.4; T.passQueue = null; T.request = null; T.prev = {}; T.screenPrev = {}; }
-  PH.T3 = { T, start, stop, tick, holder, position, rearm };
+  PH.T3 = { T, badges, start, stop, tick, holder, position, rearm };
 })();

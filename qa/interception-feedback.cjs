@@ -100,6 +100,7 @@ function interception(mode, local, stealing, result = 'int', network = false) {
     assert(api.qaSend(from, to));
     assert(!G.fx.parts.some(q => q.interceptTeam != null), 'No spark before contact');
     if (result === 'miss') d.stun = 1;
+    game.t5.rnd = () => 0;
     api.qaPass(T.pass.duration / 2);
   } else {
     assert(api.doPass(from, to, 'chest'));
