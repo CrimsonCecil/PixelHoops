@@ -273,6 +273,7 @@
     ['poStrideCost', 'stam', '背打跨步 体力消耗', 2, 0, 10, 0.1, '体力：每次跨步收球'],
     ['poFakeT', 'shot', '背身假投 收势时长', 0.18, 0.05, 0.5, 0.01, '秒：梦幻舞步加快收势'],
     ['poBlendT', 'shot', '背打动作 衔接混合', 0.1, 0.05, 0.2, 0.01, '秒：转身 / 跨步 / 假投的朝向和姿态衔接'],
+    ['poReturnT', 'shot', '背打动作 回身缓动', 0.3, 0.2, 0.6, 0.01, '秒：动作结束后朝向和姿态的回身平滑时间'],
     ['aiPoSpinShot', 'ai', '背打 跨步转身投篮倾向', 0.4, 0, 1, 0.01, '概率：梦幻舞步加权'],
     ['aiPoFakeChain', 'ai', '背打 假投接跨步倾向', 0.55, 0, 1, 0.01, '概率：梦幻舞步加权'],
     ['aiPoDrop', 'ai', '背打 前转身权重', 1, 0, 4, 0.05, '倍率：力量型'],
@@ -4585,9 +4586,14 @@
     if (G.intro && !a) { const f = introFace(pl); if (f != null) tf = f; }
     if (celOn() && !a) { const o2 = OP(pl), sd = o2.x >= pl.x ? 1 : -1; tf = pl.id === G.cel.id ? Math.PI / 2 - sd * 0.45 : (() => { const a1 = Math.atan2(o2.y - pl.y, o2.x - pl.x); return Math.atan2(Math.sin(a1) + 0.9, Math.cos(a1)); })(); }
     const postMotion = a && (a.postFake || a.stride || a.type === 'move' && (a.kind === 'postspin' || a.kind === 'postdrop'));
+    if (pl.postBlendAction && (!postMotion || a.postFake && !pl.postBlendFake)) pl.postReturnUntil = G.time + K.poReturnT * 4;
+    pl.postBlendAction = !!postMotion;
+    pl.postBlendFake = !!(a && a.postFake);
+    if (a && !a.postFake) pl.postReturnUntil = 0;
     if (postMotion) pl.postBlendUntil = G.time + K.poBlendT;
-    const postBlend = pl.postBlendUntil > G.time;
-    if (postBlend) { const delta = Math.atan2(Math.sin(tf - pl.face), Math.cos(tf - pl.face)); pl.face += clamp(delta, -Math.PI * dt / K.poBlendT, Math.PI * dt / K.poBlendT); }
+    const postReturn = pl.postReturnUntil > G.time, blendT = postReturn ? K.poReturnT : K.poBlendT;
+    const postBlend = postReturn || pl.postBlendUntil > G.time;
+    if (postBlend) { const delta = Math.atan2(Math.sin(tf - pl.face), Math.cos(tf - pl.face)), limit = Math.PI * dt / (postReturn ? 1.5 * blendT : blendT); pl.face += clamp(postReturn ? delta * (1 - Math.exp(-2 * dt / blendT)) : delta, -limit, limit); }
     else if (snap) pl.face = tf;
     else if (pl.stun > 0 && pl.stunK === 'spin' && pl.stunT0 - pl.stun < (pl.spinW || 0.5)) { if (pl.spinF0 == null) pl.spinF0 = pl.face; pl.face = pl.spinF0 + pl.spinD * (pl.spinA || Math.PI * 0.6) * sm(clamp((pl.stunT0 - pl.stun) / (pl.spinW || 0.5), 0, 1)); }
     else if (pl.stun > 0 && pl.stunK === 'fall') { /* 坐在地上不转身 */ }
@@ -4624,12 +4630,12 @@
       if (p0 * Math.sin(pl.drib) < 0) { if (!(pl.f5 && pl.f5.ck)) pl.catchDribbled = true; sfx('bounce'); if (pl.z <= 0.01) pl.sqv = (pl.sqv || 0) - 3.0; }
     }
     pl.handX = lerp(pl.handX, pl.hand * 0.33, Math.min(1, dt * 16));
-    const T = poseTarget(pl), P = pl.pose, kq = postBlend ? 1 - Math.exp(-2 * dt / K.poBlendT) : Math.min(1, dt * 22);
+    const T = poseTarget(pl), P = pl.pose, kq = postBlend ? 1 - Math.exp(-2 * dt / blendT) : Math.min(1, dt * 22);
     if (postBlend && T.yaw == null) T.yaw = 0;
     if (a && a.type === 'block') { pl.armS = null; T.reachL = T.reachR = P.reachL = P.reachR = 1; }
     // 肩部转角按最短路径插值（风车扣篮手臂转一整圈后，不会再倒着从最下面绕回去）
     for (const n in T) {
-      if (postBlend) { let delta = T[n] - (P[n] || 0); if (n === 'aLp' || n === 'aRp') delta = Math.atan2(Math.sin(delta), Math.cos(delta)); P[n] = (P[n] || 0) + clamp(delta * kq, -2 * dt / K.poBlendT, 2 * dt / K.poBlendT); }
+      if (postBlend) { let delta = T[n] - (P[n] || 0); if (n === 'aLp' || n === 'aRp') delta = Math.atan2(Math.sin(delta), Math.cos(delta)); P[n] = (P[n] || 0) + clamp(delta * kq, -2 * dt / blendT, 2 * dt / blendT); }
       else { if ((n === 'aLp' || n === 'aRp') && Math.abs(T[n] - P[n]) > Math.PI) P[n] += Math.round((T[n] - P[n]) / (2 * Math.PI)) * 2 * Math.PI; P[n] = lerp(P[n], T[n], kq); }
     }
     dunkIK(pl);

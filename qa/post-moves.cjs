@@ -258,6 +258,42 @@ for (const kind of ['postspin', 'postdrop', 'Spin', 'Back', 'Front', 'fake']) {
 console.log('PASS reverse pivots: both travel sides and ball hands in 1V1/3V3/5V5, 2K/broadcast camera projections; footwork follows travel side');
 console.log(`PASS post blends: entry/exit facing max=${maxFaceDelta.toFixed(3)}rad, yaw/limbs max=${maxPoseDelta.toFixed(3)}rad per 120Hz frame`);
 
+let exitFaceMax = 0, exitPoseMax = 0;
+for (const mode of ['2p', 't3', 't5']) for (const side of [-1, 1]) for (const kind of ['postspin', 'postdrop', 'spinFake', 'backFake', 'frontFake']) {
+  const { p, d } = fixture(mode); d.off = true;
+  const tick = (input = {}) => { G.time += 1 / 60; qa.updatePlayer(p, { ...zero(), post: true, ...input }, 1 / 60); };
+  if (kind.startsWith('post')) dbg.startMove(p, { ...zero(), dx: -side }, kind);
+  else {
+    dbg.startShot(p, { ...zero(), mx: kind === 'spinFake' ? -side : 0, my: kind === 'backFake' ? -1 : kind === 'frontFake' ? 1 : 0 }, 'a1');
+    const shot = p.action;
+    while (shot.t < shot.stride.T * 0.55) tick({ a1: true });
+    const face = p.face;
+    tick(); assert(p.action.postFake);
+    assert(Math.abs(Math.atan2(Math.sin(p.face - face), Math.cos(p.face - face))) <= 0.14, 'Stride-to-fake return must not whip at fake entry');
+  }
+  let exited = false;
+  for (let i = 0; i < 120; i++) {
+    const face = p.face, pose = { ...p.pose };
+    tick();
+    if (p.action && !p.action.postFake) continue;
+    if (!p.action) exited = true;
+    const delta = Math.abs(Math.atan2(Math.sin(p.face - face), Math.cos(p.face - face)));
+    exitFaceMax = Math.max(exitFaceMax, delta);
+    assert(delta <= 0.14, `${mode} ${kind}/${side} 60Hz exit facing delta=${delta}`);
+    for (const key of ['yaw', 'lean', 'tilt', 'aLp', 'aRp', 'aLr', 'aRr', 'hLp', 'hRp', 'kL', 'kR']) {
+      const pd = Math.abs((p.pose[key] || 0) - (pose[key] || 0));
+      exitPoseMax = Math.max(exitPoseMax, pd);
+      assert(pd <= 0.14, `${mode} ${kind}/${side} 60Hz exit ${key} delta=${pd}`);
+    }
+  }
+  assert(exited);
+  const target = Math.atan2(hoop.y - p.y, hoop.x - p.x) + (p.post ? Math.PI : 0);
+  assert(Math.abs(Math.atan2(Math.sin(p.face - target), Math.cos(p.face - target))) < 0.01, `${kind} return settles`);
+  step(p); step(p, { post: true }); step(p, { post: true, a1: true, mx: -side });
+  assert(p.action?.stride && !p.postReturnUntil, 'New stride starts immediately with the original entry blend');
+}
+console.log(`PASS post exit return: both sides, postspin/postdrop and spin/back/front stride fakes in 1V1/3V3/5V5; 60Hz facing max=${exitFaceMax.toFixed(3)}rad, pose max=${exitPoseMax.toFixed(3)}rad, limit=0.140rad`);
+
 for (const kind of ['postdrop', 'postface', 'postshim']) {
   const { p, d } = fixture();
   const y0 = p.y;
