@@ -278,9 +278,9 @@
   // 球员配音：vo/manifest.json 列出每名球员每类事件的若干条语音，随机选、不连播同一条
   let voM = null, voOn = true, voCur = null, voLast = {}, voBusy = 0;
   const VO_INTRO = {
-    barkley: ['shaq_make_1.mp3', 'shaq_dom_1.mp3'],
-    yao: ['sengun_dom_0.mp3', 'sengun_taunt_1.mp3'],
-    mutombo: ['gobert_taunt_2.mp3', 'gobert_taunt_0.mp3']
+    barkley: [['shaq_make_1.mp3', 'shaq_make_0.mp3'], ['shaq_dom_1.mp3', 'shaq_block_0.mp3']],
+    yao: [['sengun_dom_0.mp3', 'sengun_dom_2.mp3'], ['sengun_taunt_1.mp3', 'sengun_make_0.mp3']],
+    mutombo: [['gobert_taunt_2.mp3', 'gobert_dom_1.mp3'], ['gobert_taunt_0.mp3', 'gobert_block_2.mp3']]
   };
   // 每名球员的全部语音合成一个文件（vo/p/<球员>.mp3，40kbps 定长帧，每帧 120 字节、24ms），清单里记每句的起始帧 o 和帧数 n
   const voIdx = {}, voSpr = {};
@@ -310,7 +310,7 @@
   function voPreload(keys) {
     const run = () => { if (!voM) return; for (const k of keys) {
       const V = voM[k]; if (V?.s) voFile(V.s);
-      if (!V?.lines?.intro?.length) for (const f of VO_INTRO[k] || []) { if (voIdx[f]) voFile(voIdx[f].s); }
+      if (!V?.lines?.intro?.length) for (const f of VO_INTRO[k]?.flat() || []) { if (voIdx[f]) voFile(voIdx[f].s); }
     } };
     if (voM) run(); else voReady.then(run);
   }
@@ -345,7 +345,10 @@
   // 指定一条语音（开场对话用）：voLine 按序号取条目，voSay 打断当前语音直接播
   function voLine(key, ev, i, skip) {
     const lines = voM && voM[key] && voM[key].lines;
-    if (ev === 'intro' && !lines?.intro?.length) return voIdx[VO_INTRO[key]?.[i]]?.it || null;
+    if (ev === 'intro' && !lines?.intro?.length) {
+      for (const f of VO_INTRO[key]?.[i] || []) { if (voIdx[f] && !skip?.has(f)) return voIdx[f].it; }
+      return null;
+    }
     if (!lines) return null;
     const pick = (e) => {
       const L = lines[e];

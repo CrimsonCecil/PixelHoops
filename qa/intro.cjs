@@ -394,6 +394,20 @@ function runIntro(Gm, G) {
       assert.equal(audio.voLine(key, 'taunt', 0), null);
     }
     assert.equal(audio.voLine('shaq', 'intro', 0, new Set()), null, 'unmapped authored text does not borrow unrelated audio');
+    const used = manifest.gobert.lines.taunt[0], alternate = manifest.gobert.lines.block[2];
+    ctx.PH.audio.vo = (k) => {
+      if (k !== 'gobert') return null;
+      playedClips.push(used.f);
+      return used;
+    };
+    playedClips.length = 0;
+    Gm.newGame({ mode: 'cpu', arch0: 'mutombo', arch1: 'gobert' });
+    Gm.introStart();
+    const clash = runIntro(Gm, G).lines;
+    assert.ok(playedClips.includes(used.f), 'Gobert uses the shared clip during his entrance');
+    assert.equal(new Set(playedClips).size, playedClips.length, 'borrowed dialogue does not repeat the donor’s lines');
+    assert.equal(playedClips.at(-1), alternate.f);
+    assert.equal(clash.at(-1).t, alternate.t, 'alternate clip also gets its matching subtitle');
     console.log('PASS: Barkley, Yao and Mutombo preload and play their mapped intro clips with matching subtitles.');
   };
   audioCtx.PH.audio.voWhenReady(checkDedupe);
