@@ -348,7 +348,7 @@ window.PH.buildTags = {
   draymond: 'muscular', drobinson: 'lean', drummond: 'heavy', durant: 'lean',
   duren: 'muscular', dwade: 'balanced', dybantsa: 'lean', eason: 'muscular',
   edey: 'heavy', edgecombe: 'lean', edwards: 'muscular', ejiofor: 'muscular',
-  embiid: 'muscular', esharp: 'lean', fears: 'lean', flagg: 'balanced',
+  embiid: 'muscular', esharp: 'lean', fears: 'lean', flagg: 'lean',
   flemings: 'lean', fox: 'lean', franz: 'balanced', fvv: 'muscular',
   gafford: 'muscular', gallen: 'balanced', garland: 'lean', giannis: 'muscular',
   giddey: 'lean', gillespie: 'balanced', gobert: 'balanced', goodwin: 'balanced',
