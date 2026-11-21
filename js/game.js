@@ -504,6 +504,9 @@
     ['stlPokeZ', 'def', '抢断 捅球上抛速度', 1, 0, 6, 0.1, '米/秒'],
     ['stlPokeNP', 'def', '抢断 捅球不可拾取时间', 0.3, 0, 1, 0.01, '秒：双方都要等待球脱手'],
     ['stlPokeStun', 'def', '抢断 捅球持球人硬直', 0.42, 0, 2, 0.01, '秒：捅球后持球人的追球延迟，不影响干净断球'],
+    ['stlPokeHz', 'def', '抢断 捅球闪光频率', 3, 0, 8, 0.1, '次/秒：只影响散球提示'],
+    ['stlPokeFlash', 'def', '抢断 捅球闪光强度', 0.8, 0, 1, 0.05, '透明度：0 关闭闪光，不影响比赛'],
+    ['stlPokePrompt', 'def', '抢断 捅球扑球提示', 1, 0, 1, 1, '显示人类球员的扑球按键', 'bool'],
     ['stlPokeCredT', 'def', '抢断 捅球记账窗口', 3, 0, 10, 0.1, '秒：防守方在窗口内捡球才记抢断和失误'],
     ['stlMissReach', 'def', '抢断落空 伸手距离', 1.3, 0.5, 3, 0.05, '米'],
     ['stlMissReachT', 'def', '抢断落空 伸手时长', 0.12, 0.02, 0.6, 0.01, '秒'],
@@ -4212,6 +4215,15 @@
   // 扑球距离：约为旧版 1.5 倍，按速度/加速（拼抢）、体重、体力、徽章浮动
   function diveR(p) { return clamp(1.5 * (K.dvR0 + K.dvRH * hustle(p) - K.dvRHv * heavy(p) - K.dvRFat * fat(p) + ba(p, 'hustle', K.bgHuDive) + ba(p, 'motor', K.bgMotorDive)) + K.dvRSp * (p.r.spd - 0.7), K.dvRMin, K.dvRMax); }
   const diving = (p) => !!(p.action && p.action.type === 'dive' && p.action.t - p.action.pre < p.action.air + p.action.slide);
+  function pokeCue() {
+    const b = G.ball, active = !!(b.poke && b.state === 'loose' && !b.dead && G.phase === 'live');
+    const players = active && K.stlPokePrompt ? G.players.filter((p) => {
+      const d = Math.hypot(b.x - p.x, b.y - p.y);
+      return p.ctrl !== 'cpu' && !p.off && !p.dummy && !p.action && p.stun <= 0 && p.z <= 0.05 && p.stam > ST.act && b.z <= K.dvMaxZ && d >= K.dvMinD && d <= diveR(p);
+    }) : [];
+    return { active, glow: active ? K.stlPokeFlash * (0.5 + 0.5 * Math.cos(G.time * Math.PI * 2 * K.stlPokeHz)) : 0,
+      prompts: players.map((p) => ({ id: p.id, text: (p.ctrl === 'p2' ? 'P2 ' : 'P1 ') + '扑球！按 ' + (PH.input && PH.input.diveLabel ? PH.input.diveLabel(p.ctrl === 'p2' ? 1 : 0, G.mode === 't5') : G.mode === 't5' ? 'J / Space' : p.ctrl === 'p2' ? 'Num2 / .' : 'K') })) };
+  }
   function startDive(pl) {
     const b = G.ball, d = Math.hypot(b.x - pl.x, b.y - pl.y);
     if (d < K.dvMinD || b.z > K.dvMaxZ) return false;
@@ -6716,6 +6728,7 @@
   }
   PH.game = { ptIs: ptIs, ptOf: ptOf, ibuf: ibuf, t5: T5API, G: G, HZ: HZ, HZN: HZN, zoneOf: zoneOf, hzBase: hzBase, hzLvl: hzLvl, MVX: MVX, DPKG: DPKG, DPK_OF: DPK_OF, ST: ST, GW_OUT: K.gwOut, zones: zones, K: K, TDEF: TDEF, blkTier: blkTier, blkReact: blkReact, blkMove: blkMove, _qa: { finEdge: finEdge, blockBall: blockBall, greenWidth: greenWidth, ratingOf: ratingOf, SV: SV, LVR: LVR, startDunk: startDunk, startFinish: startFinish, finPlan: finPlan, contactAdv: contactAdv, bodyPow: bodyPow }, mobOf: mobOf, winnerNow: winnerNow, moveSet: moveSet, SF: SF, dunkPkg: dunkPkg, TKD: TKD, CB: CB, TIPS: TIPS, tipsStart: tipsStart, tipsStop: tipsStop, tkType: tkType, hcMod: hcMod, lookOf: lookOf, newGame: newGame, tick: tick, introStart: introStart, introTick: introTick, introPress: introPress, introEnd: introEnd, TALK: TALK, ISIG: ISIG, toText: toText, ARCH: ARCH, ATTRS: ATTRS, BADGES: BADGES, BADGE_TIER: BADGE_TIER, TIER_CN: TIER_CN, TIER_F: TIER_F, btier: btier, bk: bk, ba: ba, ROSTER: ROSTER, NBA: TEAMS_NBA, hasB: hasB, TEAMS: TEAMS, DIFF: DIFF, CFG: CFG, CFG_DEF: CFG_DEF, isThree: isThree, distHoop: distHoop, setupCheck: setupCheck, contestInfo: contestInfo,
     _dbg: { tkStart: tkStart, tkAdd: tkAdd, startShot: startShot, releaseShot: releaseShot, greenWidth: greenWidth, startMove: startMove, startBlock: startBlock, startFinish: startFinish, startDunk: startDunk, contestOf: contestOf, contestInfo: contestInfo, finPlan: finPlan }, TIERS: TIERS, grade: grade, DIMS: DIMS, applyTrain: applyTrain, applyMatchKits: applyMatchKits, placeDummy: placeDummy, trainReset: trainReset, giveBall: giveBall, newTrainStats: newTrainStats, styOf: styOf, styK: styK, STY_NAME: STY_NAME, seed: (s) => { seed = s | 1; } };
+  PH.game.pokeCue = pokeCue;
   PH.game.replayFlow = replayFlow;
   PH.game.setAudioSink = (sink) => { audioSink = sink; };
   Object.defineProperty(PH.game, 'GW_OUT', { enumerable: true, configurable: true, get: () => K.gwOut });

@@ -50,6 +50,12 @@
     return { finish, alley };
   }
 
+  function diveLabel(slot, five) {
+    const gp = lock.on ? null : pads()[slot];
+    if (gp) return /dualsense|dualshock|playstation|sony/i.test(gp.id || '') ? '□' : 'X';
+    if (!five && slot === 0 && touch.on) return '扣篮/抢断';
+    return five ? 'J / Space' : slot === 1 ? 'Num2 / .' : 'K';
+  }
   function pads() {
     const out = [];
     try { const g = navigator.getGamepads ? navigator.getGamepads() : []; for (const p of g) if (p && p.connected) out.push(p); } catch (e) { /* 沙盒内可能不可用 */ }
@@ -215,5 +221,5 @@
     });
   }
 
-  PH.input = { read: read, read3: read3, read5: read5, endTick: endTick, flush: flush, blockRebound: blockRebound, sysPressed: sysPressed, sysAny: sysAny, clearSys: clearSys, initTouch: initTouch, pollPads: pollPads, rstick: rstick, lock: lock, pads: pads, keys: keys, touch: touch };
+  PH.input = { diveLabel: diveLabel, read: read, read3: read3, read5: read5, endTick: endTick, flush: flush, blockRebound: blockRebound, sysPressed: sysPressed, sysAny: sysAny, clearSys: clearSys, initTouch: initTouch, pollPads: pollPads, rstick: rstick, lock: lock, pads: pads, keys: keys, touch: touch };
 })();

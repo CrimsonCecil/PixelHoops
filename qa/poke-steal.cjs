@@ -40,11 +40,47 @@ function fixture(mode) {
     return !!G.ball.poke;
   }
   const tick = () => mode === '3V3' ? T3.tick(1 / 120, {}) : mode === '5V5' ? T5.tick(1 / 120) : gm.tick(1 / 120);
-  return { gm, G, K, reset, hit, tick, PH: ctx.PH };
+  return { gm, G, K, reset, hit, tick, PH: ctx.PH, ctx };
 }
 
 for (const mode of ['1V1', '3V3', '5V5']) {
   const f = fixture(mode), { gm, G, K } = f;
+  {
+    const cleanDefaults = { stlCl0: K.stlCl0, stlClS: K.stlClS, stlClTm: K.stlClTm };
+    const { p, d } = f.reset();
+    assert.equal(gm.pokeCue().active, false, 'no cue without pending poke');
+    Object.assign(K, { stlCl0: 0, stlClS: 0, stlClTm: 0 });
+    assert(f.hit(d));
+    assert(gm.pokeCue().active, 'poke activates shared flash');
+    Object.assign(p, { ctrl: 'p1', stun: 0, action: null, x: G.ball.x - 2, y: G.ball.y });
+    Object.assign(d, { ctrl: 'p2', stun: 0, action: null, x: G.ball.x + 2, y: G.ball.y });
+    assert.equal(gm.pokeCue().prompts.length, 2, 'both human teams receive prompt');
+    assert(gm.pokeCue().prompts[0].text.includes(mode === '5V5' ? 'J / Space' : 'K'));
+    assert(gm.pokeCue().prompts[1].text.includes(mode === '5V5' ? 'J / Space' : 'Num2 / .'));
+    const glow = gm.pokeCue().glow;
+    G.time += 0.5 / K.stlPokeHz;
+    assert.notEqual(gm.pokeCue().glow, glow, 'flash pulses');
+    K.stlPokePrompt = 0;
+    assert.equal(gm.pokeCue().prompts.length, 0, 'prompt toggle');
+    K.stlPokePrompt = 1;
+    p.stun = 1; d.action = { type: 'steal' };
+    assert.equal(gm.pokeCue().prompts.length, 0, 'unavailable humans receive no prompt');
+    p.stun = 0;
+    const input = f.PH.input;
+    delete f.PH.input;
+    assert(gm.pokeCue().prompts.length, 'headless cue does not require input module');
+    f.PH.input = input;
+    f.ctx.navigator.getGamepads = () => [{ connected: true, id: 'Xbox' }];
+    assert.equal(input.diveLabel(0, false), 'X');
+    f.ctx.navigator.getGamepads = () => [{ connected: true, id: 'DualSense' }];
+    assert.equal(input.diveLabel(0, true), '□');
+    f.ctx.navigator.getGamepads = () => [];
+    gm.t5.pickup(p);
+    assert.equal(gm.pokeCue().active, false, 'pickup clears flash');
+    assert.equal(gm.pokeCue().prompts.length, 0, 'pickup clears prompt');
+    Object.assign(K, cleanDefaults);
+    console.log(`PASS ${mode}: poke flash, human/device prompts, availability, toggle, headless and pickup cleanup`);
+  }
   let low = 0, high = 0;
   for (let i = 0; i < 200; i++) {
     let { p, d } = f.reset(100 + i);
@@ -102,6 +138,8 @@ for (const mode of ['1V1', '3V3', '5V5']) {
   gm._qa.updateBall(0);
   assert.equal(G.off, 0, 'poke out of bounds returns ball to original offense');
   assert.equal(G.stats[d.id].stl, 0);
+  assert.equal(gm.pokeCue().active, false, 'OOB clears cue');
+  assert.equal(gm.pokeCue().prompts.length, 0, 'OOB clears prompts');
   console.log(`PASS ${mode}: defensive/offensive/expired/empty recovery credit, no double count, clock and OOB`);
 
   let defense = 0, offense = 0, other = 0;
