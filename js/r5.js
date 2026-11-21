@@ -1,11 +1,13 @@
 // PIXEL HOOPS - 5V5 专用能力（V3.9b）。数值取自 NBA 2KLab 的 2K 球员能力表（https://www.nba2klab.com/nba2k-player-ratings，2026-11-15 读取，502 人）。
 // 字段顺序：pac 传球准确 Pass Accuracy、piq 传球意识 Pass IQ、vis 传球视野 Pass Vision、siq 投篮意识 Shot IQ、
 //           iq 球商 Intangibles（无球跑动/拉开）、hlp 协防意识 Help Defense IQ、ppc 传球预判 Pass Perception、hands 手感 Hands（接球）。
-// 2KLab 没收录的少数球员按同位置、总评 ±3 的球员中位数估算（行尾有标注）。传奇球员不进 5V5，不需要。
+// 2KLab 没收录的少数球员按同位置、总评 ±3 的球员中位数估算（行尾有标注）。传奇调校值用于 3V3。
 window.PH = window.PH || {};
 window.PH.R5 = {
   F: ['pac', 'piq', 'vis', 'siq', 'iq', 'hlp', 'ppc', 'hands'],
   P: {
+    yao: [63, 82, 73, 88, 81, 83, 64, 90], // 传奇调校（非 2K 原值）
+    mutombo: [46, 57, 42, 66, 82, 98, 78, 84], // 传奇调校（非 2K 原值）
     awiggins: [68, 68, 41, 65, 25, 57, 52, 76],
     daniels: [77, 77, 71, 45, 25, 90, 95, 85],
     dort: [67, 68, 31, 40, 40, 90, 88, 85],

@@ -33,7 +33,11 @@ const { game, render, rig, measurements, buildTags, T5 } = ctx.PH;
 render.init(canvas());
 const rgb = hex => hex.slice(1).match(/../g).map(c => parseInt(c, 16));
 const distance = (a, b) => Math.hypot(...rgb(a).map((v, i) => v - rgb(b)[i]));
-const jerseyOf = p => game.NBA[p.arch.team === 'LEG' ? 'LAL' : p.arch.team].jersey;
+for (const [key, team] of [['barkley', 'PHX'], ['yao', 'HOU'], ['mutombo', 'DEN']]) {
+  assert.equal(game.ARCH[key].kitTeam, team);
+}
+const kitOf = p => game.NBA[p.arch.kitTeam || (p.arch.team === 'LEG' ? 'LAL' : p.arch.team)];
+const jerseyOf = p => kitOf(p).jersey;
 const homeRoster = game.ROSTER.map(key => game.t5.makePlayer(0, key, 'p1'));
 const awayRoster = game.ROSTER.map(key => game.t5.makePlayer(1, key, 'cpu'));
 for (const home of homeRoster) {
@@ -42,7 +46,7 @@ for (const home of homeRoster) {
     assert.equal(home.col.jersey[1], jerseyOf(home));
     const clash = distance(jerseyOf(home), jerseyOf(away)) < 120;
     assert.equal(away.col.jersey[1], clash
-      ? distance(jerseyOf(home), '#eeeae0') >= 120 ? '#eeeae0' : game.NBA[away.arch.team].shorts
+      ? distance(jerseyOf(home), '#eeeae0') >= 120 ? '#eeeae0' : kitOf(away).shorts
       : jerseyOf(away));
     assert(distance(home.col.jersey[1], away.col.jersey[1]) >= 120, home.arch.key + ' vs ' + away.arch.key);
   }
@@ -77,7 +81,7 @@ for (const facing of [-Math.PI / 2, Math.PI / 2]) {
   render.drawPlayer(trainee);
   assert(numberPixels.length > 10, 'two number glyphs render on front and back');
 }
-console.log('PASS all 302 jersey numbers and team kits resolve; all 91,204 ordered matchups are distinguishable');
+console.log('PASS all jersey numbers and team kits resolve; all ordered matchups are distinguishable');
 const jerseyCam = { ...render.cam };
 render.setCam({ zoom: 0.8, dist: 14, height: 10 });
 // The holder at the top of the court fixes the camera at the near end of its follow range.
@@ -93,7 +97,7 @@ for (const y of [7, 15]) for (const player of homeRoster) {
 }
 render.setCam(render.CAM_DEF);
 Object.assign(render.cam, jerseyCam);
-console.log('PASS jersey digits render on the front and back of all 302 players at minimum zoom');
+console.log('PASS jersey digits render on the front and back of the full roster at minimum zoom');
 assert.deepEqual(Object.keys(measurements).sort(), Array.from(game.ROSTER).sort());
 assert.deepEqual(Object.keys(buildTags).sort(), Array.from(game.ROSTER).sort());
 const classes = ['lean', 'balanced', 'muscular', 'heavy'];
