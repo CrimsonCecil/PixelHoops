@@ -1,5 +1,5 @@
 // PIXEL HOOPS - V3.9o 5V5 徽章（类 2K，四档 铜 / 银 / 金 / 名人堂）+ 5V5 团队专属（skill5，定义在 roster.js 的 PH.RX.skill5）
-// 只在 5V5 生效。挂钩：team5.js tick（PH.B5.tick）/ doPass（PH.B5.pass、PH.B5.reachK）；render.js PH.scr.hit（scrK / scrT / scrD / scrSway）；game.js 篮板范围（G.h5.rebK）
+// 3V3 / 5V5 共用徽章；团队专属只在 5V5 生效。team3 / team5 提供传球、掩护和比赛状态，game.js 共用篮板范围（G.h5.rebK）
 // 档位按能力自动分配（能力：roster / ARCH 的 ×99 值 + r5.js 的 2K 原始传球 / 协防 / 预判能力），不占 1V1 的 4 个徽章位
 (function () {
   const PH = window.PH = window.PH || {};
@@ -60,14 +60,14 @@
   }
   const B = { off: false, dry: false, dis: {} };   // dry：只统计不生效（QA 对照组：同样的触发判定和记录，效果全部不加）
   const tier = (p, k) => (B.off || B.dis[k] || !p || !p.arch ? 0 : tiersOf(p.arch)[k] || 0);
-  const sk5 = (p) => { if (B.off || !p || B.dis.sk5) return null; const S = PH.RX && PH.RX.skill5 && PH.RX.skill5[p.key]; return S && !B.dis[S.type] ? S : null; };
-  const T5 = () => PH.T5 && PH.T5.T, GG = () => PH.game.G, A5 = () => PH.game.t5;
-  const on5 = () => { const G = GG(); return G && G.mode === 't5' && T5() && T5().on; };
+  const sk5 = (p) => { if (GG().mode === 't3' || B.off || !p || B.dis.sk5) return null; const S = PH.RX && PH.RX.skill5 && PH.RX.skill5[p.key]; return S && !B.dis[S.type] ? S : null; };
+  const T5 = () => PH.game.G.mode === 't3' ? PH.T3 && PH.T3.badges : PH.T5 && PH.T5.T, GG = () => PH.game.G, A5 = () => PH.game.t5;
+  const on5 = () => { const G = GG(); return G && (G.mode === 't5' || G.mode === 't3') && T5() && T5().on; };
   // ---------- 每场状态 / 统计 ----------
   let S = null;
   function st() {
     const T = T5();
-    if (!S || S.T !== T || (T && T.time < S.t)) S = { T: T, t: 0, cd: {}, n: {}, hub: [-9, -9], dcmd: [-9, -9], pick: null, play: null, off: -1, chgT: [-9, -9], pend: null, lastShot: null, lastPs: null, st: {}, sh: { all: [0, 0, 0, 0] }, log: [] };
+    if (!S || S.T !== T || S.session !== (T && T.session) || (T && T.time < S.t)) S = { T: T, session: T && T.session, t: 0, cd: {}, n: {}, hub: [-9, -9], dcmd: [-9, -9], pick: null, play: null, off: -1, chgT: [-9, -9], pend: null, lastShot: null, lastPs: null, st: {}, sh: { all: [0, 0, 0, 0] }, log: [] };
     if (T) S.t = T.time; return S;
   }
   const rec = (k) => { const s = st().st; return s[k] || (s[k] = { n: 0, sh: 0, mk: 0, sh3: 0, mk3: 0, x: 0 }); };
@@ -114,16 +114,21 @@
       breaker: T.time - s.chgT[p.tm] < tv('t5_b5_bkW', BK.win) && d0 >= tv('t5_b5_bkD', BK.dd) ? tier(p, 'breaker') : 0,
       postpm: postIn ? tier(p, 'postpm') : 0, dimer: tier(p, 'dimer'), hub: s.hub[p.tm] > T.time, S5, skT };
   }
+  function passChanceK(C) {
+    let k = 1;
+    for (const b of ['needle', 'bailout', 'breaker', 'postpm']) if (C[b]) k *= ef(b, 'ch', C[b]);
+    if (C.hub) k *= tv('t5_sk_hubCh', 0.6);
+    return k;
+  }
   function pass(p, m, kind, ps, Tt, first) {
     if (!on5() || !ps || !m) return; const T = T5();
     if (ps.inb) return;
     const C = ps.badgeState || passState(p, m, kind), d0 = C.d0;
-    let chM = 1, erM = 1, sp = 0; const used = [];
-    const tn = C.needle; if (tn) { chM *= ef('needle', 'ch', tn); used.push('needle'); }
-    const tb = C.bailout; if (tb) { chM *= ef('bailout', 'ch', tb); erM *= ef('bailout', 'er', tb); used.push('bailout'); }
-    const tk = C.breaker; if (tk) { chM *= ef('breaker', 'ch', tk); erM *= ef('breaker', 'er', tk); sp = ef('breaker', 'sp', tk); used.push('breaker'); }
-    const tp = C.postpm; if (tp) { chM *= ef('postpm', 'ch', tp); used.push('postpm'); }
-    if (C.hub) chM *= tv('t5_sk_hubCh', 0.6);
+    let chM = passChanceK(C), erM = 1, sp = 0; const used = [];
+    const tn = C.needle; if (tn) used.push('needle');
+    const tb = C.bailout; if (tb) { erM *= ef('bailout', 'er', tb); used.push('bailout'); }
+    const tk = C.breaker; if (tk) { erM *= ef('breaker', 'er', tk); sp = ef('breaker', 'sp', tk); used.push('breaker'); }
+    const tp = C.postpm; if (tp) used.push('postpm');
     if (first && first.d) { const ti = tier(first.d, 'intercept'); if (ti) { chM *= ef('intercept', 'ch', ti); rec('intercept').n++; first.b5i = 1; } }
     // 团队专属
     const skT = C.skT;
@@ -141,6 +146,13 @@
     for (const k of used) rec(k).n++;
     if (used.length) bpop(p, used[0]);
     m.b5in = { t: T.time, from: p, dimer: C.dimer, postpm: tp, sk: skT, hub: C.hub };
+  }
+  function passChance(C, first) {
+    if (!on5() || !C || !first || B.dry) return;
+    let k = passChanceK(C);
+    const t = tier(first.d, 'intercept');
+    if (t) { k *= ef('intercept', 'ch', t); first.b5i = 1; rec('intercept').n++; bpop(first.d, 'intercept'); }
+    first.ch = Math.max(first.ch * k, first.ch * tv('t5_b5_chMin', 0.35));
   }
   // ---------- 掩护（render.js PH.scr.hit） ----------
   function scrK(s, d) {
@@ -192,7 +204,7 @@
     if (G.h5 && G.h5.rebK !== rebK) G.h5.rebK = rebK;
     if (G.off !== s.off) { if (s.off >= 0 && T.phase === 'live') s.chgT[G.off] = T.time; s.off = G.off; }
     // 长传快攻：换攻后持球人有这个徽章，读秒提前（0.2 秒内就看前场），每次换攻只提前一次
-    if (!B.dry && T.time - s.chgT[G.off] < tv('t5_b5_bkW', BK.win) && s.bkD !== s.chgT[G.off]) { const h = G.ball.state === 'held' ? G.players[G.ball.holder] : null; if (h && h.tm === G.off && h.ctrl === 'cpu' && h.f5 && tier(h, 'breaker')) { s.bkD = s.chgT[G.off]; h.f5.dec = Math.min(h.f5.dec == null ? 9e9 : h.f5.dec, T.time + 0.2); } }
+    if (!B.dry && T.time - s.chgT[G.off] < tv('t5_b5_bkW', BK.win) && s.bkD !== s.chgT[G.off]) { const h = G.ball.state === 'held' ? G.players[G.ball.holder] : null; if (h && h.tm === G.off && h.ctrl === 'cpu' && tier(h, 'breaker')) { if (G.mode === 't3') { s.bkD = s.chgT[G.off]; PH.T3.T.nextPass = Math.min(PH.T3.T.nextPass, T.time + 0.2); } else if (h.f5) { s.bkD = s.chgT[G.off]; h.f5.dec = Math.min(h.f5.dec == null ? 9e9 : h.f5.dec, T.time + 0.2); } } }
     // 组织核心 / 防守指挥：对方或己方发起挡拆 / 战术
     const pk = T.pick, pl = T.play;
     let ev = null;
@@ -248,6 +260,6 @@
     }
   }
   function stats() { const s = st(); return { st: s.st, sh: s.sh, n: s.n, log: s.log, scr: s.scr || [0, 0] }; }
-  Object.assign(B, { tick, pass, passState, passV, reachK, scrK, scrT, scrD, scrSway, rebK, tier, tiersOf, sk5, stats, KEYS, TH, E, SK, SCORE });
+  Object.assign(B, { tick, pass, passChance, passState, passV, reachK, scrK, scrT, scrD, scrSway, rebK, tier, tiersOf, sk5, stats, KEYS, TH, E, SK, SCORE });
   PH.B5 = B;
 })();

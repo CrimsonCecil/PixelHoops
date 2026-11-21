@@ -70,7 +70,7 @@
   const vcl = (v) => v >= 95 ? 'rating-gold' : v >= 88 ? 'rating-orange' : v >= 80 ? 'rating-purple' : v >= 72 ? 'rating-blue' : v >= 64 ? 'rating-green' : v >= 55 ? 'rating-white' : 'rating-grey';
   const tg = (v01) => GM.grade(v01)[0];
   // V4.5 选人能力卡徽章：和比赛中同一套六边形图标，按档位配色（铜 / 银 / 金 / 名人堂，不写档位字）
-  const badgeHtml = (k, full, t) => { const B = GM.BADGES[k]; return '<div class="bdg tr' + (t || 3) + '">' + bHex(k, t) + (full ? '<div><b>' + B.name + (B.five ? '<sup>5V5</sup>' : '') + '</b><span>' + B.desc + '</span></div>' : '<b>' + B.name + '</b>') + '</div>'; };
+  const badgeHtml = (k, full, t) => { const B = GM.BADGES[k]; return '<div class="bdg tr' + (t || 3) + '">' + bHex(k, t) + (full ? '<div><b>' + B.name + '</b><span>' + B.desc + '</span></div>' : '<b>' + B.name + '</b>') + '</div>'; };
   let pkSide = 0, pkSel = 'curry', pkSlot = null;
   const listedHeight = (a) => (PH.measurements && PH.measurements[a.key] ? PH.measurements[a.key][0] * 0.0254 : a.h).toFixed(2);
   function positionBadge(a, detailed = false) {
@@ -120,7 +120,7 @@
   PH.attrG = attrGroups; PH.attrGN = AGRP.map((g) => g[1]); PH.vcl = vcl;
   // 球员详情分页（参考 2K：概览 / 属性六大类 / 徽章四大类 / 动作与热区）；LB·RB 或点页签切换，右摇杆上下滚动
   const PK_TABS = [['ov', '概览'], ['at', '属性'], ['bd', '徽章'], ['mv', '动作 · 热区']];
-  const BCAT = [['终结', ['acrobat', 'poster', 'launch', 'bully', 'dream']], ['投篮', ['limitless', 'deadeye', 'quick', 'clutch', 'fade', 'stepper', 'cs', 'pullup']], ['组织', ['ankle', 'tight', 'dimer', 'needle', 'bailout', 'breaker', 'postpm']], ['防守 / 篮板', ['rim', 'pick', 'clamps', 'motor', 'hustle', 'brick', 'dodger', 'intercept', 'anchor', 'chaser', 'boxout']]];
+  const BCAT = [['终结', ['acrobat', 'poster', 'launch', 'bully', 'dream', 'fakes']], ['投篮', ['limitless', 'deadeye', 'quick', 'clutch', 'fade', 'stepper', 'cs', 'pullup']], ['组织', ['ankle', 'tight', 'dimer', 'needle', 'bailout', 'breaker', 'postpm']], ['防守 / 篮板', ['rim', 'pick', 'clamps', 'motor', 'hustle', 'brick', 'dodger', 'intercept', 'anchor', 'chaser', 'boxout']]];
   let pkTab = 'ov';
   function pkTabStep(d) { const i = PK_TABS.findIndex((t) => t[0] === pkTab); pkTab = PK_TABS[(i + d + PK_TABS.length) % PK_TABS.length][0]; pkDetail(pkShown || pkSel); $('pk-detail').scrollTop = 0; PH.audio.play('ui'); }
   function pkDetail(key) {
@@ -277,7 +277,7 @@
   }
   function roomSnapshot() {
     const state = Object.fromEntries(NET_STATE.map((key) => [key, G[key]]));
-    state.players = G.players.map(({ opp, arch, team, ...p }) => ({ ...p, oppId: opp ? opp.id : -1 }));
+    state.players = G.players.map(({ opp, arch, team, b5in, ...p }) => ({ ...p, oppId: opp ? opp.id : -1 }));
     state.audio = roomAudio.splice(0);
     return JSON.parse(JSON.stringify(state));
   }
@@ -627,8 +627,8 @@
     cs: '接球 0.6 秒内出手，命中 +2 / 3.5 / 5.5 / 7.5%，绿区 +8 / 14 / 20 / 27%，出手提前 0.02 / 0.035 / 0.05 / 0.065 秒。战术跑出、掩护后或空位接球时再加成',
     dimer: '队友接到你的传球后 1.5 秒内跳投或上篮，命中 ×1.02 / 1.035 / 1.05 / 1.07，绿区 ×1.06 / 1.10 / 1.15 / 1.21',
     needle: '你的传球被截概率 ×0.88 / 0.80 / 0.70 / 0.60，防守人够球范围 ×0.95 / 0.92 / 0.88 / 0.84',
-    bailout: '跳传和突破分球的落点误差 ×0.75 / 0.6 / 0.45 / 0.3，被截概率 ×0.85 / 0.75 / 0.65 / 0.55',
-    breaker: '抢到防守篮板或抢断后 3 秒内传出 10 米以上的长传，球速 +8 / 12 / 16 / 22%，误差 ×0.7 / 0.55 / 0.4 / 0.25，被截 ×0.8 / 0.7 / 0.6 / 0.5',
+    bailout: '突破分球（5V5 也含跳传）的落点误差 ×0.75 / 0.6 / 0.45 / 0.3，被截概率 ×0.85 / 0.75 / 0.65 / 0.55',
+    breaker: '球权转换后 4 秒内传出 9 米以上的长传，球速 +8 / 12 / 16 / 22%，误差 ×0.7 / 0.55 / 0.4 / 0.25，被截 ×0.8 / 0.7 / 0.6 / 0.5',
     postpm: '背打中（或背身接球后）传出，被截 ×0.8 / 0.7 / 0.6 / 0.5；接球人 1.5 秒内出手，命中 ×1.02 / 1.03 / 1.045 / 1.06，绿区 ×1.05 / 1.08 / 1.12 / 1.16',
     brick: '掩护撞击分数 ×1.12 / 1.2 / 1.3 / 1.42（更容易挡出“好掩护”或“挡倒”），你被撞的晃动减半',
     dodger: '被掩护时撞击分数 ×0.9 / 0.83 / 0.75 / 0.67，被挡时间同比例缩短',
@@ -639,7 +639,7 @@
   };
   const TIER_ROWS = [['四档', '铜 / 银 / 金 / 名人堂。档位按球员能力自动分配，徽章说明里的数值是金档'],
     ['1V1 徽章', '训练场 / 斗牛 / 5V5 都生效：持有名单不变，档位按对应能力算。铜档效果约为金档的 65%，银档约 85%，名人堂约 125%。例：神射手（金）跳投受干扰 -25%，铜 -16%，银 -21%，名人堂 -31%；无限射程（金）9.4 米，铜 8.8 米，银 9.1 米，名人堂 9.85 米'],
-    ['5V5 徽章', '只在 5V5 生效，按能力全自动分配，不占球员卡上的 4 个徽章位。触发时屏幕两侧弹出“徽章名 · 档位”']];
+    ['团队徽章', '在 3V3 / 5V5 生效，按能力全自动分配，不占球员卡上的 4 个徽章位。触发时屏幕两侧弹出“徽章名 · 档位”']];
   const TEAMSK_ROWS = [['和 1V1 专属', '1V1 专属在 5V5 照样生效（触发时插屏冻结约 1 秒）。下面 5 种团队专属只在 5V5 生效，触发时不冻结比赛：LED 横幅、本人头顶浮字，再加一个徽章芯片。你这一方触发传球大师、空位创造或掩护大师后，如果这一回合得分，进球后补一个 0.6 秒的短插屏特写（这时已是死球）'],
     ['传球大师', '约基奇“约老师手术刀”、哈利伯顿“哈利长传”、特雷·杨“冰吹高吊”。传出创造性传球时触发：跳传、突破分球、击地、高吊 / 空接、9 米以上长传、传给空切的队友。这记球不会被截、落点零误差；接球人 1.6 秒内的跳投或上篮干扰减半、不会被盖、绿区 ×1.7。冷却较长，每人每场大约 4 次'],
     ['组织核心', '东契奇“魔术指挥”、詹姆斯“国王视野”。本人持球发起战术或挡拆时触发：之后 10 秒全队传球被截概率 ×0.6；队友接球 2 秒内出手，命中 ×1.06、绿区 ×1.3'],
@@ -741,7 +741,7 @@
         g('5V5 团队专属（只在 5V5 生效）', TEAMSK_ROWS) +
         g('徽章等级', TIER_ROWS) +
         g('徽章', Object.keys(GM.BADGES).filter((k) => !GM.BADGES[k].five).map((k) => [IC.svg(k, 'hi') + GM.BADGES[k].name, GM.BADGES[k].desc])) +
-        g('5V5 徽章（数值依次为 铜 / 银 / 金 / 名人堂）', Object.keys(GM.BADGES).filter((k) => GM.BADGES[k].five).map((k) => [(IC.has(k) ? IC.svg(k, 'hi') : '') + GM.BADGES[k].name, BDESC[k] || GM.BADGES[k].desc]).concat([['合计上限', '同一次出手，所有 5V5 加成合计最多命中 ×1.15、绿区 ×1.6（团队专属触发时绿区最多 ×1.9）；传球被截概率最低降到原来的 35%']]));
+        g('团队徽章（3V3 / 5V5，数值依次为 铜 / 银 / 金 / 名人堂）', Object.keys(GM.BADGES).filter((k) => GM.BADGES[k].five).map((k) => [(IC.has(k) ? IC.svg(k, 'hi') : '') + GM.BADGES[k].name, BDESC[k] || GM.BADGES[k].desc]).concat([['合计上限', '同一次出手，所有团队徽章加成合计最多命中 ×1.15、绿区 ×1.6（团队专属触发时绿区最多 ×1.9）；传球被截概率最低降到原来的 35%']]));
     }
     if (tab === 'moves') {
       const g = gT;

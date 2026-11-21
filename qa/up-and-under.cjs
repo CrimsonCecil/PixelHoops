@@ -295,7 +295,7 @@ for (const wait of [0, 36]) {
 }
 for (const failure of ['ratings', 'stamina', 'possession', 'dead']) {
   const f = fixture(); f.fake();
-  if (failure === 'ratings') Object.assign(f.p.r, { hnd: 0.1, post: 0.1, close: 0.1 });
+  if (failure === 'ratings') { f.tune.set('l1_uuReq', 0.45); Object.assign(f.p.r, { hnd: 0.1, post: 0.1, close: 0.1 }); }
   if (failure === 'stamina') f.p.stam = 0;
   if (failure === 'possession') { f.p.hasBall = false; f.d.hasBall = true; f.b.holder = f.d.id; }
   if (failure === 'dead') { f.G.phase = 'over'; f.b.dead = true; }
@@ -332,12 +332,13 @@ function bonus(bit, recover = false, switchDefender = false, delayed = false) {
     f.G.players.push(other);
   }
   f.gm._dbg.releaseShot(f.p, 0.7, 'shot');
-  return f.G.lastShot;
+  return { ...f.G.lastShot, expectedBonus: 0.08 * Math.max(0, Math.min(1, ((f.p.r.close + f.p.r.lay) / 2 - 0.55) / (0.92 - 0.55))) };
 }
 const normal = bonus(false), bitten = bonus(true, true);
-assert.equal(normal.uuBonus, 0); assert.equal(bitten.uuBonus, 0.08);
+assert.equal(normal.uuBonus, 0); assert.equal(bitten.uuBonus, bitten.expectedBonus);
 assert(bitten.prob > normal.prob);
-assert.equal(bonus(true, true, false, true).uuBonus, 0.08, 'a defender biting during the pivot also grants the bonus');
+const delayedBonus = bonus(true, true, false, true);
+assert.equal(delayedBonus.uuBonus, delayedBonus.expectedBonus, 'a defender biting during the pivot also grants the quality-scaled bonus');
 assert.equal(bonus(true, true, true).uuBonus, 0, 'a different nearest defender removes the bite bonus');
 console.log('PASS defender-bit probability bonus and normal-contest non-bite case');
 

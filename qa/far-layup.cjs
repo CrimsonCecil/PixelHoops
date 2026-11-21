@@ -8,7 +8,7 @@ function load(before = false) {
   const ctx = vm.createContext({ console, performance: { now: () => 0 }, setTimeout() {}, clearTimeout() {} });
   ctx.window = ctx; ctx.PH = { input: { endTick() {}, read: () => ({}) } };
   for (const name of ['render', 'tune', 'roster', 'r5', 'game', 'b5', 'team5']) {
-    let src = before && ['game', 'render'].includes(name) ? execFileSync('git', ['show', `main:js/${name}.js`], { cwd: root, encoding: 'utf8' }) : fs.readFileSync(path.join(root, 'js', name + '.js'), 'utf8');
+    let src = before && ['game', 'render', 'team5'].includes(name) ? execFileSync('git', ['show', `7d21115:js/${name}.js`], { cwd: root, encoding: 'utf8' }) : fs.readFileSync(path.join(root, 'js', name + '.js'), 'utf8');
     if (name === 'game') src = src.replace('PH.game = {', 'PH.farQA = { laySide, buildSteps, releaseShot, LVR, LSTY, poseTarget, updatePlayer, stepPose, cvSet }; PH.game = {');
     if (name === 'team5') src = src.replace('PH.T5 = {', 'PH.farTeamQA = (g) => { G = g; T.tm = [0, 1].map(tm => ({ on: g.players.filter(p => p.tm === tm) })); shotAdj(); }; PH.T5 = {');
     vm.runInContext(src, ctx, { filename: name + '.js' });

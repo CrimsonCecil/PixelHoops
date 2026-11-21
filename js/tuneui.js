@@ -24,10 +24,10 @@
   const changed = (d) => Math.abs(TU().get(d.k) - d.v) > 1e-9;
   // ---- V4.5 大类 / 小类 / 模式 ----
   // 参数字段：cat（大类 id 或中文名）、sub（小类名）、gm（'1v1' / '5v5' / 'both'；兼容把范围写在 mode 里的旧写法）
-  const CATS0 = [['shot', '投篮'], ['fin', '终结'], ['ct', '对抗'], ['drib', '运球与晃人'], ['def', '防守'], ['reb', '篮板与散球'], ['pass', '传球与接球'], ['stam', '体力'], ['ai', 'AI'], ['t5', '5V5 团队'], ['pace', '节奏与表现']];
+  const CATS0 = [['move', '移动与姿态'], ['shot', '投篮'], ['fin', '终结'], ['ct', '对抗'], ['drib', '运球与晃人'], ['moves', '进攻招式', ['背打', '上下步']], ['def', '防守'], ['reb', '篮板与散球'], ['pass', '传球与接球'], ['stam', '体力'], ['ai', 'AI'], ['t5', '5V5 团队'], ['pace', '节奏与表现']];
   let catTab = null, gmF = 'all', q = '', fold = {}, infoK = null;
   function catList() {
-    const T = TU(), src = T && Array.isArray(T.CATS) && T.CATS.length ? T.CATS : CATS0.map((c) => ({ id: c[0], name: c[1] }));
+    const T = TU(), src = T && Array.isArray(T.CATS) && T.CATS.length ? T.CATS : CATS0.map((c) => ({ id: c[0], name: c[1], subs: c[2] }));
     const L = src.map((c) => ({ id: String(c.id), name: String(c.name), subs: Array.isArray(c.subs) ? c.subs.map(String) : [] })), by = {};
     for (const c of L) { by[c.id] = c; by[c.name] = c; }
     for (const d of T ? T.list() : []) { const c = d.cat; if (c != null && c !== '' && !by[c]) { const n = { id: String(c), name: String(c), subs: [] }; L.push(n); by[n.id] = n; } }

@@ -526,6 +526,7 @@ for (const mode of ['2p', 't5']) {
   }
   const { p } = fixture(mode);
   const ids = [], poses = [];
+  tune.set('l1_poFakeLimitNone', 0);
   for (const x of [1, -1, 1, -1]) {
     gamepadStep(mode, p, { x }, holdFrames());
     assert.equal(p.action.type, 'shot');
@@ -637,6 +638,7 @@ console.log(`PASS live l1_rsHold threshold and seeded post AI fakes=${cpuFakes}/
 let cpuStrides = 0;
 for (let seed = 1; seed <= 80; seed++) {
   const { p } = fixture('2p', 5.2); p.ctrl = 'cpu'; G.mode = 'cpu';
+  p.r.post = 0.92;
   tune.set('l1_aiPoFake', 0); tune.set('l1_aiPoSpinShot', 1);
   Object.assign(p.ai, { plan: 'post', postT: 20, t: 2, su: null, cb: null, iso: null, om: null, call: null });
   gm.seed(seed * 101);
@@ -647,6 +649,7 @@ assert(cpuStrides > 0);
 for (const tendency of [0, 1]) {
   const { p } = fixture(); p.ctrl = 'cpu';
   tune.set('l1_aiPoFakeChain', tendency);
+  tune.set('l1_poFakeLimitNone', 0);
   dbg.startShot(p, { ...zero(), mx: -1 }, 'a1');
   const side = p.action.stride.side;
   step(p, { a1: true }, 12); step(p);
