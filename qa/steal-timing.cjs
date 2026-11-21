@@ -116,6 +116,8 @@ function possessions(gm, label) {
     G.players.forEach(p => { p.ctrl = 'cpu'; });
     // Start after the check-ball, with both CPUs otherwise using real game decisions.
     if (G.phase === 'check' && gm.t5.checkStep(9)) G.phase = 'live';
+    // Measure steals from an on-ball guarding spot, not from the deeper check-ball stance.
+    { const [o, d] = G.players; d.x = o.x + 0.7; d.y = o.y + 1.5; }
     let live = false, ended = false, previous = null;
     for (let i = 0; i < 2400; i++) {
       gm.tick(dt);

@@ -1661,10 +1661,11 @@
     const rx = Math.sin(p.face) * 0.11, ry = -Math.cos(p.face) * 0.11;
     p.pose.passHands = { L: [c[0] - rx, c[1] - ry, c[2]], R: [c[0] + rx, c[1] + ry, c[2]], follow: 0 };
   }
-  // 2K 式站位：进攻人在弧顶三分线外，防守人在三分线内正面对着他、离 1.5 米（稍偏一点免得镜头被进攻人挡住）
-  const CHK_GAP = 1.5, CHK_SIDE = 0.7;
+  // 2K 式站位：进攻人在弧顶三分线外，防守人站在进攻人与篮筐的连线上、罚球线（离篮筐 4.225 米）前约 1.2 米，正面对着他
+  const CHK_R = 5.425;
   function checkStart(d, o) {
-    d.x = o.x + CHK_SIDE; d.y = o.y + CHK_GAP; d.vx = d.vy = 0;
+    const dx = o.x - HOOP.x, dy = o.y - HOOP.y, l = Math.hypot(dx, dy) || 1;
+    d.x = HOOP.x + dx / l * CHK_R; d.y = HOOP.y + dy / l * CHK_R; d.vx = d.vy = 0;
     const b = G.ball;
     d.hasBall = o.hasBall = false; chkFace(d, o); chkFace(o, d);
     G.chk = { d: d.id, o: o.id, t: 0, bnc: false };
