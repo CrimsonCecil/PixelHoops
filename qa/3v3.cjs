@@ -35,13 +35,17 @@ function fixture(options = {}) {
 
 {
   const { ctx, G, T3 } = fixture({ human: 0, local: 0 });
-  const nameRows = [], staminaRows = [], strokes = [];
+  const nameRows = [], staminaRows = [], strokes = [], teamNames = new Map();
+  const rosterNames = G.players.map(p => p.arch.name);
   const canvas = () => {
     const c = new Proxy({
       createImageData: (w, h) => ({ data: new Uint8ClampedArray(w * h * 4) }),
       measureText: () => ({ width: 8 }),
       stroke() { strokes.push(this.strokeStyle); },
-      fillText(text, x, y) { if (text === T3.holder()?.arch.name) nameRows.push(y + 12); },
+      fillText(text, x, y) {
+        if (text === T3.holder()?.arch.name) nameRows.push(y + 12);
+        if (rosterNames.includes(text) && this.fillStyle !== '#15101f') teamNames.set(text, { font: this.font, x, y });
+      },
       fillRect(x, y, w, h) { if (w === 32 && h === 4 && this.fillStyle === '#15101f') staminaRows.push(y + h); },
     }, { get: (obj, key) => obj[key] ?? (() => {}) });
     return { getContext: () => c };
@@ -76,10 +80,14 @@ function fixture(options = {}) {
   move(3.3, 6.25);
   R.render(G, 1);
   nameRows.length = staminaRows.length = 0;
+  teamNames.clear();
   R.render(G, 0, hintY);
   assert(feet().s > 30, 'keep close framing when clearing the hints at the wing');
   assert(nameRows.length && Math.max(...nameRows) < hintY);
   assert(staminaRows.length && Math.max(...staminaRows) < hintY);
+  assert.deepEqual([...teamNames.keys()].sort(), [...rosterNames].sort());
+  assert([...teamNames.values()].every(({ font, y }) => font.startsWith('10px') && y + 12 < hintY));
+  console.log('PASS: 3V3 draws six compact under-foot names above the hint bar.');
   assert(visible(feet()) && visible(rim()));
   const origin = R.cam.x;
   move(7.4, 1);

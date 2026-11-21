@@ -233,14 +233,19 @@
   const curOn = (p, G) => !p.dummy && !p.off && !!p.arch && !(G.replay && G.replay.view) && G.players.length <= 2;
   // 名字颜色跟光标一致；太暗的队色往白提亮，保证在地板上看得清
   function curCol(c) { const m = /^#([0-9a-f]{6})$/i.exec(c || ''); if (!m) return '#ffffff'; const v = parseInt(m[1], 16), r = v >> 16, g = (v >> 8) & 255, b = v & 255, L = 0.3 * r + 0.59 * g + 0.11 * b; if (L >= 110) return c; const k = (110 - L) / (255 - L); return 'rgb(' + [r, g, b].map((x) => Math.round(x + (255 - x) * k)).join(',') + ')'; }
-  function curName(c, a, cx, y, col) {
-    const t = a.name, pt = PH.PT.of(a);
-    c.font = "12px 'Fusion Pixel 12px Proportional SC', monospace"; c.textBaseline = 'top';
-    const tw = Math.ceil(c.measureText(t).width), w = tw + 3 + PH.PT.SIZE, x0 = Math.round(Math.max(2, Math.min(W - w - 2, cx - w / 2))), yy = Math.round(y);
+  function nameBounds(c, a, cx, y, compact) {
+    c.font = (compact ? '10px' : '12px') + " 'Fusion Pixel 12px Proportional SC', monospace";
+    const tw = Math.ceil(c.measureText(a.name).width), w = tw + 3 + PH.PT.SIZE;
+    const x0 = Math.round(Math.max(2, Math.min(W - w - 2, cx - w / 2))), yy = Math.round(y), y0 = yy - (compact ? 2 : 1);
+    return { x0, x1: x0 + w, y0, y1: y0 + PH.PT.SIZE, yy };
+  }
+  function curName(c, a, cx, y, col, compact = false) {
+    const t = a.name, pt = PH.PT.of(a), box = nameBounds(c, a, cx, y, compact), { x0, yy } = box;
+    c.textBaseline = 'top';
     c.fillStyle = '#15101f'; for (const [dx, dy] of [[-1, 0], [1, 0], [0, -1], [0, 1], [-1, -1], [1, -1], [-1, 1], [1, 1]]) c.fillText(t, x0 + dx, yy + dy);
     c.fillStyle = curCol(col); c.fillText(t, x0, yy);
-    PH.PT.draw(c, pt.id, x0 + tw + 3, yy - 1);
-    return { x0: x0, x1: x0 + w, y0: yy - 1, y1: yy - 1 + PH.PT.SIZE };
+    PH.PT.draw(c, pt.id, box.x1 - PH.PT.SIZE, box.y0);
+    return box;
   }
   function ring(c, cx, cy, rx, ry, col) {
     c.fillStyle = col; cx = Math.round(cx); cy = Math.round(cy);
@@ -1670,6 +1675,26 @@
     const q = proj(p.x, p.y - (t3 ? 0 : 0.25), 0);
     return { x: q.x, y: q.y + 0.34 * q.s * (t3 ? 0.62 : 1) };
   }
+  function teamNameTags(players, maxY) {
+    const placed = [], stamina = STB.h1 + STB.gap, height = PH.PT.SIZE;
+    for (const p of players.filter(p => !p.off && p.arch && !p.dummy).sort((a, b) => Number(b.ring) - Number(a.ring))) {
+      const q = nameFoot(p, true);
+      const y = Math.max(3, Math.min(maxY, Math.round(q.y) + 3 + (p.ring ? stamina : 0)));
+      const box = nameBounds(ctx, p.arch, q.x, y, true);
+      const nearby = placed.filter(tag => tag.x0 < box.x1 + 2 && box.x0 < tag.x1 + 2);
+      const candidates = [y, ...nearby.flatMap(tag => [tag.y0 - height, tag.y1 + 3])];
+      candidates.sort((a, b) => Math.abs(a - y) - Math.abs(b - y));
+      const row = candidates.find(row => row >= 3 && row <= maxY &&
+        nearby.every(tag => row - 2 >= tag.y1 + 1 || row - 2 + height <= tag.y0 - 1)) ?? y;
+      const tag = curName(ctx, p.arch, q.x, row, p.col.ringCol, true);
+      if (p.ring) {
+        tag.x0 = Math.min(tag.x0, q.x - STB.w1 / 2);
+        tag.x1 = Math.max(tag.x1, q.x + STB.w1 / 2);
+        tag.y0 = Math.min(tag.y0, row - stamina - 2);
+      }
+      placed.push(tag);
+    }
+  }
   function camera3(G, dt, hintY) {
     const b = G.ball, p = b.state === 'held' ? G.players[b.holder] : null, fp = G.intro && G.intro.foc;
     const x = fp ? fp.x : p ? p.x + p.vx * 0.28 : b.x + (b.state === 'pass' ? 0 : b.vx * 0.12);
@@ -1768,10 +1793,12 @@
       if (skR || skH) { const q = proj(p.x, p.y, 0), pu = 0.5 + 0.5 * Math.sin(G.time * 14), rr2 = 0.62 * q.s + 3 + (skR ? pu * 2 : 0); ctx.globalAlpha = skR ? 0.6 + 0.4 * pu : 0.45; ring(ctx, q.x, q.y, rr2, rr2 * 0.34, '#ffd24a'); if (skR) ring(ctx, q.x, q.y, rr2 + 1, rr2 * 0.34 + 1, '#fff2b0'); ctx.globalAlpha = 1; }
     }
     shadow(b.x, b.y, b.z, 0.16);
+    const teamTags = G.mode === 't3' && !RP;
+    const maxNameY = teamTags ? Math.min(H - 13, Math.floor((hintY ?? H) - 14)) : H - 13;
     // 脚下体力条（V4.4 30×2 + 刻度 + 阈值 + 残影，见 stamBar）
     for (const p of G.players) {
       if (!p.ring || p.off) continue;
-      const q = nameFoot(p, G.mode === 't3' && !RP), w = STB.w1, x = Math.round(q.x - w / 2), y = Math.min(H - 13 - (STB.h1 + STB.gap), Math.round(q.y) + 3);   // 靠底线时整组（条 + 名字）上移，不叠
+      const q = nameFoot(p, teamTags), w = STB.w1, x = Math.round(q.x - w / 2), y = Math.min(maxNameY - (STB.h1 + STB.gap), Math.round(q.y) + 3);   // 靠底线时整组（条 + 名字）上移，不叠
       stamBar(ctx, x, y, w, STB.h1, p.stam, 'g' + p.id, G.time);
     }
     // 运球（没在做动作）时球总画在持球人身前，背对镜头时也不会被身体挡住
@@ -1792,10 +1819,11 @@
     drawTuneLabs(G);
     // V3.9s 光标下方的名字（1V1 双方）：小号像素字、光标同色、深色描边；有体力条时放在体力条下面。
     // 画在球员之后（不被腿挡住）；永远在脚下
-    { const tags = [];
+    if (teamTags) teamNameTags(G.players, maxNameY);
+    else { const tags = [];
       for (const p of G.players) {
         if (!(p.ring || curOn(p, G)) || p.off || !p.arch || RP || p.dummy) continue;
-        const q = nameFoot(p, G.mode === 't3'); let y = p.ring ? Math.min(H - 13 - (STB.h1 + STB.gap), Math.round(q.y) + 3) + STB.h1 + STB.gap : Math.round(q.y) + 3;   // 有体力条：在条（含下方阈值短刻度）下面
+        const q = nameFoot(p, false); let y = p.ring ? Math.min(H - 13 - (STB.h1 + STB.gap), Math.round(q.y) + 3) + STB.h1 + STB.gap : Math.round(q.y) + 3;   // 有体力条：在条（含下方阈值短刻度）下面
         // V4.0 名字一律在脚下（用户：名称都在脚下显示就好，不用担心遮挡），只夹在画面内，不再挪到头顶
         if (y < 2) continue; y = Math.min(H - 13, y);
         for (const o of tags) if (Math.abs(o.y0 - y) < 12 && Math.abs((o.x0 + o.x1) / 2 - q.x) < 40) y = o.y0 > y ? o.y0 - 13 : o.y1 + 1;
@@ -1840,5 +1868,5 @@
 
   PH.render = { init: init, resize: resize, get W() { return W; }, get H() { return H; }, render: render, particleSize: particleSize, setTheme: setTheme, proj: proj, cam: cam, CAMV: CAMV, CAM_DEF: CAM_DEF, setCam: setCam, HOOP: HOOP, BOARD_Y: BOARD_Y, BALL_R: BALL_R, curCol: curCol,
     // 5V5 全场模式复用的绘制图元（不影响 1V1）
-    drawCombos: drawCombos, drawMeter: (pl, hp) => drawMeter(pl, hp), drawPlayer: drawPlayer, drawHead: drawHead, drawBall: drawBall, shadow: shadow, ellipse: ellipse, ring: ring, brush: brush, getCtx: () => ctx, BAYER: BAYER };
+    drawCombos: drawCombos, drawMeter: (pl, hp) => drawMeter(pl, hp), drawPlayer: drawPlayer, drawHead: drawHead, drawBall: drawBall, shadow: shadow, ellipse: ellipse, ring: ring, brush: brush, getCtx: () => ctx, drawNameTag: curName, BAYER: BAYER };
 })();
