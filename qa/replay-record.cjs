@@ -27,6 +27,10 @@ async function main() {
   G.rec = []; assert(G.tape.frames.length >= len);
   assert.deepEqual(await T.decode(await T.encode(G.tape)), JSON.parse(JSON.stringify(T.quantize(G.tape))));
   gm.newGame({ mode: '2p' }); assert.notEqual(G.tape, saved); assert.equal(G.tape.frames.length, 0);
+  G.hlQ = { t: -1, pid: 0, k: 'fall' }; G.phase = 'dead'; G.phaseT = 0.5;
+  gm.tick(1 / 60, () => gm.t5.zeroInp());
+  assert.equal(G.replay, null, 'network-style humanInput records without starting host-only highlights');
+  assert.equal(G.tape.frames.length, 1);
   for (let i = 0; i < 120; i++) gm.tick(1 / 60); assert(G.tape.frames.length > 40);
   gm.newGame({ mode: 'train' }); for (let i = 0; i < 120; i++) gm.tick(1 / 60); assert(G.tape.frames.length > 40);
   G.time = 1200; gm.tick(1 / 60); assert(G.tape.meta.truncated);
