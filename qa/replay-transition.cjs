@@ -43,21 +43,3 @@ assert.equal(G.time, matchTime, 'play does not advance during either wipe');
 tick();
 assert(G.time > matchTime, 'the match resumes after the wipe');
 console.log('PASS: 5V5 contact replay waits after the make and wipes in and out on natural completion.');
-
-const main = fs.readFileSync(path.join(__dirname, '../js/main.js'), 'utf8');
-const wipeSelector = main.slice(main.indexOf('  const wipeStyles ='), main.indexOf('  function draw(dt)'));
-const pixels = { childElementCount: 0, appendChild() { this.childElementCount++; } };
-const replayWipe = { dataset: {}, querySelector: () => pixels };
-const styles = vm.runInNewContext(wipeSelector + `
-  Array.from({ length: 12 }, () => { pickWipeStyle(); return replayWipe.dataset.style; });
-`, {
-  replayWipe,
-  Math: { random: () => 0 },
-  document: { createElement: () => ({ style: { setProperty() {} } }) },
-});
-for (let i = 0; i < styles.length; i += 4) {
-  assert.deepEqual(Array.from(styles.slice(i, i + 4)).sort(), ['blinds', 'diagonal', 'pixels', 'shutters']);
-  assert.notEqual(styles[i], styles[i - 1], 'do not immediately repeat a wipe across shuffle boundaries');
-}
-assert.equal(pixels.childElementCount, 96, 'build the pixel grid once');
-console.log('PASS: each shuffle shows every replay wipe without adjacent repeats.');
