@@ -4077,6 +4077,10 @@
         }
         a.meter.v = Math.max(0, (a.t - a.meter.t0) / a.meter.span);
         if (!a.jumped && a.t >= (a.jT || K.shotJump)) {
+          if (a.stride) {
+            a.pts = !a.V.hook && isThree(pl.x, pl.y) ? 3 : 2; a.d0 = distHoop(pl); hzSet(pl, a);
+            a.meter.gw = greenWidth(pl, ratingOf(pl, a), a.skill ? 0 : contestOf(pl, df, 'in') * a.V.c * (a.ky ? 0.5 : 1), shotKind(a), a) * a.V.g * (a.skill ? K.gwSkill : 1) * 0.2 / a.meter.span;
+          }
           a.jumped = true; const h = hoopDir(pl), V = a.V;
           pl.vz = (V.hook ? 4.4 : V.back > 1 ? 4.9 : 5.1) * (V.hook || !a.F ? 1 : 0.9 + 0.1 * a.F.jmp); pl.z = 0.01; sfx('jump');
           if (V.back || V.lat) { pl.vx = -h.x * V.back - h.y * a.latS * V.lat; pl.vy = -h.y * V.back + h.x * a.latS * V.lat; }

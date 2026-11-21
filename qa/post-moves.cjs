@@ -172,6 +172,31 @@ for (const state of ['neutral', 'hook', 'nonPost']) {
 }
 console.log('PASS stride guards: neutral/hook/non-post unchanged; zero-speed tuning, pre-takeoff fake, court bounds and shared collisions');
 
+for (const mode of ['2p', 't3', 't5']) for (const [distance, my, expected] of [[6.3, -1, 3], [7.1, 1, 2], [5.2, -1, 2], [8.5, -1, 3]]) {
+  const { p, d } = fixture(mode, distance); d.off = true;
+  dbg.startShot(p, { ...zero(), my }, 'a1');
+  const a = p.action;
+  let takeoffDistance;
+  while (!a.jumped) { takeoffDistance = gm.distHoop(p); step(p, { a1: true }); }
+  assert.equal(a.pts, expected, `${mode} ${a.v} uses takeoff rather than pre-stride location`);
+  assert.equal(a.pts, gm.isThree(p.x, p.y) ? 3 : 2);
+  assert.equal(a.d0, takeoffDistance);
+  while (a.t < a.ideal) step(p, { a1: true });
+  step(p);
+  assert.equal(G.lastShot.pts, expected); assert.equal(G.ball.shot.pts, expected);
+  assert.equal(G.stats[p.id].tpa, expected === 3 ? 1 : 0);
+}
+{
+  const { p, d } = fixture('t3', 6.3); d.off = true;
+  G.needClear = true; G.illId = p.id;
+  dbg.startShot(p, { ...zero(), my: -1 }, 'a1');
+  const a = p.action;
+  while (!a.jumped) step(p, { a1: true });
+  assert.equal(a.pts, 3);
+  assert(G.needClear && G.illId === p.id, 'Shot classification must not erase an uncleared possession violation');
+}
+console.log('PASS stride scoring: arc crossings in both directions use takeoff points and attempt stats in 1V1/3V3/5V5; uncleared-possession legality preserved');
+
 const savedCam = { ...ctx.PH.render.cam };
 for (const mode of ['2p', 't3', 't5']) for (const camera of mode === 't5' ? ['2k', 'broadcast'] : ['2k']) for (const flipped of mode === 't5' ? [false, true] : [false]) {
   for (const side of [-1, 1]) for (const hand of [-1, 1]) for (const kind of ['postspin', 'stride']) {
