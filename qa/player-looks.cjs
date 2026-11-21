@@ -241,6 +241,21 @@ render.drawHead(lillardContext, lillard, 16, 16, 16, -Math.PI / 2);
 assert(Math.max(...lillardFaceRows) < lillardFaceRows.length * 0.75, 'Lillard has a narrow, elongated face');
 assert(lillardFaceRows.at(-3) < Math.max(...lillardFaceRows), 'Lillard has a tapered jaw');
 console.log('PASS Lillard has a slim face and a close-fitting full beard');
+for (const key of ['bam', 'bridges', 'og']) {
+  assert.equal(look(key).face, 'long', key);
+  game.newGame({ mode: 'cpu', arch0: key, arch1: 'curry' });
+  assert.equal(game.G.players[0].col.face, 'long', key);
+}
+const bamFaceRows = [], bamSquareRows = [];
+const bamContext = canvas().getContext();
+bamContext.rect = (x, y, w) => bamFaceRows.push(w);
+render.drawHead(bamContext, look('bam'), 16, 16, 16, -Math.PI / 2);
+bamContext.rect = (x, y, w) => bamSquareRows.push(w);
+render.drawHead(bamContext, { ...look('bam'), face: 'square' }, 16, 16, 16, -Math.PI / 2);
+assert(Math.max(...bamFaceRows) < bamFaceRows.length * 0.75, 'Bam has a narrow, elongated face');
+assert(Math.max(...bamFaceRows) < Math.max(...bamSquareRows), 'Bam is narrower than his previous square face');
+assert(bamFaceRows.length > bamSquareRows.length, 'Bam is taller than his previous square face');
+console.log('PASS Bam, Mikal Bridges (bridges), and OG resolve to long; Bam renders taller and narrower than before');
 assert(lillard.body.waist < lillard.body.chest * 0.95);
 assert(lillard.body.limb > curry.body.limb && lillard.body.limb < look('holiday').body.limb);
 console.log('PASS only heavy builds can add belly volume; Lillard stays compact with his full beard');
