@@ -366,7 +366,7 @@
     $('lab-p2').textContent = opts.mode === '2p' ? '玩家 2' : tr ? '假人体型' : '对手';
     $('btn-start').textContent = tr ? '进入训练场' : '开始比赛';
     $('menu-foot').textContent = tr ? '训练场：无比分无时限，可设置假人防守方式，比赛中按 Tab 开关训练参数面板。' : online ? '建房间并分享房间号，对手加入后由房主开始 · ' + opts.target + ' 分制 · ' + clkS + '。' : '规则：先到 ' + opts.target + ' 分（领先 2 分胜）· ' + clkS + ' · ' + lenS + ' · 失分方球权，抢断需出三分线。';
-    if (kg) { $('btn-start').textContent = '开始闯关'; $('menu-foot').textContent = '斗牛之王：选好你的球员，连赢五位越来越强的对手 · 每关先到 ' + opts.ktarget + ' 分（领先 2 分胜）· ' + clkS + ' · 三次重来机会。'; kingLadderView(); }
+    if (kg) { const sv = kingSaved(); $('btn-start').textContent = sv ? '继续闯关 · 第 ' + (sv.stage + 1) + ' 关' : '开始闯关'; $('menu-foot').textContent = '斗牛之王：选好你的球员，连赢五位越来越强的对手 · 每关先到 ' + (sv ? sv.target : opts.ktarget) + ' 分（领先 2 分胜）· ' + clkS + ' · 三次重来机会。'; kingLadderView(); }
     const a = GM.ARCH[opts.arch0];
     pickBtn('pick0', opts.arch0); pickBtn('pick1', opts.arch1);
     $('arch-desc').textContent = a.full + '：' + a.desc + (a.skill ? '。必杀技「' + a.skill.name + '」，条件和效果见“更换”。' : '。');
@@ -382,10 +382,10 @@
   function clearPf() { document.querySelectorAll('.pf').forEach((e) => e.classList.remove('pf')); }
   function startDemo() { GM.newGame({ mode: 'demo', arch0: 'curry', arch1: 'lebron', target: 11 }); }
   function toMenu() {
-    tuneClose();
+    tuneClose(); kingPark();
     rooms.close(); resetRoomAudio(); syncBackgroundMatch(); PH.T3.stop(); localSlot = -1; matchConfig = null; menuStatus(''); refreshMenu();
     screen = 'menu'; paused = false; clearPf(); camOpen = false; camFromSet = false; show('campanel', false); pcards();
-    show('menu', true); show('king', false); $('king-fx').innerHTML = ''; KR = null; show('qvol', false); show('picker', false); show('cutin', false); show('hud', false); show('pause', false); show('over', false); show('help', false); show('touch', false); show('banner', false); show('train', false); show('shotcard', false); stage.classList.remove('panel');
+    show('menu', true); show('king', false); $('king-fx').innerHTML = ''; show('qvol', false); show('picker', false); show('cutin', false); show('hud', false); show('pause', false); show('over', false); show('help', false); show('touch', false); show('banner', false); show('train', false); show('shotcard', false); stage.classList.remove('panel');
     if (PH.T5) { PH.T5.stop(); PH.render5.restore(); } show('hud5', false); show('over5', false); show('tpicker', false); show('btn-cam', true); show('btn-disp', true); show('btn-box5', false); if (PH.box5 && PH.box5.isOpen()) PH.box5.close();
     startDemo(); camShift();
   }
@@ -435,7 +435,16 @@
     });
   }
   const KING_T = [0, 0.6, 1.2, 2, 2.6]; // 0 简单 · 1 普通 · 2 困难，超过 2 的部分在困难基础上继续外推
-  let kingLadder = null, KR = null;
+  let kingLadder = null, KR = null, kingSave = null;
+  // 闯关中途回主菜单：结算本局结果后暂存，回到斗牛之王点「继续闯关」接着打
+  function kingPark() {
+    if (KR && !KR.done) {
+      if (KR.last) { if (KR.last.win) { KR.stage++; KR.from = KR.stage - 1; KR.retry = 0; } else { KR.retry++; KR.from = KR.stage; } KR.last = null; }
+      kingSave = KR;
+    }
+    KR = null;
+  }
+  function kingSaved() { return kingSave && kingSave.arch === opts.arch0 ? kingSave : null; }
   // 按能力档各抽一人；位置尽量错开：相邻两关不同位置，同一位置（后卫 / 锋线 / 内线）最多两人
   function kingRoll() {
     const ov = (k) => GM.ARCH[k].ovr, grp = (k) => PH.T3.position(GM.ARCH[k]), rnd = (a) => a[(Math.random() * a.length) | 0];
@@ -461,10 +470,13 @@
     return o;
   }
   function kingLadderView() {
-    if (!kingLadder || kingLadder.includes(opts.arch0)) kingRoll();
-    const tg = kingTags(kingLadder), op = opts.kreveal === 'show';
-    $('lk-lives').innerHTML = kingLives(KING_LIVES);
-    $('lk-list').innerHTML = kingLadder.map((k, i) => '<li class="lk-i s' + i + '" data-testid="king-rung-' + (i + 1) + '"><em>' + (i + 1) + '</em><canvas width="32" height="32" data-k="' + k + '"></canvas><span class="lk-n">' + (op ? GM.ARCH[k].name : '???') + '<small class="ktag">' + tg[i] + '</small></span><b class="lk-o">' + (op ? GM.ARCH[k].ovr : '??') + '</b></li>').join('');
+    const sv = kingSaved();
+    if (sv) kingLadder = sv.ladder.slice();
+    else if (!kingLadder || kingLadder.includes(opts.arch0)) kingRoll();
+    const tg = sv ? sv.tags : kingTags(kingLadder), at = sv ? sv.stage : -1, see = (i) => sv ? sv.open || i < at || i === at && sv.retry > 0 : opts.kreveal === 'show';
+    $('lk-lives').innerHTML = kingLives(sv ? sv.lives : KING_LIVES);
+    show('lk-quit', !!sv);
+    $('lk-list').innerHTML = kingLadder.map((k, i) => '<li class="lk-i s' + i + (i < at ? ' done' : i === at ? ' cur' : '') + '" data-testid="king-rung-' + (i + 1) + '"><em>' + (i + 1) + '</em><canvas width="32" height="32" data-k="' + k + '"></canvas><span class="lk-n">' + (see(i) ? GM.ARCH[k].name : '???') + '<small class="ktag">' + tg[i] + '</small></span>' + (i < at ? '<i class="lk-st">已击败</i>' : '') + '<b class="lk-o">' + (see(i) ? GM.ARCH[k].ovr : '??') + '</b></li>').join('');
     $('lk-list').querySelectorAll('canvas').forEach((cv) => portrait(cv, GM.ARCH[cv.getAttribute('data-k')], GM.TEAMS[1]));
   }
   const KING_LIVES = 3;
@@ -493,7 +505,7 @@
       '<div class="kvs"><div class="kp me"><canvas width="64" height="64" class="kf0"></canvas><b>' + me.name + '</b><small>' + me.ovr + ' · ' + me.pos + '</small><div class="kat" data-testid="king-me-attrs">' + kingTop(me) + '</div></div>' +
       '<div class="kx">VS</div><div class="kp op' + (known ? '' : ' rv') + '"><span class="kop-f"><canvas width="64" height="64" class="kf1"></canvas></span><b data-testid="king-opp">' + (known ? op.name : '???') + '</b><small>' + (known ? op.ovr + ' · ' + op.pos : '??') + '</small><span class="kai ktag">' + KR.tags[s] + '</span><div class="kat' + (known ? '' : ' hid') + '" data-testid="king-opp-attrs">' + (known ? kingTop(op) : kingTopHid()) + '</div></div></div>' +
       '<p class="kq">' + (KR.retry ? '再战第 ' + (s + 1) + ' 关' : boss ? '击败他，你就是新的斗牛之王' : adv ? '赢了 ' + GM.ARCH[KR.ladder[s - 1]].name + '，下一位更强' : '五关连胜才能称王 · 先到 ' + KR.target + ' 分') + '</p>' +
-      '<div class="actions"><button class="primary" id="kv-go" data-testid="king-go">' + (boss ? '挑战王座' : '开始第 ' + (s + 1) + ' 关') + '</button><button id="kv-menu" data-testid="king-menu">放弃闯关</button></div>';
+      '<div class="actions"><button class="primary" id="kv-go" data-testid="king-go">' + (boss ? '挑战王座' : '开始第 ' + (s + 1) + ' 关') + '</button><button id="kv-menu" data-testid="king-menu">返回主菜单</button></div>';
     $('king').className = 'overlay kvs-on' + (boss ? ' boss' : '');
     $('king-fx').innerHTML = '';
     kingShow();
@@ -506,7 +518,8 @@
   }
   function kingPlay() { if (!KR || KR.done) return; KR.last = null; show('king', false); startMatch(true, true); }
   function kingGo(same) {
-    if (!same || !KR || KR.done) return kingNew();
+    if (!same && kingSaved()) { KR = kingSave; kingSave = null; return kingVS(); }
+    if (!same || !KR || KR.done) { kingSave = null; return kingNew(); }
     if (screen === 'play' && G.phase === 'over' && KR.last) { const w = KR.last.win; if (w) { KR.stage++; KR.from = KR.stage - 1; KR.retry = 0; } else { KR.retry++; KR.from = KR.stage; } KR.last = null; return kingVS(); }
     kingPlay();
   }
@@ -902,6 +915,7 @@
   $('btn-restart').addEventListener('click', () => startMatch(true));
   $('btn-quit').addEventListener('click', toMenu);
   $('btn-again').addEventListener('click', () => startMatch(true));
+  $('lk-quit').addEventListener('click', () => { PH.audio.play('ui'); kingSave = null; kingLadder = null; refreshMenu(); });
   $('btn-kreroll').addEventListener('click', () => { PH.audio.play('ui'); kingLadder = null; kingNew(); });
   $('btn-menu').addEventListener('click', toMenu);
   $('btn-panel').addEventListener('click', () => togglePanel());
