@@ -93,6 +93,24 @@ for (let seed = 1; seed <= 80; seed++) {
 assert(shimBites > 0 && shimBites < 80 && dropBeats > 0);
 console.log(`PASS post effects: pivot/facing, face-up separation and re-entry, stationary shimmy; shim bites=${shimBites}/80 drop seals=${dropBeats}/80`);
 
+for (const mode of ['2p', 't5']) {
+  for (const next of ['repost', 'hook', 'shot', 'finish']) {
+    const { p, d } = fixture(mode, next === 'shot' ? 5.2 : 3);
+    d.off = true;
+    step(p, { post: true, a3: true, dx: 0.7, dy: 0.7 });
+    assert.equal(p.action.kind, 'postdrop');
+    step(p, { post: true }, Math.ceil(p.action.T / dt) + 1 + Math.ceil(0.3 / dt));
+    assert.equal(p.post, false, `${mode} held post after drop`);
+    const hx = hoop.x - p.x, hy = hoop.y - p.y;
+    assert((Math.cos(p.face) * hx + Math.sin(p.face) * hy) / Math.hypot(hx, hy) > 0.99, `${mode} drop stays hoop-facing`);
+    if (next === 'repost') { step(p); step(p, { post: true }); assert.equal(p.post, true); }
+    if (next === 'hook') { step(p, { post: true, a1: true }); assert.equal(p.action.v, 'drophook'); }
+    if (next === 'shot') { step(p, { post: true }, Math.ceil(gm.K.poFollow / dt) + 1); step(p, { post: true, a1: true }); assert.equal(p.action.v, 'set'); }
+    if (next === 'finish') { step(p, { post: true, a2: true }); assert(['layup', 'dunk'].includes(p.action?.type)); }
+  }
+}
+console.log('PASS postdrop held post: hoop-facing and not posting after 0.3s; release/repress, drop hook, normal shot and finish in 1V1 and 5V5');
+
 for (const state of ['empty', 'stunned', 'frozen', 'exhausted']) {
   const { p } = fixture();
   if (state === 'empty') { p.hasBall = false; G.ball.state = 'loose'; }

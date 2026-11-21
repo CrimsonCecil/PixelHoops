@@ -3659,7 +3659,7 @@
     pl.stam = Math.max(0, pl.stam - CFG.moveCost * M.cost * (CBk ? 1.3 : 1) * (1 + chainX * chainBg) * bk(pl, 'tight', K.bgTightSt) * (tkIs(pl, 'hnd') ? 0.4 : 1) * stamK(pl)); pl.animT = 0; pl.cd = (MT + lerp(0.2, 0.02, clamp((hnd - 0.4) / 0.55, 0, 1))) * (ptIs(pl, 'playmaker') ? 0.9 : 1); pl.boost = kind === 'hesi' ? MT + 0.7 : 0.75;
     pl.lastMove = kind; pl.lastMv = mvx || kind; pl.lastMoveT = G.time; pl.post = false;
     pl.postMove = isPostMove(kind) ? { kind: kind, t: G.time + MT, bite: false, side: Math.sign(dx * -hy + dy * hx) || openS } : null;
-    if (kind === 'postface') pl.postFaceLock = true;
+    if (kind === 'postface' || kind === 'postdrop') pl.postFaceLock = true;
     if (kind === 'hesi') blendHeldBall();
     if (force === 'inout') { pl.action.hesiDrive = true; pl.action.name = '同侧突破'; }
     const count = linked ? prev.count + 1 : 1;
