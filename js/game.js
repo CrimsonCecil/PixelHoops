@@ -3281,12 +3281,12 @@
     hzSet(pl, a); if (pl.sk.ky > G.time) { a.ky = true; pl.sk.ky = 0; }
     { const S = gsk(pl, 'lay'); if (S && gTrig(pl, S, df)) { a.skill = S.id; pl.sk.cd = 12; G.ball.lastSk = { id: pl.id, sk: S.id }; } }
     const gwE = greenWidth(pl, ratingOf(pl, a), contestOf(pl, df, 'in') * V.c * (a.ky ? 0.5 : 1), shotKind(a), a) * V.g;
-    a.meter = { v: 0, gwE: gwE, done: false, color: '#fff', label: V.name };
+    a.meter = { v: 0, gwE: gwE, done: false, color: '#fff', label: a.V.name };
     layMeter(a);
     pl.stam = Math.max(0, pl.stam - (v === 'euro' || v === 'hop' ? 8 : 5) * ST.cost);
     a.uu = pl.uuShot && G.time <= pl.uuShot.until ? pl.uuShot : null;
     pl.action = a; pl.post = false; pl.animT = 0;
-    float(V.name, pl, '#f6efe0', 1);
+    float(a.V.name, pl, '#f6efe0', 1);
     return true;
   }
   function dunkAtk(p, dR) { return 0.55 * dR + 0.15 * p.r.vert + 0.15 * p.r.str + 0.15 * clamp((p.h - 1.85) / 0.35, 0, 1.2) + ba(p, 'poster', K.bgPoster); }

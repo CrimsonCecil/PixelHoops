@@ -9,7 +9,7 @@ function load(before = false) {
   ctx.window = ctx; ctx.PH = { input: { endTick() {}, read: () => ({}) } };
   for (const name of ['render', 'tune', 'roster', 'r5', 'game', 'b5', 'team5']) {
     let src = before && ['game', 'render'].includes(name) ? execFileSync('git', ['show', `main:js/${name}.js`], { cwd: root, encoding: 'utf8' }) : fs.readFileSync(path.join(root, 'js', name + '.js'), 'utf8');
-    if (name === 'game') src = src.replace('PH.game = {', 'PH.farQA = { laySide, buildSteps, releaseShot, LVR, poseTarget, updatePlayer, stepPose, cvSet }; PH.game = {');
+    if (name === 'game') src = src.replace('PH.game = {', 'PH.farQA = { laySide, buildSteps, releaseShot, LVR, LSTY, poseTarget, updatePlayer, stepPose, cvSet }; PH.game = {');
     if (name === 'team5') src = src.replace('PH.T5 = {', 'PH.farTeamQA = (g) => { G = g; T.tm = [0, 1].map(tm => ({ on: g.players.filter(p => p.tm === tm) })); shotAdj(); }; PH.T5 = {');
     vm.runInContext(src, ctx, { filename: name + '.js' });
   }
@@ -116,6 +116,27 @@ console.log(`PASS distance gates and two moving gather steps: ${count} far layup
   } finally { K.layK = original; }
   assert(count > 0);
   console.log(`PASS C1 layK=1.44: ${count} far layups; max takeoff ${max.toFixed(3)}m (absolute cap ${K.lvFarTk.toFixed(3)}m)`);
+}
+{
+  let checked = false;
+  for (let i = 1; i <= 200 && !checked; i++) {
+    const f = setup(after), gm = f.gm, Q = after.PH.farQA;
+    gm.G.fb = 'detail'; gm.seed(i * 100003);
+    gm._dbg.startFinish(f.p, {}, 'lay', 'a1', false);
+    const a = f.p.action;
+    if (!a || a.lsv !== 'far') continue;
+    assert.equal(a.meter.label, a.V.name);
+    assert.equal(gm.G.floats.at(-1).text, a.V.name);
+    const V = { ...Q.LVR.normal, ...Q.LSTY[a.sty] }, r = gm._qa.ratingOf(f.p, a);
+    const contest = gm._dbg.contestOf(f.p, f.d, 'in') * (a.ky ? 0.5 : 1);
+    const original = gm._qa.greenWidth(f.p, r, contest * V.c, 'lay', a) * V.g;
+    const rewritten = gm._qa.greenWidth(f.p, r, contest * a.V.c, 'lay', a) * a.V.g;
+    assert(Math.abs(a.meter.gwE - original) < 1e-9, 'label fix preserves original green width');
+    assert(Math.abs(original - rewritten) > 1e-6, 'using rewritten variant would change green width');
+    console.log(`PASS finish label/toast: ${a.V.name}; green width preserved ${original.toFixed(4)} (a.V would give ${rewritten.toFixed(4)})`);
+    checked = true;
+  }
+  assert(checked, 'exercise startFinish selecting far-hand');
 }
 function rate(ctx, rating, contested, mode, cpu, error) {
   const f = setup(ctx, 3.4, rating, mode, cpu);
