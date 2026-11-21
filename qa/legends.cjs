@@ -54,6 +54,23 @@ assert.equal(game.lookOf(game.ARCH.iverson).sleeve, 'R');
 assert.equal(game.lookOf(game.ARCH.carter).style, 'bald');
 console.log('PASS legends: computed slasher types, measured looks, sprite bounds and exact 1V1/3V3 opening/reply subtitles with ready/missing/unavailable audio');
 
+for (const key of Object.keys(lines)) for (const frontcourt of ['barkley', 'yao', 'mutombo']) for (const side of [0, 1]) {
+  ctx.PH.audio = null;
+  game.newGame({ mode: 'cpu', arch0: side ? frontcourt : key, arch1: side ? key : frontcourt });
+  game.introStart();
+  assert.equal(game.G.intro.lines.length, 2);
+  for (const line of game.G.intro.lines) {
+    const player = game.G.players.find((p) => p.id === line.id);
+    const index = player.arch.key === key ? side : 1 - side;
+    const expected = player.arch.key === key ? lines[key][index] : player.arch.intro[index];
+    assert.equal(line.t || line.fb, expected, 'cross-PR legend matchup preserves both authored lines');
+    assert.equal(line.v, player.arch.key === key && side ? 'reply' : 'intro');
+    assert.equal(line.i, player.arch.key === key ? 0 : index);
+  }
+  game.introEnd();
+}
+console.log('PASS merged legends: all 18 mixed guard/wing vs frontcourt intro matchups preserve both authored voices/subtitles');
+
 async function checkEventAudio() {
   const started = [], fetched = [];
   class AudioContext {
