@@ -107,6 +107,29 @@ function sprint(p) {
   assert.equal(gm.ARCH.rip.three, 0.81);
   console.log('PASS: Hamilton actual sprint stop-and-pop; no sprint/expired/move/three/close negatives; three rating unchanged');
 }
+{
+  const { p } = duel('rip');
+  p.x = -2; sprint(p);
+  assert.equal(A.legendShot(p), 'rip');
+  const priorSprintAt = p.sk.sprintAt;
+  qa.startMove(p, inp(), 'hesi');
+  const run = { ...inp(), mx: -1, sprint: true };
+  let frames = 0;
+  while (p.action && frames++ < 90) {
+    G.time += 1 / 60; qa.updatePlayer(p, run, 1 / 60);
+  }
+  assert.equal(p.action, null, 'hesitation completes through normal player updates');
+  assert(G.time - priorSprintAt < K.lgStop, 'move ends before the old stop window expires');
+  assert.equal(A.legendShot(p), null, 'move cancels the qualified sprint');
+  for (let n = 0; n < 42; n++) {
+    G.time += 1 / 60; qa.updatePlayer(p, run, 1 / 60);
+    if (n === Math.floor(K.lgRun * 60 / 2)) assert.equal(A.legendShot(p), null, 'partial fresh sprint is insufficient');
+  }
+  assert(p.sk.runStart > p.lastMoveT, 'fresh run starts after the move');
+  assert.equal(shot(p).skill, 'rip', 'full fresh sprint re-arms without waiting out the stop window');
+  finish(p);
+  console.log('PASS: Hamilton sprint/move/fresh sprint re-arms stop-and-pop without an idle reset; partial sprint stays ineligible');
+}
 for (const key of ['tmac', 'rip']) {
   let made = 0, missed = 0;
   for (let seed = 1; seed <= 180; seed++) {

@@ -5180,6 +5180,7 @@
     const moving = Math.hypot(inp.mx, inp.my) > 0.1;
     const sprint = inp.sprint && pl.stam > 3 && moving && !a && !pl.post;
     if (pl.arch.key === 'rip') {
+      if (pl.sk.runStart != null && pl.lastMoveT >= pl.sk.runStart) { pl.sk.runStart = null; pl.sk.sprintAt = null; }
       if (sprint && pl.speed >= K.lgSprint) {
         if (pl.sk.runStart == null) pl.sk.runStart = G.time;
         if (G.time - pl.sk.runStart >= K.lgRun) pl.sk.sprintAt = G.time;
