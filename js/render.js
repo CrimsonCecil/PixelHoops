@@ -1779,7 +1779,7 @@
     for (const p of G.players) {
       const c = p.dribbleCombo;
       if (!c || c.shown < 2 || p.off) continue;
-      const end = c.end == null ? c.last + 1.5 : c.end, fade = Math.max(0, Math.min(1, 1 - (G.time - end)));
+      const fade = c.end == null ? 1 : Math.max(0, 1 - (G.time - c.end));
       if (!fade) continue;
       const age = G.time - c.last, heat = Math.min(1, (c.shown - 2) / 6), pop = Math.max(0, 1 - age / 0.22);
       const scale = Math.min(1.4, 0.84 * (1 + heat * 0.45) * (1 + Math.sin(pop * Math.PI * 0.8) * 0.28));

@@ -158,10 +158,10 @@
     ['dmBigspin', 'drib', '面框转身 位移倍数', 1, 0.3, 2.5, 0.01, '倍率'],
     ['cbK', 'drib', '连续过人 每段位移加成', 0.06, 0, 0.3, 0.005, '倍率：第 n 段（接上的第 n 个动作）位移 × (1 + 这个 × n × 体力系数)'],
     ['cbMax', 'drib', '连续过人 最多段数', 3, 0, 6, 1, '段：n 封顶', 'int'],
-    ['cbWin', 'drib', '连续过人 衔接窗口', 0.35, 0.05, 1, 0.01, '秒：上一个动作结束（或被下一招提前取消）后这么久内出下一招才算接上；同一招连按、停球（投/传/上篮/丢球）都重置'],
+    ['cbWin', 'drib', '连续过人 衔接窗口', 0.35, 0.05, 1, 0.01, '秒：能取消前提前按、或收招后晚按，超过这个时间都不接招；方向联招也需在这个时间内输入'],
     ['cbFat', 'drib', '连续过人 疲劳衰减', 0.8, 0, 1, 0.01, '比例：疲劳度 1（体力 0）时 combo 加成 × (1 − 这个)；疲劳度 = (疲劳线 − 体力) ÷ 疲劳线'],
     ['cbCost', 'drib', '连续过人 体力递增', 0.2, 0, 1, 0.01, '比例：第 n 段体力消耗 × (1 + 这个 × n)，在每招递增之上'],
-    ['cbStep', 'drib', '连续过人 每招体力递增', 0.5, 0, 2, 0.01, '比例：0.85 秒内换招接上的第 n 招体力消耗 × (1 + 这个 × (n − 1))，不封顶；运球如丝 / 脚踝终结者 按 bgChainSt 放缓'],
+    ['cbStep', 'drib', '连续过人 每招体力递增', 0.5, 0, 2, 0.01, '比例：衔接窗口内换招接上的第 n 招体力消耗 × (1 + 这个 × (n − 1))，不封顶；运球如丝 / 脚踝终结者 按 bgChainSt 放缓'],
     ['mvFat', 'drib', '疲劳 位移衰减', 0.4, 0, 0.8, 0.01, '比例：疲劳度 1 时动作速度 × (1 − 这个)，动作时长另外 +25%，合起来位移 ≈ × (1 − 这个) × 1.25（原来 0.3 → 位移只少 12%，0.4 → 少 25%）；疲劳度 = (疲劳线 − 体力) ÷ 疲劳线'],
     // —— V4.2 AI 连续过人（ai 组）：电脑用同一套 combo（pl.dcn / cbWin），当前招还在做时按下一段走缓冲接上 ——
     ['ai_cb_p0', 'ai', 'AI 连招 基础概率', 0.42, 0, 1, 0.01, '概率：控球 70 的电脑出招后接成连招（≥2 段）的概率'],
@@ -2751,6 +2751,7 @@
   }
   function pickup(pl, reason) {
     for (const p of G.players) comboEnd(p);
+    pl.dh = [];
     const b = G.ball;
     if (b.wasShot && b.z > pl.z + pl.h * 0.85) pl.catchAt = G.time; // 高球：双手举起接球的姿势
     b.cT = 0.1; b.cx = b.x; b.cy = b.y; b.cz = b.z;
@@ -3485,20 +3486,20 @@
     return o;
   }
   function latS(t) { return !t ? 0 : t.indexOf('L') >= 0 ? 1 : t.indexOf('R') >= 0 ? -1 : 0; }
-  function dseq(pl, win) { const o = []; for (const e of pl.dh || []) if (G.time - e[1] <= win && e[0] !== 'N' && o[o.length - 1] !== e[0]) o.push(e[0]); return o; }
-  function cb_s2(pl) { const s = dseq(pl, 0.9); return s[s.length - 2]; }
+  function dseq(pl, inputAt) { const o = []; for (const e of pl.dh || []) if (e[1] <= inputAt && inputAt - e[1] <= K.cbWin && e[0] !== 'N' && o[o.length - 1] !== e[0]) o.push(e[0]); return o; }
   function cbOk(pl, id) { return pl.r.hnd >= CB[id].req || tkIs(pl, 'hnd'); }
-  function comboOf(pl, kind, q) {
+  function comboOf(pl, kind, q, linked, seq) {
     if (pl.post || kind === 'postspin') return null;
     if (pl.ctrl === 'cpu') {
-      const rec = G.time - pl.lastMoveT < 0.85, w = 0.35 * clamp((pl.r.hnd - 0.6) / 0.35, 0, 1) * (0.6 + 0.4 * G.diff);
-      if (rec && pl.lastMove === 'hesi' && q.fwd > 0.5 && cbOk(pl, 'hgo') && rnd() < w * 1.5) return 'hgo';
-      if (rec && kind === 'cross' && cbOk(pl, 'dbl') && rnd() < w) return 'dbl';
+      if (!linked) return null;
+      const w = 0.35 * clamp((pl.r.hnd - 0.6) / 0.35, 0, 1) * (0.6 + 0.4 * G.diff);
+      if (pl.lastMove === 'hesi' && q.fwd > 0.5 && cbOk(pl, 'hgo') && rnd() < w * 1.5) return 'hgo';
+      if (kind === 'cross' && cbOk(pl, 'dbl') && rnd() < w) return 'dbl';
       return null;
     }
-    if (pl.lastMove === 'hesi' && G.time - pl.lastMoveT < 0.9 && q.l > 0.3 && q.fwd > 0.6 && cbOk(pl, 'hgo')) return 'hgo';
-    const s = dseq(pl, 0.9), n = s.length; if (n < 3) return null;
-    const a = latS(s[n - 3]), b = latS(s[n - 2]), c = s[n - 1], lc = latS(c);
+    if (linked && pl.lastMove === 'hesi' && q.l > 0.3 && q.fwd > 0.6 && cbOk(pl, 'hgo')) return 'hgo';
+    const n = seq.length; if (n < 3) return null;
+    const a = latS(seq[n - 3]), b = latS(seq[n - 2]), c = seq[n - 1], lc = latS(c);
     if (!a || b !== -a) return null;
     if (c === 'F' && cbOk(pl, 'sham')) return 'sham';
     if (c[0] === 'B' && lc === b && cbOk(pl, 'snatch')) return 'snatch';
@@ -3519,18 +3520,20 @@
     const c = pl.dribbleCombo;
     if (c && c.end == null) { c.end = at == null ? G.time : at; c.count = 0; }
   }
-  function comboTick(pl) {
+  function comboTick(pl, inputAt = G.time) {
     const c = pl.dribbleCombo;
     if (!c || c.end != null) return;
-    if (!pl.hasBall || G.ball.state !== 'held' || G.ball.holder !== pl.id || G.ball.dead || G.phase !== 'live' || (pl.action && ['shot', 'layup', 'dunk', 'fake'].includes(pl.action.type))) comboEnd(pl);
-    else if (G.time - c.last > 1.5) comboEnd(pl, c.last + 1.5);
+    if (!pl.hasBall || G.ball.state !== 'held' || G.ball.holder !== pl.id || G.ball.dead || G.phase !== 'live' || (pl.action && pl.action.type !== 'move')) comboEnd(pl);
+    else if (!pl.action && pl.mvEndT != null && inputAt - pl.mvEndT > K.cbWin) {
+      const pending = pl.ib;
+      if (pending && pending.k === 'a3' && pending.hb && Math.abs(pending.t - pl.mvEndT) <= K.cbWin) return;
+      comboEnd(pl, pl.mvEndT + K.cbWin);
+    }
   }
-  function comboMove(pl, name) {
-    comboTick(pl);
-    const old = pl.dribbleCombo, count = old && old.end == null ? old.count + 1 : 1;
-    pl.dribbleCombo = { count: count, shown: count, last: G.time, name: name, end: null };
-  }
-  function startMove(pl, inp, force) {
+  function startMove(pl, inp, force, inputAt = G.time) {
+    comboTick(pl, inputAt);
+    const prev = pl.dribbleCombo, moving = pl.action && pl.action.type === 'move';
+    const linked = prev && prev.end == null && (moving || Math.abs(inputAt - pl.mvEndT) <= K.cbWin);
     pl.catchDribbled = true;
     const df = OP(pl), q = inDir(pl, inp, true), h = q.h, hx = h.x, hy = h.y, h0 = pl.hand || 1;
     const dd = Math.hypot(df.x - pl.x, df.y - pl.y), front = df.off ? -1 : ((df.x - pl.x) * hx + (df.y - pl.y) * hy) / (dd || 1);
@@ -3568,15 +3571,14 @@
         if (!mvx && !canMv(pl, kind)) { if (kind === 'legs' || kind === 'behind' || kind === 'spin') kind = 'cross'; else { kind = 'hesi'; dx = hx; dy = hy; } }
       }
     }
-    const cb = force ? null : comboOf(pl, kind, q);
-    if (cb) { const C = CB[cb]; kind = C.base; if (cb === 'sham') { const s2 = latS(cb_s2(pl)); dx = hx * 0.8 - hy * s2 * 0.6; dy = hy * 0.8 + hx * s2 * 0.6; pl.hand = s2 > 0 ? -1 : 1; } else if (cb === 'hgo') { dx = hx; dy = hy; } else if (cb === 'dbl') { const ls = q.lat >= 0 ? 1 : -1; pl.hand = ls > 0 ? -1 : 1; } }
+    const seq = force ? [] : dseq(pl, inputAt);
+    const cb = force ? null : comboOf(pl, kind, q, linked, seq);
+    if (cb) { const C = CB[cb]; kind = C.base; if (cb === 'sham') { const s2 = latS(seq[seq.length - 2]); dx = hx * 0.8 - hy * s2 * 0.6; dy = hy * 0.8 + hx * s2 * 0.6; pl.hand = s2 > 0 ? -1 : 1; } else if (cb === 'hgo') { dx = hx; dy = hy; } else if (cb === 'dbl') { const ls = q.lat >= 0 ? 1 : -1; pl.hand = ls > 0 ? -1 : 1; } }
     if (cb) mvx = null;
-    const M = mvEff(kind, mvx, PK), X = mvx ? MVX[mvx] : null, recent = G.time - pl.lastMoveT < 0.85, CBk = cb ? CB[cb] : null;
-    const rep = recent && (pl.lastMv || pl.lastMove) === (mvx || kind);
-    pl.combo = recent && pl.lastMove && !rep ? pl.combo + 1 : 1;
-    // V4.2 连续过人：上一招结束（或被这一招提前取消）后 cbWin 秒内换招接上 → 第 n 段位移 × (1 + cbK × n)，n ≤ cbMax；同招连按 / 断开 / 停球重置
-    const gap = pl.action && pl.action.type === 'move' ? 0 : G.time - (pl.mvEndT != null ? pl.mvEndT : -9);
-    pl.dcn = pl.lastMove && gap <= K.cbWin && !rep ? Math.min((pl.dcn || 0) + 1, K.cbMax) : 0;
+    const M = mvEff(kind, mvx, PK), X = mvx ? MVX[mvx] : null, CBk = cb ? CB[cb] : null;
+    const rep = linked && (pl.lastMv || pl.lastMove) === (mvx || kind);
+    pl.combo = linked && !rep ? pl.combo + 1 : 1;
+    pl.dcn = linked && !rep ? Math.min((pl.dcn || 0) + 1, K.cbMax) : 0;
     const cbF = 1 + K.cbK * pl.dcn * (1 - K.cbFat * fat(pl));
     const kySk = (skOf(pl, 'kyrie') || gsk(pl, 'ankle')) && pl.combo >= 2 && !df.off && dd < K.akKyRng;
     // 灵活度：控球 + 加速 + 体型（体重/身高）。笨重中锋做同一个动作更慢、位移更短；小个高控球后卫更快、蹬得更远
@@ -3595,7 +3597,8 @@
     pl.lastMove = kind; pl.lastMv = mvx || kind; pl.lastMoveT = G.time; pl.post = false;
     if (kind === 'hesi') blendHeldBall();
     if (force === 'inout') { pl.action.hesiDrive = true; pl.action.name = '同侧突破'; }
-    comboMove(pl, pl.action.name);
+    const count = linked ? prev.count + 1 : 1;
+    pl.dribbleCombo = { count: count, shown: count, last: G.time, name: pl.action.name, end: null };
     sfx('squeak');
     if (kind === 'stepback' && skOf(pl, 'luka') && !df.off && dd < 2.4) pl.sk.win = G.time + M.T + 1.0;
     if (kySk) { fireSkill(pl); pl.sk.ky = G.time + M.T + 1.6; }
@@ -3773,8 +3776,8 @@
   function trackHesitation(pl, h, inp) {
     if (h && !h.exit && !inp[h.key]) h.exit = inDir(pl, inp);
   }
-  function startHesitation(pl, inp, h) {
-    startMove(pl, inp, 'hesi');
+  function startHesitation(pl, inp, h, inputAt) {
+    startMove(pl, inp, 'hesi', inputAt);
     if (pl.ctrl !== 'cpu' && h) { pl.action.hesiHold = h.key; pl.action.hesiExit = h.exit; }
   }
   function blendHeldBall() {
@@ -4124,7 +4127,7 @@
     const pr = { a1: src.a1 && !pl.prev.a1, a2: src.a2 && !pl.prev.a2, a3: src.a3 && !pl.prev.a3 };
     const shootPress = G.phase === 'live' && !G.ball.dead && pl.stun <= 0 && (G.mode === 't5' ? inp.shootPress : pr.a1);
     pl.prev.a1 = src.a1; pl.prev.a2 = src.a2; pl.prev.a3 = src.a3; pl.prev.any = raw.a1 || raw.a2;
-    let ibTap = null, ibHd = null, ibHesi = null;
+    let ibTap = null, ibHd = null, ibHesi = null, ibAt = G.time;
     if (IB) {
       const live = G.phase === 'live' && !G.ball.dead && !frozen;
       if (!live) { pl.ib = null; if (pr.a1 && !pl.hasBall) pl.jbuf = G.time; }
@@ -4144,7 +4147,7 @@
           const e = ibuf.take(pl, G.time);
           if (e) {
             pl.jbuf = 0; pr[e.k] = true; ibTap = e.k; ibHd = e.k === 'a1' ? (e.hd != null ? e.hd : !ibDown(pl, raw) ? G.time - e.t : null) : null;
-            ibHesi = e.hesi;
+            ibHesi = e.hesi; ibAt = e.t;
             if (e.k === 'a3' && Math.hypot(e.dx || e.mx, e.dy || e.my) > 0.3) inp = Object.assign({}, inp, { mx: e.mx, my: e.my, dx: e.dx, dy: e.dy });
           }
         }
@@ -4156,9 +4159,9 @@
       const q = inDir(pl, inp, true), can = pl.cd <= 0 && pl.stam > ST.act;
       if (pr.a3 && pl.cd <= 0 && pl.stam <= ST.act && !pl.post) noGas(pl, '没体力');
       if (pr.a3) {
-        if (pl.post || inp.post) { if (q.l > 0.3 && can && !inp.hesi) startMove(pl, inp, 'postspin'); }
-        else if (ibHesi || inp.hesi || q.l <= 0.3) { if (can && pl.z <= 0.05) startHesitation(pl, inp, ibHesi || hesitationInput(pl, inp, q)); }
-        else { const P = finPlan(pl); if (inp.sprint && P.dunk && P.fv > 2) { const st = q.fwd > 0.55 ? 'two' : q.fwd < -0.2 ? 'flashy' : 'side'; startDunk(pl, P, 'a3', st, q.lat >= 0 ? 1 : -1); } else if ((P.inside || P.back) && P.fv > 2 && (P.lay || P.flo) && startFinish(pl, inp, 'stick', 'a3')) { } else if (can) startMove(pl, inp); }
+        if (pl.post || inp.post) { if (q.l > 0.3 && can && !inp.hesi) startMove(pl, inp, 'postspin', ibAt); }
+        else if (ibHesi || inp.hesi || q.l <= 0.3) { if (can && pl.z <= 0.05) startHesitation(pl, inp, ibHesi || hesitationInput(pl, inp, q), ibAt); }
+        else { const P = finPlan(pl); if (inp.sprint && P.dunk && P.fv > 2) { const st = q.fwd > 0.55 ? 'two' : q.fwd < -0.2 ? 'flashy' : 'side'; startDunk(pl, P, 'a3', st, q.lat >= 0 ? 1 : -1); } else if ((P.inside || P.back) && P.fv > 2 && (P.lay || P.flo) && startFinish(pl, inp, 'stick', 'a3')) { } else if (can) startMove(pl, inp, null, ibAt); }
       }
       if (!pl.action) {
         const was = pl.post;
@@ -4193,7 +4196,7 @@
     if (pl.buf && !pl.action) {
       const B = pl.buf; pl.buf = null;
       if (pl.hasBall && !frozen && pl.stun <= 0 && G.phase === 'live') {
-        if (B.a3 && pl.stam <= ST.act) noGas(pl, '没体力'); else if (B.a3) { pl.cd = 0; const bi = Object.assign({}, inp, { dx: B.l > 0.3 ? B.x : 0, dy: B.l > 0.3 ? B.y : 0, mx: B.l > 0.3 ? B.x : inp.mx, my: B.l > 0.3 ? B.y : inp.my }); if (B.hesi) startHesitation(pl, bi, B.hesi); else startMove(pl, bi, B.l > 0.3 ? null : 'hesi'); }
+        if (B.a3 && pl.stam <= ST.act) noGas(pl, '没体力'); else if (B.a3) { pl.cd = 0; const bi = Object.assign({}, inp, { dx: B.l > 0.3 ? B.x : 0, dy: B.l > 0.3 ? B.y : 0, mx: B.l > 0.3 ? B.x : inp.mx, my: B.l > 0.3 ? B.y : inp.my }); if (B.hesi) startHesitation(pl, bi, B.hesi, B.t); else startMove(pl, bi, B.l > 0.3 ? null : 'hesi', B.t); }
         else { pr.a1 = pr.a1 || B.a1; pr.a2 = pr.a2 || B.a2; }
       }
     }
