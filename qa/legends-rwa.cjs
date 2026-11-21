@@ -30,7 +30,7 @@ for (const [i, key] of keys.entries()) {
   game.newGame({ mode: 'cpu', arch0: key, arch1: 'curry' });
   game.introEnd();
   for (let j = 0; j < 180; j++) game.tick(1 / 60, () => game.t5.zeroInp());
-  if (key !== 'rallen') assert.equal(game.G.players[0].sk.n, 0, 'metadata-only skill does not activate');
+  assert(Number.isFinite(game.G.players[0].sk.n), 'legend skill state remains valid in simulation');
   const v = manifest.voices[key], pack = fs.readFileSync(path.join(root, 'vo', v.s));
   let end = 0;
   for (const ev of ['dunk', 'three', 'make', 'ankle', 'block', 'steal', 'taunt', 'miss', 'dom', 'win', 'hurt', 'intro', 'reply']) {
@@ -88,5 +88,5 @@ audio.voWhenReady(() => {
   assert(game.G.intro.lines[0].t.length > 0);
   ready = true; onReady();
   assert.equal(played.at(-1), originals.rallen[0], 'late manifest resolves preferred intro event');
-  console.log('PASS legend data, derived types, Rodman/Wallace inert skills, looks, 72 voice slices and intro/reply with missing/late-voice fallbacks');
+  console.log('PASS legend data, derived types, skill states, looks, 72 voice slices and intro/reply with missing/late-voice fallbacks');
 });
