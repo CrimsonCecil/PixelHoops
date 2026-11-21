@@ -341,7 +341,7 @@
       c.face = pl.face;
       const dx = pl.x - c.x, dy = pl.y - c.y, distance = Math.hypot(dx, dy);
       c.x = pl.x; c.y = pl.y;
-      if (distance < 0.00001) { c[c.side][2] = Math.max(0, c[c.side][2] - dt); c.rest = true; }
+      if (distance < 0.00001) { c[c.side][2] = Math.max(0, c[c.side][2] - 0.6 * dt); c.rest = c[c.side][2] === 0; }
       else {
         if (c.rest) { c.side = dx * fy - dy * fx < 0 ? 'L' : 'R'; c.phase = 0; c.rest = false; }
         const v = distance / dt, lo = tune('stHzMin', 1), hi = Math.max(lo, tune('stHzMax', 2.4));
@@ -358,7 +358,9 @@
           const u = c.phase, blend = u * u * (3 - 2 * u), foot = c[c.side];
           foot[0] = c.from[0] + (c.to[0] - c.from[0]) * blend;
           foot[1] = c.from[1] + (c.to[1] - c.from[1]) * blend;
-          foot[2] = Math.sin(Math.PI * u) * tune('stLift', 0.07) * Math.min(1, v / 0.8);
+          const lift = u >= 1 ? 0 : Math.sin(Math.PI * u) * tune('stLift', 0.07) * Math.min(1, v / 0.8), prevZ = previous[c.side][2];
+          foot[2] = cl(lift, Math.max(0, prevZ - 0.6 * dt), prevZ + 0.6 * dt);
+          if (u >= 1 && foot[2] > 0) break;
           if (u >= 1) { foot[2] = 0; c.side = c.side === 'L' ? 'R' : 'L'; c.phase = 0; }
         }
       }
