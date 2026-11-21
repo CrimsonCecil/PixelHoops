@@ -2619,9 +2619,9 @@
       updatePlayer(p, inp, dt);
     }
     updateBall(dt);
-    for (const S of I.walk) {
-      if (S.ty === 'chalk' && !S.fx && now >= S.t0 + 0.42) { S.fx = true; const p = plById(S.id); burst(p.x, p.y, p.h + 0.45, 70, ['#ffffff', '#f4f1e8', '#e2ded2', '#fffbe9'], 2.3, 1.7, 1.1, 2); spawnConfetti(28, [p.team.css, '#ffd24a', '#ffffff'], 'burst'); sfx('confettiCannon'); sfx('cheer'); if (G.mode !== 'demo' && PH.audio && PH.audio.vo) { const speak = () => PH.audio.vo(p.arch.key, 'taunt', 'pri'); if (!speak() && PH.audio.voWhenReady) PH.audio.voWhenReady(speak); } }
-      else if (S.sig && !S.fx && now >= S.t0 + 0.35) { S.fx = true; const p = plById(S.id); spawnConfetti(26, [p.team.css, '#ffd24a', '#ffffff', '#ff8a2a'], 'burst'); flash('#ffffff', 0.08); G.fx.cheer = Math.max(G.fx.cheer, 2.6); sfx('confettiCannon'); sfx('cheer'); if (G.mode !== 'demo' && PH.audio && PH.audio.vo) { const speak = () => PH.audio.vo(p.arch.key, 'taunt', 'pri'); if (!speak() && PH.audio.voWhenReady) PH.audio.voWhenReady(speak); } }
+    if (I.li < 0) for (const S of I.walk) {
+      if (S.ty === 'chalk' && !S.fx && now >= S.t0 + 0.42) { S.fx = true; const p = plById(S.id); burst(p.x, p.y, p.h + 0.45, 70, ['#ffffff', '#f4f1e8', '#e2ded2', '#fffbe9'], 2.3, 1.7, 1.1, 2); spawnConfetti(28, [p.team.css, '#ffd24a', '#ffffff'], 'burst'); sfx('confettiCannon'); sfx('cheer'); if (G.mode !== 'demo' && PH.audio && PH.audio.vo) { const speak = () => (!G.intro || G.intro.li >= 0) ? true : PH.audio.vo(p.arch.key, 'taunt', 'pri'); if (!speak() && PH.audio.voWhenReady) PH.audio.voWhenReady(speak); } }
+      else if (S.sig && !S.fx && now >= S.t0 + 0.35) { S.fx = true; const p = plById(S.id); spawnConfetti(26, [p.team.css, '#ffd24a', '#ffffff', '#ff8a2a'], 'burst'); flash('#ffffff', 0.08); G.fx.cheer = Math.max(G.fx.cheer, 2.6); sfx('confettiCannon'); sfx('cheer'); if (G.mode !== 'demo' && PH.audio && PH.audio.vo) { const speak = () => (!G.intro || G.intro.li >= 0) ? true : PH.audio.vo(p.arch.key, 'taunt', 'pri'); if (!speak() && PH.audio.voWhenReady) PH.audio.voWhenReady(speak); } }
     }
     if (I.li < 0 ? now >= I.tT : now >= I.lt + I.ld) introNext();
     if (!G.intro) return;
@@ -2650,7 +2650,7 @@
   }
   function introNext() {
     const I = G.intro; if (!I) return;
-    if (I.li < 0 && G.time < I.tT) { for (const s of I.spots) Object.assign(s.p, { x: s.x, y: s.y, vx: 0, vy: 0, speed: 0 }); for (const S of I.sig) { S.on = true; S.fx = true; S.t0 = -99; } G.banner = null; I.snap = true; }
+    if (I.li < 0 && G.time < I.tT) { for (const s of I.spots) Object.assign(s.p, { x: s.x, y: s.y, vx: 0, vy: 0, speed: 0 }); for (const S of I.sig) { S.on = true; S.fx = true; S.t0 = -99; } for (const S of I.walk) S.fx = true; G.banner = null; I.snap = true; }
     I.li++;
     if (I.li >= I.lines.length) { introEnd(); return; }
     if (I.li === 0 && G.mode !== 'demo' && PH.audio && PH.audio.introCrowd) PH.audio.introCrowd(0.35);

@@ -74,6 +74,19 @@ function load() {
   console.log('PASS: delayed vo/manifest.json load still triggers voiced intro dialogue line.');
 }
 
+// 1c. Skipping walk-in suppresses pending walk-in voices/cannons during dialogue
+{
+  const { Gm, G, played, voiced } = load();
+  Gm.newGame({ mode: 'cpu', arch0: 'lebron', arch1: 'curry' });
+  Gm.introStart();
+  Gm.introPress(); // skip straight to dialogue before walk-in beats fire
+  played.length = 0; voiced.length = 0;
+  for (let i = 0; i < 60 * 6 && G.intro; i++) Gm.introTick(1 / 60);
+  assert.equal(voiced.length, 0, 'skipped walk-in voices do not interrupt dialogue');
+  assert.ok(!played.includes('confettiCannon'), 'skipped walk-in cannons do not fire during dialogue');
+  console.log('PASS: skipping walk-in suppresses pending walk-in voices and cannons during dialogue.');
+}
+
 // 2. 1V1 scoring full-screen feedback and dunk screen shake
 {
   const { Gm, G, played } = load();
