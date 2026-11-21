@@ -908,6 +908,8 @@
     ['stl', '抢断'], ['blk', '盖帽'], ['lat', '横移'],
     ['oreb', '前板'], ['dreb', '后板'], PC_SPEED,
   ];
+  const PC_OFF_DUEL = PC_OFF_5.map((attr) => attr[0] === 'pac' ? ['post', '背打'] : attr);
+  const PC_DEF_DUEL = PC_DEF_5.map((attr) => attr[0] === 'hlp' ? ['str', '力量'] : attr);
   function pcRating(key, r, raw, heat) {
     const v = raw && Number.isFinite(raw[key]) ? raw[key] : Number.isFinite(r[key]) ? A99(r[key]) : null;
     if (!Number.isFinite(v)) return null;
@@ -920,7 +922,8 @@
   function pcRatings(pl, isOff, is5) {
     const base = pl.rBase || pl.r, raw = is5 && pl.r5 ? pl.r5.raw : null;
     const heat = is5 ? 0 : Math.round(GM.hcMod(pl) * 99);
-    const keys = is5 ? (isOff ? PC_OFF_5 : PC_DEF_5) : (isOff ? PC_OFF : PC_DEF);
+    const duel = G.mode === 'cpu' || G.mode === '2p';
+    const keys = is5 ? (isOff ? PC_OFF_5 : PC_DEF_5) : duel ? (isOff ? PC_OFF_DUEL : PC_DEF_DUEL) : (isOff ? PC_OFF : PC_DEF);
     const cells = keys.map(([k, name]) => {
       if (k === 'spd') return pcCell(name, pcRating(k, base, null, 0), 0);
       const v = pcRating(k, pl.r, raw, heat);
