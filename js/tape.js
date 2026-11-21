@@ -64,7 +64,8 @@
     const tape = current(); if (!tape) return null;
     const G = PH.game.G, T = G.mode === 't5' && PH.T5.T;
     tape.meta.score = T ? T.tm.map(t => t.score) : G.score.slice();
-    tape.meta.dur = Math.min(1200, G.time);
+    const frames = tape.frames;
+    tape.meta.dur = frames.length ? frames[frames.length - 1].t - frames[0].t : 0;
     return tape;
   }
   const TAPE = { quantize, encode, decode, at, summary, start, record, current, finish,

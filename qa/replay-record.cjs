@@ -16,6 +16,7 @@ async function main() {
   G.players.forEach(p => p.ctrl = 'cpu'); G.vopt.replay = false;
   while (G.time < 60) gm.tick(1 / 60);
   assert(Math.abs(G.tape.frames.length - G.time * 30) < 3);
+  assert.equal(P.TAPE.finish().meta.dur, G.tape.frames.at(-1).t - G.tape.frames[0].t);
   assert(G.tape.frames.every(f => f.s.score && f.s.phase && 'gclock' in f.s && !('parts' in f)));
   const saved = G.tape, len = saved.frames.length;
   G.hlQ = { t: G.time - 1, pid: 0, k: 'fall' }; G.vopt.replay = true; G.phase = 'dead'; G.phaseT = 0.5;
