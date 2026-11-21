@@ -45,7 +45,18 @@ for (const [label, data] of profiles) {
     if (ref) continue;
     assert.equal(a.wp.length, 2);
     for (const key of ['euroTempo', 'euroBeat']) assert.equal(PH.TUNE.meta('l1_' + key).wide, false);
-    assert(first > 0.45 && second - first > 0.65, 'even C1 has human-paced steps and a readable beat');
+    assert(first > 0.3 && second - first > 0.65, 'even C1 has human-paced steps and a readable beat');
+    assert(release - first >= 1 && release < 2, 'readable first-plant rhythm without excessively slow defaults');
+    const shared = { p, a }, sharedPlan = gm._dbg.finPlan(p);
+    const originalStepT = K.stepT, originalGatherT = K.gathT;
+    K.stepT = 0.1; K.gathT = 0.04;
+    const tuned = Q.buildSteps(shared.p, shared.a, sharedPlan, 'euro', 1);
+    const scale = K.euroTempo * (1.1 - 0.15 * (shared.p.r.spd + shared.p.r.acc) / 2);
+    K.stepT = 0.09; K.gathT = 0.03;
+    const quicker = Q.buildSteps(shared.p, shared.a, sharedPlan, 'euro', 1);
+    assert(Math.abs(tuned[0].T - quicker[0].T - 0.02 * scale) < 1e-8, 'stepT and gathT directly control the first step even below former floors');
+    assert(Math.abs(tuned[1].T - quicker[1].T - 0.01 * scale) < 1e-8, 'stepT directly controls the second step even below former floor');
+    K.stepT = originalStepT; K.gathT = originalGatherT;
     Object.assign(a, { st: first + w.hold / 3, si: 0 });
     const pose = JSON.stringify(Q.stepPose(a));
     Q.stepUpdate(p, a, { a1: true }, 0.001);
@@ -102,4 +113,4 @@ for (const [label, data] of profiles) {
     assert.equal(K.euroTempo, PH.TUNE.meta('l1_euroTempo').v, 'invalid slider value falls back to default');
   }
 }
-console.log('PASS Euro tempo: defaults/fixture, bounded sliders, planted pause, slow-motion rig carry, CPU bait/landing, zero beat, scaling and empty-waypoint fallback');
+console.log('PASS Euro tempo: defaults/fixture, bounded sliders, shared stepT/gathT without floors, planted pause, slow-motion rig carry, CPU bait/landing, zero beat, scaling and empty-waypoint fallback');

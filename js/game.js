@@ -106,8 +106,8 @@
     ['layGlide', 'zone', '滑翔上篮额外距离', 0.35, 0, 1.2, 0.05, '米：滑翔风格起跳更远（再乘总系数）'],
     ['hopD', 'zone', '跳步上篮收球距离', 2.6, 1.5, 4, 0.05, '米：第一步落在离筐约这么远处，再双脚跳步'],
     ['euroD', 'zone', '欧洲步第二步距离', 1.2, 0.6, 2.5, 0.05, '米：欧洲步第二步落到离筐约这么远'],
-    ['euroTempo', 'zone', '欧洲步时长倍率', 1.35, 0.8, 2, 0.05, '倍率：越大越慢；两步与停顿一起缩放，保留小幅速度/加速能力差异；不改变空中出手时机'],
-    ['euroBeat', 'zone', '欧洲步第一步落地停顿', 0.22, 0, 0.45, 0.01, '秒：第一步落地后压节奏，再迈第二步；受欧洲步时长倍率影响，0 为不停顿'],
+    ['euroTempo', 'zone', '欧洲步时长倍率', 1.8, 0.8, 4, 0.05, '倍率：越大越慢；两步与停顿一起缩放，保留小幅速度/加速能力差异；不改变空中出手时机'],
+    ['euroBeat', 'zone', '欧洲步第一步落地停顿', 0.24, 0, 0.45, 0.01, '秒：第一步落地后压节奏，再迈第二步；受欧洲步时长倍率影响，0 为不停顿'],
     ['dunkMax', 'zone', '扣篮最远起跳', 3.2, 1.5, 5, 0.05, '米：扣篮起跳距离上限'],
     ['bkDunkDist', 'zone', '空中飞猪 额外起跳距离', 1, 0, 1.5, 0.05, '米：路线空旷的跑扣额外起跳距离'],
     ['bkDunkSpeed', 'zone', '空中飞猪 向筐速度', 1.8, 0.5, 5, 0.1, '米/秒：不需要冲刺或蓄力'],
@@ -3679,9 +3679,9 @@
     const s = clamp(Math.max(need / 2, P.L * K.step2K), K.step2A, P.L);
     if (kind === 'euro') {
       const tempo = K.euroTempo * lerp(1.1, 0.95, clamp((pl.r.spd + pl.r.acc) / 2, 0, 1));
-      const beat = K.euroBeat * tempo, euroT = (len) => (Math.max(K.stepT, 0.24) + 0.025 * len) * tempo;
+      const beat = K.euroBeat * tempo, euroT = (len) => sT(len) * tempo;
       const w = clamp(s * 0.75, 0.55, 1.0);
-      push(x + h.x * s * 0.75 + lx * eS * w, y + h.y * s * 0.75 + ly * eS * w, euroT(s) + (Math.max(GATHER_T, 0.08) + 0.02) * tempo + beat, 0.1, eS > 0 ? 'L' : 'R');
+      push(x + h.x * s * 0.75 + lx * eS * w, y + h.y * s * 0.75 + ly * eS * w, euroT(s) + (GATHER_T + 0.02) * tempo + beat, 0.1, eS > 0 ? 'L' : 'R');
       wp[0].hold = beat;
       const d1 = Math.hypot(HOOP.x - x, HOOP.y - y), s2 = clamp(d1 - K.euroD, 0.6, P.L * 1.05);
       push(x + h.x * s2 * 0.8 - lx * eS * w * 1.25, y + h.y * s2 * 0.8 - ly * eS * w * 1.25, euroT(s2) + 0.04 * tempo, 0.1, eS > 0 ? 'R' : 'L');
