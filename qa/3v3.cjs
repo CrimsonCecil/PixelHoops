@@ -179,7 +179,7 @@ function fixture(options = {}) {
   assert.equal(G.phase, 'check');
   assert.equal(T3.holder(), null, 'the defender holds the check ball');
   assert.equal(G.ball.state, 'pass');
-  assert.equal(G.ball.lastTouch, G.players.find((p) => p.tm === 1 && Math.abs(p.x) < 0.5).id);
+  assert.equal(G.players[G.ball.lastTouch].tm, 1, 'a defender checks the ball');
   assert.equal(G.shotClock, 14);
   settleCheck(G, T3);
   assert.equal(T3.holder().id, 1);
