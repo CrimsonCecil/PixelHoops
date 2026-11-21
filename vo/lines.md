@@ -1,15 +1,19 @@
 # 球员配音台词
 
-九位传奇改用 Gemini `gemini-2.5-flash-preview-tts` 的预设音色，不模仿真人。
+九位传奇改用 Gemini 预设音色，不模仿真人。tmac、nash、rip、rodman 使用
+`gemini-2.5-flash-preview-tts`；其余五位使用 `gemini-2.5-pro-preview-tts`。
 音色：tmac charon、nash puck、rip iapetus、rodman fenrir、bwallace algenib、
 rallen schedar、ginobili zubenelgenubi、iverson umbriel、carter alnilam。
 复现：安装 FFmpeg，设置环境变量 `GEMINI_API_KEY` 后运行 `python3 vo/generate-legends.py`。
 台词直接读取 manifest；原始响应缓存于仓库外 `~/.cache/pixelhoops-voice/gemini`，
-重跑复用缓存；`--keys` 选择球员，`--take` 选择重录版本。
+重跑复用缓存；`--keys` 选择球员，`--take` 选择重录版本，`--model` 选择模型
+（默认 Pro；复现前四位时指定 `--model gemini-2.5-flash-preview-tts`）。缓存按模型区分。
+API 请求间隔至少 8 秒；每分钟限额按 retryDelay 重试，每日限额或其他 HTTP 错误立即停止。
 每句独立转为 24kHz 单声道、40kbps MP3（无 ID3/Xing），按 120 字节帧拼接；
 清单的 `o` / `n` 是起始帧 / 帧数，每帧 24ms。生成器只更新上述九位的条目，
 其中 ginobili / iverson / carter 只录制现有 intro / reply，不扩充事件。
-去除开头静音后 loudnorm 至 -21.4 LUFS、峰值 -4 dB，参考 kobe sprite 实测 -21.37 LUFS。
+去除开头静音后 loudnorm 目标 -20.7 LUFS、峰值 -4 dB，以补偿 MP3 编码及拼接后的
+响度偏差，参考 kobe sprite 实测 -21.37 LUFS。
 原有音频在初始提交 e626e2c 中导入，未附生成脚本；orus、fenrir 等音色名
 对应 Gemini 音色，但仓库没有记录原始模型、提示词和生成参数。
 

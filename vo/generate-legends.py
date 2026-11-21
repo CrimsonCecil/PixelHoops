@@ -16,11 +16,13 @@ VOICES = {
     "rodman": "fenrir", "bwallace": "algenib", "rallen": "schedar",
     "ginobili": "zubenelgenubi", "iverson": "umbriel", "carter": "alnilam",
 }
-MODEL = "gemini-2.5-flash-preview-tts"
+MODEL = "gemini-2.5-pro-preview-tts"
 PROMPT = "用自然的普通话说出以下台词，只说台词，不要读出指令，不要添加任何内容：\n"
+LAST_REQUEST = 0.0
 
 
-def synthesize(text, voice, cache, take, attempt=0):
+def synthesize(text, voice, cache, take, attempt=0, model=MODEL):
+    global LAST_REQUEST
     if attempt < 6:
         prompt = PROMPT + text
     elif attempt < 12:
@@ -40,16 +42,18 @@ def synthesize(text, voice, cache, take, attempt=0):
     }
     body = json.dumps(payload, ensure_ascii=False).encode()
     variant = str(take) if attempt == 0 else f"{take}-retry" if attempt == 1 else f"{take}-retry-{attempt}"
-    digest = hashlib.sha256(MODEL.encode() + body + variant.encode()).hexdigest()
+    digest = hashlib.sha256(model.encode() + body + variant.encode()).hexdigest()
     raw = cache / f"{digest}.json"
     if not raw.exists():
         request = urllib.request.Request(
-            f"https://generativelanguage.googleapis.com/v1beta/models/{MODEL}:generateContent",
+            f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent",
             data=body, headers={"Content-Type": "application/json",
                                 "x-goog-api-key": os.environ["GEMINI_API_KEY"]},
         )
         for http_attempt in range(3):
             try:
+                time.sleep(max(0, 8 - (time.monotonic() - LAST_REQUEST)))
+                LAST_REQUEST = time.monotonic()
                 with urllib.request.urlopen(request, timeout=180) as response:
                     result = response.read()
                 raw.write_bytes(result)
@@ -57,6 +61,8 @@ def synthesize(text, voice, cache, take, attempt=0):
             except urllib.error.HTTPError as error:
                 detail = error.read().decode()
                 if error.code == 429 and http_attempt < 2:
+                    if "per_day" in detail or "PerDay" in detail:
+                        raise RuntimeError(f"Gemini HTTP {error.code}: {detail}") from None
                     details = json.loads(detail).get("error", {}).get("details", [])
                     retry = next((d.get("retryDelay") for d in details
                                   if d.get("@type", "").endswith("RetryInfo")), None)
@@ -64,16 +70,13 @@ def synthesize(text, voice, cache, take, attempt=0):
                         print(f"Gemini HTTP 429; retrying in {retry}", flush=True)
                         time.sleep(float(retry.rstrip("s")) + 2)
                         continue
-                if error.code in (500, 502, 503, 504) and http_attempt < 2:
-                    time.sleep(2)
-                    continue
                 raise RuntimeError(f"Gemini HTTP {error.code}: {detail}") from None
     response = json.loads(raw.read_bytes())
     parts = response.get("candidates", [{}])[0].get("content", {}).get("parts", [])
     audio = [p["inlineData"] for p in parts if "inlineData" in p]
     if not audio or not all(a["mimeType"].startswith("audio/") for a in audio):
         if attempt < 23:
-            return synthesize(text, voice, cache, take, attempt=attempt + 1)
+            return synthesize(text, voice, cache, take, attempt=attempt + 1, model=model)
         raise ValueError(f"Gemini returned no audio: {response}")
     return b"".join(base64.b64decode(a["data"], validate=True) for a in audio)
 
@@ -90,13 +93,13 @@ def generate(args):
         sprite = bytearray()
         for entries in pack["lines"].values():
             for entry in entries:
-                pcm = synthesize(entry["t"], VOICES[key], args.cache, args.take)
+                pcm = synthesize(entry["t"], VOICES[key], args.cache, args.take, model=args.model)
                 clip = args.cache / entry["f"]
                 subprocess.run([
                     "ffmpeg", "-v", "error", "-y", "-f", "s16le", "-ar", "24000",
                     "-ac", "1", "-i", "pipe:0", "-af",
                     "silenceremove=start_periods=1:start_threshold=-45dB:start_silence=0.05,"
-                    "loudnorm=I=-21.4:TP=-4:LRA=7",
+                    "loudnorm=I=-20.7:TP=-4:LRA=7",
                     "-ac", "1", "-ar", "24000", "-c:a", "libmp3lame", "-b:a", "40k",
                     "-write_xing", "0", "-id3v2_version", "0", "-map_metadata", "-1", str(clip),
                 ], input=pcm, check=True)
@@ -115,6 +118,7 @@ def generate(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--model", default=MODEL)
     parser.add_argument("--cache", type=Path, default=Path.home() / ".cache/pixelhoops-voice/gemini")
     parser.add_argument("--keys", nargs="+", choices=VOICES, default=list(VOICES))
     parser.add_argument("--take", type=int, default=0, help="Cache variant for regenerating failed takes")
