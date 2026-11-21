@@ -89,6 +89,41 @@ for (const mode of ['1V1', '3V3', '5V5']) {
       assert(Math.abs(fumbles / N - expected) < 0.025);
       if (!expected) assert.equal(fumbles, 0);
     }
+    {
+      const old = { ...K }, { p, d } = reset(7, 0.4, type), action = p.action;
+      Object.assign(K, { stlFinB: 1, stlFinS: 0, stlFinMax: 1 });
+      const hit = () => {
+        Object.assign(p, { hasBall: true, action, stun: 0 });
+        Object.assign(G.ball, { state: 'held', holder: p.id, dead: false, wasShot: false, poke: null });
+        d.action = { type: 'steal', t: K.stlHitT, T: K.stlT };
+        gm._qa.updateAction(d, gm.t5.zeroInp(), 0);
+        return !!d.action.poked;
+      };
+      p.chinT = G.time + 1;
+      for (const multiplier of [0, 0.15, 1]) {
+        K.stlChin = multiplier; gm.seed(7);
+        let hits = 0;
+        for (let i = 0; i < 1000; i++) hits += hit();
+        assert(Math.abs(hits / 1000 - multiplier) < 0.04, 'finishing strips retain tunable chin scaling');
+        if (!multiplier) assert.equal(hits, 0);
+      }
+      p.chinT = G.time; K.stlPost = 0; p.post = true;
+      assert.equal(hit(), false, 'finishing strips retain post protection');
+      p.post = false; d.ctrl = 'cpu'; K.stlCpu0 = K.stlCpuD = 0;
+      assert.equal(hit(), false, 'finishing strips retain CPU difficulty scaling');
+      Object.assign(K, old, { stlFinCpu: 100000 });
+      for (const multiplier of [0, 1]) {
+        Object.assign(p, { hasBall: true, action, chinT: G.time + 1 });
+        Object.assign(d, { action: null, cd: 0, stun: 0, z: 0 });
+        Object.assign(d.ai, { stealCd: 0, seenAct: action, jumpAt: -1 });
+        Object.assign(G.ball, { state: 'held', holder: p.id, dead: false });
+        K.stlChin = multiplier;
+        const input = gm.t5.aiInput(d, 0.01, { noJump: true });
+        assert.equal(input.a2, !!multiplier, 'CPU finishing attempts share chin protection');
+      }
+      Object.assign(K, old);
+      console.log(`PASS ${mode} ${type}: chin scaling, post protection, CPU difficulty and protected CPU attempts`);
+    }
   }
 }
 console.log('PASS finishing fumbles: shared modes, strips, handling protection, once-only self-fumbles, recovery credit, no shot attempts');

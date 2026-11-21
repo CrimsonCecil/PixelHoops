@@ -90,19 +90,31 @@ assert.equal(euro('ginobili', true).a.sigMove, undefined, 'cooldown ordinary eur
 }
 {
   for (const key of ['ginobili', 'lebron', 'carter']) {
+    let strips = 0;
     for (let i = 1; i <= 256; i++) {
-      const { p, d, a } = key === 'carter' ? dunk() : euro(key);
-      a.inSteps = i % 2 === 0;
-      p.handX = 0.33;
-      Object.assign(d, { x: p.x + 0.4, y: p.y + 0.3, face: Math.atan2(-0.3, -0.4), ctrl: 'p2' });
-      Q.startSteal(d); gm.seed(i * 100003);
-      const steal = d.action;
-      Q.updateAction(d, {}, K.stlHitT + 0.001, false);
-      assert(steal.done, 'reach-in attempt resolved');
-      assert(p.hasBall && p.action === a && !steal.poked, `${key} retains ordinary layup/dunk reach-in immunity during carry and flight`);
+      const outcomes = [];
+      for (const ordinary of [false, true]) {
+        const { p, d, a } = key === 'carter' ? dunk() : euro(key);
+        if (ordinary) delete a.sigMove;
+        a.inSteps = i % 2 === 0;
+        p.r.hnd = 0.4; d.r.stl = 0.85;
+        p.r.badges = []; d.r.badges = [];
+        p.handX = 0.33;
+        Object.assign(d, { x: p.x + 0.4, y: p.y + 0.3, face: Math.atan2(-0.3, -0.4), ctrl: 'p2' });
+        Q.startSteal(d); gm.seed(i * 100003);
+        const steal = d.action;
+        Q.updateAction(d, {}, K.stlHitT + 0.001, false);
+        assert(steal.done, 'reach-in attempt resolved');
+        outcomes.push(!!steal.poked);
+        assert.equal(p.hasBall, !steal.poked);
+        assert.equal(p.action, steal.poked ? null : a);
+      }
+      assert.equal(outcomes[0], outcomes[1], `${key} and its ordinary finish share seeded strip outcomes during carry and flight`);
+      strips += outcomes[0];
     }
+    assert(strips > 0 && strips < 256, `${key} parity includes successful and missed strips`);
   }
-  console.log('PASS Manu and ordinary layups/dunks retain identical reach-in immunity during carry and flight (768 seeded attempts)');
+  console.log('PASS Manu, LeBron and Carter match ordinary layup/dunk strip outcomes during carry and flight (768 seeded pairs)');
 }
 function answer(key, velocity, hand = 1, distance = 1.5, expired = false, seed = 7) {
   const { p, d } = setup(key, 6);
