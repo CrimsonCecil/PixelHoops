@@ -2487,7 +2487,7 @@
     if (!G.intro) return;
     const A = plById(I.duo[0]), B2 = plById(I.duo[1]), mid = { x: (A.x + B2.x) / 2, y: (A.y + B2.y) / 2 };
     const sh = I.li < 0 ? (now < I.t0 + IWA ? A : B2) : null;
-    if (sh) { if (I.shot !== sh.id) { I.shot = sh.id; I.snap = true; banner(sh.arch.full, '入场 · ' + (ISIG_CN[(I.walk.find((S) => S.id === sh.id && S.ty === (ISIG[sh.arch.key] || S.ty)) || {}).ty] || '登场'), sh.team.css, 2.6); } I.cam = { x: sh.x, y: sh.y, u: 0.3 }; }
+    if (sh) { if (I.shot !== sh.id) { I.shot = sh.id; I.snap = true; banner(sh.arch.full, '入场 · ' + (ISIG_CN[(I.walk.find((S) => S.id === sh.id && S.ty === (ISIG[sh.arch.key] || S.ty)) || {}).ty] || '登场'), sh.team.css, 2.6); } I.cam = { x: sh.x, y: sh.y, u: G.mode === 't3' ? 0.08 : 0.3 }; }
     else if (I.li >= 0) I.cam = { x: mid.x, y: mid.y, u: 0.1 };
     const cut = I.snap; I.snap = false;
     const C = I.cam;
