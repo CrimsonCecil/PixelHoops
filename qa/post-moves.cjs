@@ -197,6 +197,18 @@ for (const mode of ['2p', 't3', 't5']) for (const [distance, my, expected] of [[
 }
 console.log('PASS stride scoring: arc crossings in both directions use takeoff points and attempt stats in 1V1/3V3/5V5; uncleared-possession legality preserved');
 
+for (const mode of ['2p', 't3', 't5']) for (const [axis, sign] of [['x', -1], ['x', 1], ['y', -1], ['y', 1]]) for (const inward of [false, true]) {
+  const { p, d } = fixture(mode); d.off = true;
+  const edge = axis === 'x' ? (mode === 't5' ? 7.5 : 7.4) * sign : sign > 0 ? (mode === 't5' ? 13.95 : 13.85) : mode === 't5' ? -13.95 : 0.15;
+  p[axis] = edge;
+  dbg.startShot(p, zero(), 'a1', inward ? 'postfront' : 'postfade');
+  step(p, { a1: true }, 8);
+  const travel = (edge - p[axis]) * sign;
+  if (inward) assert(travel > 0.02, `${mode} ${axis}/${sign} inward stride must escape the margin: ${travel}`);
+  else assert(Math.abs(travel) < 1e-9, `${mode} ${axis}/${sign} outward stride must not teleport or leave the margin`);
+}
+console.log('PASS stride edges: inward motion escapes all safety margins; outward motion stops without teleporting in 1V1/3V3/5V5');
+
 const savedCam = { ...ctx.PH.render.cam };
 for (const mode of ['2p', 't3', 't5']) for (const camera of mode === 't5' ? ['2k', 'broadcast'] : ['2k']) for (const flipped of mode === 't5' ? [false, true] : [false]) {
   for (const side of [-1, 1]) for (const hand of [-1, 1]) for (const kind of ['postspin', 'stride']) {

@@ -4068,8 +4068,8 @@
             pl.vx = s.dx * speed; pl.vy = s.dy * speed; pl.z = pl.vz = 0;
             if (K.mvEdge > 0) {
               const XL = (G.mode === 't5' ? 7.62 : 7.5) - K.mvEdge, Y1 = (G.mode === 't5' ? 14.1 : 14) - K.mvEdge, Y0 = G.mode === 't5' ? -Y1 : K.mvEdge;
-              pl.vx = (clamp(pl.x + pl.vx * dt, -XL, XL) - clamp(pl.x, -XL, XL)) / dt;
-              pl.vy = (clamp(pl.y + pl.vy * dt, Y0, Y1) - clamp(pl.y, Y0, Y1)) / dt;
+              pl.vx = (clamp(pl.x + pl.vx * dt, Math.min(pl.x, -XL), Math.max(pl.x, XL)) - pl.x) / dt;
+              pl.vy = (clamp(pl.y + pl.vy * dt, Math.min(pl.y, Y0), Math.max(pl.y, Y1)) - pl.y) / dt;
             }
             s.moving = true; return;
           }
