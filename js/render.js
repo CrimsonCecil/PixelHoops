@@ -23,13 +23,13 @@
     setPitch(CAMV.dist + 2.4, 1 - cam.z);
   }
   setCam();
-  // 1V1 / 3V3 / 训练的镜头面板参数登记在调参台（节奏与表现 → 镜头），跟调参配置一起存云端、打开时随默认配置套用
+  // 镜头面板参数登记在调参台，跟调参配置一起存云端、打开时随默认配置套用
   const CAM_K = { zoom: 'camZoom', height: 'camHeight', dist: 'camDist', follow: 'camFollow', push: 'camPush', pin: 'camPin', plow: 'camPlow' };
   const CAM_KS = Object.keys(CAM_K).map((f) => CAM_K[f]);
   function camTuned() { const T = PH.TUNE, o = {}; for (const f in CAM_K) o[f] = T && T.has && T.has(CAM_K[f]) ? +T.get(CAM_K[f]) : CAM_DEF[f]; return o; }
   if (PH.TUNE && PH.TUNE.reg && !PH.TUNE.has('camZoom')) {
     PH.TUNE.reg([
-      { k: 'camZoom', label: '镜头 拉近', v: CAM_DEF.zoom, min: 0.8, max: 1.8, step: 0.01, wide: false, note: '倍数：1V1 / 3V3 / 训练镜头焦距（暂停 → 镜头面板“拉近”）' },
+      { k: 'camZoom', label: '镜头 拉近', v: CAM_DEF.zoom, min: 0.8, max: 1.8, step: 0.01, wide: false, note: '倍数：1V1 / 训练镜头焦距（暂停 → 镜头面板“拉近”）' },
       { k: 'camHeight', label: '镜头 机位高度', v: CAM_DEF.height, min: 3, max: 10, step: 0.1, wide: false, note: '米：机位离地高度（镜头面板“机位高度”）' },
       { k: 'camDist', label: '镜头 距离', v: CAM_DEF.dist, min: 6, max: 14, step: 0.1, wide: false, note: '米：机位在持球人身后多远（镜头面板“镜头距离”）' },
       { k: 'camFollow', label: '镜头 左右跟随', v: CAM_DEF.follow, min: 0, max: 1, step: 0.05, wide: false, note: '比例：0 = 机位固定在中线，1 = 完全跟着持球人左右移动' },
@@ -40,13 +40,24 @@
     PH.TUNE.on((ks) => { if (!ks || ks.some((k) => CAM_KS.indexOf(k) >= 0)) setCam(camTuned()); });
     setCam(camTuned());
   }
+  const CAM3 = PH.CAM3 = [
+    { k: 't3_camZoom', f: 'zoom', label: '3V3 镜头 拉近', v: 1, min: 0.6, max: 1.8, step: 0.01, wide: false, note: '焦距倍数；自动取景仍会保护篮筐和持球人不出画面' },
+    { k: 't3_camHeight', f: 'height', label: '3V3 镜头 机位高度', v: 8.2, min: 4, max: 12, step: 0.1, wide: false, note: '米：机位离地高度' },
+    { k: 't3_camDist', f: 'dist', label: '3V3 镜头 距离', v: 10.8, min: 6, max: 16, step: 0.1, wide: false, note: '米：机位在跟随目标身后多远，保留底线范围限制' },
+    { k: 't3_camFollow', f: 'follow', label: '3V3 镜头 左右跟随', v: 0.55, min: 0, max: 1, step: 0.05, wide: false, note: '比例：0 固定中线，1 完全跟随目标' },
+    { k: 't3_camSpeed', f: 'speed', label: '3V3 镜头 跟随速度', v: 4.5, min: 1, max: 10, step: 0.1, wide: false, note: '数值越大，跟随和取景变化越快' },
+    { k: 't3_camPitch', f: 'pitch', label: '3V3 镜头 俯视角度', v: 0.54, min: 0.2, max: 1, step: 0.01, wide: false, note: '俯视斜率，越大越往下看' },
+  ];
+  if (PH.TUNE && PH.TUNE.reg) PH.TUNE.reg(CAM3);
+  function cam3Tuned() { const o = {}; for (const c of CAM3) o[c.f] = PH.TUNE && PH.TUNE.has(c.k) ? +PH.TUNE.get(c.k) : c.v; return o; }
   // 镜头面板改值：写进调参台（会算作当前配置的未保存改动）；没有调参表时直接改
-  function setCamTuned(o) {
+  function setCamTuned(o, mode) {
+    if (mode === 't3') { for (const c of CAM3) if (c.f in (o || {}) && PH.TUNE) PH.TUNE.set(c.k, o[c.f]); return; }
     const T = PH.TUNE, raw = {};
     for (const f in o || {}) { if (T && CAM_K[f] && T.has(CAM_K[f])) T.set(CAM_K[f], o[f]); else raw[f] = o[f]; }
     if (Object.keys(raw).length) setCam(raw);
   }
-  function resetCamTuned() { const T = PH.TUNE; if (T && T.has('camZoom')) { for (const k of CAM_KS) T.reset(k); } else setCam(CAM_DEF); }
+  function resetCamTuned(mode) { const T = PH.TUNE; if (mode === 't3') { if (T) for (const c of CAM3) T.reset(c.k); return; } if (T && T.has('camZoom')) { for (const k of CAM_KS) T.reset(k); } else setCam(CAM_DEF); }
 
   function proj(x, y, z) {
     const dx = x - cam.x, dy = y - cam.y, dz = z - cam.z;
@@ -1946,18 +1957,19 @@
     }
   }
   function camera3(G, dt, hintY) {
+    const C = cam3Tuned();
     const b = G.ball, p = b.state === 'held' ? G.players[b.holder] : null, fp = G.intro && G.intro.foc;
     const x = fp ? fp.x : p ? p.x + p.vx * 0.28 : b.x + (b.state === 'pass' ? 0 : b.vx * 0.12);
     const y = fp ? fp.y + 1.3 : p ? p.y + p.vy * 0.28 + 1.3 : b.state === 'shot' ? b.y * 0.65 + HOOP.y * 0.35 : b.y;
     const tx = Math.max(-7.5, Math.min(7.5, x)), ty = Math.max(0, Math.min(14, y));
     const fresh = follow3?.players !== G.players;
     if (fresh) follow3 = { players: G.players, x: tx, y: ty, zoom: 1 };
-    const k = 1 - Math.exp(-4.5 * dt);
+    const k = 1 - Math.exp(-C.speed * dt);
     follow3.x += (tx - follow3.x) * k; follow3.y += (ty - follow3.y) * k;
-    cam.y = Math.max(-8.8, Math.min(-3.8, follow3.y - 10.8));
-    cam.x = follow3.x * 0.55;
-    cam.z = 8.2; cam.F = 530;
-    setPitch(1, -0.54);
+    cam.y = Math.max(-8.8, Math.min(-3.8, follow3.y - C.dist));
+    cam.x = follow3.x * C.follow;
+    cam.z = C.height; cam.F = 530 * C.zoom;
+    setPitch(1, -C.pitch);
 
     const rim = proj(HOOP.x, HOOP.y, HOOP.z), board = proj(0, BOARD_Y, 3.95);
     const q = proj(b.x, b.y, b.z);
