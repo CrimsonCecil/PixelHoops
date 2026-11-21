@@ -1081,7 +1081,7 @@
   function dblC() {
     for (const p of ps()) {
       const a = p.action; if (!a || (a.type !== 'shot' && a.type !== 'layup') || a.released || !a.k5 || !a.V || a.skill) continue;
-      const cls = a.type === 'layup' || a.V.hook || a.v === 'postfade' ? 'in' : 'shot', L = [];
+      const cls = a.type === 'layup' || a.V.hook || a.V.post || a.v === 'postfade' ? 'in' : 'shot', L = [];
       for (const d of defs()) if (dist(d, p) < TV.t5_dbl_r) { const c = A5.contestInfo(p, d, cls).c; if (c > 0) L.push(c); }
       L.sort((x, y) => y - x);
       const o = p.opp, co = o ? A5.contestInfo(p, o, cls).c : 0, base = a.V.c / (a.dR || 1);
@@ -1247,9 +1247,10 @@
       // 2K：RT + X 突破中 = 扣篮（1V1 的扣篮键 a2）
       if (X && R.RT && dHoop(p) < 6.5 && p.speed > 2.5) { o.a2 = true; o.a1 = false; }
       if (p.f5.alley > T.time - 0.35) { o.a2 = true; o.sprint = true; }
-      if (rsM > 0.5) { o.a3 = true; o.dx = RS.x / rsM; o.dy = RS.y / rsM; }
+      if (rsM > 0.5) { o.a3 = o.rs = true; o.dx = RS.x / rsM; o.dy = RS.y / rsM; }
       if (R.hesi) o.a3 = o.hesi = true;
       o.post = R.LT;
+      if (R.rsPad) o.rsPad = true;
       passKeys(p, L);
       if (E.LB) callPick(p, true);
       return o;
