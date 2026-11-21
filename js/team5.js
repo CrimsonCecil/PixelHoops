@@ -1220,6 +1220,9 @@
     }
     const inbBy = T.phase === 'inb' && T.inb && T.inb.by === p;
     if (inbBy) { o.mx = o.my = 0; passKeys(p, L); return o; }
+    if (p.hasBall && p.uuFake && (G.time <= p.uuFake.until || p.action && p.action.type === 'fake') && R.B && hyp(L.x, L.y) > 0.3) {
+      o.a3 = o.dribble = true; o.dx = L.x; o.dy = L.y; return o;
+    }
     if (p.hasBall && p.action && p.action.type !== 'move' && jpOk(p) && (E.A || E.B || E.Y)) {
       if (jumpPass(p, E.B ? 'bounce' : E.Y ? 'lob' : 'chest', pickTarget(p, L))) { T.aDown = null; T.yDown = null; return o; }
     }
