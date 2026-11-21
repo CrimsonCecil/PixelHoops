@@ -20,7 +20,7 @@ function fixture(mode) {
   for (const q of G.players) Object.assign(q, { hasBall: false, action: null, x: 6, y: -4, stun: 30 });
   Object.assign(p, { x: 0, y: 4.4, z: 0, vz: 0, stun: 0, cd: 0 });
   Object.assign(b, { state: 'loose', holder: -1, dead: false, wasShot: true, x: p.x, y: p.y, z: 1, noPick: 10 });
-  const key = down => listeners[down ? 'keydown' : 'keyup']({ code: 'KeyJ', preventDefault() {} });
+  const key = (down, code = 'KeyJ') => listeners[down ? 'keydown' : 'keyup']({ code, preventDefault() {} });
   pads[0] = { connected: true, index: 0, axes: [0, 0, 0, 0], buttons: Array.from({ length: 16 }, () => ({ pressed: false })) };
   const read = () => input.read3(p.hasBall);
   const step = () => {
@@ -59,4 +59,35 @@ for (const mode of ['1V1', '3V3', '5V5']) {
     assert.equal(p.action?.type, 'shot', `${mode} ${binding}: fresh press shoots`);
   }
   console.log(`PASS ${mode}: keyboard, Y/X and right-stick held through rebound for 1s; release + fresh press shoots`);
+}
+
+for (const mode of ['1V1', '3V3']) for (const binding of ['LT/Y', 'LB/Y', 'L/J', 'Q/J']) {
+  const { G, p, key, pads, step, grab } = fixture(mode);
+  const pad = binding.endsWith('/Y');
+  const contact = down => {
+    if (pad) pads[0].buttons[binding === 'LT/Y' ? 6 : 4].pressed = down;
+    else key(down, binding === 'L/J' ? 'KeyL' : 'KeyQ');
+  };
+  const rebound = down => { if (pad) pads[0].buttons[3].pressed = down; else key(down); };
+  contact(true);
+  for (let i = 0; i < 12; i++) step();
+  rebound(true);
+  for (let i = 0; i < 12; i++) step();
+  assert.equal(p.action?.type, 'block', `${binding}: rebound jump not exercised`);
+  assert(p.z > 0, `${binding}: not airborne at pickup`);
+  grab();
+  for (let i = 0; i < 180; i++) {
+    step();
+    assert(!['shot', 'fake', 'layup', 'dunk'].includes(p.action?.type), `${binding}: held rebound started ${p.action?.type}`);
+    assert(p.hasBall, `${binding}: lost rebound`);
+    assert.equal(G.stats[p.id].fga, 0);
+  }
+  assert.equal(p.z, 0, `${binding}: never landed`);
+  rebound(false);
+  for (let i = 0; i < 36; i++) step();
+  assert.equal(p.action, null, `${binding}: release replayed a pending finish`);
+  rebound(true);
+  for (let i = 0; i < 60 && p.action?.type !== 'shot'; i++) step();
+  assert.equal(p.action?.type, 'shot', `${binding}: fresh press did not shoot with contact/post still held`);
+  console.log(`PASS ${mode} ${binding}: box-out/post held through airborne rebound and landing for 1.5s; no delayed finish, release + fresh press shoots`);
 }

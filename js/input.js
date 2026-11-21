@@ -165,6 +165,14 @@
     return Math.hypot(bx, by) > 0.25 ? { x: bx, y: by } : { x: 0, y: 0 };
   }
   function endTick() { for (const k in latch) delete latch[k]; }
+  function blockRebound(slot) {
+    delete yTaps[slot];
+    const gp = pads()[slot];
+    if (gp && gpBtn(gp, 3)) {
+      const b = blockedPad[gp.index] || (blockedPad[gp.index] = {});
+      b[3] = true;
+    }
+  }
   function flush() {
     endTick();
     yTaps.length = 0;
@@ -207,5 +215,5 @@
     });
   }
 
-  PH.input = { read: read, read3: read3, read5: read5, endTick: endTick, flush: flush, sysPressed: sysPressed, sysAny: sysAny, clearSys: clearSys, initTouch: initTouch, pollPads: pollPads, rstick: rstick, lock: lock, pads: pads, keys: keys, touch: touch };
+  PH.input = { read: read, read3: read3, read5: read5, endTick: endTick, flush: flush, blockRebound: blockRebound, sysPressed: sysPressed, sysAny: sysAny, clearSys: clearSys, initTouch: initTouch, pollPads: pollPads, rstick: rstick, lock: lock, pads: pads, keys: keys, touch: touch };
 })();

@@ -2891,6 +2891,7 @@
     if (wasShot) {
       pl.ib = pl.buf = pl.finQ = null; pl.jbuf = 0;
       pl.rsGesture = null; pl.reboundRS = true;
+      if (G.mode !== 't5' && pl.ctrl !== 'cpu' && PH.input.blockRebound) PH.input.blockRebound(pl.ctrl === 'p1' ? 0 : 1);
       // 手柄 X/Y 在拿球后换用途；已按住的键不能算一次新的投篮或终结。
       if (!teamPlay() && pl.ctrl !== 'cpu') {
         const held = PH.input.read(pl.ctrl === 'p1' ? 0 : 1, true, G.mode !== '2p');
