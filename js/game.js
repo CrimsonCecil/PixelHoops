@@ -5107,10 +5107,11 @@
           } else startFinish(pl, inp, P.dunk ? 'auto' : 'lay', 'a1', true);
           return;
         }
-        if (pr.a1 && postFollow(pl, inp.rsHold && pl.rsGesture ? pl.rsGesture.t : G.time)) { startShot(pl, inp); return; }
-        if (pr.a1 && pl.uuShot && G.time <= pl.uuShot.until && pl.uuShot.mv === 'uuBack') { startShot(pl, inp); return; }
         const sdz = sdZone(pl, P), sdBtn = pr.a2 || (pr.a1 && inp.sprint && !(pl.post || (backTurn(pl) && !pr.a2)));
-        if (sdz && sdBtn && !shaqReady(pl) && !(pr.a2 && pl.post && OP(pl).seal > G.time)) {
+        const standing = sdz && sdBtn && !shaqReady(pl) && !(pr.a2 && pl.post && OP(pl).seal > G.time);
+        if (pr.a1 && !standing && postFollow(pl, inp.rsHold && pl.rsGesture ? pl.rsGesture.t : G.time)) { startShot(pl, inp); return; }
+        if (pr.a1 && pl.uuShot && G.time <= pl.uuShot.until && pl.uuShot.mv === 'uuBack') { startShot(pl, inp); return; }
+        if (standing) {
           // V4.1 原地站扣：篮下原地 / 很慢 + 扣篮键（或冲刺 + 投篮），不用摇杆指向篮筐；能力 / 身高 / 体型不够改上篮
           if (sdOk(pl)) startDunk(pl, P, pr.a2 ? 'a2' : 'a1', 'stand'); else startFinish(pl, inp, 'lay', pr.a2 ? 'a2' : 'a1');
         } else if (pr.a2) {
