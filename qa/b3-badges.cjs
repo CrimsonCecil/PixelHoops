@@ -95,6 +95,32 @@ function effect(key, enabled) {
   return [m.action.V.p, m.action.V.g];
 }
 
+{
+  const { c, gm, G, T3, B, p, m } = fixture('dimer', true);
+  const main = fs.readFileSync(path.join(root, 'js/main.js'), 'utf8');
+  Object.assign(c, { G });
+  vm.runInContext(main.slice(main.indexOf('  const NET_STATE'), main.indexOf('  function roomState')), c);
+  const snapshot = () => vm.runInContext('roomSnapshot()', c);
+  assert(snapshot().players.every(q => !Object.hasOwn(q, 'b5in')), 'empty provenance stays off the wire');
+  assert(T3.send(p, m));
+  const provenance = m.b5in;
+  assert.equal(provenance.from, p, 'real pass retains the host passer reference');
+  assert.equal(p.opp.opp, p, 'fixture contains live cyclic matchup references');
+  const state = snapshot();
+  assert.equal(state.players.length, 6);
+  assert(state.players.every(q => !Object.hasOwn(q, 'b5in')), 'guests never receive host-only badge provenance');
+  assert.equal(state.players[m.id].oppId, m.opp.id, 'matchup identity is still serialized');
+  assert.equal(m.b5in, provenance, 'snapshot does not mutate host badge state');
+  T3.passStep(T3.T.pass.duration);
+  assert.equal(G.ball.holder, m.id);
+  assert.doesNotThrow(snapshot, 'snapshot after catch also serializes');
+  m.action = { type: 'shot', V: { p: 1, g: 1, c: 1, blk: 1 } };
+  B.tick(T3.badges, 0);
+  assert(m.action.V.p > 1 && m.action.V.g > 1, 'host receiver still gets dimer after snapshots');
+  assert.equal(gm.G.mode, 't3');
+  console.log('PASS: online 3V3 roomSnapshot serializes during and after a real badge pass; b5in omitted, host dimer preserved.');
+}
+
 for (const key of ['cs', 'dimer', 'needle', 'bailout', 'breaker', 'postpm', 'brick', 'dodger', 'intercept', 'anchor', 'chaser', 'boxout']) {
   const zero = effect(key, false), top = effect(key, true), f = fixture(key, true);
   assert(f.tier > 0); assert.notDeepEqual(top, zero, key + ' must affect the reachable 3V3 path');

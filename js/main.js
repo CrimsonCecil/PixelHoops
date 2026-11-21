@@ -277,7 +277,7 @@
   }
   function roomSnapshot() {
     const state = Object.fromEntries(NET_STATE.map((key) => [key, G[key]]));
-    state.players = G.players.map(({ opp, arch, team, ...p }) => ({ ...p, oppId: opp ? opp.id : -1 }));
+    state.players = G.players.map(({ opp, arch, team, b5in, ...p }) => ({ ...p, oppId: opp ? opp.id : -1 }));
     state.audio = roomAudio.splice(0);
     return JSON.parse(JSON.stringify(state));
   }
