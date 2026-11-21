@@ -94,12 +94,8 @@
     ['sdFly', 'lay', '站扣 空中时间', 0.48, 0.3, 0.8, 0.01, '秒：起跳到扣进'],
     ['lvReachB', 'lay', '侧身上篮 被盖率', 0.8, 0.2, 1.5, 0.01, '倍率'], ['lvReachP', 'lay', '侧身上篮 命中', 0.97, 0.5, 1.2, 0.01, '倍率'], ['lvReachC', 'lay', '侧身上篮 受干扰', 0.92, 0.3, 1.5, 0.01, '倍率'],
     ['lvFarB', 'lay', '远端手上篮 被盖率', 0.78, 0.2, 1.5, 0.01, '倍率'], ['lvFarP', 'lay', '远端手上篮 命中', 0.76, 0.5, 1.2, 0.01, '倍率：最终命中乘此值，再加终结能力修正；绿区同样生效'], ['lvFarC', 'lay', '远端手上篮 受干扰', 1.2, 0.3, 1.5, 0.01, '倍率：大于1时更怕干扰'],
-    ['lvFarTk', 'lay', '远端手上篮 起跳上限', 1.7, 1, 3, 0.05, '米：目标起跳绝对距离上限，不乘上篮距离总系数；两步够不到则改侧身上篮'],
-    ['lvFarMin', 'lay', '远端手上篮 最近启动', 2.6, 2, 4, 0.05, '米：更近时改侧身上篮，留出两步收球空间'],
-    ['lvFarMax', 'lay', '远端手上篮 最远启动', 4, 2, 6, 0.05, '米：更远时改侧身上篮，不影响普通上篮启动'],
     ['lvFarLay', 'lay', '远端手上篮 终结修正', 0.7, 0, 2, 0.05, '倍率/能力：命中倍率加此值×(上篮能力−0.75)，结果限制在0.25到1'],
     ['lvFarKnee', 'lay', '远端手上篮 抬膝上限', 0.6, 0.3, 0.9, 0.05, '弧度：远端手收球和侧身出手的大腿前抬上限，避免高抬腿'],
-    ['lvFarStep', 'lay', '远端手上篮 每步时长', 0.32, 0.24, 0.6, 0.01, '秒：每步基础时长下限，第一步另加收球时间'],
     ['lvRevB', 'lay', '反手上篮 被盖率', 0.72, 0.2, 1.5, 0.01, '倍率'], ['lvRevP', 'lay', '反手上篮 命中', 0.95, 0.5, 1.2, 0.01, '倍率'], ['lvRevC', 'lay', '反手上篮 受干扰', 0.88, 0.3, 1.5, 0.01, '倍率'],
     // —— V4.3 封堵上篮：投篮条不停 + 被封堵时的上篮变体（a.cv）
     ['layNoStop', 'lay', '上篮/扣篮中不顿帧', 1, 0, 1, 1, '开关：有人上篮或扣篮还没出手时，撞人顿帧和慢动作不冻结画面，投篮条一直走'],
@@ -3145,8 +3141,6 @@
   // 生成脚步路点：wp = [{x,y,T,z,lead}]，lead: 'L' / 'R' / 'B'(双脚)
   const backSide = (pl) => Math.abs(pl.x - HOOP.x) > 0.15 ? (pl.x >= HOOP.x ? 1 : -1) : (pl.hand > 0 ? -1 : 1);
   function buildSteps(pl, a, P, kind, eS) {
-    const far = a.lsv === 'far';
-    if (far) kind = 'normal';
     const h = P.h, lx = -h.y, ly = h.x, wp = [];
     let x = pl.x, y = pl.y;
     const push = (nx, ny, T, z, lead) => { nx = clamp(nx, -8.4, 8.4); ny = clamp(ny, -0.8, 14.6); if (lead !== 'B' && z > 0.05) z = Math.max(z, 0.05 + 0.06 * Math.hypot(nx - x, ny - y)); wp.push({ fx: x, fy: y, x: nx, y: ny, T: T, z: z, lead: lead }); x = nx; y = ny; };
@@ -3162,7 +3156,7 @@
       a.tk = P.d - s; return wp;
     }
     // 收球发生在第一步落地时，不再单独走一步；之后只有两步（第二步起跳）
-    const d0 = Math.hypot(HOOP.x - x, HOOP.y - y), sT = (st) => Math.max(K.stepT, far ? K.lvFarStep : 0) + 0.025 * st, GATHER_T = K.gathT, STEP_T = K.stepT;
+    const d0 = Math.hypot(HOOP.x - x, HOOP.y - y), sT = (st) => K.stepT + 0.025 * st, GATHER_T = K.gathT, STEP_T = K.stepT;
     if (kind === 'floater') {
       const s = clamp(d0 - 3.0, 0, P.L * 0.9);
       if (s > 0.35) push(x + h.x * s, y + h.y * s, sT(s) + GATHER_T, 0.08, ft);
@@ -3182,10 +3176,9 @@
     if (kind === 'back') { toward(HOOP.x + backSide(pl) * 1.15, HOOP.y + 0.05, 0.6 * clamp(P.tko, K.layTgtA + 0.7 * P.run + 0.3 * pl.r.lay, K.layTgtB + 0.9 * pl.r.lay + 0.6 * P.run) * K.layK); return wp; }
     // 起跳点：上篮离筐约 1.5~2.1 米（跑得越快越远），扣篮按扣篮距离；离得近就少走步，不碎步
     // V3.6：最后一步离筐更远（跑扣 / 滑翔），离筐已经很近就收球直接起，不再硬走步
-    let tgt = a.type === 'dunk' ? clamp(Math.max(Math.min(P.reach, K.dkTgt + K.dkTgtRun * P.run), P.tko), K.dkTgtMin, P.reach) : clamp(P.tko, K.layTgtA + 0.7 * P.run + 0.3 * pl.r.lay, K.layTgtB + 0.9 * pl.r.lay + 0.6 * P.run) * K.layK + (a.sty === 'glide' ? K.layGlide * K.layK : 0);
-    if (far) tgt = Math.min(tgt, K.lvFarTk);
+    const tgt = a.type === 'dunk' ? clamp(Math.max(Math.min(P.reach, K.dkTgt + K.dkTgtRun * P.run), P.tko), K.dkTgtMin, P.reach) : clamp(P.tko, K.layTgtA + 0.7 * P.run + 0.3 * pl.r.lay, K.layTgtB + 0.9 * pl.r.lay + 0.6 * P.run) * K.layK + (a.sty === 'glide' ? K.layGlide * K.layK : 0);
     const need = d0 - tgt;
-    if (!far && kind !== 'euro' && need < K.step0) {
+    if (kind !== 'euro' && need < K.step0) {
       // 已经在起跳点：收球直接起跳（跳步，不算走步）
       push(x + h.x * 0.12, y + h.y * 0.12, GATHER_T + 0.04, 0.03, ft);
       a.tk = Math.hypot(HOOP.x - x, HOOP.y - y); return wp;
@@ -3198,13 +3191,13 @@
       push(x + h2.x / l2 * f - h2.y / l2 * eS * 0.95, y + h2.y / l2 * f + h2.x / l2 * eS * 0.95, 0.27, 0.2, 'B');
       a.tk = Math.hypot(HOOP.x - x, HOOP.y - y); return wp;
     }
-    if (!far && kind !== 'euro' && need < P.L * K.step1K) {
+    if (kind !== 'euro' && need < P.L * K.step1K) {
       // 近距离：收球一大步就起
       const s1 = clamp(need, K.step1Min, P.L * K.step1Max);
       push(x + h.x * s1, y + h.y * s1, sT(s1) + GATHER_T, 0.09, ft);
       a.tk = Math.hypot(HOOP.x - x, HOOP.y - y); return wp;
     }
-    const s = clamp(Math.max(need / (far ? 1 + K.step2Max : 2), P.L * K.step2K), K.step2A, P.L);
+    const s = clamp(Math.max(need / 2, P.L * K.step2K), K.step2A, P.L);
     if (kind === 'euro') {
       const w = clamp(s * 0.75, 0.55, 1.0);
       push(x + h.x * s * 0.75 + lx * eS * w, y + h.y * s * 0.75 + ly * eS * w, sT(s) + GATHER_T + 0.02, 0.1, eS > 0 ? 'L' : 'R');
@@ -3264,7 +3257,6 @@
     else if (a.hand === side) lsv = front > 0.3 || blocking ? 'far' : 'reach';
     else if (baseline || (ang > 0.9 && rnd() < K.sRevAng)) lsv = 'rev';
     else lsv = 'far';
-    if (lsv === 'far' && (P.d < K.lvFarMin || P.d > K.lvFarMax || P.d > K.lvFarTk + P.L * (1 + K.step2Max))) lsv = 'reach';
     a.side = side; a.lsv = lsv; a.farLsv = lsv === 'far'; a.hand = side;
     if (a.v !== 'reverse') { const M = LSV[lsv]; a.V = Object.assign({}, a.V, { name: M.name, blk: a.V.blk * M.blk, p: a.V.p * (lsv === 'far' ? 1 : M.p), c: a.V.c * M.c }); }
   }

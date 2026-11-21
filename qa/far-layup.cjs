@@ -80,43 +80,46 @@ const before = load(true), after = load();
   console.log(`Airborne knee slider 0.35 -> 0.80: ${knees.map(k => k.toFixed(3)).join(' -> ')}rad`);
   assert(Math.abs(knees[0] - 0.35) < 1e-9 && Math.abs(knees[1] - 0.8) < 1e-9, 'airborne pose follows the live slider');
 }
-let count = 0, min = Infinity, max = 0;
-for (const mode of ['2p', 't5']) for (const cpu of [false, true]) {
-  for (const distance of [2, 2.6, 3, 3.4, 4, 4.1, 5, 6]) {
-    const f = setup(after, distance, 0.9, mode, cpu);
-    for (let i = 1; i <= 200; i++) {
-      const a = action(after, f, i * 100003);
-      if (distance < f.gm.K.lvFarMin || distance > f.gm.K.lvFarMax) assert.notEqual(a.lsv, 'far');
-      if (a.lsv !== 'far') continue;
-      count++; assert.equal(a.wp.length, 2);
-      assert(a.wp.every(w => w.T >= f.gm.K.stepT && Math.hypot(w.x - w.fx, w.y - w.fy) > 0.1));
-      assert(a.tk <= f.gm.K.lvFarTk + 1e-9);
-      min = Math.min(min, a.tk); max = Math.max(max, a.tk);
-    }
-  }
-}
-assert(count > 100);
-console.log(`PASS distance gates and two moving gather steps: ${count} far layups; takeoff ${min.toFixed(3)}–${max.toFixed(3)}m (cap ${after.PH.game.K.lvFarTk.toFixed(3)}m)`);
-{
-  const K = after.PH.game.K, original = K.layK;
-  let count = 0, max = 0;
+function footwork(ctx, config, verbose = false) {
+  const K = ctx.PH.game.K, saved = { ...K }, rows = [];
   try {
-    K.layK = 1.44;
-    for (const distance of [2.6, 3, 3.4, 4]) {
-      const f = setup(after, distance);
-      for (let i = 1; i <= 200; i++) {
-        const a = action(after, f, i * 100003);
-        if (distance > K.lvFarTk + f.P.L * (1 + K.step2Max)) assert.notEqual(a.lsv, 'far');
-        if (a.lsv !== 'far') continue;
-        count++; max = Math.max(max, a.tk);
-        assert.equal(a.wp.length, 2);
-        assert(a.tk <= K.lvFarTk + 1e-9, 'C1 layK cannot expand the absolute takeoff cap');
+    for (const [key, value] of Object.entries(config)) ctx.PH.TUNE.set('l1_' + key, value);
+    for (const mode of ['2p', 't5']) for (const cpu of [false, true]) {
+      for (const distance of [2, 2.6, 3, 3.4, 4, 4.5, 5, 6]) {
+        const f = setup(ctx, distance, 0.9, mode, cpu);
+        for (const kind of ['normal', 'hop', 'euro']) {
+          const a = { type: 'layup', v: kind, sty: 'normal', hand: 1, lsv: 'far' };
+          const normal = { ...a, lsv: '' };
+          const farSteps = ctx.PH.farQA.buildSteps(f.p, a, f.P, kind, 1);
+          const normalSteps = ctx.PH.farQA.buildSteps(f.p, normal, f.P, kind, 1);
+          assert.deepEqual(farSteps, normalSteps, 'far-hand shares all configured waypoints and timings');
+          assert.equal(a.tk, normal.tk, 'far-hand shares configured takeoff distance');
+          if (kind === 'normal' && mode === '2p' && !cpu) {
+            const steps = farSteps.length === 1 && Math.hypot(farSteps[0].x - f.p.x, farSteps[0].y - f.p.y) < 0.2 ? 0 : farSteps.length;
+            rows.push({ distance, tk: a.tk, steps, duration: farSteps.reduce((s, w) => s + w.T, 0) });
+          }
+        }
       }
     }
-  } finally { K.layK = original; }
-  assert(count > 0);
-  console.log(`PASS C1 layK=1.44: ${count} far layups; max takeoff ${max.toFixed(3)}m (absolute cap ${K.lvFarTk.toFixed(3)}m)`);
+    if (verbose) for (const row of rows.filter(r => [3.4, 5].includes(r.distance)))
+      console.log(`Shared footwork layK=${K.layK} start=${row.distance}m: far=normal takeoff ${row.tk.toFixed(3)}m, ${row.steps} steps, gather ${row.duration.toFixed(3)}s`);
+  } finally {
+    for (const key of Object.keys(config)) ctx.PH.TUNE.set('l1_' + key, saved[key]);
+  }
+  return rows;
 }
+for (const layK of [0.9, 1.44]) {
+  const base = footwork(after, { layK }, true);
+  assert.deepEqual(base, footwork(before, { layK }), 'original main already shared config-driven footwork');
+  for (const config of [{ layK: 0.5 }, { layK, step1K: 0.5 }]) {
+    const changed = footwork(after, config);
+    assert(base.some((r, i) => r.steps !== changed[i].steps), 'shared tuning changes step counts');
+    assert(base.some((r, i) => Math.abs(r.tk - changed[i].tk) > 0.01), 'shared tuning changes takeoff distances');
+  }
+  const slower = footwork(after, { layK, stepT: 0.4, gathT: 0.3 });
+  assert(base.every((r, i) => slower[i].duration > r.duration), 'shared gather and step timing remain live');
+}
+console.log('PASS shared footwork: default/C1 layK, step1K, stepT/gathT, normal/hop/euro, human/CPU and shared-team parity; original main honored these keys too');
 {
   let checked = false;
   for (let i = 1; i <= 200 && !checked; i++) {
@@ -196,7 +199,7 @@ console.log(`Pose before -> after: peak thigh ${oldPose.peak.toFixed(3)} -> ${ne
 assert(oldPose.recovery > 1 && newPose.recovery < 0.3, 'late release must not expose the held high-style keyframe');
 assert(newPose.peak <= after.PH.game.K.lvFarKnee + 1e-9);
 assert(newPose.gatherPeak <= after.PH.game.K.lvFarKnee + 1e-9);
-assert(newPose.duration >= 2 * after.PH.game.K.lvFarStep + after.PH.game.K.gathT);
+assert(Math.abs(newPose.duration - oldPose.duration) < 1e-9, 'far-hand honors shared gather pacing');
 for (const scenario of ['open', 'contested', 'light block', 'heavy block', 'interrupted', 'possession change']) {
   const f = setup(after), Q = after.PH.farQA;
   const a = action(after, f, 100003);
