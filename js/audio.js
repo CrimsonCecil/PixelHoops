@@ -78,6 +78,7 @@
     whistle: () => { tone(2300, 0.22, 'square', 0.1); tone(2350, 0.22, 'sine', 0.1); },
     squeak: () => { tone(1900, 0.07, 'sine', 0.07, 0, 2600); },
     steal: () => { tone(500, 0.06, 'square', 0.16, 0, 900); noise(0.05, 0.15, 3000, 2); },
+    poke: () => { const t = ac.currentTime; noise(0.06, 0.18, 3000, 2, t); tone(900, 0.06, 'triangle', 0.12, t, 1500); tone(1800, 0.1, 'sine', 0.1, t + 0.05); },
     interceptGood: () => { const t = ac.currentTime; [659, 880, 1109, 1319].forEach((f, i) => tone(f, 0.13, 'square', 0.14, t + i * 0.065)); noise(0.08, 0.12, 3500, 1, t); },
     interceptBad: () => { const t = ac.currentTime; [392, 294, 196].forEach((f, i) => tone(f, 0.18, 'sawtooth', 0.14, t + i * 0.09, f * 0.85)); noise(0.1, 0.12, 500, 1, t); },
     block: () => { noise(0.12, 0.35, 500, 0.8); tone(110, 0.12, 'square', 0.2, 0, 60); },
@@ -277,6 +278,7 @@
 
   // 球员配音：vo/manifest.json 列出每名球员每类事件的若干条语音，随机选、不连播同一条
   let voM = null, voOn = true, voCur = null, voLast = {}, voBusy = 0;
+  const VO_WALK = { barkley: 'shaq_dunk_2.mp3' };
   const VO_INTRO = {
     barkley: [['shaq_make_1.mp3', 'shaq_make_0.mp3'], ['shaq_dom_1.mp3', 'shaq_block_0.mp3']],
     yao: [['sengun_dom_0.mp3', 'sengun_dom_2.mp3'], ['sengun_taunt_1.mp3', 'sengun_make_0.mp3']],
@@ -311,6 +313,7 @@
     const run = () => { if (!voM) return; for (const k of keys) {
       const V = voM[k]; if (V?.s) voFile(V.s);
       const alias = voM[VO_ALIAS[k]?.key]; if (alias?.s) voFile(alias.s);
+      const walk = voIdx[VO_WALK[k]]; if (walk) voFile(walk.s);
       if (!V?.lines?.intro?.length) for (const f of VO_INTRO[k]?.flat() || []) { if (voIdx[f]) voFile(voIdx[f].s); }
     } };
     if (voM) run(); else voReady.then(run);
@@ -342,7 +345,9 @@
       }
       return null;
     }
-    let L = voLines(key, ev);
+    const walk = ev === 'walk' ? voIdx[VO_WALK[key]] : null;
+    if (ev === 'walk' && !walk) ev = 'taunt';
+    let L = walk ? [walk.it] : voLines(key, ev);
     if (!L || !L.length) L = voLines(key, VO_FB[ev]);
     if (!L || !L.length) return null;
     const now = performance.now(); if (now < voBusy && !pri) return null;

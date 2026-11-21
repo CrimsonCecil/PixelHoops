@@ -36,25 +36,14 @@ function post(key, x = 1.3, side = 1, charge = 0.7, defender = true, shade = 0) 
   const [p, d] = G.players;
   Object.assign(G, { phase: 'live', time: 5, needClear: false });
   Object.assign(p, { x, y: HOOP.y - 3.1, post: true, hasBall: true, z: 0, vx: 0, vy: 0 });
-  Object.assign(d, { x: key === 'barkley' ? x - 0.6 : x + shade, y: p.y + 1, off: !defender, vx: 0, vy: 0 });
+  Object.assign(d, { x: x + shade, y: p.y + 1, off: !defender, vx: 0, vy: 0 });
   p.postEnd = G.time;
   p.sk.postT = charge;
   const l = Math.hypot(x, 3.1), hx = -x / l, hy = 3.1 / l;
   dbg.startMove(p, { ...zeroInp(), mx: (hx - side * hy) / Math.SQRT2, my: (hy + side * hx) / Math.SQRT2 }, 'postdrop');
-  const marker = p.postMove.signature;
-  const clean = d.stun === 0 && !d.knock;
   p.action = null; G.time = p.postMove.t + 1e-3; G.fx.hit = 0;
   dbg.startShot(p, zeroInp(), 'a1');
-  return { p, d, marker, clean, shot: p.action };
-}
-{
-  const { p, d, marker, clean, shot } = post('barkley', 1.3, -1);
-  assert.ok(marker && clean);
-  assert.equal(shot.v, 'strongrise'); assert.equal(shot.meter.label, '飞猪碾步');
-  assert.equal(shot.pts, 2); assert.equal(shot.skill, null); assert.ok(!shot.stride);
-  Object.assign(d, { face: -Math.PI / 2, x: p.x, y: p.y + 0.75, z: 0, stun: 0 });
-  dbg.releaseShot(p, 0.25, 'shot');
-  assert.equal(G.stats[p.id].sk, 1); assert.ok(G.lastShot.contest > 0);
+  return { shot: p.action };
 }
 for (const side of [1, -1]) {
   const { shot } = post('yao', 1.3 * side, side);
@@ -65,7 +54,68 @@ for (const side of [1, -1]) {
 assert.equal(post('yao', 1.3, 1, 0.1).shot.postSignature, undefined);
 assert.equal(post('yao', 1.3, 1, 0.7, false).shot.postSignature, undefined);
 assert.equal(post('yao', 1.3, 1, 0.7, true, -0.65).shot.postSignature, undefined);
-assert.equal(post('barkley', 1.3, 1).shot.postSignature, undefined);
+assert.equal(post('barkley').shot.postSignature, undefined);
+
+function drive({ key = 'barkley', shade = false, cooldown = 0, speed = 3, stamina = 100 } = {}) {
+  GM.newGame({ mode: '2p', arch0: key, arch1: 'joe' });
+  GM.seed(7);
+  const [p, d] = G.players;
+  Object.assign(G, { phase: 'live', time: 5, needClear: false });
+  Object.assign(p, { x: 0, y: HOOP.y - 4.35, vx: 0, vy: speed, face: Math.PI / 2, stam: stamina, hasBall: true });
+  Object.assign(d, { x: shade ? 0 : 3, y: HOOP.y - 1, vx: 0, vy: 0 });
+  p.sk.cd = cooldown;
+  return { p, d };
+}
+{
+  const { p } = drive();
+  const plan = dbg.finPlan(p);
+  assert.ok(plan.dunk && plan.flying);
+  assert.equal(plan.reach, plan.reach0 + GM.K.bkDunkDist);
+  assert.ok(dbg.startFinish(p, zeroInp(), 'auto', 'a2'));
+  const a = p.action;
+  step(190);
+  assert.equal(a.sigMove, 'barkley');
+  assert.equal(a.v, 'glide');
+  assert.ok(a.tkD > plan.reach0 + 0.4);
+  assert.equal(a.skill, null, 'regular dunk block and success rules stay active');
+  assert.equal(G.stats[p.id].sk, 1);
+  assert.ok(G.lastShot.prob < 1);
+  for (const state of [{ shade: true }, { speed: 0 }, { cooldown: 4 }, { key: 'shaq' }]) {
+    assert.equal(dbg.finPlan(drive(state).p).flying, false);
+  }
+  assert.equal(dbg.finPlan(drive({ stamina: 1 }).p).dunk, false);
+  assert.equal(dbg.finPlan(drive().p, 0, true).flying, false, 'not an alley-oop advantage');
+}
+
+function board({ defense = false, cooldown = 0, z = 0.7, distance = 1.45, wasShot = true, contested = false } = {}) {
+  const { p, d } = drive();
+  G.off = +defense; G.needClear = true;
+  Object.assign(p, { x: 0, y: HOOP.y - distance, z, vx: 0, vy: 0, hasBall: false });
+  Object.assign(d, { x: contested ? 0 : 3, y: p.y + 0.8, face: -Math.PI / 2, hasBall: false });
+  p.sk.cd = cooldown;
+  Object.assign(G.ball, { state: 'loose', wasShot, dead: false, noPick: 0, x: p.x, y: p.y, z: z ? 3 : 1.7, vx: 0, vy: 0, vz: 0 });
+  QA.updateBall(dt);
+  return p;
+}
+{
+  const p = board();
+  assert.equal(G.ball.shot?.sk, 'barkley');
+  assert.equal(G.ball.shot.kind, 'dunk');
+  assert.equal(G.ball.shot.name, '空中飞猪 · 补扣');
+  assert.equal(G.stats[p.id].oreb, 1);
+  assert.equal(G.stats[p.id].fga, 1);
+  assert.equal(G.stats[p.id].sk, 1);
+  assert.equal(G.needClear, false);
+  const openProb = G.lastShot.prob;
+  board({ contested: true });
+  assert.equal(G.ball.shot?.sk, 'barkley');
+  assert.ok(G.lastShot.prob < openProb && openProb < 1);
+  for (const state of [{ defense: true }, { z: 0 }, { cooldown: 5 }, { distance: 2 }, { wasShot: false }]) {
+    board(state);
+    assert.notEqual(G.ball.shot?.sk, 'barkley');
+    assert.equal(G.stats[0].sk, 0);
+  }
+}
 
 for (const behind of [false, true]) {
   GM.newGame({ mode: '2p', arch0: 'joe', arch1: 'mutombo' });
@@ -104,4 +154,4 @@ for (const key of ['barkley', 'yao', 'mutombo']) {
   assert.equal(G.stats[0].sk, 1, `${key}'s demo fires its signature using normal inputs`);
   if (key === 'mutombo') assert.equal(G.stats[0].blk, 1);
 }
-console.log('PASS frontcourt legends: roster, intro, team badges, contested post moves, honest blocks and dead-ball wag');
+console.log('PASS frontcourt legends: flying dunk, offensive putback, Shanghai Hook, honest blocks and dead-ball wag');
