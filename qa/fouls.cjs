@@ -126,20 +126,21 @@ function handGap(p) {
   assert.equal(p.action.t, 0);
   assert(p.action.meter && p.action.ft, 'shooting starts immediately from the gather');
 }
-{
+for (const dribble of [1, 2]) {
   const [p] = jumper(7, true, true, false);
   heardFoul('foulAndOne');
   const before = bounces;
-  until(() => G.ball.z < 0.4);
-  const lastDribbleFrame = ballPos();
-  assert(G.phaseT > 0 && bounces === before, 'the first bounce is still on the way down');
+  until(() => bounces - before === dribble - 1 && G.ball.z < 0.4);
+  if (dribble === 1) assert(G.phaseT > 0, 'setup has not finished during the first dribble');
   tick(true);
   assert.equal(p.action.t, 0);
-  assert(p.action.meter && p.action.ft, 'shooting starts during dribble one, without waiting for setup');
-  assert(ballShift(lastDribbleFrame) < 1e-8, 'the interruption does not teleport the ball');
-  until(() => p.action.t >= p.action.ftCatch.T, true);
-  assert(handGap(p) < 0.16);
-  assert.equal(bounces, before, 'interruption stops the pre-shot bounces');
+  assert(p.action.meter && p.action.ft, `shooting starts immediately during dribble ${dribble}`);
+  until(() => {
+    const gap = handGap(p);
+    assert(gap < 0.16, `dribble ${dribble} catch at ${p.action.t.toFixed(3)}s: hand gap ${gap.toFixed(3)}m`);
+    return p.action.t >= p.action.ftCatch.T;
+  }, true);
+  assert.equal(bounces - before, dribble - 1, 'interruption stops the pre-shot bounces');
 }
 {
   const [p] = jumper(7, true, true, false);
@@ -151,7 +152,7 @@ function handGap(p) {
   assert(handGap(p) < 0.16);
   until(() => G.ball.shot?.kind === 'ft');
 }
-console.log('PASS FT routine: two floor bounces, steady gather, immediate shoot interrupts, no ball teleport, CPU routine');
+console.log('PASS FT routine: two floor bounces, steady gather, immediate hand-attached catch on either dribble, CPU routine');
 
 jumper(7, true);
 assert.equal(G.phase, 'ft');

@@ -2154,9 +2154,9 @@
       const r = pl.r.ft ?? (pl.r.mid + pl.r.three) / 2;
       const ideal = CFG.shotIdeal * formOf(pl).sp, span = ideal + 0.12;
       const gw = greenWidth(pl, r, 0, 'mid') * 0.2 / span;
-      const dip = freeThrowDip(F), b = G.ball;
+      const dip = freeThrowDip(F);
       pl.action = { type: 'shot', v: 'set', V: SV.set, F: formOf(pl), lefty: !!pl.arch.lefty, jT: ideal * 0.45, t: 0, ideal, ft: true,
-        ftCatch: { x: b.x, y: b.y, z: b.z, T: 0.08 + 0.18 * dip },
+        ftCatch: { dip, T: 0.08 + 0.18 * dip },
         cpuRelease: cpu ? ideal + rr(-K.ftCpuError, K.ftCpuError) : 0,
         meter: { v: 0, span, ideal: ideal / span, gw, done: false, color: '#fff', label: '罚球' } };
       pl.animT = 0;
@@ -2692,16 +2692,19 @@
     }
     return false;
   }
-  function shotHandBall(k, lefty) {
+  function shotHandBall(k, lefty, guideWeight = 0.14) {
     const h = lefty ? k.handL : k.handR, guide = lefty ? k.handR : k.handL;
-    return { x: lerp(h[0], guide[0], 0.14), y: lerp(h[1], guide[1], 0.14), z: lerp(h[2], guide[2], 0.14) + 0.12 };
+    const dx = (guide[0] - h[0]) * guideWeight, dy = (guide[1] - h[1]) * guideWeight;
+    const dz = (guide[2] - h[2]) * guideWeight + 0.12;
+    const scale = Math.min(1, PH.render.BALL_R / Math.hypot(dx, dy, dz));
+    return { x: h[0] + dx * scale, y: h[1] + dy * scale, z: h[2] + dz * scale };
   }
   function heldShotPos(pl) {
     const k = PH.rig(pl), a = pl.action;
     if (k.ball && (a.type === 'layup' || a.type === 'dunk')) return { x: k.ball[0], y: k.ball[1], z: k.ball[2] };
     if (a.ft) {
-      const h = shotHandBall(k, a.lefty), c = a.ftCatch, w = sm(clamp(a.t / c.T, 0, 1));
-      return { x: lerp(c.x, h.x, w), y: lerp(c.y, h.y, w), z: lerp(c.z, h.z, w) };
+      const c = a.ftCatch, w = sm(clamp(a.t / c.T, 0, 1));
+      return shotHandBall(k, a.lefty, 0.14 * (1 - c.dip * (1 - w)));
     }
     const mid = k.handR.map((v, i) => (v + k.handL[i]) / 2);
     let hd;
