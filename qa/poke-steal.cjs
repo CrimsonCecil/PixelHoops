@@ -10,7 +10,7 @@ function fixture(mode) {
   for (const name of ['tune', 'ptype', 'render', 'input', 'roster', 'measurements', 'r5', 'game', 'b5', 'team5', 'team3']) {
     let code = fs.readFileSync(path.join(__dirname, '../js', name + '.js'), 'utf8');
     if (name === 'render') code = code.replace('curCol: curCol,', 'curCol: curCol, pokePromptBox,');
-    if (name === 'game') code = code.replace('_qa: {', '_qa: { updateAction, updateBall,');
+    if (name === 'game') code = code.replace('_qa: {', '_qa: { updateAction, updateBall, updatePlayer, agil, slowSkip,');
     vm.runInContext(code, ctx, { filename: name + '.js' });
   }
   const { game: gm, T3, T5 } = ctx.PH, { G, K } = gm;
@@ -46,6 +46,56 @@ function fixture(mode) {
 
 for (const mode of ['1V1', '3V3', '5V5']) {
   const f = fixture(mode), { gm, G, K } = f;
+  {
+    const defaults = { stlCl0: K.stlCl0, stlClS: K.stlClS, stlClTm: K.stlClTm }, sounds = [];
+    gm.setAudioSink((type, name) => { if (type === 'play') sounds.push(name); });
+    let { p, d } = f.reset();
+    Object.assign(K, { stlCl0: 0, stlClS: 0, stlClTm: 0 });
+    assert(f.hit(d));
+    assert.equal(G.fx.slow, K.stlPokeSlowT);
+    assert.equal(G.fx.slowScale, K.stlPokeSlowK);
+    assert.equal(sounds.filter((s) => s === 'poke').length, 1, 'one poke sound at contact');
+    assert.equal(gm.pokeCue().gold, true, 'pending poke colors ball gold');
+    assert.equal(p.stunK, 'daze', 'reuse ankle-breaker stagger');
+    assert.equal(p.stun, Math.max(0, K.stlPokeStun - K.stlPokeAg * gm._qa.agil(p)));
+    const x = p.x, y = p.y;
+    gm._qa.updatePlayer(p, { ...gm.t5.zeroInp(), mx: 1, my: 1 }, 0.01);
+    assert.equal(p.x, x, 'stagger blocks movement toward ball');
+    assert.equal(p.y, y);
+    G.ball.noPick = 0; G.ball.x = p.x; G.ball.y = p.y; G.ball.z = 0.13;
+    gm._qa.updateBall(0);
+    assert.notEqual(G.ball.holder, p.id, 'stagger blocks pickup');
+    G.ball.state = 'ext';
+    const start = G.time;
+    for (let i = 0; i < Math.ceil(K.stlPokeSlowT * 120) + 1; i++) f.tick();
+    assert.equal(G.fx.slow, 0, 'slow motion ends in real time');
+    assert.equal(G.fx.slowScale, null);
+    assert(Math.abs(G.time - start - K.stlPokeSlowT * K.stlPokeSlowK) < 0.025, 'simulation uses tuned time scale');
+    const durations = [];
+    for (const agility of [0.2, 0.9]) {
+      ({ p, d } = f.reset());
+      Object.assign(p.r, { acc: agility, spd: agility, lat: agility });
+      assert(f.hit(d)); durations.push(p.stun);
+    }
+    assert(durations[1] < durations[0], 'agile handler staggers for less time');
+    ({ p, d } = f.reset());
+    gm.isOnline = () => true;
+    assert(f.hit(d)); assert.equal(G.fx.slow, 0, 'online poke never slows simulation');
+    delete gm.isOnline;
+    ({ p, d } = f.reset());
+    G.replay = {};
+    assert(f.hit(d)); assert.equal(G.fx.slow, 0, 'replay poke does not start new slow motion');
+    G.replay = null;
+    ({ p, d } = f.reset());
+    Object.assign(K, { stlCl0: 1, stlClS: 0, stlClTm: 0 });
+    sounds.length = 0;
+    assert.equal(f.hit(d), false);
+    assert.equal(G.fx.slowScale, undefined, 'clean steal does not trigger poke time scale');
+    assert(!sounds.includes('poke'), 'clean audio unchanged');
+    assert.equal(gm.pokeCue().gold, false);
+    Object.assign(K, defaults); gm.setAudioSink(null);
+    console.log(`PASS ${mode}: poke-only offline slow motion and expiry, sound, gold ball, agility stagger and no vacuum pickup`);
+  }
   for (const head of [{ x: 240, y: 210 }, { x: 2, y: 2 }, { x: 478, y: 268 }]) {
     for (const ball of [{ x: head.x, y: head.y - 30, s: 40 }, { x: 240, y: 215, s: 60 }]) {
       const box = f.PH.render.pokePromptBox(head, ball, 100), r = Math.max(2, f.PH.render.BALL_R * ball.s) + 12;
@@ -126,7 +176,7 @@ for (const mode of ['1V1', '3V3', '5V5']) {
       assert((G.ball.vx * (p.x - d.x) + G.ball.vy * (p.y - d.y)) > 0, 'poke travels away from stealer');
       assert.equal(G.ball.lastTouch, d.id);
       assert.equal(G.ball.noPick, K.stlPokeNP);
-      assert.equal(p.stun, K.stlPokeStun);
+      assert.equal(p.stun, Math.max(0, K.stlPokeStun - K.stlPokeAg * gm._qa.agil(p)));
       assert.equal(d.action.T, K.stlRecT);
       assert.equal(G.stats[d.id].stl, 0);
       assert.equal(G.stats[p.id].tov, 0);
