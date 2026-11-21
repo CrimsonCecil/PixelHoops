@@ -1507,10 +1507,11 @@
     const now = performance.now(), dt = Math.min(60, now - rsT || 16); rsT = now;
     const r = PH.input.rstick(); if (r.y) { const sb = scrollBox(root); if (sb) sb.scrollTop += r.y * dt * 1.1; }
   }
+  const isTextInput = (el) => !!(el && ((el.tagName === 'INPUT' && el.type !== 'range') || el.tagName === 'TEXTAREA'));
   document.addEventListener('keydown', (e) => {
-    if (e.code !== 'Enter' || screen !== 'menu' || e.target.id === 'room-code') return;
+    if (e.code !== 'Enter' || isTextInput(e.target)) return;
     const root = navRoot();
-    if (root && (root.id === 'menu' || root.id === 'picker' || root.id === 'pause')) e.preventDefault();
+    if (root && ((screen === 'menu' && (root.id === 'menu' || root.id === 'picker' || root.id === 'pause')) || root.id === 'tune')) e.preventDefault();
   });
 
   // ---------- 循环 ----------
@@ -1539,8 +1540,14 @@
       if ((ok || pa || up || dn || lf || rt) && root.contains(focused) && focused.matches(NAV_SEL) && focused.id !== 'room-code' && focused.offsetParent !== null && !root.querySelector('.pf')) navSet(root, focused);
     }
     if (TUI && TUI.isOpen()) {
+      const typing = isTextInput(document.activeElement);
+      if (!typing) {
+        up = I.sysPressed('ArrowUp') || up; dn = I.sysPressed('ArrowDown') || dn; lf = I.sysPressed('ArrowLeft') || lf; rt = I.sysPressed('ArrowRight') || rt;
+        const focused = document.activeElement;
+        if ((ok || pa || up || dn || lf || rt) && root && root.contains(focused) && focused.matches(NAV_SEL) && focused.offsetParent !== null && !root.querySelector('.pf')) navSet(root, focused);
+      }
       navAct(root, { up: up, dn: dn, lf: lf, rt: rt, lb: lb, rb: rb, rl: rl, rr: rr, px: px });
-      if (pa) navClick();
+      if (pa || (ok && !typing)) navClick();
       else if (esc || pb) { const sub = ['tn-name', 'tn-pastebox'].map($).find((e) => e && !e.classList.contains('hidden')); if (sub) { const c = sub.querySelector('#tn-cancel,#tn-pastecancel'); if (c) c.click(); } else TUI.open(false); }
       I.clearSys(); return;
     }
