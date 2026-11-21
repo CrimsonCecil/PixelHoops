@@ -3949,7 +3949,7 @@
     if (a.stand && !a.skill && (a.v === 'two' || a.v === 'one')) a.name = a.v === 'one' ? '原地单手扣' : '原地双手扣';
     a.tkD = tk; a.T = a.stand ? K.sdFly : 0.42 + 0.1 * tk + (a.v === '360' || a.v === 'windmill' || a.v === 'cradle' || a.v === 'pump' ? 0.08 : a.v === 'glide' || a.v === 'scissor' ? 0.05 : 0);
     if (tk >= 2.2) bpop(pl, 'launch');
-    if (tk >= 2.4) { a.long = true; float('长 ' + tk.toFixed(1) + ' 米', pl, '#5ee0ff'); G.fx.cheer = Math.max(G.fx.cheer, 1.0); }
+    if (tk >= 2.4) { a.long = true; float('起跳距离 ' + tk.toFixed(1) + ' 米', pl, '#5ee0ff'); G.fx.cheer = Math.max(G.fx.cheer, 1.0); }
     if (!a.skill && skOf(pl, 'giannis') && tk >= 2.2 && a.run0 >= 0.6 && pl.stam >= 25) { a.skill = 'giannis'; a.name = '一步登天'; a.long = true; a.T += 0.12; fireSkill(pl); }
     if (!a.skill) { const S = gsk(pl, 'dunk'), od = OP(pl); if (S && S.trig !== 'flying' && (S.trig === 'contact' ? !od.off && Math.hypot(od.x - pl.x, od.y - pl.y) < 1.6 : tk >= 2.0 && a.run0 >= 0.6 && pl.stam >= 20)) { a.skill = S.id; a.name = S.name; if (S.trig !== 'contact') { a.long = true; a.T += 0.1; } else if (dunkPkg(pl.arch).S.poster) a.v = 'poster'; fireSkill(pl); } }
     sfx('jump');
