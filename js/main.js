@@ -980,7 +980,7 @@
   }
   function toggleInfo() { opts.info = opts.info === 'show' ? 'hide' : 'show'; pcards(); refreshMenu(); camBody(); }
   // ---------- 镜头面板 ----------
-  const CAMS = [['zoom', '拉近', 0.8, 1.8, 0.05], ['height', '机位高度', 3, 10, 0.1], ['dist', '镜头距离', 6, 14, 0.1], ['follow', '左右跟随', 0, 1, 0.05], ['pin', '推近力度', 0, 0.6, 0.02], ['plow', '压低程度', 0, 1, 0.05]];
+  const CAMS = [['zoom', '拉近', 0.8, 1.8, 0.01], ['height', '机位高度', 3, 10, 0.1], ['dist', '镜头距离', 6, 14, 0.1], ['follow', '左右跟随', 0, 1, 0.05], ['pin', '推近力度', 0, 0.6, 0.02], ['plow', '压低程度', 0, 1, 0.05]];
   let camOpen = false, camWasPaused = false;
   function camBody() {
     if (!camOpen) return;
