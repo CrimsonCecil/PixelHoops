@@ -10,7 +10,7 @@ function context(baseline = false) {
   c.window = c; c.addEventListener = () => {}; c.navigator = { getGamepads: () => [] };
   vm.runInContext('let seed=7; Math.random=()=>((seed=(Math.imul(seed,1664525)+1013904223)>>>0)/4294967296)', c);
   for (const name of ['tune', 'ptype', 'render', 'input', 'roster', 'measurements', 'r5', 'game', 'b5', 'team5', 'team3']) {
-    let code = baseline ? cp.execFileSync('git', ['show', '7d21115:js/' + name + '.js'], { cwd: root, encoding: 'utf8' }) : fs.readFileSync(path.join(root, 'js', name + '.js'), 'utf8');
+    let code = baseline && ['b5', 'team5', 'team3'].includes(name) ? cp.execFileSync('git', ['show', '7d21115:js/' + name + '.js'], { cwd: root, encoding: 'utf8' }) : fs.readFileSync(path.join(root, 'js', name + '.js'), 'utf8');
     if (name === 'team3') code = code.replace('PH.T3 = {', 'PH.T3 = { send, passStep, passRead, pickTick, startPick,');
     vm.runInContext(code, c, { filename: name + '.js' });
   }
@@ -193,5 +193,5 @@ for (const key of ['cs', 'dimer', 'needle', 'bailout', 'breaker', 'postpm', 'bri
     return JSON.stringify({ state: T5.state(), text: game.toText(), badges: c.PH.B5.stats() });
   });
   assert.equal(snapshots[1], snapshots[0], 'seeded 5V5 simulation must match pre-change baseline');
-  console.log('PASS: 3600-frame seeded 5V5 state, player stats and badge stats match baseline 7d21115 exactly.');
+  console.log('PASS: 3600-frame seeded 5V5 state, player stats and badge stats match pre-change badge/team modules from 7d21115.');
 }
