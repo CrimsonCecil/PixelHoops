@@ -303,7 +303,10 @@
       const d = nearest(teams(1 - from.tm).filter((p) => !p.off && !p.stun && b.z <= p.z + p.h + 0.35), b);
       const reach = d && (0.25 + d.tendency.read * 0.37 + 0.12 * d.r.stl) * (kind === 'bounce' ? 0.8 : 1) * (1.1 - 0.25 * from.tendency.accuracy);
       if (d && dist(d, b) < reach) {
-        G.stats[d.id].stl++; G.stats[from.id].tov++; A.pickup(d); A.float('抢断传球', d, '#7dff8a', 1); return;
+        const local = G.players.find(p => p.ring && p.ctrl !== 'cpu');
+        G.stats[d.id].stl++; G.stats[from.id].tov++;
+        A.passIntercept(d, local ? local.tm : null);
+        A.pickup(d, 'intercept'); A.float('抢断传球', d, '#7dff8a', 1); return;
       }
     }
     if (u === 1) {

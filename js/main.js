@@ -268,11 +268,14 @@
       const p = state.players[i];
       Object.assign(G.players[i], p, { opp: G.players[p.oppId] || null, ring: G.mode === 't3' && i === localSlot });
     }
+    const localTeam = G.players[localSlot]?.tm ?? null;
+    if (G.mode === 't3') GM.t5.localizeInterception(localTeam);
     if (Array.isArray(state.audio)) {
       for (const event of state.audio) {
         if (!Array.isArray(event)) continue;
         const [type, name, voice, mode] = event;
         if (type === 'play') PH.audio.play(name);
+        else if (type === 'intercept') PH.audio.play(GM.t5.interceptionStyle(name, localTeam).sfx);
         else if (type === 'vo') PH.audio.vo(name, voice, mode);
       }
     }
