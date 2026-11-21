@@ -62,6 +62,7 @@ function fixture(source) {
     vm.runInContext(code, ctx, { filename: name + '.js' });
   }
   const gm = ctx.PH.game;
+  gm.context = ctx;
   gm.rig = ctx.PH.rig;
   gm.reachAudit = ctx.reachAudit;
   gm.seed(7);
@@ -344,6 +345,52 @@ for (const mode of ['2p', 't5', 't3']) for (const fps of [60, 120]) for (const h
 console.log(`PASS steal contact continuity: hit/miss, 0.55/0.8/0.94/1.01/1.3/1.35m, both arms, four dribble phases, 60/120fps, 1V1/5V5/3V3; max elbow=${maxElbowStep.toFixed(3)}rad, wrist=${maxWristStep.toFixed(3)}m/frame`);
 console.log(`PASS visual steal lunge: contact pelvis drop >=${minHipDrop.toFixed(3)}m, lead-foot advance >=${minLeadStep.toFixed(3)}m, grounded lead foot and unchanged gameplay position`);
 console.log(`PASS planted steal foot: hit/miss, six distances including 0.94m, both sides, 60/120fps, all modes; max grounded motion=${maxGroundStep.toFixed(3)}m/frame; lifted return`);
+
+{
+  const visual = fixture(), { G, K, _qa, t5, context } = visual;
+  const [p, d] = G.players, dt = 1 / 120;
+  Object.assign(G, { phase: 'live', needClear: false, mode: 't5', time: 0 });
+  Object.assign(p, { x: 0, y: 5, hasBall: true, face: Math.PI / 2, opp: d, action: null, hand: 1, handX: 0.33 });
+  Object.assign(d, { x: 0.564, y: 5.752, hasBall: false, face: -Math.PI / 2, opp: p, action: null, f5: {} });
+  Object.assign(G.ball, { state: 'held', holder: p.id, dead: false });
+  visual.CFG.stealMul = 0;
+  const step = () => { G.time += dt; _qa.updatePlayer(d, t5.zeroInp(), dt); _qa.updateBall(dt); };
+  for (let i = 0; i < 60; i++) step();
+  _qa.startSteal(d);
+  for (let i = 0; i < 16; i++) step();
+  let source = fs.readFileSync(path.join(__dirname, '../js/render5.js'), 'utf8');
+  const wpk = source.match(/const wpk = \(p\) => \{[\s\S]*?\n    \};/)[0].replace('const wpk = ', '').replace(/;$/, '');
+  source = source.replace('PH.render5 = {', `PH.cameraQA = { wp, rotated: (U, V, fa) => (${wpk}) }; PH.render5 = {`);
+  vm.runInContext(source, context);
+  const cameras = context.PH.cameraQA, side = d.stealFoot.side, lead = 'foot' + side, knee = 'knee' + side;
+  const check = (q, xy, label) => {
+    const original = visual.rig(d), view = visual.rig(q), expected = xy(original[lead][0], original[lead][1]);
+    const error = Math.hypot(view[lead][0] - expected[0], view[lead][1] - expected[1]);
+    assert(error < 1e-8, `${label}: planted foot follows camera/possession transform (error=${error}m)`);
+    assert(Math.hypot(...view[lead].map((v, i) => v - view[knee][i])) < 1.05, label + ': ankle remains attached to shin');
+    assert(Math.abs(view[lead][2] - 0.06 * (1 + (d.h / 1.95 - 1) * 1.7)) < 0.01, label + ': planted foot grounded');
+  };
+  const checkCameras = () => {
+    for (const direction of [-1, 1]) {
+      check(cameras.wp(d, direction), (x, y) => [direction * y, -direction * x], `broadcast d=${direction}`);
+      for (const phi of [0, 0.7, Math.PI]) {
+        const U = (x, y) => direction * y * Math.sin(phi) + direction * x * Math.cos(phi);
+        const V = (x, y) => direction * y * Math.cos(phi) - direction * x * Math.sin(phi);
+        check(cameras.rotated(U, V, Math.PI / 2 - direction * Math.PI / 2 - phi)(d), (x, y) => [U(x, y), V(x, y)], `2k d=${direction} phi=${phi}`);
+      }
+    }
+  };
+  checkCameras();
+  const teamSource = fs.readFileSync(path.join(__dirname, '../js/team5.js'), 'utf8');
+  const flip = teamSource.slice(teamSource.indexOf('  function flipAll()'), teamSource.indexOf('  function setOff('));
+  const flipAll = vm.runInContext(`(G, T, ps) => { ${flip}; flipAll(); }`, context);
+  const old = d.stealFoot.pos.slice();
+  for (const player of G.players) player.f5 ||= {};
+  flipAll(G, {}, () => G.players);
+  assert(Math.hypot(d.stealFoot.pos[0] + old[0], d.stealFoot.pos[1] + old[1]) < 1e-8, 'possession flip rotates planted foot');
+  checkCameras();
+  console.log('PASS planted steal foot transforms: broadcast and rotated 2K, both directions, possession flip; grounded and attached to shin');
+}
 
 if (process.env.STEAL_BASELINE) {
   const before = fixture(fs.readFileSync(process.env.STEAL_BASELINE, 'utf8'));

@@ -221,6 +221,7 @@
   function wp(p, d) {
     const q = Object.create(p); q.x = d * p.y; q.y = -d * p.x; q.vx = d * (p.vy || 0); q.vy = -d * (p.vx || 0); q.face = p.face - d * PI2;
     q.pose = poseInView(p, (x, y) => [d * y, -d * x]);
+    if (p.stealFoot) { const f = p.stealFoot; q.stealFoot = Object.assign({}, f, { pos: [d * f.pos[1], -d * f.pos[0], f.pos[2]] }); }
     if (p.grip && p.grip.rim) { q.gripRimX = d * HX; q.gripRimY = 0; }
     if (p.ghosts) q.ghosts = p.ghosts.map((g) => Object.assign({}, g, { x: d * g.y, y: -d * g.x, face: g.face - d * PI2 }));
     return q;
@@ -407,6 +408,7 @@
     const wpk = (p) => {
       const q = Object.create(p); q.x = U(p.x, p.y); q.y = V(p.x, p.y); q.vx = U(p.vx || 0, p.vy || 0); q.vy = V(p.vx || 0, p.vy || 0); q.face = p.face + fa;
       q.pose = poseInView(p, (x, y) => [U(x, y), V(x, y)]);
+      if (p.stealFoot) { const f = p.stealFoot; q.stealFoot = Object.assign({}, f, { pos: [U(f.pos[0], f.pos[1]), V(f.pos[0], f.pos[1]), f.pos[2]] }); }
       if (p.grip && p.grip.rim) { q.gripRimX = U(0, HX); q.gripRimY = V(0, HX); }
       if (p.ghosts) q.ghosts = p.ghosts.map((g) => Object.assign({}, g, { x: U(g.x, g.y), y: V(g.x, g.y), face: g.face + fa }));
       return q;
