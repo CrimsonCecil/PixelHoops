@@ -192,5 +192,24 @@ function load() {
   played.length = 0;
   Gm.t5.pickup(G.players[3]); // opponent CPU on team 1
   assert.ok(!played.includes('rebound'), '3V3 opponent defensive rebound does not play positive rebound cue');
-  console.log('PASS: rebound grabs play positive cue SFX for the player/team without firing for opponents.');
+
+  // Online 3V3: audioSink emits ('rebound', team) and host only plays for its own local team
+  const netEvents = [];
+  Gm.setAudioSink((...ev) => netEvents.push(ev));
+  G.players[0].ring = true; // host on team 0
+  G.players[3].ctrl = 'net'; G.players[3].ring = false; // remote opponent on team 1
+  G.off = 0; G.ball.state = 'loose'; G.ball.wasShot = true;
+  played.length = 0; netEvents.length = 0;
+  Gm.t5.pickup(G.players[3]); // remote opponent grabs defensive rebound
+  assert.ok(!played.includes('rebound'), 'online 3V3 host does not hear positive rebound cue for remote opponent');
+  assert.deepEqual(netEvents.filter((e) => e[0] === 'rebound'), [['rebound', 1]], 'online 3V3 emits team-scoped rebound event for clients');
+
+  G.off = 1; G.ball.state = 'loose'; G.ball.wasShot = true;
+  played.length = 0; netEvents.length = 0;
+  Gm.t5.pickup(G.players[1]); // host's AI teammate grabs defensive rebound
+  assert.ok(played.includes('rebound'), 'online 3V3 host hears positive rebound cue for own team');
+  assert.deepEqual(netEvents.filter((e) => e[0] === 'rebound'), [['rebound', 0]], 'online 3V3 emits team-0 rebound event for clients');
+  Gm.setAudioSink(null);
+
+  console.log('PASS: rebound grabs play positive cue SFX for the player/team without firing for opponents (local and online).');
 }

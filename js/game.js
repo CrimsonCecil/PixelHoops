@@ -2749,6 +2749,18 @@
     }
     if (G.h5) G.h5.score(pl, pts, kind, name);
   }
+  function reboundPositive(pl) {
+    if (G.phase !== 'live' || G.mode === 'demo') return;
+    const team = TM(pl);
+    audioSink?.('rebound', team);
+    const local = audioSink
+      ? (teamPlay() ? G.players.find((p) => p.ring && p.ctrl !== 'cpu') : G.players.find((p) => p.ctrl === 'p1'))
+      : null;
+    const own = audioSink
+      ? !!(local && TM(local) === team)
+      : (pl.ctrl !== 'cpu' || (teamPlay() && G.players.some((p) => p.ctrl !== 'cpu' && TM(p) === team)));
+    if (own && PH.audio) PH.audio.play('rebound');
+  }
   function pickup(pl, reason) {
     for (const p of G.players) comboEnd(p);
     pl.dh = [];
@@ -2771,9 +2783,8 @@
     if (b.wasShot && !change) { pl.orebT = G.time; pl.ai.pb = null; G.needClear = false; G.illId = -1; } // 前场篮板不用再出三分线
     if (b.wasShot) {
       G.stats[pl.id].reb++; G.stats[pl.id][change ? 'dreb' : 'oreb']++; tkAdd(pl, change ? 3 : 5);
-      const ownReb = pl.ctrl !== 'cpu' || (teamPlay() && G.players.some((p) => p.ctrl !== 'cpu' && TM(p) === TM(pl)));
       if (!change && !train) { const o = OP(pl), hot = !o.off && Math.hypot(o.x - pl.x, o.y - pl.y) < 1.6; float('进攻篮板', pl, '#7dff8a'); bigPlay('oreb', pl, b.x, b.y, Math.max(0.5, b.z), hot ? 1 : 0); }
-      else if (G.phase === 'live' && ownReb) sfx('rebound');
+      else reboundPositive(pl);
     }
     b.wasShot = false;
     G.shotClock = change ? CFG.shotClock : Math.max(G.shotClock, Math.min(14, CFG.shotClock)); b.lastTouch = pl.id;
