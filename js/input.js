@@ -65,6 +65,10 @@
       o.a1 = o.a1 || touchBtn('a1'); o.a2 = o.a2 || touchBtn('a2'); o.a3 = o.a3 || touchBtn('a3'); o.sprint = o.sprint || touchBtn('sprint');
       if (onOffense) { o.dribble = o.dribble || touchBtn('a3'); o.post = o.post || touchBtn('alt'); }
     }
+    o.selfAlley = !teamPass && (held(slot === 0 ? ['KeyV'] : ['Numpad4']) || onOffense && padBtn(gp, 0));
+    o.alleyX = held(m.a1) || padBtn(gp, 2) || slot === 0 && touchBtn('a1');
+    o.alleyB = held(m.a3) || padBtn(gp, 1) || slot === 0 && touchBtn('a3');
+    if (gp && Math.hypot(gp.axes[2] || 0, gp.axes[3] || 0) > 0.6) { o.dx = gp.axes[2] || 0; o.dy = -(gp.axes[3] || 0); }
     const l = Math.hypot(o.mx, o.my); if (l > 1) { o.mx /= l; o.my /= l; }
     return o;
   }
@@ -99,6 +103,9 @@
   function read3(onOffense) {
     const input = read(0, onOffense, true, true), gp = lock.on ? null : pads()[0];
     const B = (i) => padBtn(gp, i);
+    input.alleyX = held(MAPS[0].a1) || B(2) || touchBtn('a1');
+    input.alleyB = held(MAPS[0].a3) || B(1) || touchBtn('a3');
+    if (gp && Math.hypot(gp.axes[2] || 0, gp.axes[3] || 0) > 0.6) { input.dx = gp.axes[2] || 0; input.dy = -(gp.axes[3] || 0); }
     input.pass = held(['KeyE']) || B(0) || touchBtn('pass');
     const bounce = held(['KeyZ']) || touchBtn('bounce') || B(0) && B(4);
     const lob = held(['KeyX']) || touchBtn('lob') || B(0) && B(6);

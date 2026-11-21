@@ -538,7 +538,7 @@
         row('犹豫步', '按住双臂向两侧展开，单手托球假突，松手按左摇杆方向接招', kb(G2('R3'), K('H'))) +
         row('运球接急停', '高控球或脚踝终结者/运球如丝可随时接干拔，后撤步大师仅限后撤步；其他球员等动作做完', kb(X, K('J'))) +
         row('传球', '左摇杆指向谁就传给谁；不指方向传给面前最合适的人；按住 = 长传', kb(A, K('K'))) +
-        row('击地传球', '', kb(B, K('L'))) + row('高吊传球 / 空中接力', '按一下高吊，快速按两下 = 空中接力', kb(Y, K('I'))) +
+        row('击地传球', '', kb(B, K('L'))) + row('高吊传球 / 空中接力', '按一下高吊，快速按两下 = 空中接力；接球时左来球按 X / J，右来球按 B / L，或右摇杆迎球，按提示时机终结', kb(Y, K('I'))) +
         row('背打 / 护球', '按住', kb(G2('LT'), K('Q'))) + row('叫挡拆', '叫最近的内线来掩护；再按一次 = 顺下', kb(G2('LB'), K('R'))) +
         row('图标传球', '按住 RB，队友头顶出现 A / B / X / Y / LT，再按对应键传给他（键盘显示 K / L / J / I / Q）', kb(G2('RB') + '+图标', K('E') + '+图标')) +
         row('接球即投 / 即传 / 即招式', '传球飞来时提前按：X 接球即投 / A 接球即传 / 右摇杆 接球即招式（键盘 J / K / 方向键）', kb(X + A + G2('右摇杆'), K('J') + K('K') + K('↑') + K('←') + K('↓') + K('→'))) +
@@ -1095,8 +1095,9 @@
     if (sbE && sbE.offsetParent && screen === 'play') { const cv = stage.getBoundingClientRect(), r = sbE.getBoundingClientRect(); if (r.width) sb = { x0: (r.left - cv.left) / scale, x1: (r.right - cv.left) / scale, y1: (r.bottom - cv.top) / scale }; }
     for (let i = fpool.length - 1; i >= 0; i--) {
       const f = G.floats[i], d = fpool[i];
-      if (!f) { d.style.display = 'none'; continue; }
+      if (!f || f.alleyPrompt && G.ball.state !== 'pass') { d.style.display = 'none'; continue; }
       const p = R.proj(f.x, f.y, f.z + f.t * 0.5), pw = (f.shot ? 44 : f.text.length * 7 + 6) / 2, ph = f.shot ? 26 : 13;
+      if (f.alleyPrompt) p.x += 28;
       let y = p.y;
       const inSb = (yy) => sb && p.x + pw > sb.x0 && p.x - pw < sb.x1 && yy - ph < sb.y1 + 1;
       if (inSb(y)) y = sb.y1 + 2 + ph;
@@ -1106,6 +1107,7 @@
       placed.push({ x: p.x, y: y, w: pw, h: ph }); p.y = y;
       d.style.display = 'block';
       if (f.shot) { d.className = 'sfb'; d.style.display = 'flex'; d.innerHTML = '<b style="color:' + f.color + '">' + f.text + '</b><span style="color:' + f.subColor + '">' + f.sub + '</span>'; d.style.color = ''; }
+      else if (f.alleyPrompt) { d.className = 'cue'; d.style.color = f.color; d.innerHTML = '<b>' + f.text + '</b><span style="display:block;width:32px;height:3px;margin:2px auto 0;background:#292436"><i style="display:block;height:3px;background:currentColor;width:' + Math.round(f.progress * 100) + '%"></i></span>'; }
       else { d.className = ''; d.textContent = f.text; d.style.color = f.color; }
       d.style.left = Math.max(40, Math.min(R.W - 40, p.x)) * scale + 'px'; d.style.top = Math.max(26, p.y) * scale + 'px';
       d.style.opacity = f.t > 1 ? String(Math.max(0, 1 - (f.t - 1) / 0.3)) : '1';
@@ -1141,7 +1143,7 @@
     if (key !== hintKey) {
       hintKey = key;
       const kb = hasPad ? { a1: 'X', a2: 'Y', a3: 'B', po: 'LT', sp: 'RT', st: 'LT', d1: 'Y', d2: 'X' } : { a1: 'J', a2: 'K', a3: 'L', po: 'Q', sp: 'Shift', st: '按住 L', d1: 'J', d2: 'K' };
-      const O = '<b>' + kb.a1 + '</b> 投篮/突破上篮 <b>' + kb.a2 + '</b> 扣篮/终结 <b>' + kb.a3 + '</b>+方向 运球动作／中立按住 犹豫步 <b>' + kb.po + '</b> 背打 <b>' + kb.sp + '</b> 加速';
+      const O = '<b>' + kb.a1 + '</b> 投篮/突破上篮 <b>' + kb.a2 + '</b> 扣篮/终结 <b>' + kb.a3 + '</b>+方向 运球动作／中立按住 犹豫步 <b>' + kb.po + '</b> 背打 <b>' + kb.sp + '</b> 加速' + (t3 ? '' : '　<b>' + (hasPad ? 'A' : 'V') + '</b> 向筐跑动自抛空接；接球按提示 X / B（J / L）或右摇杆迎球');
       const B = '<b>' + kb.d1 + '</b> 抢篮板 <b>' + kb.st + '</b> 卡位 <b>' + kb.sp + '</b> 加速';
       const P = '背打中　<b>' + kb.a1 + '</b> 勾手 / 按住后方向后仰 <b>' + kb.a2 + '</b> 转身终结　松开时按左右 转身';
       const D = '<b>' + kb.d1 + '</b> 封盖 <b>' + kb.d2 + '</b> 抢断 <b>' + kb.st + '</b> 举手干扰 <b>' + kb.sp + '</b> 加速';
@@ -1149,7 +1151,9 @@
       const passing = t3 && local && off ? offBall ? '　<b>' + (hasPad ? 'A' : 'E') + '</b> 要球' : hasPad
         ? '　<b>A</b> 胸传　<b>RT+A</b> 过顶　<b>LB+A</b> 击地　<b>LT+A</b> 高吊　<b>LB+LT+A</b> 空接'
         : '　<b>E</b> 胸传　<b>Shift+E</b> 过顶　<b>Z</b> 击地　<b>X</b> 高吊　<b>V</b> 空接' : '';
-      $('hint').innerHTML = two ? '玩家 1：WASD + J K L，Q 背打　玩家 2：方向键 + 小键盘 1 2 3，O 背打' : (post ? P : off ? '进攻　' + (offBall ? B : O) : '防守　' + D) + passing + (offBall ? '　<b>' + (hasPad ? 'R3' : 'F') + '</b> 掩护' : '') + (train ? '　<b>' + (hasPad ? 'View' : 'Tab') + '</b> 参数 <b>R</b> 重置' : '');
+      const alleyHelp = t3 ? '　空接终结：左来球 <b>' + (hasPad ? 'X' : 'J') + '</b> / 右来球 <b>' + (hasPad ? 'B' : 'L') + '</b>，接球时点按或右摇杆迎球' : '';
+      $('hint').innerHTML = two ? '玩家 1：WASD + J K L，Q 背打，V 自抛空接　玩家 2：方向键 + 小键盘 1 2 3，O 背打，Num4 自抛空接；接球按提示投篮键 / 运球键或右摇杆迎球' : (post ? P : off ? '进攻　' + (offBall ? B : O) : '防守　' + D) + passing + (offBall ? '　<b>' + (hasPad ? 'R3' : 'F') + '</b> 掩护' : '') + (train ? '　<b>' + (hasPad ? 'View' : 'Tab') + '</b> 参数 <b>R</b> 重置' : '');
+      if (t3) $('hint').innerHTML += alleyHelp;
       if (isTouch) {
         $('tb1').textContent = offBall ? '篮板' : off ? '投篮' : '盖帽'; $('tb2').textContent = offBall ? '扑球' : off ? '终结' : '抢断'; $('tb3').textContent = offBall ? '卡位' : off ? '运球' : '姿态'; $('tbalt').textContent = '背打';
         show('tbalt', off && !offBall); show('tbscreen', offBall);
@@ -1630,7 +1634,7 @@
     H.score = function (pl, pts, kind, name) {
       const T = PH.T5.T, bz = !!(T.endPend && T.bzOn), L = T.lastPass;
       const all = []; for (const t of T.tm) for (const q of t.on) all.push([q, q.rk ? q.rk.st.ast : 0]);
-      const nm = fdShotName(pl, pts, kind, name), oop = kind === 'dunk' && L && L.to === pl && T.time - L.t < 1.1;
+      const nm = fdShotName(pl, pts, kind, name), oop = !/^空接/.test(name || '') && kind === 'dunk' && L && L.to === pl && T.time - L.t < 1.1;
       const r = orig.apply(this, arguments);
       try {
         fdPush('score', pl, ' ' + (bz ? '压哨 · ' : '') + escH(oop ? '空接' + (nm.indexOf('扣') >= 0 ? ' · ' + nm : '暴扣') : nm), '<em>+' + pts + '</em>');

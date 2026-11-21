@@ -646,8 +646,10 @@
     R.drawCombos(Gm);
     // 飘字（1V1 的 G.floats）
     for (const f of Gm.floats) {
+      if (f.alleyPrompt && Gm.ball.state !== 'pass') continue;
       const q = pr(f.x, f.y, f.z + f.t * 0.8); if (q.x < -20 || q.x > W + 20) continue;
       ctx.globalAlpha = f.t > 0.9 ? Math.max(0, (1.3 - f.t) / 0.4) : 1; text(f.text, q.x, q.y - (f.shot && f.sub ? 20 : 8), f.color || '#ffffff', 'c');
+      if (f.alleyPrompt) { ctx.fillStyle = '#292436'; ctx.fillRect(q.x - 16, q.y + 4, 32, 3); ctx.fillStyle = f.color; ctx.fillRect(q.x - 16, q.y + 4, 32 * f.progress, 3); }
       if (f.shot && f.sub) text(f.sub, q.x, q.y - 7, f.subColor || '#ffffff', 'c');   // V4.1 投篮反馈副文字（和 1V1 一样：空位 / 轻微干扰 / 严重干扰 / 双人封堵 / 无视干扰）
       ctx.globalAlpha = 1;
     }

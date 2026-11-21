@@ -119,7 +119,7 @@
     A.sfx('whistle');
     check(receiving == null ? 1 - G.off : receiving, text);
   }
-  function score(p, pts) {
+  function score(p, pts, kind, name) {
     const tm = p.tm;
     G.score[tm] += pts;
     G.stats[p.id].pts = (G.stats[p.id].pts || 0) + pts;
@@ -131,7 +131,7 @@
     const beat = T.replay && G.vopt.replay && G.hlQ ? GM.replayFlow.makeBeat + 0.05 : 1;
     G.phase = 'dead'; G.phaseT = beat; T.next = 1 - tm;
     if (G.score[tm] >= G.target) G.winner = tm;
-    A.banner(pts === 3 ? '三分命中' : '两分命中', p.arch.name + ' · ' + GM.TEAMS[tm].name + ' +' + pts, p.team.css, beat);
+    A.banner(name === '空接暴扣' || name === '空接上篮' ? name : pts === 3 ? '三分命中' : '两分命中', p.arch.name + ' · ' + GM.TEAMS[tm].name + ' +' + pts, p.team.css, beat);
   }
   function gotBall(p, change) {
     if (T.missedPass && p.tm !== T.missedPass.tm) G.stats[T.missedPass.id].tov++;
@@ -290,6 +290,7 @@
     const P = T.pass, b = G.ball;
     if (!P) return;
     P.t += dt;
+    A.alleyInput(P, T.inputs[P.to.id] || A.zeroInp(), P.duration - P.t);
     const u = Math.min(1, P.t / P.duration);
     const { from, to, kind } = P, profile = A.passProfiles[kind];
     const px = b.x, py = b.y;
@@ -311,6 +312,7 @@
       }
     }
     if (u === 1) {
+      if (kind === 'alley' && to.ctrl !== 'cpu' && P.finish?.error == null && P.finish?.wait) return;
       const miss = dist(to, b);
       if (to.off || to.stun > 0.3 || miss > 1.05 + 0.4 * to.r.hnd) {
         T.pass = null;
@@ -323,9 +325,8 @@
       to.passCatchT = G.time;
       to.passQuality = clamp(0.65 + (from.tendency.accuracy - 0.65) * 0.7 - 0.32 * miss - 0.42 * P.error, 0.1, 1);
       T.lastPass = { from, to, at: G.time };
-      if (kind === 'alley' && !G.needClear && !to.action && !to.stun && GM.distHoop(to) < 4.2 && to.passQuality >= 0.5) {
-        if (A.startFinish(to, { ...A.zeroInp(), my: 1, sprint: true }, 'auto', 'a2', true) &&
-          to.ctrl !== 'cpu' && to.action?.type === 'layup') to.action.rearm = true;
+      if (kind === 'alley' && !G.needClear && !to.action && !to.stun && GM.distHoop(to) < 4.2) {
+        A.alleyFinish(P, to.passQuality);
       }
     }
   }
@@ -421,6 +422,7 @@
     else clearPick();
     if (!A.step(G.players.map((p) => {
       const o = pickInput(p) || (p.ctrl === 'cpu' ? cpu(p, current, dt) : T.inputs[p.id] || A.zeroInp());
+      if (T.pass?.kind === 'alley' && T.pass.to === p) return { ...o, a1: false, a2: false, a3: false, dx: 0, dy: 0 };
       return p.screenSlow3 > G.time ? { ...o, mx: o.mx * p.screenSpeed3 || 0, my: o.my * p.screenSpeed3 || 0, sprint: false } : o;
     }), dt)) return;
     if (T.replay && G.vopt.replay) A.trackReplay();
