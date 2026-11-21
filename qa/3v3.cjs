@@ -475,6 +475,31 @@ console.log('PASS: a CPU honors an open call according to pass IQ, vetoes a bloc
 }
 
 {
+  for (const recovery of [2, 4, 'out']) {
+    const { G, T3, put, run } = tactics();
+    put(0, -1, 5); put(1, 5, 7); put(2, -5, 7);
+    put(3, 0, 11); put(4, 5, 11); put(5, -4, 11);
+    G.players[1].stun = 2;
+    run(1, { 0: { pass: true, mx: 1 } });
+    assert.equal(T3.T.pass?.to.id, 1);
+    while (T3.T.pass) run(1);
+    assert.equal(G.ball.state, 'loose');
+    assert.equal(G.stats[0].tov, 0, 'a missed catch has not yet changed possession');
+    if (recovery === 'out') {
+      Object.assign(G.ball, { x: 7.8, z: 0.2 });
+      run(1);
+      assert.equal(G.phase, 'check');
+    } else {
+      put(recovery, G.ball.x, G.ball.y);
+      for (let i = 0; i < 40 && !T3.holder(); i++) run(1);
+      assert.equal(T3.holder()?.id, recovery);
+    }
+    assert.equal(G.stats[0].tov, recovery === 2 ? 0 : 1, 'only an actual loss counts, at most once');
+  }
+  console.log('PASS: a missed catch counts as a turnover only after an opposing recovery or out-of-bounds.');
+}
+
+{
   const { G, Gm, T3, api, run } = fixture({ human: 1, target: 5 });
   assert.equal(G.players.length, 6);
   assert.equal(T3.holder().id, 1);

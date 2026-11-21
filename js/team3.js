@@ -95,7 +95,7 @@
     const off = teams(team), def = teams(1 - team);
     const h = off.find((p) => p.ctrl !== 'cpu') || off[0];
     clearPick();
-    T.pass = null; T.request = null; T.passQueue = null; T.lastPass = null; G.phase = 'check'; G.phaseT = 0.9; G.off = team;
+    T.pass = null; T.request = null; T.passQueue = null; T.lastPass = null; T.missedPass = null; G.phase = 'check'; G.phaseT = 0.9; G.off = team;
     G.shotClock = T.clock; G.needClear = false; G.illId = -1;
     const spots = [[0, 4.65], [-6.8, 9.0], [6.8, 9.0]];
     const order = [h, ...off.filter((p) => p !== h)];
@@ -132,6 +132,8 @@
     A.banner(pts === 3 ? '三分命中' : '两分命中', p.arch.name + ' · ' + GM.TEAMS[tm].name + ' +' + pts, p.team.css, 1.0);
   }
   function gotBall(p, change) {
+    if (T.missedPass && p.tm !== T.missedPass.tm) G.stats[T.missedPass.id].tov++;
+    T.missedPass = null;
     T.acquired = G.time; T.pass = null; T.lastPass = null;
     if (change) { clearPick(); matchups(); }
     p.ai.hold = false; p.ai.su = null;
@@ -307,7 +309,7 @@
       const miss = dist(to, b);
       if (to.off || to.stun > 0.3 || miss > 1.05 + 0.4 * to.r.hnd) {
         T.pass = null;
-        G.stats[from.id].tov++;
+        T.missedPass = from;
         A.looseBall({ x: b.x, y: b.y, z: b.z }, b.vx * 0.2, b.vy * 0.2, 0, from.id);
         return;
       }
