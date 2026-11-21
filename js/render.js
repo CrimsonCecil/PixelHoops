@@ -540,6 +540,11 @@
       ik(T2, -sd, [HG[0] - g0[0], HG[1] - g0[1], HG[2] - g0[2]], D.ua, D.fa);
       for (const k of ['p', 'q', 'e']) { const kS = (sd > 0 ? 'aR' : 'aL') + k, kG = (sd > 0 ? 'aL' : 'aR') + k; T[kS] = lp(T[kS], T2[kS], wS); T[kG] = lp(T[kG], T2[kG], wG); }
     }
+    function gather(pl, T, dip) {
+      const D = dims(pl, T), H = D.Hh, sd = pl.arch.lefty ? -1 : 1;
+      const B = [sd * (0.06 + 0.14 * dip) * H, (0.3 + 0.04 * dip) * H, (0.5 - 0.21 * dip) * H];
+      hands(T, D, sd, B, [-sd * (BRAD + 0.035), -0.01, 0.02], 1, 1 - dip);
+    }
     function pose(pl, T, an, a) {
       if (!a || !(an === 'shoot' || an === 'fake')) return;
       if (an === 'shoot' && (a.type !== 'shot' || !a.V || a.V.hook)) return;
@@ -586,7 +591,7 @@
       for (const n of ['aRp', 'aRq', 'aRe', 'aLp', 'aLq', 'aLe']) T[n] = T2[n];
       if (sd > 0) T.flR = v; else T.flL = v;
     }
-    return { pose: pose, ik: ik, fk: fk };
+    return { pose: pose, gather: gather, ik: ik, fk: fk };
   })();
   PH.shotP = SP;
 
@@ -1319,17 +1324,18 @@
     if (grip && P === pl.pose && P.passHands) {
       for (const side of ['L', 'R']) gripArm(k, side, P.passHands[side], false);
     }
+    if (grip && P === pl.pose && P.ftHand) gripArm(k, P.ftHand.side, P.ftHand.target, false, true);
     return k;
   }
   PH.rig = rig;
   PH.footTarget = (pl, side) => visualRig(pl)['foot' + side];
 
-  function visualRig(pl) {
+  function visualRig(pl, ftHand = pl.pose.ftHand) {
     const body = pl.col.body;
-    const k = rig(pl, pl.pose, !body, body);
+    const k = rig(pl, pl.pose, !body && !pl.pose.ftHand, body);
     // 用比赛骨架的手部落点，保持持球、触球和盖帽动作对齐。
     if (body && (pl.grip || pl.hasBall || pl.anim === 'block' || pl.anim === 'steal' || pl.armS || pl.pose.passHands)) {
-      const live = rig(pl);
+      const live = rig(pl, pl.pose, !pl.pose.ftHand);
       for (const side of ['L', 'R']) gripArm(k, side, live['hand' + side], false, true);
     }
     const height = body ? body.height * pl.h / body.baseHeight : pl.h;
@@ -1339,8 +1345,18 @@
       fitLimb(k, 'hip' + side, 'knee' + side, 'foot' + side, 'toe' + side, leg, leg);
       fitLimb(k, 'sh' + side, 'el' + side, 'hand' + side, 'fg' + side, 0.28 * Hh * arm, 0.26 * Hh * arm);
     }
+    if (ftHand) gripArm(k, ftHand.side, ftHand.target, false, true);
     return k;
   }
+
+  PH.ftCatchHand = (pl, side, ball, gripOffset, w) => {
+    const k = visualRig(pl, null), shoulder = k['sh' + side];
+    const d = distance3(shoulder, ball) || 1;
+    const target = ball.map((v, i) => v + lerpN((shoulder[i] - v) * (0.11 / d), gripOffset[i], w));
+    pl.pose.ftHand = { side, target };
+    gripArm(k, side, target, false, true);
+    return Math.max(distance3(k['hand' + side], ball), distance3(rig(pl)['hand' + side], ball));
+  };
 
   const SZ = 300, OX = 150, OY = 270;
   const FACES = { square: { w: 1, h: 1.05, r: 0.1, rb: 0.12, chin: 0 }, round: { w: 1.04, h: 1.02, r: 0.42, rb: 0.42, chin: 0 }, oval: { w: 0.9, h: 1.14, r: 0.34, rb: 0.38, chin: 0.12 },

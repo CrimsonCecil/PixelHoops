@@ -2113,17 +2113,37 @@
     vo(G.players[id], made ? 'foulAndOne' : 'foulShot', 'pri');
     beginFreeThrow('投篮犯规');
   }
+  const FT_BOUNCE = 0.5, FT_DRIBBLES = 2, FT_PREP = FT_BOUNCE * FT_DRIBBLES;
+  function freeThrowDip(F) {
+    if (F.prep >= FT_PREP) return 0;
+    const u = F.prep % FT_BOUNCE / FT_BOUNCE;
+    return Math.pow(1 - Math.abs(2 * u - 1), 1.45);
+  }
+  function advanceFreeThrowPrep(F, dt) {
+    const next = Math.min(F.prep + dt, FT_PREP + 0.16);
+    for (let i = 0; i < FT_DRIBBLES; i++) {
+      const contact = (i + 0.5) * FT_BOUNCE;
+      if (F.prep < contact && next >= contact) sfx('bounce');
+    }
+    F.prep = next;
+  }
   function beginFreeThrow(message) {
     const F = G.ft, pl = G.players[F.id], df = G.players[1 - F.id], b = G.ball;
     G.phase = 'ft'; G.phaseT = K.ftSetup; G.needClear = false; G.illId = -1;
     for (const p of G.players) {
       Object.assign(p, { vx: 0, vy: 0, vz: 0, z: 0, speed: 0, action: null, stun: 0, knock: null, blkR: null, stance: false, box: false, post: false, jbuf: 0, ib: null, buf: null, finQ: null, rsGesture: null, hasBall: p === pl, anim: 'idle', animT: 0 });
       delete p.pose.passHands;
+      delete p.pose.ftHand;
     }
     Object.assign(pl, { x: HOOP.x, y: HOOP.y - 4.225, face: Math.PI / 2 });
     Object.assign(df, { x: HOOP.x + 2.75, y: HOOP.y - 1.75, face: Math.atan2(1.75, -2.75) });
     Object.assign(b, { state: 'held', holder: F.id, lastTouch: F.id, dead: false, shot: null, wasShot: false, under: false, trail: null, slam: null, cT: 0, vx: 0, vy: 0, vz: 0 });
-    F.ready = false;
+    F.ready = !pl.prev.any;
+    F.prep = 0;
+    pl.anim = 'ftPrep';
+    Object.assign(pl.pose, poseTarget(pl));
+    Object.assign(b, shotHandBall(PH.rig(pl), !!pl.arch.lefty));
+    F.prepHeight = b.z;
     banner(message, '罚球 ' + F.index + '/' + F.total, pl.team.css, 1.2);
   }
   function freeThrowInput(dt, inp) {
@@ -2132,13 +2152,17 @@
     const down = !!inp.a1, a = pl.action;
     G.phaseT = Math.max(0, G.phaseT - dt);
     if (!a) {
-      if (G.phaseT > 0) return;
       if (!down) F.ready = true;
-      if (!cpu && (!down || !F.ready)) return;
+      if (cpu ? G.phaseT > 0 || F.prep < FT_PREP + 0.16 : !down || !F.ready) {
+        advanceFreeThrowPrep(F, dt);
+        return;
+      }
       const r = pl.r.ft ?? (pl.r.mid + pl.r.three) / 2;
       const ideal = CFG.shotIdeal * formOf(pl).sp, span = ideal + 0.12;
       const gw = greenWidth(pl, r, 0, 'mid') * 0.2 / span;
+      const dip = freeThrowDip(F);
       pl.action = { type: 'shot', v: 'set', V: SV.set, F: formOf(pl), lefty: !!pl.arch.lefty, jT: ideal * 0.45, t: 0, ideal, ft: true,
+        ftCatch: { T: 0.08 + 0.18 * dip },
         cpuRelease: cpu ? ideal + rr(-K.ftCpuError, K.ftCpuError) : 0,
         meter: { v: 0, span, ideal: ideal / span, gw, done: false, color: '#fff', label: '罚球' } };
       pl.animT = 0;
@@ -2147,9 +2171,11 @@
     a.t += dt;
     if (a.released) return;
     const m = a.meter;
-    m.v = a.t / m.span;
-    if (cpu ? a.t < a.cpuRelease : down && a.t < a.ideal + 0.22) return;
-    const e = Math.abs(a.t - a.ideal) / 0.2, green = Math.abs(m.v - m.ideal) <= m.gw;
+    if (!cpu && !down && a.ftRelease == null) a.ftRelease = a.t;
+    const release = a.ftRelease ?? a.t;
+    m.v = release / m.span;
+    if (!a.ftCatch.done || (cpu ? a.t < a.cpuRelease : a.ftRelease == null && a.t < a.ideal + 0.22)) return;
+    const e = Math.abs(release - a.ideal) / 0.2, green = Math.abs(m.v - m.ideal) <= m.gw;
     const r = pl.r.ft ?? (pl.r.mid + pl.r.three) / 2;
     const p = clamp(K.ftBase + K.ftRating * r - K.ftTiming * Math.min(1, e), 0, 1);
     const made = green || rnd() < p, hp = heldShotPos(pl), T = 0.8;
@@ -2672,9 +2698,17 @@
     }
     return false;
   }
+  function shotHandBall(k, lefty) {
+    const h = lefty ? k.handL : k.handR, guide = lefty ? k.handR : k.handL;
+    const dx = (guide[0] - h[0]) * 0.14, dy = (guide[1] - h[1]) * 0.14;
+    const dz = (guide[2] - h[2]) * 0.14 + 0.12;
+    const scale = Math.min(1, PH.render.BALL_R / Math.hypot(dx, dy, dz));
+    return { x: h[0] + dx * scale, y: h[1] + dy * scale, z: h[2] + dz * scale };
+  }
   function heldShotPos(pl) {
     const k = PH.rig(pl), a = pl.action;
     if (k.ball && (a.type === 'layup' || a.type === 'dunk')) return { x: k.ball[0], y: k.ball[1], z: k.ball[2] };
+    if (a.ft) return shotHandBall(k, a.lefty);
     const mid = k.handR.map((v, i) => (v + k.handL[i]) / 2);
     let hd;
     if ((a.type === 'shot' && !a.V.hook) || a.type === 'fake') {
@@ -2690,6 +2724,39 @@
       hd = mid.map((v, i) => lerp(v, h[i], w));
     } else hd = a.hand < 0 ? k.handL : k.handR;
     return { x: hd[0], y: hd[1], z: hd[2] + 0.1 };
+  }
+
+  function updateFreeThrowCatch(pl, b, dt) {
+    const a = pl.action, c = a.ftCatch, k = PH.rig(pl, pl.pose, false), end = shotHandBall(k, a.lefty);
+    const side = a.lefty ? 'L' : 'R', endPos = [end.x, end.y, end.z];
+    const offset = k['hand' + side].map((v, i) => v - endPos[i]);
+    const maxStep = 6 * dt;
+    if (c.contactT == null) {
+      const F = G.ft;
+      if (a.t > 0) {
+        advanceFreeThrowPrep(F, dt);
+        const z = lerp(F.prepHeight, BALL_FLOOR, freeThrowDip(F));
+        b.z += clamp(z - b.z, -maxStep, maxStep);
+      }
+      const ball = [b.x, b.y, b.z];
+      const grip = sm(clamp(1 - (F.prepHeight - b.z) / 0.22, 0, 1));
+      if (PH.ftCatchHand(pl, side, ball, offset, grip) <= 0.135) {
+        c.contactT = a.t;
+        c.start = ball;
+        c.grip = grip;
+      }
+      return;
+    }
+    const w = sm(clamp((a.t - c.contactT) / c.T, 0, 1));
+    const prev = [b.x, b.y, b.z], target = endPos.map((v, i) => lerp(c.start[i], v, w));
+    const travel = Math.hypot(...target.map((v, i) => v - prev[i]));
+    const ball = travel <= maxStep ? target : target.map((v, i) => lerp(prev[i], v, maxStep / travel));
+    [b.x, b.y, b.z] = ball;
+    if (w < 1 || travel > maxStep) PH.ftCatchHand(pl, side, ball, offset, lerp(c.grip, 1, w));
+    else {
+      c.done = true;
+      delete pl.pose.ftHand;
+    }
   }
 
   function looseBall(from, vx, vy, vz, last) {
@@ -5434,6 +5501,7 @@
     let an;
     if (G.phase === 'over') an = G.winner === (G.mode === 't3' ? TM(pl) : pl.id) ? 'win' : 'lose';
     else if (a) an = { shot: 'shoot', fake: 'fake', layup: 'layup', dunk: 'dunk', move: 'move', block: 'block', steal: 'steal', dive: 'dive' }[a.type];
+    else if (G.phase === 'ft' && pl.hasBall) an = 'ftPrep';
     else if (pl.stun > 0) an = 'stun';
     else if (air) an = 'block';
     else if (G.intro && introSig(pl)) an = 'cel';
@@ -5458,7 +5526,7 @@
         if (pl.ctrl !== 'cpu' && pl.stam < 20 && G.phase === 'live') { pl.paT = (pl.paT || 0) + 1; if (pl.paT % 2 === 0) sfx('pant'); }
       }
     }
-    if (pl.hasBall && !a) {
+    if (pl.hasBall && !a && an !== 'ftPrep') {
       const p0 = Math.sin(pl.drib); pl.drib += dt * (PH.gait ? PH.gait.drib(pl) : 6.2 + pl.speed * 0.45);
       if (p0 * Math.sin(pl.drib) < 0) { if (!(pl.f5 && pl.f5.ck)) { pl.catchDribbled = true; if (pl.arch.key === 'rallen') pl.sk.rayDribN = (pl.sk.rayDribN || 0) + 1; } sfx('bounce'); if (pl.z <= 0.01) pl.sqv = (pl.sqv || 0) - 3.0; }
     }
@@ -5597,7 +5665,11 @@
     const an = pl.anim, t = pl.animT, ph = pl.runPh, k = Math.min(1, pl.speed / 5.5), a = pl.action;
     if (a && a.type === 'block' && a.contactPose && a.t - a.hitT < 0.06) return a.contactPose;
     const set = (o) => { for (const n in o) T[n] = o[n]; };
-    if (an === 'run' && PH.gait) PH.gait.run(pl, T);
+    if (an === 'ftPrep') {
+      const dip = freeThrowDip(G.ft);
+      set({ lean: 0.08 + 0.13 * dip, lA: 0.16 + 0.18 * dip, rA: 0.16 + 0.18 * dip, lB: 0.32 + 0.34 * dip, rB: 0.32 + 0.34 * dip });
+      PH.shotP.gather(pl, T, dip);
+    } else if (an === 'run' && PH.gait) PH.gait.run(pl, T);
     else if (an === 'run') {
       const s = Math.sin(ph);
       set({ lean: 0.12 + 0.16 * k, lA: 0.8 * k * s, lB: 0.3 + 0.95 * k * (0.5 - 0.5 * Math.cos(ph + 0.9)), rA: -0.8 * k * s, rB: 0.3 + 0.95 * k * (0.5 + 0.5 * Math.cos(ph + 0.9)),
@@ -5906,7 +5978,13 @@
     if (b.state === 'pass' || b.state === 'ext') return;
     if (b.state === 'held') {
       const pl = G.players[b.holder], a = pl.action;
-      if (a && a.type === 'move' && a.kind === 'hesi') {
+      if (G.phase === 'ft' && !a) {
+        const h = shotHandBall(PH.rig(pl), !!pl.arch.lefty);
+        G.ft.prepHeight = h.z;
+        Object.assign(b, h, { z: lerp(h.z, BALL_FLOOR, freeThrowDip(G.ft)) });
+      } else if (a?.ft && !a.ftCatch.done) {
+        updateFreeThrowCatch(pl, b, dt);
+      } else if (a && a.type === 'move' && a.kind === 'hesi') {
         const k = PH.rig(pl), hand = a.h0 < 0 ? k.handL : k.handR;
         b.x = hand[0]; b.y = hand[1]; b.z = hand[2] + PH.render.BALL_R;
       } else if (a && a.type !== 'move') {
