@@ -2571,9 +2571,11 @@
   const bestStat = (a) => Object.keys(TSTAT).reduce((b, k) => (TSTAT[k](a) > TSTAT[b](a) ? k : b), 'three');
   function genTalk(fa, fb, h) {
     const pick = (L, n) => L[n % L.length], o = (p) => p.arch.name || p.arch.full;
-    return [{ id: fa.id, t: pick(TOPEN[bestStat(fa.r || fa.arch)], h).replace('{o}', o(fb)), gen: 1 },
-      { id: fb.id, t: pick(TREPLY[bestStat(fb.r || fb.arch)], h >>> 5).replace('{o}', o(fa)), gen: 1 },
-      { id: fa.id, t: '', v: 'taunt', i: (h >>> 9) % 4 }];
+    return [
+      { id: fa.id, t: '', fb: pick(TOPEN[bestStat(fa.r || fa.arch)], h).replace('{o}', o(fb)), v: 'dom', i: h % 3, gen: 1 },
+      { id: fb.id, t: '', fb: pick(TREPLY[bestStat(fb.r || fb.arch)], h >>> 5).replace('{o}', o(fa)), v: 'taunt', i: (h >>> 5) % 4, gen: 1 },
+      { id: fa.id, t: '', v: 'taunt', i: (h >>> 9) % 4, gen: 1 }
+    ];
   }
   const plById = (id) => G.players.find((p) => p.id === id);
   function introStart() {
@@ -2592,9 +2594,9 @@
     const t0 = G.time;
     const sigOf = (p) => ISIG[p.arch.key] || (CELS[p.arch.key] || ['flex'])[0], walk = [];
     for (const s of spots) { const p = s.p, star = p === fa || p === fb; s.w0 = t0 + (TM(p) === TM(fa) ? 0 : IWA); s.w1 = s.w0 + IWA;
-      (star ? [(IWALK[p.arch.key] || ['wave'])[0], sigOf(p)] : ['wave']).forEach((ty, j) => walk.push({ id: p.id, ty: ty, t0: s.w0 + (star ? 0.3 + j * 1.75 : 0.9 + (p.id % 3) * 0.3), T: 1.6, fx: false, sig: star && j === 1 })); }
+      (star ? [(IWALK[p.arch.key] || ['wave'])[0], sigOf(p)] : ['wave']).forEach((ty, j) => walk.push({ id: p.id, ty: ty, t0: s.w0 + (star ? 0.3 + j * 1.75 : 0.9 + (p.id % 3) * 0.3), T: 1.6, fx: false, sig: star && j === 1, vo: star && j === 0, voDone: false })); }
     const foc0 = { x: fa.x, y: fa.y, u: G.mode === 't3' ? 0.08 : 0.3, mode: 'walk', snap: true };
-    G.intro = { t0: t0, duo: [fa.id, fb.id], walk: walk, spots: spots, lines: lines, li: -1, lt: 0, ld: 0, tT: t0 + 2 * IWA + 0.4, cam: foc0, foc: foc0, banner: G.banner, phaseT: G.phaseT,
+    G.intro = { t0: t0, duo: [fa.id, fb.id], walk: walk, spots: spots, lines: lines, li: -1, lt: 0, ld: 0, tT: t0 + 2 * IWA + 0.15, cam: foc0, foc: foc0, banner: G.banner, phaseT: G.phaseT,
       sig: [], confettiT: 0 };
     G.cz = null; G.cutin = null; G.phase = 'intro';
   }
@@ -2619,8 +2621,9 @@
     }
     updateBall(dt);
     if (I.li < 0) for (const S of I.walk) {
-      if (S.ty === 'chalk' && !S.fx && now >= S.t0 + 0.42) { S.fx = true; const p = plById(S.id); burst(p.x, p.y, p.h + 0.45, 70, ['#ffffff', '#f4f1e8', '#e2ded2', '#fffbe9'], 2.3, 1.7, 1.1, 2); spawnConfetti(28, [p.team.css, '#ffd24a', '#ffffff'], 'burst'); if (G.mode !== 'demo' && PH.audio && PH.audio.vo) { const speak = () => (!G.intro || G.intro.li >= 0) ? true : PH.audio.vo(p.arch.key, 'taunt', 'pri'); if (!speak() && PH.audio.voWhenReady) PH.audio.voWhenReady(speak); } }
-      else if (S.sig && !S.fx && now >= S.t0 + 0.35) { S.fx = true; const p = plById(S.id); spawnConfetti(26, [p.team.css, '#ffd24a', '#ffffff', '#ff8a2a'], 'burst'); flash('#ffffff', 0.08); G.fx.cheer = Math.max(G.fx.cheer, 2.6); if (G.mode !== 'demo' && PH.audio && PH.audio.vo) { const speak = () => (!G.intro || G.intro.li >= 0) ? true : PH.audio.vo(p.arch.key, 'taunt', 'pri'); if (!speak() && PH.audio.voWhenReady) PH.audio.voWhenReady(speak); } }
+      if (S.vo && !S.voDone && now >= S.t0) { S.voDone = true; const p = plById(S.id); if (G.mode !== 'demo' && PH.audio && PH.audio.vo) { const speak = () => (!G.intro || G.intro.li >= 0) ? true : PH.audio.vo(p.arch.key, 'taunt', 'pri'); if (!speak() && PH.audio.voWhenReady) PH.audio.voWhenReady(speak); } }
+      if (S.ty === 'chalk' && !S.fx && now >= S.t0 + 0.42) { S.fx = true; const p = plById(S.id); burst(p.x, p.y, p.h + 0.45, 70, ['#ffffff', '#f4f1e8', '#e2ded2', '#fffbe9'], 2.3, 1.7, 1.1, 2); spawnConfetti(28, [p.team.css, '#ffd24a', '#ffffff'], 'burst'); }
+      else if (S.sig && !S.fx && now >= S.t0 + 0.35) { S.fx = true; const p = plById(S.id); spawnConfetti(26, [p.team.css, '#ffd24a', '#ffffff', '#ff8a2a'], 'burst'); flash('#ffffff', 0.08); G.fx.cheer = Math.max(G.fx.cheer, 2.6); }
     }
     if (I.li < 0 ? now >= I.tT : now >= I.lt + I.ld) introNext();
     if (!G.intro) return;
@@ -2647,7 +2650,7 @@
   }
   function introNext() {
     const I = G.intro; if (!I) return;
-    if (I.li < 0 && G.time < I.tT) { for (const s of I.spots) Object.assign(s.p, { x: s.x, y: s.y, vx: 0, vy: 0, speed: 0 }); for (const S of I.sig) { S.on = true; S.fx = true; S.t0 = -99; } for (const S of I.walk) S.fx = true; G.banner = null; I.snap = true; }
+    if (I.li < 0 && G.time < I.tT) { for (const s of I.spots) Object.assign(s.p, { x: s.x, y: s.y, vx: 0, vy: 0, speed: 0 }); for (const S of I.sig) { S.on = true; S.fx = true; S.t0 = -99; } for (const S of I.walk) { S.fx = true; S.voDone = true; } G.banner = null; I.snap = true; }
     I.li++;
     if (I.li >= I.lines.length) { introEnd(); return; }
     const L = I.lines[I.li], p = plById(L.id);
@@ -2657,14 +2660,14 @@
         const it = PH.audio && PH.audio.voLine ? PH.audio.voLine(p.arch.key, L.v, L.i) : null;
         if (!it) return false;
         L.t = it.t; L.d = it.d;
-        G.intro.ld = clamp(Math.max(1.0 + L.t.length * 0.12, (L.d || 0) + 0.8), 2.2, 4.8);
+        G.intro.ld = clamp(Math.max(0.8 + L.t.length * 0.1, (L.d || 0) + 0.55), 1.9, 4.5);
         if (G.mode !== 'demo') PH.audio.voSay(it);
         return true;
       };
       if (!sayVo() && PH.audio && PH.audio.voWhenReady) PH.audio.voWhenReady(sayVo);
     }
-    if (!L.t) L.t = L.v === 'dom' ? '别急，看看最后谁笑。' : '今天这场，我拿下了！';
-    L.done = false; I.lt = G.time; I.ld = clamp(Math.max(1.0 + L.t.length * 0.12, (L.d || 0) + 0.8), 2.2, 4.8);
+    if (!L.t) L.t = L.fb || (L.v === 'dom' ? '别急，看看最后谁笑。' : '今天这场，我拿下了！');
+    L.done = false; I.lt = G.time; I.ld = clamp(Math.max(0.8 + L.t.length * 0.1, (L.d || 0) + 0.55), 1.9, 4.5);
   }
   // 按键：字没打完先补全，打完了才翻下一句
   function introPress() {
