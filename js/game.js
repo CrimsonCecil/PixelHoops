@@ -2952,6 +2952,7 @@
     const V = SV[v], three = !V.hook && isThree(pl.x, pl.y), F = formOf(pl), TI = CFG.shotIdeal * F.sp * bk(pl, 'quick', K.bgQuickT) * (v === 'postfront' ? K.poFrontT : 1);
     const a = { type: 'shot', lefty: !V.hook && !!pl.arch.lefty, v: v, V: V, F: F, jT: V.hook ? K.shotJump : clamp(K.shotJump * F.dip, 0.18, TI - 0.12), t: 0, pts: three ? 3 : 2, released: false, jumped: false, latS: q.lat >= 0 ? 1 : -1, ideal: TI, meter: null, skill: null, d0: d, btn: btn || 'a1' };
     a.postOrigin = !!(pl.post || follow);
+    a.postButton = a.postOrigin && !inp.rsHold;
     a.postFollow = follow ? Object.assign({}, follow) : null;
     a.fakeSide = q.l > 0.35 ? (q.lat >= 0 ? 1 : -1) : -(pl.postFakeSide || -1);
     a.catchShot = catchShot(pl);
@@ -4295,12 +4296,14 @@
     const a = pl.action; if (!a || !pl.hasBall) return false;
     return a.type === 'move' || (a.type === 'shot' && !a.released) || (a.type === 'layup' && !a.released) || (a.type === 'dunk' && !a.done);
   }
-  function postRightStickInput(pl, inp) {
+  function postRightStickInput(pl, inp, raw) {
     const rs = pl.rsGesture || pl.postRS;
     pl.postRS = pl.rsGesture;
     if (!rs) return inp;
     if (rs.post == null) { rs.post = !!inp.post && (pl.post || postFollow(pl, rs.t) || !pl.postFaceLock); rs.postPad = !!inp.rsPad; }
     if (!rs.post) return inp;
+    if (pl.action && pl.action.postButton || raw.a1 && !rs.postShot) rs.postButton = true;
+    if (rs.postButton) return Object.assign({}, raw, { a3: !!(raw.dribble || raw.hesi), dx: 0, dy: 0, rsHold: false, rsFlick: false });
     if (!pl.hasBall || G.phase !== 'live' || G.ball.dead || pl.stun > 0 || rs.postPad && !inp.rsPad || !inp.post && !rs.postShot) rs.postCancelled = true;
     if (rs.postCancelled) return Object.assign({}, inp, { a1: false, a3: !!(inp.dribble || inp.hesi), dx: 0, dy: 0, rsHold: false, rsFlick: false });
     if (inp.rsHold) rs.postShot = true;
@@ -4330,8 +4333,9 @@
   function updatePlayer(pl, inp, dt) {
     if (pl.off) { pl.anim = 'idle'; pl.stance = false; return; }
     const frozen = G.phase === 'check' || G.phase === 'over';
+    const rsRaw = inp;
     inp = rightStickInput(pl, inp);
-    inp = postRightStickInput(pl, inp);
+    inp = postRightStickInput(pl, inp, rsRaw);
     { if (pl.knock) { pl.knockT += dt; if (pl.knockT >= pl.knockD) { pl.knock = null; pl.knockT = 0; pl.knockD = 0; pl.knockUp = 0; } } const s0 = pl.stun; pl.stun = Math.max(0, pl.stun - dt); if (s0 > 0 && pl.stun <= 0) pl.recT = G.time + lerp(K.akRecLo, K.akRecHi, agil(pl)) + K.akRecHv * heavy(pl); }
     pl.cd = Math.max(0, pl.cd - dt); pl.boost = Math.max(0, pl.boost - dt); pl.flash = Math.max(0, pl.flash - dt);
     const IB = ibOn(pl), raw = inp, moveAtStart = pl.action;

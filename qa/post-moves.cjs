@@ -255,6 +255,19 @@ function gamepadStep(mode, p, options = {}, n = 1) {
   }
 }
 const holdFrames = () => Math.ceil(gm.K.rsHold / dt) + 2;
+for (const mode of ['2p', 't5']) for (const early of [false, true]) {
+  const { p } = fixture(mode);
+  gamepadStep(mode, p, { x: 1, shot: true });
+  const a = p.action;
+  gamepadStep(mode, p, { x: 1, shot: true }, early ? 8 : Math.floor(a.ideal / dt) - 1);
+  gamepadStep(mode, p, { x: 1 });
+  if (early) {
+    assert(p.action.postFake && p.post && p.hasBall, `${mode} early button release fakes with stick deflected`);
+    gamepadStep(mode, p, { x: 1 }, holdFrames() + 45);
+    assert(!p.action && p.hasBall, 'The consumed stick does not start another shot after the button fake');
+  } else assert(a.released, `${mode} button release must fire at the timed point despite a held right stick`);
+}
+console.log('PASS post button ownership: early release fakes without a stick-driven follow-up; timed release fires despite deflected stick in 1V1/5V5');
 for (const mode of ['2p', 't5']) {
   for (const [x, y, move, shot] of [[1, 0, 'postspin', 'turn'], [0.7, 0.7, 'postdrop', 'postfront'], [0, -1, 'postface', 'postfade'], [1, -0.7, 'postspin', 'postfade1']]) {
     let { p } = fixture(mode);
