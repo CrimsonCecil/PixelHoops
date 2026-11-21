@@ -261,7 +261,7 @@ for (const mode of ['2p', 't5', 't3']) for (const outcome of ['hit', 'miss', 'ou
 }
 console.log('PASS steal wrist recoil within 200ms, unchanged gameplay timers, mirrored hit/miss/empty/out-of-range poses in 1V1/5V5/3V3');
 
-let maxElbowStep = 0, maxWristStep = 0;
+let maxElbowStep = 0, maxWristStep = 0, minHipDrop = Infinity, minLeadStep = Infinity;
 for (const mode of ['2p', 't5', 't3']) for (const fps of [60, 120]) for (const hit of [true, false]) {
   const visual = fixture(), { G, K, _qa, t5 } = visual, dt = 1 / fps;
   for (const range of [0.55, 0.8, 1.01, 1.3, 1.35]) for (const phase of [0, 1, 2, 3]) for (const hand of [-1, 1]) {
@@ -280,6 +280,7 @@ for (const mode of ['2p', 't5', 't3']) for (const fps of [60, 120]) for (const h
       _qa.updateBall(dt);
     };
     for (let i = 0; i < fps / 2; i++) step();
+    const stanceRig = visual.rig(d), position = [d.x, d.y, d.z];
     p.drib = phase; _qa.updateBall(0); _qa.startSteal(d);
     const action = d.action, label = `${mode} ${fps}fps ${hit ? 'hit' : 'miss'} ${range}m phase=${phase} hand=${hand}`;
     const joints = () => {
@@ -293,8 +294,20 @@ for (const mode of ['2p', 't5', 't3']) for (const fps of [60, 120]) for (const h
         duration = hit ? K.stlRecT : Math.max(action.t + dt, K.stlHitT, K.stlMissT + K.stlMissDistT * ratio * ratio
           + K.stlMissWeakT * (1 - d.r.stl) + K.stlFarT * Math.max(0, ratio - 1) + K.stlRiskT * read.risk);
       }
+      const contact = !action.done && action.t + dt >= K.stlHitT;
       step();
       const current = joints();
+      if (contact) {
+        const rig = visual.rig(d), lead = action.swipe < 0 ? 'footL' : 'footR', trail = action.swipe < 0 ? 'footR' : 'footL';
+        const drop = stanceRig.pelvis[2] - rig.pelvis[2];
+        const advance = (rig[lead][0] - stanceRig[lead][0]) * Math.cos(d.face) + (rig[lead][1] - stanceRig[lead][1]) * Math.sin(d.face);
+        const split = (rig[lead][0] - rig[trail][0]) * Math.cos(d.face) + (rig[lead][1] - rig[trail][1]) * Math.sin(d.face);
+        minHipDrop = Math.min(minHipDrop, drop); minLeadStep = Math.min(minLeadStep, advance);
+        assert(drop > 0.12, `${label}: pelvis lowers clearly at contact (${drop}m)`);
+        assert(advance > 0.25 && split > 0.4, `${label}: swipe-side foot takes a big forward step (${advance}m, split ${split}m)`);
+        assert(Math.abs(rig[lead][2] - d.z - 0.06) < 0.1, label + ': lead foot lands on the floor');
+        assert.deepEqual([d.x, d.y, d.z], position, label + ': lunge never moves gameplay position');
+      }
       if (i * dt >= K.stlHitT - 2 * dt && i * dt <= Math.min(K.stlHitT + K.stlRecoilT, action.T)) {
         for (let arm = 0; arm < 2; arm++) {
           const elbow = Math.abs(current.elbows[arm] - previous.elbows[arm]);
@@ -318,6 +331,7 @@ for (const mode of ['2p', 't5', 't3']) for (const fps of [60, 120]) for (const h
   }
 }
 console.log(`PASS steal contact continuity: hit/miss, 0.55/0.8/1.01/1.3/1.35m, both arms, four dribble phases, 60/120fps, 1V1/5V5/3V3; max elbow=${maxElbowStep.toFixed(3)}rad, wrist=${maxWristStep.toFixed(3)}m/frame`);
+console.log(`PASS visual steal lunge: contact pelvis drop >=${minHipDrop.toFixed(3)}m, lead-foot advance >=${minLeadStep.toFixed(3)}m, grounded lead foot and unchanged gameplay position`);
 
 if (process.env.STEAL_BASELINE) {
   const before = fixture(fs.readFileSync(process.env.STEAL_BASELINE, 'utf8'));

@@ -411,8 +411,8 @@
     }
     // poseTarget 末尾：运球手形、冲刺重心与呼吸叠加
     function post(pl, T, an, a) {
-      T.crab = pl.crab && an === 'def' ? 1 : 0;
-      if (T.crab) {
+      T.crab = an === 'steal' ? T.crab || 0 : pl.crab && an === 'def' ? 1 : 0;
+      if (T.crab && an === 'def') {
         const fx = Math.cos(pl.face), fy = Math.sin(pl.face);
         for (const side of ['L', 'R']) {
           const f = pl.crab[side], dx = f[0] - pl.x, dy = f[1] - pl.y;
