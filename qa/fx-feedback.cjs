@@ -143,6 +143,23 @@ function load() {
   console.log('PASS: 3V3/5V5 scoring triggers full-screen scoreFx, confetti, and dunk screen shake.');
 }
 
+for (const mode of ['1v1', '3v3']) {
+  for (const [name, tier] of [['长 · 单手扣篮', 2], ['长距离起跳 · 单手扣篮', 2], ['单手扣篮', 1], ['长传', 1], ['', 1], [undefined, 1]]) {
+    const { ctx, Gm, G } = load();
+    if (mode === '3v3') {
+      const slots = ['lebron', 'curry', 'jokic', 'kobe', 'shaq', 'kyrie'].map((arch) => ({ arch, role: 'cpu' }));
+      ctx.PH.T3.start({ slots, target: 21, clock: 14, replay: false });
+    } else Gm.newGame({ mode: 'cpu', arch0: 'lebron', arch1: 'curry' });
+    Object.assign(G, { phase: 'live', needClear: false });
+    G.players[0].action = null;
+    Gm.t5.scoreBy(0, 2, 'dunk', name);
+    assert.equal(G.fx.scoreFx.tier, tier, `${mode}: ${name} keeps the correct dunk effects`);
+    assert.ok(G.fx.led.text.includes(name || '暴扣'), 'LED preserves the original move name');
+    if (mode === '1v1') assert.equal(G.banner.text, name || '暴扣得分');
+  }
+  console.log(`PASS: ${mode} long dunk prefixes retain special effects; normal, unknown and empty names retain normal effects and display text.`);
+}
+
 // 4. Rebound positive cue SFX (1V1 & 3V3)
 {
   const { ctx, Gm, G, played } = load();
