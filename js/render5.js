@@ -272,7 +272,7 @@
     for (const p of P) if (p.ring) footRing(p);
     { const f = foeOf(T), q = f && P[f.id]; if (q && !q.ring) footRing(q); }   // V3.9s 敌方当前球员光标
     for (const e of ents) {
-      if (e.k === 'p') { const r = R.drawPlayer(e.o, { flash: e.o.flash > 0 }); e.o.__head = r && r.head; }
+      if (e.k === 'p') { const r = R.drawPlayer(e.o, { flash: e.o.flash > 0, trail: RPL.on ? null : { time: G5().time, scene: G5().players, view: 'broadcast' } }); e.o.__head = r && r.head; }
       else if (e.k === 'b') { if (b.state !== 'held' || true) R.drawBall(wb); }
       else if (e.k === 'stan') { drawStanchion(e.s); drawBoard(e.s); }
       else if (e.k === 'rimB') drawRim(e.s, 'back');
@@ -501,7 +501,7 @@
     { const f = foeOf(T), q = f && P[f.id]; if (q && !q.ring && near(q.x, q.y, 0)) footRing(q); }   // V3.9s 敌方当前球员光标
     for (const p of P) p.__head = null;
     for (const e of ents) {
-      if (e.k === 'p') { const r = R.drawPlayer(e.o, { flash: e.o.flash > 0 }); e.o.__head = r && r.head; }
+      if (e.k === 'p') { const r = R.drawPlayer(e.o, { flash: e.o.flash > 0, trail: RPL.on ? null : { time: G5().time, scene: G5().players, view: '2k' } }); e.o.__head = r && r.head; }
       else if (e.k === 'b') R.drawBall(wb);
       else if (e.k === 'stan') { drawStanchion(e.s); drawClock(e.s, T); }
       else if (e.k === 'board') drawBoard(e.s);

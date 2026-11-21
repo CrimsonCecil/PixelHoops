@@ -1484,6 +1484,44 @@
     }
   }
 
+  const trailHistory = new Map();
+  let trailScene, trailView;
+  function sprintTrail(pl, frame, capture) {
+    if (!frame) return [];
+    if (frame.scene !== trailScene || frame.view !== trailView) {
+      trailHistory.clear(); trailScene = frame.scene; trailView = frame.view;
+    }
+    const K = PH.game.K, alpha = Math.max(0, Math.min(0.3, K.fxTrailAlpha));
+    const count = Math.max(0, Math.min(5, Math.round(K.fxTrailCount)));
+    const spacing = Math.max(0.025, Math.min(0.1, K.fxTrailSpacing));
+    const w = PH.gait.spW(pl), weight = Math.max(0, Math.min(1, (w - 0.15) / 0.85));
+    let state = trailHistory.get(pl.id);
+    if (!alpha || !count || !weight || pl.anim !== 'run' || !(pl.speed > 0.9) || pl.off) {
+      if (state) while (state.history.length) state.pool.push(state.history.pop());
+      return [];
+    }
+    if (!state) { state = { history: [], pool: [] }; trailHistory.set(pl.id, state); }
+    const { history, pool } = state;
+    const last = history[history.length - 1], t = frame.time;
+    if (last && (t < last.t || t - last.t > 0.2 || Math.hypot(pl.x - last.x, pl.y - last.y) > 2)) {
+      while (history.length) pool.push(history.pop());
+    }
+    while (history.length && t - history[0].t > spacing * (count + 1)) pool.push(history.shift());
+    const copies = [];
+    for (let i = count; i >= 1; i--) {
+      const target = t - spacing * i;
+      let g;
+      for (let j = history.length - 1; j >= 0; j--) if (history[j].t <= target + 1e-6) { g = history[j]; break; }
+      if (g && Math.hypot(pl.x - g.x, pl.y - g.y) > 0.08) copies.push({ ...g, a: alpha * weight * Math.pow(1 - (i - 1) / count, 1.5) });
+    }
+    if (!history.length || t - history[history.length - 1].t >= spacing / 2 - 1e-6) {
+      const snapshot = capture(pool.pop());
+      snapshot.x = pl.x; snapshot.y = pl.y; snapshot.t = t;
+      history.push(snapshot);
+    }
+    return copies;
+  }
+
   function drawPlayer(pl, opts) {
     const k = visualRig(pl), J = {};
     const base = proj(pl.x, pl.y, 0);
@@ -1573,6 +1611,30 @@
       silx.globalCompositeOperation = 'source-in'; silx.fillStyle = opts.ghost.c; silx.fillRect(0, 0, SZ, SZ);
       ctx.globalAlpha = opts.ghost.a; ctx.drawImage(sil, ox, oy); ctx.globalAlpha = 1; return null;
     }
+    const trail = sprintTrail(pl, opts && opts.trail, (snapshot = {}) => {
+      const pad = Math.ceil(s * 0.4 + 4);
+      let minX = SZ, minY = SZ, maxX = 0, maxY = 0;
+      for (const n in J) { const p = J[n]; minX = Math.min(minX, p.x); minY = Math.min(minY, p.y); maxX = Math.max(maxX, p.x); maxY = Math.max(maxY, p.y); }
+      const x = Math.max(0, Math.min(SZ - 1, Math.floor(minX - pad)));
+      const y = Math.max(0, Math.min(SZ - 1, Math.floor(minY - pad)));
+      const w = Math.max(1, Math.min(SZ - x, Math.ceil(maxX + pad) - x));
+      const h = Math.max(1, Math.min(SZ - y, Math.ceil(maxY + pad) - y));
+      const image = snapshot.image || document.createElement('canvas');
+      if (!snapshot.image || image.width < w || image.height < h) {
+        image.width = Math.max(snapshot.image ? image.width : 0, Math.ceil(w / 16) * 16);
+        image.height = Math.max(snapshot.image ? image.height : 0, Math.ceil(h / 16) * 16);
+      }
+      const c = image.getContext('2d'); c.clearRect(0, 0, image.width, image.height);
+      c.drawImage(spr, x, y, w, h, 0, 0, w, h);
+      return Object.assign(snapshot, { image, dx: x - OX, dy: y - OY, s, w, h });
+    });
+    if (trail.length) ctx.save();
+    for (const g of trail) {
+      const p = proj(g.x, g.y, 0), scale = p.s / g.s;
+      ctx.globalAlpha = g.a;
+      ctx.drawImage(g.image, 0, 0, g.w, g.h, Math.round(p.x + g.dx * scale), Math.round(p.y + g.dy * scale), Math.round(g.w * scale), Math.round(g.h * scale));
+    }
+    if (trail.length) ctx.restore();
     const skA = pl.skAu && pl.skAu > PH.game.G.time, grA = !skA && pl.grabT && PH.game.G.time - pl.grabT < 0.36 && ((PH.game.G.time - pl.grabT) * 16 | 0) % 2 === 0;
     if (pl.tkOn > 0 || skA || grA) {
       // 主宰：身上一圈跳动的橙色火光描边；专属技能触发：金白色
@@ -2140,7 +2202,7 @@
       else {
         const p = it.p;
         if (p.ghosts) for (const g of p.ghosts) drawPlayer({ x: g.x, y: g.y, z: g.z, face: g.face, pose: g.pose, h: p.h, col: p.col, id: p.id, stun: 0 }, { ghost: { c: p.col.ringCol, a: 0.42 * (1 - g.t / 0.22) } });
-        const r = drawPlayer(p, { flash: p.flash > 0 }); heads[p.id] = r.head;
+        const r = drawPlayer(p, { flash: p.flash > 0, trail: RP ? null : { time: G.time, scene: G.players, view: G.mode } }); heads[p.id] = r.head;
       }
     }
     drawTuneLabs(G);
@@ -2198,5 +2260,5 @@
 
   PH.render = { init: init, resize: resize, get W() { return W; }, get H() { return H; }, render: render, camera1Intro: camera1Intro, replayCamera: replayCamera, particleSize: particleSize, setTheme: setTheme, proj: proj, cam: cam, CAMV: CAMV, CAM_DEF: CAM_DEF, setCam: setCam, camTuned: camTuned, setCamTuned: setCamTuned, resetCamTuned: resetCamTuned, HOOP: HOOP, BOARD_Y: BOARD_Y, BALL_R: BALL_R, curCol: curCol,
     // 5V5 全场模式复用的绘制图元（不影响 1V1）
-    drawCombos: drawCombos, drawScreenFx: drawScreenFx, drawMeter: (pl, hp) => drawMeter(pl, hp), drawPlayer: drawPlayer, drawHead: drawHead, drawBall: drawBall, shadow: shadow, ellipse: ellipse, ring: ring, brush: brush, getCtx: () => ctx, drawNameTag: curName, BAYER: BAYER };
+    drawCombos: drawCombos, drawScreenFx: drawScreenFx, drawMeter: (pl, hp) => drawMeter(pl, hp), drawPlayer: drawPlayer, sprintTrail: sprintTrail, drawHead: drawHead, drawBall: drawBall, shadow: shadow, ellipse: ellipse, ring: ring, brush: brush, getCtx: () => ctx, drawNameTag: curName, BAYER: BAYER };
 })();
