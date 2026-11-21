@@ -245,6 +245,17 @@
     ['gwOut', 'shot', '外线绿区放宽 GW_OUT', 1.135, 0.5, 2, 0.005, '倍率：中投 / 三分 / 背身后仰再乘'],
     ['gwBadge', 'shot', '徽章绿区加成上限', 1.45, 1, 3, 0.05, '倍率：多个徽章叠乘的封顶'],
     ['gwSkill', 'shot', '必杀技绿区倍数', 1.7, 1, 3, 0.05, '倍率：库里 / 东契奇 / 科比 / 欧文必杀技出手'],
+    ['rayWindow', 'shot', '退角一抬 移动记忆', 1.2, 0.2, 3, 0.05, '秒：退到三分线外后可站定出手的时间'],
+    ['raySetT', 'shot', '退角一抬 站定时间', 0.18, 0.05, 0.5, 0.01, '秒：双脚落地低速持续时间'],
+    ['raySetV', 'shot', '退角一抬 站定速度', 0.55, 0.1, 1.5, 0.05, '米/秒：低于此速度才累计站定'],
+    ['rayGround', 'shot', '退角一抬 落地高度', 0.02, 0, 0.1, 0.01, '米：双脚站定的最大离地高度'],
+    ['rayOutV', 'shot', '退角一抬 向外速度', 0.4, 0.1, 2, 0.05, '米/秒：径向向外移动可刷新退角记忆'],
+    ['raySideV', 'shot', '退角一抬 横移速度', 0.8, 0.2, 3, 0.05, '米/秒：横向移动且未向内切入可刷新退角记忆'],
+    ['raySp', 'shot', '退角一抬 出手用时', 0.88, 0.6, 1, 0.01, '倍率：叠加在原投篮包出手时间上'],
+    ['rayDip', 'shot', '退角一抬 下蹲用时', 0.85, 0.6, 1, 0.01, '倍率：叠加在原投篮包下蹲时间上'],
+    ['rayBlock', 'shot', '退角一抬 被盖倍率', 0.85, 0.3, 1, 0.01, '倍率：降低被盖概率，不免疫封盖'],
+    ['rayGreen', 'shot', '退角一抬 接球绿区', 1.2, 1, 1.5, 0.01, '倍率：只加成组队接球即投，受原绿区上限约束'],
+    ['rayCd', 'shot', '退角一抬 冷却', 10, 1, 30, 0.5, '秒：启动出手后开始冷却'],
     ['fkFrac', 'shot', '假投窗口 比例', 0.4, 0.1, 0.8, 0.01, '比例：投篮条涨到这个比例前松手 = 假投（玩家）'],
     ['fkMin', 'shot', '假投窗口 最短', 0.22, 0.05, 0.4, 0.01, '秒：覆盖普通点按，仍避开投篮绿区'],
     ['fkGap', 'shot', '假投窗口 离绿区', 0.08, 0, 0.3, 0.01, '秒：假投窗口至少比最早绿区早这么多'],
@@ -1992,7 +2003,7 @@
       Math.hypot(pl.vx, pl.vy) < 1.25 && distHoop(pl) < 3.4 && distHoop(o) < 3.4 && Math.hypot(o.x - pl.x, o.y - pl.y) < 1.5 && relPos(pl, o) > 0.35;
   }
   function fireSkill(pl) {
-    const S = pl.arch.skill; pl.sk.cd = S.id === 'curry' ? 20 : S.type === 'block' ? 8 : S.type === 'steal' ? 20 : 12; pl.sk.n++; pl.sk.ready = false; pl.sk.streak = 0; pl.sk.postT = 0; pl.sk.win = -9;
+    const S = pl.arch.skill; pl.sk.cd = S.id === 'rallen' ? K.rayCd : S.id === 'curry' ? 20 : S.type === 'block' ? 8 : S.type === 'steal' ? 20 : 12; pl.sk.n++; pl.sk.ready = false; pl.sk.streak = 0; pl.sk.postT = 0; pl.sk.win = -9;
     G.stats[pl.id].sk++;
     G.cutin = { t: 0, T: 1.05, pid: pl.id, name: pl.arch.name, full: pl.arch.full, skill: S.name, en: S.en, col: pl.team.css, seq: ++cutSeq };
     sfx('combo'); sfx('cheer2'); sfx('badge'); G.fx.cheer = 3.5; flash('#ffd24a', 0.12); shake(4);   // V3.9o 半屏插屏：全屏闪光 / 震屏减弱，不挡投篮条
@@ -2007,9 +2018,26 @@
     const df = OP(pl); return !df.off && distHoop(pl) <= 4.2 && Math.hypot(df.x - pl.x, df.y - pl.y) < 2.4;
   }
   function cold(id) { G.streak[id] = 0; if (G.ball && G.ball.lastSk && G.ball.lastSk.id === id) G.ball.lastSk = null; const pl = G.players[id]; if (pl && pl.arch.skill && pl.arch.skill.id === 'curry' && !pl.sk.ready) pl.sk.streak = Math.max(0, pl.sk.streak - 1); }
+  function rayTick(pl, dt) {
+    const k = pl.sk, h = hoopDir(pl), three = isThree(pl.x, pl.y);
+    if (G.phase !== 'live' || pl.off) { k.rayMoveT = -Infinity; k.raySet = 0; return; }
+    const outward = -pl.vx * h.x - pl.vy * h.y, sideways = Math.abs(pl.vx * h.y - pl.vy * h.x);
+    if (!three || outward >= K.rayOutV || outward >= 0 && sideways >= K.raySideV) k.rayMoveT = G.time;
+    const set = three && pl.z <= K.rayGround && Math.hypot(pl.vx, pl.vy) < K.raySetV && !pl.action && pl.stun <= 0;
+    if (!set || !k.raySet || !pl.hasBall || !k.rayHadBall) k.raySetDrib = k.rayDribN || 0;
+    k.raySet = set ? (k.raySet || 0) + dt : 0;
+    k.rayHadBall = pl.hasBall;
+  }
+  function rayReady(pl) {
+    const k = pl.sk;
+    return skOf(pl, 'rallen') && G.time - (k.rayMoveT ?? -Infinity) <= K.rayWindow && isThree(pl.x, pl.y) &&
+      k.raySet >= K.raySetT && pl.z <= K.rayGround && Math.hypot(pl.vx, pl.vy) < K.raySetV &&
+      (teamPlay() ? catchShot(pl) : (k.rayDribN || 0) === k.raySetDrib);
+  }
   function skTick(pl, dt) {
     const S = pl.arch.skill; if (!S) return;
     const k = pl.sk, opp = OP(pl); k.cd = Math.max(0, k.cd - dt);
+    if (S.id === 'rallen') rayTick(pl, dt);
     if (S.id === 'shaq' || S.type === 'post') { if (pl.post && pl.hasBall) { k.postT += dt; pl.postEnd = G.time; } else if (!pl.action && G.time - (pl.postEnd || -9) > 0.6) k.postT = Math.max(0, k.postT - dt * 3); }
     let h = '';
     if (k.cd > 0) h = '';
@@ -2022,6 +2050,7 @@
     else if (S.id === 'shaq') h = shaqReady(pl) ? 'ready' : pl.post && k.postT > 0.3 ? 'half' : '';
     else if (dropSignature(S)) h = pl.hasBall && postFollow(pl) && pl.postMove.signature ? 'ready' : pl.post && k.postT > 0.3 ? 'half' : '';
     else if (S.trig === 'vertical') h = !pl.hasBall && verticalBlockReady(pl, opp) ? 'ready' : '';
+    else if (S.id === 'rallen') h = isThree(pl.x, pl.y) && G.time - (k.rayMoveT ?? -Infinity) <= K.rayWindow && !pl.action ? k.raySet >= K.raySetT ? 'ready' : 'half' : '';
     else if (S.type === 'shot') h = pl.hasBall && gTrig(pl, S, opp) ? 'ready' : '';
     else if (S.type === 'post') h = pl.hasBall && postOk(pl) ? 'ready' : pl.post && k.postT > 0.3 ? 'half' : '';
     else if (S.type === 'lay') h = pl.hasBall && distHoop(pl) < 6 && gTrig(pl, S, opp) ? 'ready' : '';
@@ -2234,6 +2263,7 @@
     if (hasB(pl, 'clutch') && isClutch()) bm *= bk(pl, 'clutch', K.bgClutchG);
     let hm = 1; if (a && a.hzL) hm = 1 + (hzGw(a.hzL) - 1) * (inside ? 0.5 : 1);
     if (a && a.ky) hm *= K.gwSkill;
+    if (a && a.skill === 'rallen' && a.catchShot) hm *= K.rayGreen;
     return clamp(g * Math.min(bm, K.gwBadge) * hm, 0.012, 0.6 * Math.max(1, (GW_TYPE[kind] || 1) / (GW0[kind] || 1), K.gwBadge / 1.45, K.gwSkill / 1.7, inside ? 1 : K.gwJump * K.gwOut / (1.12 * 1.135)));   // 总上限跟着绿区参数放大（默认 0.6）
   }
   // 招牌动作单独能力：勾手 / 抛投 / 后仰（不常用这招的人命中率就低）
@@ -2339,7 +2369,7 @@
     return roll < chance * (1 - escape);
   }
   function contactBlock(sh, a, hp, kind, info) {
-    if (a.skill || a.sk || a.blocked) return false;
+    if (a.skill && a.skill !== 'rallen' || a.sk || a.blocked) return false;
     for (const df of G.players) {
       if (df === sh || TM(df) === TM(sh)) continue;
       const inside = kind !== 'shot', edge = inside ? finEdge(sh, df, a, kind === 'dunk', true) : 0;
@@ -2624,7 +2654,7 @@
     const df = OP(pl), b = G.ball, a = pl.action, V = a.V;
     if (a.alley) e = a.alley.grade === 'green' ? 0 : a.alley.grade === 'ok' ? 0.3 : 1;
     const sk = shotKind(a), inCls = sk === 'lay' || sk === 'float' || sk === 'hook' || a.V.post || a.v === 'postfade' ? 'in' : 'shot';
-    const d = distHoop(pl), ci = contestInfo(pl, df, inCls), three = a.pts === 3, SK = a.skill, deep = three ? deepExcess(pl) : 0;
+    const d = distHoop(pl), ci = contestInfo(pl, df, inCls), three = a.pts === 3, SK = a.skill !== 'rallen' && a.skill, deep = three ? deepExcess(pl) : 0;
     let cm = 1;
     if (kind === 'lay') { cm *= K.smLayC0 - K.smLayCS * pl.r.str; cm *= bk(pl, 'acrobat', K.bgAcroC) * bk(pl, 'bully', K.bgBullyC); }
     else { if (a.F && !V.hook) cm *= a.F.ct; cm *= bk(pl, 'deadeye', K.bgDeadC); if (hasB(pl, 'fade') && (V.fade || a.v === 'fade' || a.v === 'postfade' || a.v === 'turn')) cm *= bk(pl, 'fade', K.bgFadeC); if (hasB(pl, 'stepper') && a.v === 'stepback') cm *= bk(pl, 'stepper', K.bgStepC); }
@@ -3192,7 +3222,8 @@
     if (signature && postS.trig === 'powerDrop') v = 'strongrise';
     const V = v === 'strongrise' ? Object.assign({}, SV.postfront, { name: postS.name, c: SV.postfront.c * 0.93, back: 0 })
       : signature ? Object.assign({}, SV.drophook, { name: postS.name, g: SV.drophook.g * 1.10 }) : SV[v];
-    const three = !V.hook && !signature && isThree(pl.x, pl.y), F = formOf(pl), TI = CFG.shotIdeal * F.sp * bk(pl, 'quick', K.bgQuickT) * (v === 'postfront' ? K.poFrontT : 1);
+    const relo = v === 'set' && q.l <= 0.35 && rayReady(pl), baseF = formOf(pl);
+    const three = !V.hook && !signature && isThree(pl.x, pl.y), F = relo ? Object.assign({}, baseF, { sp: baseF.sp * K.raySp, dip: baseF.dip * K.rayDip, blk: baseF.blk * K.rayBlock }) : baseF, TI = CFG.shotIdeal * F.sp * bk(pl, 'quick', K.bgQuickT) * (v === 'postfront' ? K.poFrontT : 1);
     const a = { type: 'shot', lefty: !V.hook && !!pl.arch.lefty, v: v, V: V, F: F, jT: V.hook ? K.shotJump : clamp(K.shotJump * F.dip, 0.18, TI - 0.12), t: 0, pts: three ? 3 : 2, released: false, jumped: false, latS: q.lat >= 0 ? 1 : -1, ideal: TI, meter: null, skill: null, d0: d, btn: btn || 'a1' };
     a.postOrigin = !!(pl.post || follow);
     a.postButton = a.postOrigin && !inp.rsHold;
@@ -3237,11 +3268,12 @@
     if (skOf(pl, 'curry') && pl.sk.ready && three && d >= 7.0) a.skill = 'curry';
     else if (skOf(pl, 'luka') && v === 'stepback' && three && G.time < pl.sk.win) a.skill = 'luka';
     else if (skOf(pl, 'kobe') && (V.fade || v === 'fade' || v === 'postfade' || v === 'turn') && (isClutch() || contestOf(pl, df) >= 0.3)) a.skill = 'kobe';
+    else if (relo) a.skill = 'rallen';
     if (!a.skill) { const S = gsk(pl, 'shot') || postS; if (S && !dropSignature(S) && (!S.v || S.v.indexOf(v) >= 0) && (S.type === 'post' ? postOk(pl) : gTrig(pl, S, df) && gZone(pl, S, three, d))) a.skill = S.id; }
-    if (a.skill) { pl.sk.cd = 12; G.ball.lastSk = { id: pl.id, sk: a.skill }; }
+    if (a.skill) { if (relo) { fireSkill(pl); pl.sk.rayMoveT = -Infinity; } else pl.sk.cd = 12; G.ball.lastSk = { id: pl.id, sk: a.skill }; }
     hzSet(pl, a); if (pl.sk.ky > G.time) { a.ky = true; pl.sk.ky = 0; }
     const mT0 = a.stride ? a.stride.T : 0, mSp = TI + 0.12;
-    a.meter = { v: 0, t0: mT0, span: mSp, ideal: TI / mSp, gw: greenWidth(pl, ratingOf(pl, a), a.skill ? 0 : contestOf(pl, df, V.post || V.hook || v === 'postfade' ? 'in' : 'shot') * V.c * (a.ky ? 0.5 : 1), shotKind(a), a) * a.V.g * (a.skill ? K.gwSkill : 1) * 0.2 / mSp, done: false, color: a.skill || signature ? '#ffd24a' : '#fff', label: a.skill ? pl.arch.skill.name : V.name };
+    a.meter = { v: 0, t0: mT0, span: mSp, ideal: TI / mSp, gw: greenWidth(pl, ratingOf(pl, a), a.skill && !relo ? 0 : contestOf(pl, df, V.post || V.hook || v === 'postfade' ? 'in' : 'shot') * V.c * (a.ky ? 0.5 : 1), shotKind(a), a) * a.V.g * (a.skill && !relo ? K.gwSkill : 1) * 0.2 / mSp, done: false, color: a.skill || signature ? '#ffd24a' : '#fff', label: a.skill ? pl.arch.skill.name : V.name };
     a.uu = pl.uuShot && G.time <= pl.uuShot.until ? pl.uuShot : null;
     pl.action = a; pl.post = false; pl.animT = 0;
     if (!a.postOrigin && !a.skill && v !== 'set' && v !== 'pullup') float(V.name, pl, '#f6efe0', 1);
@@ -3984,6 +4016,7 @@
     const prev = pl.dribbleCombo, moving = pl.action && pl.action.type === 'move';
     const linked = prev && prev.end == null && (moving || Math.abs(inputAt - pl.mvEndT) <= K.cbWin);
     pl.catchDribbled = true;
+    if (pl.arch.key === 'rallen') pl.sk.rayDribN = (pl.sk.rayDribN || 0) + 1;
     const df = OP(pl), q = inDir(pl, inp, true), h = q.h, hx = h.x, hy = h.y, h0 = pl.hand || 1;
     const dd = Math.hypot(df.x - pl.x, df.y - pl.y), front = df.off ? -1 : ((df.x - pl.x) * hx + (df.y - pl.y) * hy) / (dd || 1);
     const openS = ((df.x - pl.x) * -hy + (df.y - pl.y) * hx) > 0 ? -1 : 1; // 防守人不在的一侧
@@ -5032,7 +5065,7 @@
     }
     if (pl.hasBall && !a) {
       const p0 = Math.sin(pl.drib); pl.drib += dt * (PH.gait ? PH.gait.drib(pl) : 6.2 + pl.speed * 0.45);
-      if (p0 * Math.sin(pl.drib) < 0) { if (!(pl.f5 && pl.f5.ck)) pl.catchDribbled = true; sfx('bounce'); if (pl.z <= 0.01) pl.sqv = (pl.sqv || 0) - 3.0; }
+      if (p0 * Math.sin(pl.drib) < 0) { if (!(pl.f5 && pl.f5.ck)) { pl.catchDribbled = true; if (pl.arch.key === 'rallen') pl.sk.rayDribN = (pl.sk.rayDribN || 0) + 1; } sfx('bounce'); if (pl.z <= 0.01) pl.sqv = (pl.sqv || 0) - 3.0; }
     }
     pl.handX = lerp(pl.handX, pl.hand * 0.33, Math.min(1, dt * 16));
     const T = poseTarget(pl), P = pl.pose, kq = postBlend ? 1 - Math.exp(-2 * dt / blendT) : Math.min(1, dt * 22);
@@ -5659,6 +5692,7 @@
       s0: SEQ([[0.25, 1.13, { post: true }], TAP(0.95, { d: 'FL' }), [1.48, 2.2, PF()]]) },
     'sk-mutombo': { a0: 'mutombo', a1: 'joe', def: 1, p0: [-1.7, 10.65], p1: [-2, 10.1], T: 4.5,
       s0: SEQ([[0.91, 1.12, { a1: true }]]), s1: SEQ([[0.55, 1.1, PF()]]) },
+    'sk-rallen': { a0: 'rallen', x: 0, y: 6, gap: 2.5, dm: 'stand', T: 4.8, s0: SEQ([[0.1, 0.38, { m: 'B' }], [0.38, 4.8, (t, pl) => pl.sk.hint === 'ready' || pl.action ? PF()(t, pl) : {}]]) },
   };
   // 新招的演示：按这个球员运球包里该招所在的槽位自动生成按键序列
   function mvTip(id, slot, a0) {
@@ -5960,6 +5994,11 @@
       }
       // 空位判断要考虑防守人补防：出手要 0.5 秒，离得不够远会被扑到
       const c = contestOf(pl, opp), ddO = Math.hypot(opp.x - pl.x, opp.y - pl.y), open = c < K.aiOpenC && (opp.off || opp.stun > 0.2 || ddO > K.aiOpenD + 0.9 * opp.r.spd);
+      if (skOf(pl, 'rallen') && isThree(pl.x, pl.y) && G.time - (pl.sk.rayMoveT ?? -Infinity) <= K.rayWindow &&
+          open && !pl.post && (!teamPlay() || catchShot(pl))) {
+        if (rayReady(pl)) { o.a1 = true; return o; }
+        if ((pl.sk.raySet || 0) < K.raySetT) return o;
+      }
       const px = -hy * ai.side, py = hx * ai.side;
       const FP = finPlan(pl);
       // 自己投篮比终结更可能得分时（相对能力，不是绝对数值）：返回 0~1 的偏好；对面护框越强，终结越打折
