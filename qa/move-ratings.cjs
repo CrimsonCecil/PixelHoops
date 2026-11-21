@@ -247,6 +247,29 @@ near(shotProb('uu', 0.98, true, true).uuBonus, 0.08, 'high quality UU bonus');
 }
 console.log('PASS shot quality: post/UU low-rating penalties, high-rating exemption, quality-scaled UU bonus and tier-scaled fakes step');
 
+function kobeFade(mode, skill, error, penalty) {
+  const { p, d } = fixture(mode);
+  p.arch = { ...gm.ARCH.kobe, skill: skill ? gm.ARCH.kobe.skill : null };
+  Object.assign(p.r, gm.ARCH.kobe); p.sk.cd = 0;
+  G.sd = true;
+  if (mode === 't5') { team.T.q = 4; team.T.gclock = 20; team.T.tm[0].score = team.T.tm[1].score; }
+  Object.assign(d, { off: false, x: p.x, y: p.y + 0.6 });
+  tune.set('l1_poStrideMiss', penalty);
+  dbg.startShot(p, { ...zero(), my: -1 }, 'a1');
+  assert.equal(p.action.v, 'postfade'); assert(p.action.stride);
+  assert.equal(!!p.action.skill, skill, 'Kobe skill activates naturally in clutch time');
+  dbg.releaseShot(p, error, 'shot');
+  return { prob: G.lastShot.prob, q: qa.postQuality(p) };
+}
+for (const mode of ['2p', 't3', 't5']) for (const skill of [true, false]) for (const error of [0, 0.4]) {
+  const base = kobeFade(mode, skill, error, 0), penalized = kobeFade(mode, skill, error, 0.12);
+  if (skill && error === 0) {
+    console.log(`Kobe green skill ${mode}: base=${base.prob} with-penalty=${penalized.prob}`);
+    assert.equal(penalized.prob, 1, 'green Kobe skill post fade must retain its guaranteed make');
+  } else near(penalized.prob / base.prob, 1 - 0.12 * (1 - base.q), 'ordinary and non-green skill fades retain the rating penalty');
+}
+console.log('PASS skill guarantee: perfect Kobe post fades remain 100%; non-green skill and ordinary post fades retain penalties in all modes');
+
 const rows = Object.values(gm.ARCH);
 for (const a of rows) assert.equal(a.badges.includes('fakes'), (a.close + a.lay) * 99 / 2 >= 80, a.name);
 for (const [rating, expected] of [[79, 0], [80, 1], [85, 1], [86, 2], [91, 2], [92, 3], [97, 4]])

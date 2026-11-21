@@ -2599,7 +2599,7 @@
     }
     const uu = a.uu, ud = nearestDefender(pl);
     info.uuBonus = uu && ud && ud.id === uu.def && (ud.z > 0.05 || G.time <= uu.bitUntil) ? K.uuBonus * uuQuality(pl) : 0;
-    const movePenalty = a.stride ? K.poStrideMiss * (1 - postQuality(pl)) : uu ? K.uuMiss * (1 - uuQuality(pl)) : 0;
+    const movePenalty = SK && green ? 0 : a.stride ? K.poStrideMiss * (1 - postQuality(pl)) : uu ? K.uuMiss * (1 - uuQuality(pl)) : 0;
     prob = alleyProb(a, clamp((prob + info.uuBonus) * (1 - movePenalty), K.smMin, 1)); pl.uuShot = null; pl.postFakeCount = 0;
     const made = G.tips && G.tips.mk && pl.id === 0 ? true : rnd() < prob;
     const cl = SK ? '无视干扰' : c < 0.2 ? '空位' : c < 0.5 ? '轻微干扰' : '严重干扰';
