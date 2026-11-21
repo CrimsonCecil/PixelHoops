@@ -3313,7 +3313,7 @@
     banner(title, (train ? '' : t.name + ' +' + pts) + (hot ? (train ? '' : ' · ') + '连中 ' + G.streak[id] + ' 球' : ''), t.css, train ? 0.9 : 1.4);
     sfx(kind === 'dunk' ? 'dunk' : 'swish');
     const F = G.fx, hx = HOOP.x, hy = HOOP.y, hz = HOOP.z, pa = pl.action;
-    const special = kind === 'dunk' && (/隔人|长距离/.test(name || '') || (pa && pa.type === 'dunk' && (pa.v === 'windmill' || pa.v === '360' || pa.v === 'cock' || pa.v === 'cradle' || pa.v === 'scissor' || pa.v === 'pump' || pa.long)));
+    const special = kind === 'dunk' && (/隔人|长距离|^长 · /.test(name || '') || (pa && pa.type === 'dunk' && (pa.v === 'windmill' || pa.v === '360' || pa.v === 'cock' || pa.v === 'cradle' || pa.v === 'scissor' || pa.v === 'pump' || pa.long)));
     const afterAnkle = pl.ankleT && G.time - pl.ankleT < 3.5, clutch = isClutch() && CFG.shotClock > 0 && G.shotClock <= 2;
     let tier = kind === 'dunk' ? (special ? 2 : 1) : pts === 3 ? 1 : 0, ledT = kind === 'dunk' ? 'SLAM DUNK  ' + (name || '暴扣') + '  +2' : pts === 3 ? '3 POINTS  三分命中  +3' : '+2  ' + (name || '两分命中');
     let hs = (kind === 'dunk' && /隔人/.test(name || '')) ? 25 : special ? 15 : 0;
@@ -3346,7 +3346,7 @@
     tkAdd(pl, 13 + 4 * (pts - 2) + 4 * Math.min(3, G.streak[id] || 0)); tkAdd(OP(pl), -4);
     sfx(kind === 'dunk' ? 'dunk' : 'swish');
     const hot = G.streak[id] >= K.hcHotN, pa = pl.action;
-    const special = kind === 'dunk' && (/隔人|长距离/.test(name || '') || (pa && pa.type === 'dunk' && (pa.v === 'windmill' || pa.v === '360' || pa.v === 'cock' || pa.v === 'cradle' || pa.v === 'scissor' || pa.v === 'pump' || pa.long)));
+    const special = kind === 'dunk' && (/隔人|长距离|^长 · /.test(name || '') || (pa && pa.type === 'dunk' && (pa.v === 'windmill' || pa.v === '360' || pa.v === 'cock' || pa.v === 'cradle' || pa.v === 'scissor' || pa.v === 'pump' || pa.long)));
     const tier = kind === 'dunk' ? (special ? 2 : 1) : pts === 3 ? 1 : 0, col = kind === 'dunk' ? '#ff8a2a' : pts === 3 ? '#ffd24a' : pl.team.css;
     if (kind === 'dunk') { G.fx.board = Math.max(G.fx.board, special ? 0.9 : 0.6); shake(special ? 14 : 9); flash(special ? '#ffffff' : '#ff8a2a', special ? 0.15 : 0.09); }
     burst(HOOP.x, HOOP.y, HOOP.z - 0.2, 8 + 8 * tier, [col, '#ffffff'], 2.5 + tier, 0.5, 6);
@@ -4882,7 +4882,7 @@
               bpop(pl, 'poster'); knock(df, (df.x - pl.x) / l, (df.y - pl.y) / l, 2.5 + 2 * (powOf(pl) - powOf(df)), 1.0, 'fall'); impactFx(df.x, df.y, true, 2.4);
             }
             st.fga++; st.ina++;
-            const nm = a.alley ? '空接暴扣' : SK ? pl.arch.skill.name : poster ? '隔人暴扣' : a.long ? '长距离起跳 · ' + a.name : a.name; scoreBy(pl.id, 2, 'dunk', nm); float(nm, pl, '#ffd24a', 1);
+            const nm = a.alley ? '空接暴扣' : SK ? pl.arch.skill.name : poster ? '隔人暴扣' : a.long ? '长 · ' + a.name : a.name; scoreBy(pl.id, 2, 'dunk', nm); float(nm, pl, '#ffd24a', 1);
             if (SK) led(SK === 'shaq' ? 'BACKBOARD DOWN  篮架摧毁' : SK === 'giannis' ? 'GREEK FREAK  一步登天' : pl.arch.skill.en + '  ' + pl.arch.skill.name, '#ffd24a', 3.2); else if (a.brk) led('SHAQ BROKE THE GLASS  篮板碎了', '#ffd24a', 3.4);
           } else if (!df.off && c > 0.4 && edge < 0 && Math.hypot(df.x - pl.x, df.y - pl.y) < 1.5 && rnd() < 0.65) {
             // 被内线大闸正面挡住：球被打掉，扣篮的人被弹开
