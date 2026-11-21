@@ -3458,7 +3458,13 @@
   function tkStart(pl) {
     const T = tkType(pl.arch), D = TKD[T];
     pl.tkOn = TK_T; pl.tk = 100; pl.rBase = pl.r; pl.tkT = T;
-    const r = Object.assign({}, pl.r); for (const t of ATTRS) { const k = t[0]; if (typeof r[k] === 'number' && k !== 'bw') r[k] = Math.min(0.99, r[k] + (D.keys.indexOf(k) >= 0 ? 20 : 5) / 99); } pl.r = r;
+    const r = Object.assign({}, pl.r);
+    for (const [k] of ATTRS) {
+      if (typeof r[k] !== 'number' || k === 'bw') continue;
+      const cap = k === 'ft' || k === 'drawFoul' ? 1 : 0.99;
+      r[k] = Math.min(cap, r[k] + (D.keys.includes(k) ? 20 : 5) / 99);
+    }
+    pl.r = r;
     sfx('badge'); sfx('combo'); flash('#ff8a2a', 0.18); shake(3);
     G.fx.rings.push({ x: pl.x, y: pl.y, z: 0.1, t: 0, T: 0.7, col: '#ff8a2a', R: 3.2 }, { x: pl.x, y: pl.y, z: 0.1, t: -0.15, T: 0.7, col: '#ffd24a', R: 2.2 });
     burst(pl.x, pl.y, 1.2, 40, ['#ff8a2a', '#ffd24a', '#ffffff'], 4, 0.6, 6, 1.3);

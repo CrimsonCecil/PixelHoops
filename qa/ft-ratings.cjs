@@ -7,7 +7,7 @@ const ctx = vm.createContext({ console, performance: { now: () => 0 }, setTimeou
 ctx.window = ctx;
 for (const name of ['tune', 'ptype', 'render', 'roster', 'r5', 'r2k', 'game']) {
   let code = fs.readFileSync(path.join(__dirname, '..', 'js', name + '.js'), 'utf8');
-  if (name === 'game') code = code.replace('PH.game = {', 'PH.ftQA = { shootingFoul, awardFreeThrows, freeThrowInput }; PH.game = {');
+  if (name === 'game') code = code.replace('PH.game = {', 'PH.ftQA = { shootingFoul, awardFreeThrows, freeThrowInput, tkStart }; PH.game = {');
   vm.runInContext(code, ctx, { filename: name + '.js' });
 }
 const { game: gm, ftQA: qa, TUNE: tune, R2K } = ctx.PH;
@@ -72,6 +72,12 @@ const autoRate = (rating) => Array.from({ length: 600 }, (_, i) => release(start
 const highRate = autoRate(hi), lowRate = autoRate(lo);
 assert(highRate >= 0.82 && highRate <= 0.98 && lowRate >= 0.42 && lowRate <= 0.67 && highRate - lowRate >= 0.23,
   'CPU FT make rates: ' + highRate + ' / ' + lowRate);
+gm.newGame({ mode: '2p', arch0: 'shaq', arch1: 'curry' });
+const [shaq, curry] = G.players;
+qa.tkStart(shaq);
+qa.tkStart(curry);
+assert.equal(shaq.r.drawFoul, 1, 'Takeover never lowers a 99-rated foul drawer');
+assert(curry.r.ft > hi && curry.r.ft <= 1, 'Takeover raises FT rating within the correct scale');
 console.log('PASS FT ratings: higher rating widens the green window; input parity; CPU makes ' + highRate.toFixed(3) + ' vs ' + lowRate.toFixed(3));
 
 function whistleRate(draw, discipline, { contest = 0.65, contact = false, drought = 0, trips = 0, fouls = true } = {}) {
