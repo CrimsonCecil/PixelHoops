@@ -286,6 +286,7 @@
     }
     for (const p of P) if (p.__head) { R.drawMeter(p, p.__head); }
     ctx.setTransform(1, 0, 0, 1, 0, 0);
+    if (R.drawScreenFx) R.drawScreenFx(Gm);
     if (F.flash > 0) { ctx.globalAlpha = Math.min(0.5, F.flash * 3.2); ctx.fillStyle = F.flashCol; ctx.fillRect(0, 0, W, H); ctx.globalAlpha = 1; }
   }
   // ---------- V3.9e 2K 镜头 ----------
@@ -517,6 +518,7 @@
     for (const p of P) if (p.__head) R.drawMeter(p, p.__head);
     PJ = null; HV = [0, 1]; K2 = false;
     ctx.setTransform(1, 0, 0, 1, 0, 0);
+    if (R.drawScreenFx) R.drawScreenFx(Gm);
     if (F.flash > 0) { ctx.globalAlpha = Math.min(0.5, F.flash * 3.2); ctx.fillStyle = F.flashCol; ctx.fillRect(0, 0, W, H); ctx.globalAlpha = 1; }
   }
   // 篮板上方的 24 秒计时器（2K / NBA 场馆都装在篮板顶上）
@@ -740,11 +742,11 @@
     }
     // 把当前回放帧换到真实对象上画，画完换回
     function swap() {
-      const Gm = G5(), f = S.view, sv = Gm.players.map((p) => { const o = { pose: p.pose, ghosts: p.ghosts, action: p.action }; for (const k of KP) o[k] = p[k]; return o; }), sb = {}, F = Gm.fx, sp = F.parts, sr = F.rings, sk = F.shake, sfl = F.flash;
+      const Gm = G5(), f = S.view, sv = Gm.players.map((p) => { const o = { pose: p.pose, ghosts: p.ghosts, action: p.action }; for (const k of KP) o[k] = p[k]; return o; }), sb = {}, F = Gm.fx, sp = F.parts, sr = F.rings, sk = F.shake, sfl = F.flash, scf = F.confetti, ssf = F.scoreFx;
       for (const k of KB) sb[k] = Gm.ball[k];
       Gm.players.forEach((p, i) => { const o = f.p[i]; if (!o) return; for (const k of KP) p[k] = o[k]; p.pose = o.pose; p.ghosts = null; p.action = null; });
-      for (const k of KB) Gm.ball[k] = f.b[k]; F.parts = f.parts; F.rings = f.rings; F.shake = 0; F.flash = 0;
-      return () => { Gm.players.forEach((p, i) => { const o = sv[i]; for (const k of KP) p[k] = o[k]; p.pose = o.pose; p.ghosts = o.ghosts; p.action = o.action; }); for (const k of KB) Gm.ball[k] = sb[k]; F.parts = sp; F.rings = sr; F.shake = sk; F.flash = sfl; };
+      for (const k of KB) Gm.ball[k] = f.b[k]; F.parts = f.parts; F.rings = f.rings; F.shake = 0; F.flash = 0; F.confetti = []; F.scoreFx = null;
+      return () => { Gm.players.forEach((p, i) => { const o = sv[i]; for (const k of KP) p[k] = o[k]; p.pose = o.pose; p.ghosts = o.ghosts; p.action = o.action; }); for (const k of KB) Gm.ball[k] = sb[k]; F.parts = sp; F.rings = sr; F.shake = sk; F.flash = sfl; F.confetti = scf; F.scoreFx = ssf; };
     }
     function hud() {
       const bh = 14, e = S.rt - S.q.t, slow = Math.abs(e) < 0.35;
