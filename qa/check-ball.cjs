@@ -51,6 +51,10 @@ function verify(log, G, offId, label) {
   for (let i = 0; i < 90; i++) GM.tick(1 / 60, held);
   assert.equal(G.phase, 'live');
   assert(!G.players[0].action || !['shot', 'layup', 'dunk'].includes(G.players[0].action.type), 'a button held through the catch is not a new shot');
+  GM.newGame({ mode: 'cpu', arch0: 'curry', arch1: 'lebron', target: 11 });
+  let fresh = 0;
+  for (let i = 0; i < 90 && !(G.players[0].action && G.players[0].action.type === 'shot'); i++) { if (G.phase === 'live') fresh++; GM.tick(1 / 60, (p) => Object.assign(GM.t5.zeroInp(), { a1: G.phase === 'live' })); }
+  assert(fresh <= 2, 'a fresh press right after the catch still shoots (' + fresh + ' frames)');
   GM.newGame({ mode: 'train', arch0: 'curry', arch1: 'lebron' });
   assert.equal(G.ball.state, 'held', 'training mode keeps its instant reset');
   console.log('PASS: 1V1 check ball goes defender -> bounce pass -> offense catch -> live.');

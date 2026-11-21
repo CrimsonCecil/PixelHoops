@@ -1680,7 +1680,7 @@
       if (u >= 1) {
         b.x = at[0]; b.y = at[1]; b.z = at[2];
         delete o.pose.passHands; G.chk = null; pickup(o);
-          if (o.ctrl !== 'cpu') { o.prev.a1 = o.prev.a2 = true; o.ib = null; } // 接球前按住的键（手柄换了映射）不算新的投篮
+          if (o.ctrl !== 'cpu' && o.prev.any) { o.prev.a1 = o.prev.a2 = true; o.ib = null; } // 接球前按住的键（手柄换了 X/Y 映射）不算新的投篮
         return true;
       }
     }
@@ -3879,7 +3879,7 @@
     const src = IB && !frozen ? raw : inp;
     const pr = { a1: src.a1 && !pl.prev.a1, a2: src.a2 && !pl.prev.a2, a3: src.a3 && !pl.prev.a3 };
     const shootPress = G.phase === 'live' && !G.ball.dead && pl.stun <= 0 && (G.mode === 't5' ? inp.shootPress : pr.a1);
-    pl.prev.a1 = src.a1; pl.prev.a2 = src.a2; pl.prev.a3 = src.a3;
+    pl.prev.a1 = src.a1; pl.prev.a2 = src.a2; pl.prev.a3 = src.a3; pl.prev.any = raw.a1 || raw.a2;
     let ibTap = null, ibHd = null, ibHesi = null;
     if (IB) {
       const live = G.phase === 'live' && !G.ball.dead && !frozen;
