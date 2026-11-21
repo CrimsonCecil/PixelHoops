@@ -209,3 +209,50 @@ assert.equal(JSON.stringify(p.crab), beforePause, 'non-positive dt leaves feet u
 TUNE.reset('l1_stHzMax');
 console.table(frequencies);
 console.log('PASS stance floor/cap/gap, hot cap tuning, short shin motion, max-speed low lead lift/plant and grounded glide');
+
+for (const [label, mx, my, amount, contact] of [
+  ['slow left', -1, 0, 0.1], ['slow right', 1, 0, 0.1],
+  ['slow forward', 0, 1, 0.1], ['slow backward', 0, -1, 0.1],
+  ['max left', -1, 0, 1], ['max right', 1, 0, 1],
+  ['max forward', 0, 1, 1], ['max backward', 0, -1, 1],
+  ['turns, stops and stance gaps', -1, 0, 1],
+  ['contact', 1, 0, 0.2, true],
+]) {
+  game.newGame({ mode: 'train', arch0: 'mrobinson', arch1: 'curry' });
+  Object.assign(game.G, { phase: 'live', intro: null, tips: null });
+  const [a, b] = game.G.players;
+  Object.assign(a, { x: 0, y: 6, face: Math.PI / 2, hasBall: false, action: null, stun: 0 });
+  Object.assign(b, { x: 0, y: 10, hasBall: true });
+  Object.assign(game.G.ball, { state: 'held', holder: b.id });
+  const samples = [];
+  let kneeTravel = 0, shinSweep = 0, active = 0;
+  for (let i = 0; i < 420; i++) {
+    const transitions = label === 'turns, stops and stance gaps', turn = transitions && i >= 140 && i < 280;
+    b.x = a.x + (turn ? 3 : 0); b.y = a.y + (contact ? 0.65 : turn ? 1 : 4);
+    b.vx = b.vy = 0; b.hasBall = true; a.stam = 100;
+    const sign = Math.floor(i / 90) % 2 ? -1 : 1, stop = transitions && i >= 200 && i < 230;
+    const input = { ...game.t5.zeroInp(), mx: (turn ? my : mx) * amount * sign * !stop, my: (turn ? mx : my) * amount * sign * !stop,
+      a3: !(transitions && (i === 100 || i === 300)), sprint: amount === 1 };
+    game.t5.step([input, game.t5.zeroInp()], 1 / 60);
+    if (!a.stance || a.anim !== 'def') continue;
+    active++;
+    assert.equal(a.sq, 1, 'stance excludes runPh squash impulses');
+    const k = rig(a, a.pose, false, a.col.body), f = a.face + (a.pose.yaw || 0), fx = Math.cos(f), fy = Math.sin(f);
+    const local = v => [v[0] * fy - v[1] * fx, v[0] * fx + v[1] * fy, v[2]];
+    const frame = ['L', 'R'].map(side => {
+      const knee = k['knee' + side], foot = k['foot' + side], toe = k['toe' + side];
+      const lift = foot[2] - a.z - 0.06 * (1 + (a.col.body.height / 1.95 - 1) * 1.55);
+      assert(lift >= -1e-8 && lift <= 0.031 && Math.abs(foot[2] - toe[2]) < 1e-8, 'live flat feet, grounded except low lifts');
+      return { knee: local(knee.map((v, j) => v - (j === 0 ? a.x : j === 1 ? a.y : a.z))), shin: local(foot.map((v, j) => v - knee[j])) };
+    });
+    for (const prev of samples) for (let side = 0; side < 2; side++) {
+      kneeTravel = Math.max(kneeTravel, Math.hypot(...frame[side].knee.map((v, j) => v - prev[side].knee[j])));
+      const u = frame[side].shin, v = prev[side].shin;
+      shinSweep = Math.max(shinSweep, Math.acos(Math.max(-1, Math.min(1, u.reduce((sum, x, j) => sum + x * v[j], 0) / Math.hypot(...u) / Math.hypot(...v)))) * 180 / Math.PI);
+    }
+    samples.push(frame);
+  }
+  assert(active > 390, 'live training exercises sustained stance');
+  assert(kneeTravel <= 0.01 && shinSweep <= 5, `${label}: live knee ${kneeTravel}, shin ${shinSweep}`);
+  console.log(`PASS live training ${label}: knee ${(100 * kneeTravel).toFixed(3)}cm, shin ${shinSweep.toFixed(3)}deg`);
+}

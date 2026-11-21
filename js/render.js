@@ -318,7 +318,7 @@
       if (!pl.stance || pl.anim !== 'def' || pl.z > 0.01) { pl.crab = null; return; }
       if (!(dt > 0)) return;
       const fx = Math.cos(pl.face), fy = Math.sin(pl.face), Hh = 1 + (height(pl) / 1.95 - 1) * 1.55, w = tune('stWidth', 0.42) * Hh;
-      const k = rig(pl, { ...pose, crab: 0 }, false, pl.col && pl.col.body), reach = 0.035 * Hh;
+      const k = rig(pl, { ...pose, crab: 0 }, false, pl.col && pl.col.body), reach = 0.012 * Hh;
       const base = (side) => {
         const foot = k[side < 0 ? 'footL' : 'footR'];
         return [pl.x + fy * side * w + fx * ((foot[0] - pl.x) * fx + (foot[1] - pl.y) * fy),
@@ -332,25 +332,27 @@
       }
       const dx = pl.x - c.x, dy = pl.y - c.y, distance = Math.hypot(dx, dy);
       c.x = pl.x; c.y = pl.y;
-      if (distance < 0.00001) { c[c.side][2] = Math.max(0, c[c.side][2] - dt); c.rest = true; return; }
-      if (c.rest) { c.side = dx * fy - dy * fx < 0 ? 'L' : 'R'; c.phase = 0; c.rest = false; }
-      const v = distance / dt, lo = tune('stHzMin', 1), hi = Math.max(lo, tune('stHzMax', 2.4));
-      const hz = cl(v / (tune('stStep', 0.42) + 0.12 * v), lo, hi) * Math.min(1, v / 0.35);
-      const lateral = Math.abs((dx * fy - dy * fx) / distance), step = Math.min(v / hz, reach);
-      c.hz = hz; c.lead = dx * fy - dy * fx < 0 ? 'L' : 'R';
-      let advance = hz * dt;
-      while (advance > 0) {
-        if (c.phase === 0) {
-          c.from = c[c.side].slice(); c.to = base(c.side === 'L' ? -1 : 1);
-          c.to[0] += dx / distance * step; c.to[1] += dy / distance * step;
+      if (distance < 0.00001) { c[c.side][2] = Math.max(0, c[c.side][2] - dt); c.rest = true; }
+      else {
+        if (c.rest) { c.side = dx * fy - dy * fx < 0 ? 'L' : 'R'; c.phase = 0; c.rest = false; }
+        const v = distance / dt, lo = tune('stHzMin', 1), hi = Math.max(lo, tune('stHzMax', 2.4));
+        const hz = cl(v / (tune('stStep', 0.42) + 0.12 * v), lo, hi) * Math.min(1, v / 0.35);
+        const lateral = Math.abs((dx * fy - dy * fx) / distance), step = Math.min(v / hz, reach);
+        c.hz = hz; c.lead = dx * fy - dy * fx < 0 ? 'L' : 'R';
+        let advance = hz * dt;
+        while (advance > 0) {
+          if (c.phase === 0) {
+            c.from = c[c.side].slice(); c.to = base(c.side === 'L' ? -1 : 1);
+            c.to[0] += dx / distance * step; c.to[1] += dy / distance * step;
+          }
+          const take = Math.min(1 - c.phase, advance); c.phase += take; advance -= take;
+          const u = c.phase, blend = u * u * (3 - 2 * u), foot = c[c.side];
+          foot[0] = c.from[0] + (c.to[0] - c.from[0]) * blend;
+          foot[1] = c.from[1] + (c.to[1] - c.from[1]) * blend;
+          const drag = lateral * (c.side === c.lead ? 0 : 1);
+          foot[2] = Math.sin(Math.PI * u) * Math.min(tune('stLift', 0.025), 0.03 * Hh) * (1 - drag);
+          if (u >= 1) { foot[2] = 0; c.side = c.side === 'L' ? 'R' : 'L'; c.phase = 0; }
         }
-        const take = Math.min(1 - c.phase, advance); c.phase += take; advance -= take;
-        const u = c.phase, blend = u * u * (3 - 2 * u), foot = c[c.side];
-        foot[0] = c.from[0] + (c.to[0] - c.from[0]) * blend;
-        foot[1] = c.from[1] + (c.to[1] - c.from[1]) * blend;
-        const drag = lateral * (c.side === c.lead ? 0 : 1);
-        foot[2] = Math.sin(Math.PI * u) * Math.min(tune('stLift', 0.025), 0.03 * Hh) * (1 - drag);
-        if (u >= 1) { foot[2] = 0; c.side = c.side === 'L' ? 'R' : 'L'; c.phase = 0; }
       }
       for (const side of ['L', 'R']) {
         const f = c[side], center = base(side === 'L' ? -1 : 1), x = f[0] - center[0], y = f[1] - center[1], d = Math.hypot(x, y);

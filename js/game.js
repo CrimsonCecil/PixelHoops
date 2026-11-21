@@ -4764,7 +4764,7 @@
     if (a && a.type === 'block') { pl.armS = null; T.reachL = T.reachR = P.reachL = P.reachR = 1; }
     // 肩部转角按最短路径插值（风车扣篮手臂转一整圈后，不会再倒着从最下面绕回去）
     for (const n in T) {
-      if (n.startsWith('foot')) P[n] = T[n];
+      if (n.startsWith('foot') || pl.stance && T.crab && /^(crab|lA|lB|lS|rA|rB|rS|bob)$/.test(n)) P[n] = T[n];
       else if (postBlend) { let delta = T[n] - (P[n] || 0); if (n === 'aLp' || n === 'aRp') delta = Math.atan2(Math.sin(delta), Math.cos(delta)); P[n] = (P[n] || 0) + clamp(delta * kq, -2 * dt / blendT, 2 * dt / blendT); }
       else { if ((n === 'aLp' || n === 'aRp') && Math.abs(T[n] - P[n]) > Math.PI) P[n] += Math.round((T[n] - P[n]) / (2 * Math.PI)) * 2 * Math.PI; P[n] = lerp(P[n] || 0, T[n], kq); }
     }
@@ -4806,11 +4806,12 @@
   function squash(pl, a, dt) {
     if (dt <= 0) return;
     const pz = pl.pzS == null ? pl.z : pl.pzS, vz = (pl.z - pz) / dt; pl.pzS = pl.z;
-    let v = pl.sqv || 0, x = pl.sq || 1;
+    const stance = pl.stance && pl.anim === 'def' && pl.z <= 0.01;
+    let v = stance ? 0 : pl.sqv || 0, x = stance ? 1 : pl.sq || 1;
     if (pz <= 0.01 && pl.z > 0.01) v += 4.6;
     if (pz > 0.01 && pl.z <= 0.01) v -= clamp(3 + 0.5 * Math.abs(pl.lvz || 0), 3, 6.5);
     pl.lvz = vz;
-    if (pl.z <= 0.01 && (pl.anim === 'run' || pl.anim === 'def')) {
+    if (!stance && pl.z <= 0.01 && (pl.anim === 'run' || pl.anim === 'def')) {
       const f = pl.anim === 'def' ? 1.4 : 1, s1 = Math.sin(pl.runPh * f);
       if ((pl.sqS || 0) * s1 < 0) v -= (pl.anim === 'def' ? 2.2 : 1.8) * Math.min(1, pl.speed / 4);
       pl.sqS = s1;
