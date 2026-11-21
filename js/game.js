@@ -1608,7 +1608,7 @@
     banchero: { style: 'curly', face: 'wide', beard: '', shoulder: 1.06 },
     jbrown: { style: 'braids', beard: 'boxed', face: 'square' },
     sabonis: { style: 'swept', face: 'square', beard: 'boxed' },
-    bam: { style: 'fade', face: 'square', beard: 'goatee', shoulder: 1.07 },
+    bam: { style: 'fade', face: 'long', beard: 'goatee', shoulder: 1.07 },
     flagg: { style: 'swept', face: 'long', beard: '' },
     kessler: { style: 'crop', hair: '#30251f', build: 0.15, shoulder: 1.08, muscle: 0.14 },
   };
