@@ -4938,7 +4938,14 @@
     else if (a && a.type === 'move' && isPostMove(a.kind)) { const u = sm(clamp(a.t / a.T, 0, 1)), turn = Math.atan2(Math.sin(hA - a.f0), Math.cos(hA - a.f0)); tf = a.kind === 'postshim' ? a.f0 + 0.35 * Math.sin(u * Math.PI * 2) : a.f0 + turn * u; snap = true; }
     else if (a && a.type === 'move' && a.kind !== 'postspin') { let dv = (pl.speed > 1 ? Math.atan2(pl.vy, pl.vx) : hA) - hA; while (dv > Math.PI) dv -= Math.PI * 2; while (dv < -Math.PI) dv += Math.PI * 2; tf = hA + clamp(dv, -1.2, 1.2) * (a.kind === 'stepback' ? 0 : 0.3); }
     else if (a && a.type === 'dive') tf = Math.atan2(a.uy, a.ux);
-    else if (a && a.type === 'shot' && a.stride && a.t < a.stride.T) { const s = a.stride, u = sm(clamp(a.t / s.T, 0, 1)); tf = s.kind === 'Spin' ? s.f0 - s.side * Math.PI * u : s.kind === 'Front' ? s.f0 + Math.atan2(Math.sin(hA - s.f0), Math.cos(hA - s.f0)) * u : hA; snap = true; }
+    else if (a && a.type === 'shot' && a.stride && a.t < a.stride.T) {
+      const s = a.stride, u = sm(clamp(a.t / s.T, 0, 1));
+      if (a.v === 'spinfade') {
+        const target = hA + a.postSide * 0.5;
+        tf = s.f0 + Math.atan2(Math.sin(target - s.f0), Math.cos(target - s.f0)) * u;
+      } else tf = s.kind === 'Spin' ? s.f0 - s.side * Math.PI * u : s.kind === 'Front' ? s.f0 + Math.atan2(Math.sin(hA - s.f0), Math.cos(hA - s.f0)) * u : hA;
+      snap = true;
+    }
     else if (a && a.type === 'shot' && a.V.hook) tf = hA + (a.hs || 1) * Math.PI / 2;
     else if (a && a.type === 'shot' && a.V.post) { const u = sm(clamp(a.t / a.ideal, 0, 1)); tf = a.v === 'spinfade' ? hA + a.postSide * (a.stride ? 0.5 : Math.PI * (1 - u) + 0.5 * u) : a.v === 'postfront' ? hA - a.postSide * (a.stride ? 0 : Math.PI * (1 - u)) : a.v === 'postfade1' ? hA + a.postSide * 0.65 : a.v === 'shimshot' ? hA + a.postSide * 0.65 * Math.sin(Math.PI * clamp(a.t / a.jT, 0, 1)) : hA; snap = true; }
     else if (a && a.type === 'dunk' && a.v === 'reverse' && a.t > a.T * 0.3) tf = hA + Math.PI;
