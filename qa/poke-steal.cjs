@@ -188,7 +188,7 @@ for (const mode of ['1V1', '3V3', '5V5']) {
   let defense = 0, offense = 0, other = 0;
   for (let i = 0; i < 200; i++) {
     ({ p, d } = f.reset(1000 + i));
-    d.arch = { ...d.arch, hus2k: 90, _bt: {} };
+    d.arch = { ...d.arch, hus2k: 90, dcon2k: 85, _bt: {} };
     d.r.badges.push('hustle');
     assert(f.hit(d));
     const moved = new Set();

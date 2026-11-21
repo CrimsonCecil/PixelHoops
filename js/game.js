@@ -1431,7 +1431,7 @@
     motor: { name: '永动机', desc: '体力消耗 -35%' },
     dream: { name: '梦幻舞步', desc: '背身转身位移更大、更容易转过人，转身贴身时能把防守人撞开' },
     fakes: { name: '假动作大师', desc: '普通 / 背身假投骗跳概率 +50%，上下步位移 +15%（金档数值）' },
-    hustle: { name: '鱼跃扑球', desc: '有徽章才能飞身扑散球；档位越高，扑得越远、越容易抢到球。按 2K 拼抢值分档：87 铜 / 89 银 / 90 金 / 95 名人堂' },
+    hustle: { name: '鱼跃扑球', desc: '有徽章才能飞身扑散球；档位越高，扑得越远、越容易抢到球。档位由 2K 拼抢和防守稳定性决定' },
     cs: { name: '接球投篮', five: true, desc: '接球 0.6 秒内出手命中更高、绿区更宽、出手更快（铜 / 银 / 金 / 名人堂）；掩护后或空位接球再加成' },
     dimer: { name: '妙传', five: true, desc: '接到你传球 1.5 秒内的跳投 / 上篮命中更高、绿区更宽' },
     needle: { name: '穿针引线', five: true, desc: '传球更难被截（截下概率和防守人够球范围都下降）' },
@@ -1455,7 +1455,12 @@
     clutch: (a) => T3((a.ovr || 80) / 99, 86, 91, 95), fade: (a) => T3(a.fade || 0, 72, 80, 92), stepper: (a) => T3((a.three + a.hnd) / 2, 80, 85, 90),
     ankle: (a) => T3(a.hnd, 87, 91, 95), tight: (a) => T3(a.hnd, 85, 90, 95), acrobat: (a) => T3(a.lay, 84, 88, 93), poster: (a) => T3(a.dunk, 87, 91, 95),
     launch: (a) => T3(a.vert, 84, 89, 94), bully: (a) => T3(a.str, 82, 88, 95), rim: (a) => T3(a.blk, 83, 88, 93), pick: (a) => T3(a.stl, 80, 85, 92),
-    clamps: (a) => T3(a.def, 83, 88, 92), motor: (a) => T3(a.sta, 87, 90, 95), dream: (a) => T3(a.post || 0, 75, 88, 93), hustle: (a) => T4(a.hus2k, 87, 89, 90, 95),
+    clamps: (a) => T3(a.def, 83, 88, 92), motor: (a) => T3(a.sta, 87, 90, 95), dream: (a) => T3(a.post || 0, 75, 88, 93),
+    hustle: (a) => {
+      const { hus2k: h, dcon2k: d } = a;
+      if (!(h >= 90 && d >= 50)) return 0;
+      return h >= 95 && d >= 95 ? 4 : d >= 85 ? 3 : d >= 75 ? 2 : 1;
+    },
   };
   const TIER_CN = ['', '铜', '银', '金', '名人堂'];
   const A = (o) => o;
@@ -1656,7 +1661,9 @@
     a.lat = d(0.5 * agi + 0.5 * pd - 0.06 * hv);
     a.ocon = d(row ? q.ocon : 0.45 + 0.5 * clamp((a.ovr - 60) / 37, 0, 1));
     a.dcon = d(row ? q.dcon : 0.35 + 0.6 * a.def);
-    a.hus2k = row ? row[R2K.F.indexOf('hus')] : R2K?.HUS?.[k];
+    const legend = R2K?.HUS?.[k];
+    a.hus2k = row ? row[R2K.F.indexOf('hus')] : legend?.[0];
+    a.dcon2k = row ? row[R2K.F.indexOf('dcon')] : legend?.[1];
     a.hus = d(a.hus2k != null ? a.hus2k / 100 : 0.6 + 0.2 * a.sta + 0.15 * a.def);
     if (BADGE_TIER.hustle(a)) a.badges.push('hustle');
     a.dur = d(row ? q.dur : 0.6 + 0.3 * a.sta);
