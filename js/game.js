@@ -613,8 +613,11 @@
     // V4.5 身体碰撞：顶住分配 / 冲撞四档 / 上篮被撞（原写死，默认值不变）
     ['bdR', 'ct', '身体碰撞 半径', 0.78, 0.4, 1.4, 0.01, '米：两人中心距离小于这个就算顶在一起'],
     ['bdStam', 'stam', '身体顶住 体力消耗', 5, 0, 20, 0.1, '点/秒：顶得越深越用力越多，× 吨位比'],
+    ['bdDefSt', 'stam', '身体接触 防守消耗倍率', 2.75, 1, 6, 0.05, '倍：持续顶住、顶回及背打承压消耗，随进攻/防守接触力量比增加'],
+    ['bdStSt', 'stam', '身体接触 站姿额外消耗', 0.5, 0, 1, 0.05, '比例：防守站姿接触消耗 × (1 + 加成)，抵消站姿力量省力后仍略费体力'],
+    ['bdPressCost', 'stam', '身体接触 低速消耗倍率', 0.24, 0, 1, 0.02, '倍：顶回与背打每次发力的双方体力消耗，防守方另乘承压倍率'],
     ['bdWBall', 'ct', '身体碰撞 持球人吃亏', 0.12, 0, 0.5, 0.01, '比例：位移分配时持球人多让出的份额'],
-    ['bdStPow', 'ct', '防守站姿 力量加成', 0.25, 0, 0.6, 0.01, '比例：站姿者接触力量 × (1 + 加成)，用于卡位、顶回与冲撞；大吨位差仍占优，不影响背打'],
+    ['bdStPow', 'ct', '防守站姿 力量加成', 0.25, 0, 0.6, 0.01, '比例：站姿者接触力量 × (1 + 加成)，用于卡位、顶回、冲撞与背打；大吨位差仍占优'],
     ['stDepth', 'def', '防守马步 下蹲深度', 1, 0.6, 1.2, 0.01, '倍率：只影响主动防守姿态的屈髋和屈膝'],
     ['stWidth', 'def', '防守马步 双脚宽度', 0.42, 0.3, 0.5, 0.01, '米：单脚离身体中线的距离，随身高缩放'],
     ['stStep', 'def', '螃蟹步 基础步幅', 0.42, 0.2, 0.6, 0.01, '米：步幅随速度增长；超过腿部触及范围后用蹬地滑步补足'],
@@ -1942,10 +1945,11 @@
     return raw * lerp(0.35, 1, (fatOf(m) + fatOf(o)) / 2);
   }
   // 每次身体接触双方都掉体力：输的一方掉得多，I 为撞击强度（约 0~1.5）
-  function bodyCost(p, I, lost) {
+  function bodyCost(p, I, lost, scale = 1) {
     if (!p || p.off || p.dummy || G.mode === 'demo' || (G.mode === 'train' && G.train && G.train.infStam && p.id === 0)) return;
-    p.stam = Math.max(0, p.stam - (2.2 + 4.8 * clamp(I, 0, 1.5)) * (lost ? 1.4 : 0.75) * ST.cost * stamK(p) * (0.35 + 0.65 * clamp(p.stam / 60, 0, 1)));
+    p.stam = Math.max(0, p.stam - (2.2 + 4.8 * clamp(I, 0, 1.5)) * (lost ? 1.4 : 0.75) * ST.cost * stamK(p) * (0.35 + 0.65 * clamp(p.stam / 60, 0, 1)) * scale);
   }
+  const resistCost = (df, hd) => K.bdDefSt * clamp(ctPow(hd) / ctPow(df), 0.75, 2) * (1 + (df.stance ? K.bdStSt : 0));
   // 终结途中路线上有人：按吨位、体力、速度、终结/防守能力判定——顶开 / 被挡（扣篮改上篮）/ 被拦下
   function finContact(f, o) {
     const a = f.action;
@@ -4627,10 +4631,10 @@
     if (PH.gait) PH.gait.tick(pl, dt, sprint); // V3.9m 步态/呼吸状态（render.js）
     if (sprint) { ms *= K.sprintSp; pl.stam = Math.max(0, pl.stam - CFG.sprintDrain * stamK(pl) * (pl.tkOn > 0 ? 0.7 : 1) * dt); if (hasB(pl, 'motor') && (pl.mtT = (pl.mtT || 0) + dt) > 2) { pl.mtT = -6; bpop(pl, 'motor'); } }   // V3.9o2 永动机：连续冲刺 2 秒弹徽章（之后至少 8 秒不再弹；松开冲刺清零）
     else {
-      // 体力恢复：背打真正往里顶才掉体力；顶不动 / 被顶住站着不动，照样慢慢回；体力越低回得越快，不会一直卡在 0
+      // 体力恢复：背打移动额外消耗，贴身承压后缓一缓再回；体力越低回得越快
       const low = pl.stam < 30 ? 1 + (30 - pl.stam) / 30 * 0.6 : 1, stuck = pl.speed < 0.7;
       if (pl.post && moving && !stuck) pl.stam = Math.max(0, pl.stam - 5.5 * ST.cost * stamK(pl) * dt);
-      else pl.stam = Math.min(100, pl.stam + (pl.post ? K.stRgPost : moving ? K.stRgMove : K.stRgIdle) * low * CFG.stamRegen * dt);
+      else if (!(pl.ctT <= G.time && pl.ctT > G.time - K.bdPbCd * 2)) pl.stam = Math.min(100, pl.stam + (pl.post ? K.stRgPost : moving ? K.stRgMove : K.stRgIdle) * low * CFG.stamRegen * dt);
     }
     if (pl.blkR && pl.blkR.tier === 1) ms *= 0.55;   // V3.9q 轻档被盖：原地晃一下，移动减速
     if (pl.hasBall) { ms *= 0.93 * clamp((0.8 + 0.2 * (pl.r.spdB || pl.r.spd)) / (0.8 + 0.2 * pl.r.spd), 0.9, 1.08); if (ptIs(pl, 'slasher')) acc *= 1.06; } ms *= 1 - 0.24 * fat(pl); acc *= 1 - 0.35 * fat(pl);
@@ -6059,14 +6063,16 @@
     if (!a.off && !c.off && d < R && Math.abs(a.z - c.z) < 1.1 && !(a.action && a.action.type === 'dunk') && !(c.action && c.action.type === 'dunk') && !ghost(a) && !ghost(c)) {
       if (d < 0.01) { dx = 0.01; dy = 0; d = 0.01; }
       const nx = dx / d, ny = dy / d, pen = R - d, Pa = ctPow(a), Pc = ctPow(c);
+      const hd = a.hasBall ? a : c.hasBall ? c : null, df = hd === a ? c : hd === c ? a : null;
+      const pressing = hd && ((hd.vx - df.vx) * nx + (hd.vy - df.vy) * ny) * (hd === a ? 1 : -1) > 0.1;
       // 身体顶在一起就持续掉体力：顶得越深、越用力掉得越快，吨位小的一方更吃亏
       if (G.phase === 'live' && TM(a) !== TM(c) && !a.dummy && !c.dummy && G.mode !== 'demo') {
         const push = clamp(pen / 0.25, 0.2, 1) * (0.5 + 0.5 * clamp((Math.hypot(a.vx, a.vy) + Math.hypot(c.vx, c.vy)) / 4, 0, 1)) * K.bdStam / 60;
-        for (const [m, o] of [[a, c], [c, a]]) if (!(G.mode === 'train' && G.train && G.train.infStam && m.id === 0)) m.stam = Math.max(0, m.stam - push * clamp(powOf(o) / powOf(m), 0.7, 1.5) * ST.cost * stamK(m));
+        if (pressing) { hd.ctT = df.ctT = G.time; }
+        for (const [m, o] of [[a, c], [c, a]]) if (!(G.mode === 'train' && G.train && G.train.infStam && m.id === 0)) m.stam = Math.max(0, m.stam - push * (pressing && m === df ? resistCost(df, hd) : clamp(powOf(o) / powOf(m), 0.7, 1.5)) * ST.cost * stamK(m));
       }
       // 位移分配看吨位：重的人顶着轻的人走；持球人略吃亏（防守站位合法）
       let wa = clamp(Pc / (Pa + Pc) + (a.hasBall ? K.bdWBall : c.hasBall ? -K.bdWBall : 0) + (c.box ? K.bdWBox : 0) - (a.box ? K.bdWBox : 0), 0.08, 0.92);
-      const hd = a.hasBall ? a : c.hasBall ? c : null;
       if (hd && hd.post) { const df = hd === a ? c : a; const wh = clamp(0.5 - 0.45 * (powOf(hd) - powOf(df)) - 0.35 * (hd.r.post - df.r.intD) + (df.stance ? 0.12 : -0.05), 0.12, 0.88); wa = hd === a ? wh : 1 - wh; }
       // 冲撞：相对速度够大才算一次碰撞事件，按吨位比决定谁被撞开 / 撞倒
       const vn = (a.vx - c.vx) * nx + (a.vy - c.vy) * ny;
@@ -6085,7 +6091,7 @@
         const fz = lerp(K.bdFz0, 1, (fatOf(mv) + fatOf(ot)) / 2);
         const adv = (Math.log(Pm / Po) * K.bdLog + K.bdFat * (fatOf(mv) - fatOf(ot)) + (mv.box ? K.bdStA : 0) - (ot.box ? K.bdStB : 0) + K.bdSpd * (vn - 3) / 3 + (rnd() + rnd() + rnd() - 1.5) * K.bdRnd) * fz;
         const A = Math.abs(adv), win = adv >= 0 ? mv : ot, los = win === mv ? ot : mv, sgn = los === ot ? s : -s;
-        bodyCost(win, I * 0.6, false); bodyCost(los, I, A >= K.bdT1);
+        bodyCost(win, I * 0.6, false, win === df ? resistCost(df, hd) : 1); bodyCost(los, I, A >= K.bdT1, los === df ? resistCost(df, hd) : 1);
         if (A < K.bdT1) {
           // 势均力敌：双方都向后弹开、轻微晃一下
           knock(a, -nx, -ny, vn * K.bdK0, K.bdK0T, 'off'); knock(c, nx, ny, vn * K.bdK0, K.bdK0T, 'off');
@@ -6126,17 +6132,17 @@
               const speed = K.bdPbBase + K.bdPbScale * adv, I = clamp(speed / 6, 0.2, 1);
               hd.vx -= hx * into; hd.vy -= hy * into;
               knock(hd, bx / bl, by / bl, speed, adv >= K.bdT2 ? K.bdK2T : adv >= K.bdT1 ? K.bdK1T : 0, 'off');
-              bodyCost(hd, I, true); bodyCost(df, I * 0.3, false);
               impactFx((a.x + c.x) / 2, (a.y + c.y) / 2, false, I * 0.3, hd, df);
               if (adv >= K.bdT2) float('顶回', df, '#bfe9ff', 1);
             }
+            bodyCost(hd, 0.4, adv > 0, K.bdPressCost); bodyCost(df, 0.6, false, K.bdPressCost * resistCost(df, hd));
           }
         }
       }
       // 背打：每顶一下有一次撞击感
-      if (hd && hd.post && Math.hypot(hd.vx, hd.vy) > 0.6 && G.time - G.postBumpT > K.poInt) {
-        G.postBumpT = G.time; const df = hd === a ? c : a, df2 = (bodyPow(hd) - bodyPow(df) + 0.35 * (fatOf(hd) - fatOf(df))) * lerp(0.4, 1, (fatOf(hd) + fatOf(df)) / 2) + K.poAttr * (hd.r.post - df.r.intD) + (rnd() + rnd() - 1) * K.poRnd + (tkIs(hd, 'post') ? K.poSkill : 0) + (ptIs(hd, 'post') ? 0.08 : 0), sg = hd === a ? 1 : -1;
-        bodyCost(hd, 0.45, df2 < -K.poWin); bodyCost(df, 0.45, df2 > K.poWin);
+      if (hd && hd.post && pressing && G.phase === 'live' && TM(a) !== TM(c) && !dvr && hd.stun <= 0 && df.stun <= 0 && G.time - G.postBumpT > K.poInt) {
+        G.postBumpT = G.time; const df = hd === a ? c : a, df2 = (ctPow(hd) - ctPow(df) + 0.35 * (fatOf(hd) - fatOf(df))) * lerp(0.4, 1, (fatOf(hd) + fatOf(df)) / 2) + K.poAttr * (hd.r.post - df.r.intD) + (rnd() + rnd() - 1) * K.poRnd + (tkIs(hd, 'post') ? K.poSkill : 0) + (ptIs(hd, 'post') ? 0.08 : 0), sg = hd === a ? 1 : -1;
+        bodyCost(hd, 0.45, false, K.bdPressCost); bodyCost(df, 0.45, false, K.bdPressCost * resistCost(df, hd));
         if (df2 > K.poWin) { bpop(hd, 'bully'); knock(df, nx * sg, ny * sg, K.poKnock + 2 * df2, df2 > 0.7 ? 0.2 : 0, 'off'); df.seal = G.time + K.poSeal + 0.6 * Math.min(1, df2); hd.sealT = G.time; impactFx((a.x + c.x) / 2, (a.y + c.y) / 2, powOf(hd) > 1.4, 0.6 + df2 * 1.5, hd, df); }
         else if (df2 < -K.poWin) { knock(hd, -nx * sg, -ny * sg, 1 - 2 * df2, 0, 'off'); impactFx((a.x + c.x) / 2, (a.y + c.y) / 2, powOf(df) > 1.4, 0.5 - df2, hd, df); }
       }
