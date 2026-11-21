@@ -1159,7 +1159,7 @@
     }
     drawFloats();
     const b = G.banner, be = $('banner');
-    if (b) { if (be.classList.contains('hidden') || be.firstElementChild.textContent !== b.text) { be.classList.remove('hidden'); be.style.animation = 'none'; void be.offsetWidth; be.style.animation = ''; } be.firstElementChild.textContent = b.text; be.firstElementChild.style.color = b.color; be.lastElementChild.textContent = b.sub; be.style.borderLeftColor = b.color; }
+    if (b) { if (be.classList.contains('hidden') || be.firstElementChild.textContent !== b.text) { be.classList.remove('hidden'); be.style.animation = 'none'; void be.offsetWidth; be.style.animation = ''; } be.firstElementChild.textContent = b.text; be.firstElementChild.style.color = b.color; be.lastElementChild.textContent = b.sub; be.style.borderLeftColor = b.color; be.classList.toggle('top', !!b.top); }
     else be.classList.add('hidden');
     const hr = G.hero, he = $('hero');
     if (hr && G.time - hr.t0 < hr.T && G.time >= hr.t0) {

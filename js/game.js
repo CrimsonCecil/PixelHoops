@@ -2539,7 +2539,7 @@
     const I = G.intro; if (!I) return;
     for (const s of I.spots) Object.assign(s.p, { x: s.x, y: s.y, face: s.face, vx: 0, vy: 0, speed: 0 });
     G.intro = null; G.cz = null; G.phase = 'check'; G.phaseT = I.phaseT;
-    banner('GAME START', '比赛开始', '#ffd24a', 1.8);
+    banner('GAME START', '比赛开始', '#ffd24a', 1.8); G.banner.top = true;
     if (PH.audio && PH.audio.voStop) PH.audio.voStop();
     if (G.mode === 't3' && PH.T3 && PH.T3.rearm) PH.T3.rearm();
   }

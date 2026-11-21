@@ -1015,3 +1015,5 @@ select.pf, input.pf, .tn-row.pf, .sl.pf, .crow.pf, .mx.pf { outline: calc(var(--
 @keyframes tkIn { from { transform: translateY(14px) scale(0.96); opacity: 0; } }
 @keyframes tkBlink { 50% { opacity: 0; } }
 @media (max-width: 640px), (max-height: 420px) { #talk .tk-panel { padding: 14px 12px 8px; } #talk .tk-text { font-size: 18px; } #talk .tk-name { font-size: 15px; } }
+#stage #banner.top, #stage.panel #banner.top { left: 50%; top: 21%; transform: translate(-50%, -50%); text-align: center; min-width: 0; padding: calc(var(--u) * 3) calc(var(--u) * 16); border-left-width: calc(var(--u) * 1); animation: pop 0.22s steps(4) both; }
+#stage #banner.top b { font-size: var(--fs-xl); }
