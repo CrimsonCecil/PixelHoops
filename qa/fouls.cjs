@@ -13,7 +13,9 @@ for (const name of ['tune', 'ptype', 'render', 'roster', 'r5', 'r2k', 'game']) {
 const { game: gm, TUNE: tune, foulQA: qa } = ctx.PH;
 const { G, _dbg: dbg, t5: t } = gm;
 const audio = [];
+let bounces = 0;
 gm.setAudioSink((...event) => {
+  if (event[0] === 'play' && event[1] === 'bounce') bounces++;
   if (event[1] === 'foulWhistle' || (event[0] === 'vo' && event[2].startsWith('foul'))) audio.push(event);
 });
 function heardFoul(event) {
@@ -35,7 +37,7 @@ function duel(o = {}) {
   Object.assign(d.r, { def: 0.95, intD: 0.95, dcon: 0.5 });
   return [p, d];
 }
-function jumper(y, made, fouls) {
+function jumper(y, made, fouls, hold = true) {
   const [p, d] = duel({ fouls, glen: 180 });
   p.y = y; d.y = y + 0.4;
   gm.seed(3);
@@ -43,7 +45,7 @@ function jumper(y, made, fouls) {
   gm.seed(made ? 9999 : 1730);
   dbg.releaseShot(p, made ? 0 : 1, 'shot');
   assert.equal(G.lastShot.made, made);
-  until(() => G.ball.state !== 'shot');
+  until(() => G.ball.state !== 'shot', hold);
   return [p, d];
 }
 function freeThrow(green, pause = 0.7, stalled = false) {
@@ -57,6 +59,7 @@ function freeThrow(green, pause = 0.7, stalled = false) {
   assert(p.action?.meter && p.action.ft, 'the normal shot button starts the timing meter');
   if (green) until(() => p.action.t + dt >= p.action.ideal - dt / 2, true);
   tick();
+  until(() => G.ball.state === 'shot');
   assert.equal(G.ball.shot.kind, 'ft');
   assert.equal(G.ball.shot.made, green);
   if (phase === G.ft.total) {
@@ -96,6 +99,60 @@ set('foulBlock', 4);
 set('foulContestMin', 0);
 set('foulRating', 3);
 set('ftBase', 0); set('ftRating', 0); set('ftTiming', 1);
+
+const ballPos = () => [G.ball.x, G.ball.y, G.ball.z];
+const ballShift = (from) => Math.hypot(...ballPos().map((v, i) => v - from[i]));
+function handGap(p) {
+  const rig = ctx.PH.rig(p);
+  return Math.min(ballShift(rig.handL), ballShift(rig.handR));
+}
+{
+  const [p] = jumper(7, true, true, false);
+  heardFoul('foulAndOne');
+  const before = bounces;
+  const floor = [];
+  for (let i = 0; i < 145; i++) {
+    tick();
+    if (G.ball.z < 0.14) floor.push(i);
+  }
+  assert.equal(bounces - before, 2);
+  assert(floor.length >= 2 && floor.at(-1) - floor[0] > 40, 'both dribbles reach the floor');
+  const gathered = ballPos();
+  assert(gathered[2] > 0.9 && handGap(p) < 0.16);
+  for (let i = 0; i < 240; i++) tick();
+  assert.equal(bounces - before, 2, 'the gathered shooter no longer dribbles');
+  assert(ballShift(gathered) < 0.04 && handGap(p) < 0.16);
+  tick(true);
+  assert.equal(p.action.t, 0);
+  assert(p.action.meter && p.action.ft, 'shooting starts immediately from the gather');
+}
+{
+  const [p] = jumper(7, true, true, false);
+  heardFoul('foulAndOne');
+  const before = bounces;
+  until(() => G.ball.z < 0.4);
+  const lastDribbleFrame = ballPos();
+  assert(G.phaseT > 0 && bounces === before, 'the first bounce is still on the way down');
+  tick(true);
+  assert.equal(p.action.t, 0);
+  assert(p.action.meter && p.action.ft, 'shooting starts during dribble one, without waiting for setup');
+  assert(ballShift(lastDribbleFrame) < 1e-8, 'the interruption does not teleport the ball');
+  until(() => p.action.t >= p.action.ftCatch.T, true);
+  assert(handGap(p) < 0.16);
+  assert.equal(bounces, before, 'interruption stops the pre-shot bounces');
+}
+{
+  const [p] = jumper(7, true, true, false);
+  heardFoul('foulAndOne');
+  p.ctrl = 'cpu';
+  const before = bounces;
+  until(() => p.action?.ft);
+  assert.equal(bounces - before, 2, 'CPU completes two bounces before shooting');
+  assert(handGap(p) < 0.16);
+  until(() => G.ball.shot?.kind === 'ft');
+}
+console.log('PASS FT routine: two floor bounces, steady gather, immediate shoot interrupts, no ball teleport, CPU routine');
+
 jumper(7, true);
 assert.equal(G.phase, 'ft');
 assert.equal(G.stats[1].pf, 1);

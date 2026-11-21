@@ -529,6 +529,11 @@
       ik(T2, -sd, [HG[0] - g0[0], HG[1] - g0[1], HG[2] - g0[2]], D.ua, D.fa);
       for (const k of ['p', 'q', 'e']) { const kS = (sd > 0 ? 'aR' : 'aL') + k, kG = (sd > 0 ? 'aL' : 'aR') + k; T[kS] = lp(T[kS], T2[kS], wS); T[kG] = lp(T[kG], T2[kG], wG); }
     }
+    function gather(pl, T, dip) {
+      const D = dims(pl, T), H = D.Hh, sd = pl.arch.lefty ? -1 : 1;
+      const B = [sd * (0.06 + 0.14 * dip) * H, (0.3 + 0.04 * dip) * H, (0.5 - 0.21 * dip) * H];
+      hands(T, D, sd, B, [-sd * (BRAD + 0.035), -0.01, 0.02], 1, 1 - dip);
+    }
     function pose(pl, T, an, a) {
       if (!a || !(an === 'shoot' || an === 'fake')) return;
       if (an === 'shoot' && (a.type !== 'shot' || !a.V || a.V.hook)) return;
@@ -575,7 +580,7 @@
       for (const n of ['aRp', 'aRq', 'aRe', 'aLp', 'aLq', 'aLe']) T[n] = T2[n];
       if (sd > 0) T.flR = v; else T.flL = v;
     }
-    return { pose: pose, ik: ik, fk: fk };
+    return { pose: pose, gather: gather, ik: ik, fk: fk };
   })();
   PH.shotP = SP;
 
