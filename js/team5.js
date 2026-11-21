@@ -911,7 +911,7 @@
         G.stats[P.from.id].tov++; if (r && r.rk) r.rk.st.drop++; T.cnt.intc++; T.cnt.tov++; T.cnt.steals++;
         A5.passIntercept(d, T.hum >= 0 ? T.hum : null);
         T.ps = null; b.state = 'loose'; b.vz = 0; b.vx = b.vy = 0; b.x = d.x; b.y = d.y; b.z = 1;
-        G.stats[d.id].stl++; fltS('抢断', d); A5.vo(d, 'steal');
+        G.stats[d.id].stl++; fltS('抢断', d); A5.vo(d, 'steal', 'pri'); if (A5.vic) A5.vic(P.from, 'stolen');
         if (P.rec) P.rec.res = 'int';
         A5.pickup(d, 'intercept'); return;
       }
@@ -1081,7 +1081,7 @@
   function dblC() {
     for (const p of ps()) {
       const a = p.action; if (!a || (a.type !== 'shot' && a.type !== 'layup') || a.released || !a.k5 || !a.V || a.skill) continue;
-      const cls = a.type === 'layup' || a.V.hook || a.v === 'postfade' ? 'in' : 'shot', L = [];
+      const cls = a.type === 'layup' || a.V.hook || a.V.post || a.v === 'postfade' ? 'in' : 'shot', L = [];
       for (const d of defs()) if (dist(d, p) < TV.t5_dbl_r) { const c = A5.contestInfo(p, d, cls).c; if (c > 0) L.push(c); }
       L.sort((x, y) => y - x);
       const o = p.opp, co = o ? A5.contestInfo(p, o, cls).c : 0, base = a.V.c / (a.dR || 1);
@@ -1250,6 +1250,7 @@
       if (rsM > 0.5) { o.a3 = o.rs = true; o.dx = RS.x / rsM; o.dy = RS.y / rsM; }
       if (R.hesi) o.a3 = o.hesi = true;
       o.post = R.LT;
+      if (R.rsPad) o.rsPad = true;
       passKeys(p, L);
       if (E.LB) callPick(p, true);
       return o;

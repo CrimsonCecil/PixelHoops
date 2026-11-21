@@ -123,7 +123,7 @@
         </div>
       </section>
       <section id="lobbyK" class="hidden" data-testid="king-ladder">
-        <div class="lk-head"><h2>挑战阶梯</h2><span>对手身份闯到才揭晓 · 一关比一关强</span></div>
+        <div class="lk-head"><h2>挑战阶梯</h2><span>一关比一关强 · 规则可在设置里调</span><span id="lk-lives"></span></div>
         <ol id="lk-list"></ol>
       </section>
       <div class="menu-rooms hidden" id="menu-rooms">
@@ -206,6 +206,9 @@
         <div class="row" id="row-clock"><label>进攻时间</label><div class="seg" data-opt="clock"><button data-v="24" class="on">24 秒</button><button data-v="14">14 秒</button><button data-v="0">不限</button></div></div>
         <div class="set-sec">1V1 规则</div>
         <div class="row" id="row-glen"><label>比赛时间</label><div class="seg" data-opt="glen"><button data-v="0" class="on">不限</button><button data-v="180">3 分钟</button><button data-v="300">5 分钟</button><button data-v="600">10 分钟</button></div></div>
+        <div class="set-sec">斗牛之王</div>
+        <div class="row" id="row-ktarget"><label>每关目标分</label><div class="seg" data-opt="ktarget"><button data-v="11" data-testid="ktarget-11">11</button><button data-v="15" data-testid="ktarget-15">15</button><button data-v="21" class="on" data-testid="ktarget-21">21</button></div></div>
+        <div class="row" id="row-kreveal"><label>对手信息</label><div class="seg" data-opt="kreveal"><button data-v="hide" class="on" data-testid="kreveal-hide">闯到揭晓</button><button data-v="show" data-testid="kreveal-show">提前显示</button></div></div>
         <div class="set-sec">全场规则 · 5V5</div>
         <div class="row" id="row-qlen"><label>每节时长</label><div class="seg" data-opt="qlen"><button data-v="180" data-testid="qlen-3">3 分钟</button><button data-v="300" class="on" data-testid="qlen-5">5 分钟</button><button data-v="480" data-testid="qlen-8">8 分钟</button><button data-v="720" data-testid="qlen-12">12 分钟</button></div></div>
         <button class="primary" data-back="1" data-testid="set-back-rules">返回</button>
@@ -249,6 +252,7 @@
       <p class="bx-note" id="bx-note"></p>
       <div class="actions">
         <button class="primary" id="btn-again" data-testid="btn-again">再来一局</button>
+        <button id="btn-kreroll" class="hidden" data-testid="btn-kreroll">刷新对手</button>
         <button id="btn-menu" data-testid="btn-menu">返回主菜单</button>
       </div>
     </div>
