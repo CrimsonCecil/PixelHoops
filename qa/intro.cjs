@@ -38,10 +38,11 @@ function runIntro(Gm, G) {
   assert.equal(G.players[G.intro.duo[0]].arch.key, 'lebron', 'first shot is LeBron');
   const saw = runIntro(Gm, G);
   assert.ok(saw.walk, 'players walk in');
-  assert.match(saw.lines[0].t, /1 比 3/);
-  assert.match(saw.lines[1].t, /四枚/);
   assert.equal(saw.lines.length, 4);
-  assert.deepEqual(said, ['currydom0'], 'only the voiced line plays the voice pack');
+  assert.deepEqual(said, ['lebrontaunt3', 'currytaunt0', 'lebrondom2', 'currydom0'], 'all 4 rivalry lines play each player voice pack');
+  for (const [pair, lines] of Object.entries(Gm.TALK)) {
+    for (const L of lines) assert.ok(L.length >= 3 && typeof L[1] === 'string' && typeof L[2] === 'number', pair + ' has no text-only lines');
+  }
   assert.equal(G.phase, 'check');
   G.players.forEach((p, i) => { assert.equal(p.x, want[i][0]); assert.equal(p.y, want[i][1]); });
   assert.ok(G.banner && G.banner.text === 'GAME START', 'GAME START title at the cut to the game camera');
@@ -90,7 +91,7 @@ function runIntro(Gm, G) {
   assert.equal(G.intro.duo.map((id) => G.players[id].arch.key).sort().join(), 'curry,kyrie', '3V3 features the rivalry pair');
   const saw = runIntro(Gm, G);
   assert.ok(saw.walk);
-  assert.match(saw.lines[0].t, /2016 抢七/);
+  assert.equal(saw.lines[0].t, 'kyrie:win:2', '3V3 rivalry opening line resolves from voice pack');
   G.players.forEach((p, i) => { assert.equal(p.x, want[i][0]); assert.equal(p.y, want[i][1]); });
   for (let i = 0; i < 120; i++) ctx.PH.T3.tick(1 / 60, []);
   assert.equal(G.phase, 'live', '3V3 goes live after the intro');
@@ -273,4 +274,34 @@ function runIntro(Gm, G) {
   assert.match(css, /#stage\.intro\s+#scorebar\b/, 'CSS hides scoreboard during intro');
   assert.match(css, /#stage\.intro\s+\.pcard\b/, 'CSS hides player info cards during intro');
   console.log('PASS: intro clears check-ball passHands (no stretched arms) and hides top scoreboard/player cards.');
+}
+{
+  // Verify every TALK entry resolves in real vo/manifest.json and introNext waits for async voSay onStart before auto-advancing
+  const { ctx, Gm, G } = load();
+  const manifest = JSON.parse(fs.readFileSync(path.join(__dirname, '../vo/manifest.json'), 'utf8')).voices;
+  for (const [pair, lines] of Object.entries(Gm.TALK)) {
+    for (const L of lines) {
+      const [who, ev, idx] = L;
+      const arr = manifest[who] && manifest[who].lines && manifest[who].lines[ev];
+      assert.ok(arr && arr.length > 0 && arr[idx % arr.length] && arr[idx % arr.length].t, `${pair}: ${who}.${ev}[${idx}] exists in vo/manifest.json`);
+    }
+  }
+  let pendingStart = null, preloaded = null;
+  ctx.PH.audio.voPreload = (keys) => { preloaded = keys; };
+  ctx.PH.audio.voSay = (it, onStart) => { pendingStart = onStart; return true; };
+  Gm.newGame({ mode: 'cpu', arch0: 'lebron', arch1: 'curry' });
+  Gm.introStart();
+  assert.deepEqual(Array.from(preloaded), ['lebron', 'curry'], 'introStart preloads both featured players');
+  Gm.introPress();
+  assert.equal(G.intro.li, 0);
+  assert.equal(G.intro.lines[0].waitVo, true, 'line waits for async voSay start before auto-advancing');
+  for (let i = 0; i < 60 * 3; i++) Gm.introTick(1 / 60);
+  assert.equal(G.intro.li, 0, 'slow voice fetch (3s) does not advance and cancel the line early');
+  pendingStart(2.4);
+  assert.equal(G.intro.lines[0].waitVo, false, 'onStart clears waitVo and resyncs line duration');
+  for (let i = 0; i < 60 * 2; i++) Gm.introTick(1 / 60);
+  assert.equal(G.intro.li, 0, 'line stays visible while the 2.4s clip plays');
+  for (let i = 0; i < 60 * 2; i++) Gm.introTick(1 / 60);
+  assert.equal(G.intro.li, 1, 'line advances once playback duration finishes');
+  console.log('PASS: all 9 TALK rivalries resolve in vo/manifest.json and intro waits for async voSay start without early cancellation.');
 }
