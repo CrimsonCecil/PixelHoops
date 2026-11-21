@@ -4361,14 +4361,16 @@
   // 手臂伸向某点（世界坐标），够不着的部分按美卡拉伸补上，返回剩余差距
   function reachTo(pl, pt, maxS, hold) {
     const Hh = pl.h / 1.95, fx = Math.cos(pl.face), fy = Math.sin(pl.face), dx = pt.x - pl.x, dy = pt.y - pl.y, lx = (dx * fy - dy * fx) / Hh, side = lx >= 0 ? 1 : -1;
-    armTo(pl.pose, side, lx, (dx * fx + dy * fy) / Hh, (pt.z - pl.z) / Hh, Hh);
+    const steal = pl.action && pl.action.type === 'steal', target = steal ? Object.assign({}, pl.pose) : pl.pose;
+    armTo(target, side, lx, (dx * fx + dy * fy) / Hh, (pt.z - pl.z) / Hh, Hh);
     const i = side < 0 ? 0 : 1, L = side < 0;
-    let k = PH.rig(pl), sh = L ? k.shL : k.shR, hd = L ? k.handL : k.handR;
+    let k = steal ? PH.rig(pl, target, false) : PH.rig(pl), sh = L ? k.shL : k.shR, hd = L ? k.handL : k.handR;
     const cur = Math.hypot(hd[0] - sh[0], hd[1] - sh[1], hd[2] - sh[2]) || 1, need = Math.hypot(pt.x - sh[0], pt.y - sh[1], pt.z - sh[2]);
     const st = clamp(need / cur, 1, maxS);
     if (!pl.armS) { pl.armS = [1, 1]; pl.armSv = [0, 0]; }
-    if (st > pl.armS[i]) { pl.armS[i] = st; pl.armSv[i] = 0; }
-    pl.armHold = G.time + (pl.action && pl.action.type === 'steal' ? 0 : hold || 0.2);
+    if (steal) pl.action.reach = { pose: target, arm: i, stretch: st };
+    else if (st > pl.armS[i]) { pl.armS[i] = st; pl.armSv[i] = 0; }
+    pl.armHold = steal ? 0 : G.time + (hold || 0.2);
     k = PH.rig(pl); hd = L ? k.handL : k.handR;
     return Math.hypot(hd[0] - pt.x, hd[1] - pt.y, hd[2] - pt.z);
   }
@@ -4386,11 +4388,15 @@
     }
     const tg = 1 + (pl.z > 0.01 ? clamp(Math.abs(vz) * 0.03, 0, 0.14) : 0);
     // 体重越大弹簧越软越慢（频率低、晃得更久），越轻越瘦弹得越快
-    const mf = massF(pl), K = 300 / Math.pow(mf, 1.3), C = 10 * Math.sqrt(K / 300) * Math.pow(mf, 0.15);
-    v += (K * (tg - x) - C * v) * dt; x = clamp(x + v * dt, 0.74, 1.26);
+    const mf = massF(pl), stiffness = 300 / Math.pow(mf, 1.3), C = 10 * Math.sqrt(stiffness / 300) * Math.pow(mf, 0.15);
+    v += (stiffness * (tg - x) - C * v) * dt; x = clamp(x + v * dt, 0.74, 1.26);
     pl.sqv = v; pl.sq = x;
     if (pl.armS) { // 拉长的胳膊：定住一小会儿，再像橡皮筋一样弹回去
-      if (G.time > (pl.armHold || 0)) for (let i = 0; i < 2; i++) { pl.armSv[i] += (260 * (1 - pl.armS[i]) - 11 * pl.armSv[i]) * dt; pl.armS[i] = clamp(pl.armS[i] + pl.armSv[i] * dt, 0.9, 1.6); }
+      if (G.time > (pl.armHold || 0)) for (let i = 0; i < 2; i++) {
+        const reach = a && a.type === 'steal' && a.reach, w = reach ? 1 - clamp((a.t - K.stlHitT) / K.stlRecoilT, 0, 1) : 0;
+        const target = reach && reach.arm === i ? 1 + (reach.stretch - 1) * w : 1;
+        pl.armSv[i] += (260 * (target - pl.armS[i]) - 11 * pl.armSv[i]) * dt; pl.armS[i] = clamp(pl.armS[i] + pl.armSv[i] * dt, 0.9, 1.6);
+      }
       if (Math.abs(pl.armS[0] - 1) + Math.abs(pl.armS[1] - 1) + Math.abs(pl.armSv[0]) + Math.abs(pl.armSv[1]) < 0.004 && G.time > (pl.armHold || 0)) pl.armS = null;
     }
   }
@@ -4518,6 +4524,13 @@
       if (side < 0) {
         for (const pair of [['aLp', 'aRp'], ['aLq', 'aRq'], ['aLe', 'aRe'], ['lA', 'rA'], ['lB', 'rB'], ['lS', 'rS']]) {
           const v = T[pair[0]]; T[pair[0]] = T[pair[1]]; T[pair[1]] = v;
+        }
+      }
+      if (a && a.reach) {
+        const w = 0.35 * Math.max(0, 1 - recoil), arm = a.reach.arm ? ['aRp', 'aRq', 'aRe'] : ['aLp', 'aLq', 'aLe'];
+        for (const n of arm) {
+          const goal = a.reach.pose[n] + (n === arm[0] ? Math.round((T[n] - a.reach.pose[n]) / (2 * Math.PI)) * 2 * Math.PI : 0);
+          T[n] = lerp(T[n], goal, w);
         }
       }
     }

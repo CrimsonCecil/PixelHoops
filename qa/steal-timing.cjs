@@ -258,6 +258,64 @@ for (const mode of ['2p', 't5', 't3']) for (const outcome of ['hit', 'miss', 'ou
 }
 console.log('PASS steal wrist recoil within 200ms, unchanged gameplay timers, mirrored hit/miss/empty/out-of-range poses in 1V1/5V5/3V3');
 
+let maxElbowStep = 0, maxWristStep = 0;
+for (const mode of ['2p', 't5', 't3']) for (const fps of [60, 120]) for (const hit of [true, false]) {
+  const visual = fixture(), { G, K, _qa, t5 } = visual, dt = 1 / fps;
+  for (const range of [0.55, 0.8, 1.01, 1.3, 1.35]) for (const phase of [0, 1, 2, 3]) for (const hand of [-1, 1]) {
+    visual.newGame({ mode: '2p', arch0: 'lyles', arch1: 'djmurray', target: 999 });
+    visual.CFG.stealMul = hit ? 100 : 0; K.stlMax = 1;
+    const [p, d] = G.players;
+    Object.assign(G, { phase: 'live', needClear: false, time: 0, mode });
+    Object.assign(p, { x: 0, y: 5, hasBall: true, face: Math.PI / 2, opp: d, action: null, hand, handX: hand * 0.33 });
+    Object.assign(d, { x: hand * range * 0.6, y: 5 + range * 0.8, hasBall: false, face: -Math.PI / 2, opp: p, action: null });
+    delete p.pose.passHands; delete d.pose.passHands;
+    Object.assign(G.ball, { state: 'held', holder: p.id, dead: false });
+    const step = () => {
+      G.time += dt;
+      _qa.updatePlayer(p, t5.zeroInp(), dt);
+      _qa.updatePlayer(d, t5.zeroInp(), dt);
+      _qa.updateBall(dt);
+    };
+    for (let i = 0; i < fps / 2; i++) step();
+    p.drib = phase; _qa.updateBall(0); _qa.startSteal(d);
+    const action = d.action, label = `${mode} ${fps}fps ${hit ? 'hit' : 'miss'} ${range}m phase=${phase} hand=${hand}`;
+    const joints = () => {
+      const rig = visual.rig(d);
+      return { elbows: [d.pose.aLe, d.pose.aRe], wrists: [rig.handL, rig.handR] };
+    };
+    let previous = joints(), duration = null, raised = false;
+    for (let i = 1; i <= Math.ceil(0.9 * fps); i++) {
+      if (!action.done && action.t + dt >= K.stlHitT) {
+        const read = _qa.stealRead(d, p), ratio = Math.min(K.stlMissDistMax, Math.hypot(p.x - d.x, p.y - d.y) / K.stlR);
+        duration = hit ? K.stlRecT : Math.max(action.t + dt, K.stlHitT, K.stlMissT + K.stlMissDistT * ratio * ratio
+          + K.stlMissWeakT * (1 - d.r.stl) + K.stlFarT * Math.max(0, ratio - 1) + K.stlRiskT * read.risk);
+      }
+      step();
+      const current = joints();
+      if (i * dt >= K.stlHitT - 2 * dt && i * dt <= Math.min(K.stlHitT + K.stlRecoilT, action.T)) {
+        for (let arm = 0; arm < 2; arm++) {
+          const elbow = Math.abs(current.elbows[arm] - previous.elbows[arm]);
+          const wrist = Math.hypot(...current.wrists[arm].map((x, j) => x - previous.wrists[arm][j]));
+          maxElbowStep = Math.max(maxElbowStep, elbow); maxWristStep = Math.max(maxWristStep, wrist);
+          assert(elbow <= 0.5, `${label}: elbow ${arm} jumped ${elbow}rad at ${i * dt}s`);
+          assert(wrist <= 0.2, `${label}: wrist ${arm} jumped ${wrist}m at ${i * dt}s`);
+        }
+      }
+      if (action.done) {
+        assert.equal(!!action.poked, hit, label + ': intended judgement path executes');
+        assert(action.reach, label + ': contact IK executes');
+        assert.equal(action.T, duration, label + ': gameplay recovery formula unchanged');
+      }
+      if (i * dt >= K.stlHitT && i * dt <= K.stlHitT + 0.2) raised ||= current.wrists[action.swipe < 0 ? 0 : 1][2] - d.z > d.h * 0.48;
+      if (duration !== null) assert.equal(d.action === action, action.t < action.T, label + ': action ends only on its gameplay timer');
+      previous = current;
+    }
+    assert(raised, label + ': quick recoil still lifts wrist within 200ms');
+    assert.equal(d.action, null, label + ': recovery completes');
+  }
+}
+console.log(`PASS steal contact continuity: hit/miss, 0.55/0.8/1.01/1.3/1.35m, both arms, four dribble phases, 60/120fps, 1V1/5V5/3V3; max elbow=${maxElbowStep.toFixed(3)}rad, wrist=${maxWristStep.toFixed(3)}m/frame`);
+
 if (process.env.STEAL_BASELINE) {
   const before = fixture(fs.readFileSync(process.env.STEAL_BASELINE, 'utf8'));
   rates(before, 'before');
