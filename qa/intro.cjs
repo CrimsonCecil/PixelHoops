@@ -87,3 +87,37 @@ function runIntro(Gm, G) {
   assert.equal(G.phase, 'live');
   console.log('PASS: Esc skip hands straight to the tip-off and 1V1 goes live.');
 }
+{
+  const { ctx, Gm, G } = load();
+  const R = ctx.PH.render;
+  // Simulate stale demo focus near the basket/corner before starting a 1V1 match
+  G.focus = { cx: -4.2, cy: 0.2 };
+  Gm.newGame({ mode: 'cpu', arch0: 'edwards', arch1: 'jclark' });
+  assert.equal(G.focus.cx, 0, 'newGame resets stale demo focus cx');
+  assert.ok(G.focus.cy < -3.5, 'newGame resets stale demo focus cy back to check distance');
+  Gm.introStart();
+  const W = R.W, H = R.H;
+  let walkFrames = 0, talkFrames = 0;
+  for (let n = 0; G.intro && n < 60 * 40; n++) {
+    const I = G.intro;
+    R.camera1Intro(G, 1 / 60);
+    if (I.li < 0) {
+      walkFrames++;
+      const sh = G.players.find((p) => p.id === (I.shot != null ? I.shot : I.duo[0]));
+      const head = R.proj(sh.x, sh.y, sh.h), feet = R.proj(sh.x, sh.y, 0);
+      assert.ok(Math.abs(feet.x - W / 2) < W * 0.12, `walk-in player x centered: ${feet.x.toFixed(1)} vs ${W / 2}`);
+      assert.ok(head.y >= H * 0.14 && feet.y <= H * 0.85, `walk-in player vertical bounds: head=${head.y.toFixed(1)} feet=${feet.y.toFixed(1)}`);
+    } else if (G.time - I.lt > 0.6) {
+      talkFrames++;
+      for (const p of G.players) {
+        const head = R.proj(p.x, p.y, p.h), feet = R.proj(p.x, p.y, 0);
+        assert.ok(Math.abs(feet.x - W / 2) < W * 0.12, `dialogue player ${p.id} x centered: ${feet.x.toFixed(1)}`);
+        assert.ok(head.y >= H * 0.11, `dialogue player ${p.id} head below top letterbox: ${head.y.toFixed(1)}`);
+        assert.ok(feet.y <= H * 0.67, `dialogue player ${p.id} feet above dialogue box: ${feet.y.toFixed(1)}`);
+      }
+    }
+    Gm.introTick(1 / 60);
+  }
+  assert.ok(walkFrames > 100 && talkFrames > 60, 'verified both walk-in and dialogue frames');
+  console.log('PASS: 1V1 intro camera centers walking stars and keeps both players above the dialogue box.');
+}

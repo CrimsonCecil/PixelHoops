@@ -1552,6 +1552,8 @@
     G.state = 'play';
     if (G.mode === 'train') { G.train.stats = newTrainStats(); G.train.ret = 0; applyTrain(); setupCheck(0, null); G.phaseT = 0.3; if (G.train.role === 'off') placeDummy(); }
     else setupCheck(0, G.mode === 'demo' ? null : '开球');
+    const CV = PH.render && PH.render.CAMV;
+    if (CV) { const fp0 = G.players[G.off], sx = 3.4 + Math.max(0, CV.zoom - 1) * 6; G.focus = { cx: clamp(fp0.x * CV.follow, -sx, sx), cy: clamp(fp0.y - CV.dist, 2 - CV.dist, 9 - CV.dist) }; }
   }
 
   // ---------- 训练场 ----------
@@ -2479,7 +2481,8 @@
     const sigOf = (p) => ISIG[p.arch.key] || (CELS[p.arch.key] || ['flex'])[0], walk = [];
     for (const s of spots) { const p = s.p, star = p === fa || p === fb; s.w0 = t0 + (TM(p) === TM(fa) ? 0 : IWA); s.w1 = s.w0 + IWA;
       (star ? [(IWALK[p.arch.key] || ['wave'])[0], sigOf(p)] : ['wave']).forEach((ty, j) => walk.push({ id: p.id, ty: ty, t0: s.w0 + (star ? 0.3 + j * 1.75 : 0.9 + (p.id % 3) * 0.3), T: 1.6, fx: false })); }
-    G.intro = { t0: t0, duo: [fa.id, fb.id], walk: walk, spots: spots, lines: lines, li: -1, lt: 0, ld: 0, tT: t0 + 2 * IWA + 0.4, cam: null, foc: null, banner: G.banner, phaseT: G.phaseT,
+    const foc0 = { x: fa.x, y: fa.y, u: G.mode === 't3' ? 0.08 : 0.3, mode: 'walk', snap: true };
+    G.intro = { t0: t0, duo: [fa.id, fb.id], walk: walk, spots: spots, lines: lines, li: -1, lt: 0, ld: 0, tT: t0 + 2 * IWA + 0.4, cam: foc0, foc: foc0, banner: G.banner, phaseT: G.phaseT,
       sig: [] };
     G.cz = null; G.cutin = null; G.phase = 'intro';
   }
@@ -2508,20 +2511,16 @@
     if (!G.intro) return;
     const A = plById(I.duo[0]), B2 = plById(I.duo[1]), mid = { x: (A.x + B2.x) / 2, y: (A.y + B2.y) / 2 };
     const sh = I.li < 0 ? (now < I.t0 + IWA ? A : B2) : null;
-    if (sh) { if (I.shot !== sh.id) { I.shot = sh.id; I.snap = true; banner(sh.arch.full, '入场 · ' + (ISIG_CN[(I.walk.find((S) => S.id === sh.id && S.ty === (ISIG[sh.arch.key] || S.ty)) || {}).ty] || '登场'), sh.team.css, 2.6); } I.cam = { x: sh.x, y: sh.y, u: G.mode === 't3' ? 0.08 : 0.3 }; }
-    else if (I.li >= 0) I.cam = { x: mid.x, y: mid.y, u: 0.1 };
+    if (sh) { if (I.shot !== sh.id) { I.shot = sh.id; I.snap = true; banner(sh.arch.full, '入场 · ' + (ISIG_CN[(I.walk.find((S) => S.id === sh.id && S.ty === (ISIG[sh.arch.key] || S.ty)) || {}).ty] || '登场'), sh.team.css, 2.6); } I.cam = { x: sh.x, y: sh.y, u: G.mode === 't3' ? 0.08 : 0.3, mode: 'walk' }; }
+    else if (I.li >= 0) I.cam = { x: mid.x, y: mid.y, minY: Math.min(A.y, B2.y), maxY: Math.max(A.y, B2.y), maxH: Math.max(A.h || 2, B2.h || 2), u: 0.1, mode: 'talk' };
     const cut = I.snap; I.snap = false;
     const C = I.cam;
     if (G.mode === 't3') I.foc = C;
-    else {
-      if (!G.cz && C) G.cz = { x: C.x, y: C.y, z: 1.2, t: 0, T: 999, u: C.u, k: 0 };
-      if (G.cz && cut) G.cz.k = 1;
-      if (G.cz) { const z = G.cz, r = cut ? 1 : Math.min(1, dt * 4); z.t = 0; if (C) { z.x += (C.x - z.x) * r; z.y += (C.y - z.y) * r; z.u = C.u; } z.k += ((C ? 1 : 0) - z.k) * Math.min(1, dt * 3); if (!C && z.k < 0.02) G.cz = null; }
-    }
+    else I.foc = C ? Object.assign({}, C, { snap: cut }) : null;
   }
   function introNext() {
     const I = G.intro; if (!I) return;
-    if (I.li < 0 && G.time < I.tT) { for (const s of I.spots) Object.assign(s.p, { x: s.x, y: s.y, vx: 0, vy: 0, speed: 0 }); for (const S of I.sig) { S.on = true; S.fx = true; S.t0 = -99; } G.banner = null; }
+    if (I.li < 0 && G.time < I.tT) { for (const s of I.spots) Object.assign(s.p, { x: s.x, y: s.y, vx: 0, vy: 0, speed: 0 }); for (const S of I.sig) { S.on = true; S.fx = true; S.t0 = -99; } G.banner = null; I.snap = true; }
     I.li++;
     if (I.li >= I.lines.length) { introEnd(); return; }
     const L = I.lines[I.li], p = plById(L.id);
