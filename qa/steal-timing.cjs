@@ -353,8 +353,23 @@ assert.equal(sample(gm, { u: 0.05, side: -1, fb: 'simple' }).text, '伸手失位
 assert.equal(sample(gm, { range: 3, fb: 'simple' }).text, '伸手失位');
 assert.equal(sample(gm, { fb: 'simple' }).text, undefined, 'ordinary misses stay hidden in simplified mode');
 gm.CFG.stealMul = 1;
-for (const type of ['layup', 'dunk']) {
-  for (let i = 0; i < 100; i++) assert(!sample(gm, { type }).hit);
+{
+  const finisher = fixture(), [p, d] = finisher.G.players;
+  d.r.stl = 0.85;
+  p.r.badges = []; d.r.badges = [];
+  for (const type of ['layup', 'dunk']) {
+    const hits = [];
+    for (const hnd of [0.4, 0.95]) {
+      p.r.hnd = hnd;
+      finisher.seed(7);
+      let count = 0;
+      for (let i = 0; i < 1000; i++) count += !!sample(finisher, { type }).hit;
+      hits.push(count);
+    }
+    assert(hits[0] > 300 && hits[0] < 500, `${type}: low handling exposes a meaningful strip chance`);
+    assert(hits[1] < 50, `${type}: elite handling rarely loses the ball`);
+    console.log(`PASS ${type} handling-dependent strips: low=${hits[0]}/1000, elite=${hits[1]}/1000`);
+  }
 }
 // No action is also a valid judgement input.
 assert.equal(typeof sample(gm, { type: null }).hit, 'boolean');
@@ -369,7 +384,15 @@ let chinHits = 0;
 for (let i = 0; i < 100; i++) chinHits += sample(gm, { side: -1, chin: true }).hit;
 assert(chinHits < 20, 'chin retains low ordinary odds rather than the guaranteed skill');
 assert.equal(d.sk.cd, 0, 'chin prevents the guaranteed skill from firing');
-for (const type of ['layup', 'dunk']) assert(!sample(gm, { type }).hit, 'finishes exclude the skill too');
+for (const type of ['layup', 'dunk']) {
+  let hits = 0;
+  for (let i = 0; i < 1000; i++) {
+    hits += !!sample(gm, { type }).hit;
+    assert.equal(d.sk.cd, 0, 'finishes prevent the guaranteed skill from firing');
+  }
+  assert(hits > 0 && hits < 550, 'finishes allow ordinary strips, not guaranteed skill steals');
+  console.log(`PASS Draymond ${type}: ordinary strips=${hits}/1000, skill stays off cooldown`);
+}
 {
   const ai = fixture(), { G, K } = ai;
   sample(ai);

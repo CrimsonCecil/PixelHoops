@@ -499,6 +499,18 @@
     ['stlClTm', 'def', '抢断 干净断球时机加成', 0.15, 0, 1, 0.01, '概率：命中露球窗口时增加'],
     ['stlBdClean', 'def', '抢断 干净断球徽章倍率', 1.5, 0, 3, 0.05, '倍率：抢断大师按档位增加干净断球概率'],
     ['stlPokeA', 'def', '抢断 捅球角度随机', 35, 0, 90, 1, '度：远离抢断人的方向 ± 这个角度'],
+    ['stlFinB', 'def', '终结 掏球基础', 0.24, 0, 1, 0.01, '上篮扣篮出手前的掏球基础概率'],
+    ['stlFinS', 'def', '终结 掏球能力差', 0.36, 0, 1, 0.01, '乘以抢断减控球的能力差'],
+    ['stlFinLo', 'def', '终结 控球保护起点', 0.55, 0, 1, 0.01, '控球不高于此值时不降低掏球率'],
+    ['stlFinHi', 'def', '终结 控球保护终点', 0.85, 0, 1, 0.01, '控球达到此值时降至保护下限'],
+    ['stlFinFloor', 'def', '终结 掏球保护下限', 0.08, 0, 1, 0.01, '精英控球的掏球概率倍率'],
+    ['stlFinMax', 'def', '终结 掏球上限', 0.55, 0, 1, 0.01, '徽章与全局倍率计算后的概率上限'],
+    ['stlFinCpu', 'def', '终结 电脑掏球频率', 2, 0, 10, 0.1, '每秒尝试次数，随低控球程度缩放'],
+    ['stlFumH', 'def', '终结 掉球控球门槛', 0.6, 0, 1, 0.01, '控球达到此值时不自行掉球'],
+    ['stlFumP', 'def', '终结 掉球概率斜率', 0.167, 0, 1, 0.001, '每次终结概率为门槛减控球再乘此值'],
+    ['stlFumT', 'def', '终结 掉球检查时刻', 0.08, 0, 0.3, 0.01, '收球起跳后多少秒检查一次'],
+    ['stlFumV', 'def', '终结 掉球水平速度', 1.2, 0, 4, 0.1, '掉球水平随机速度范围，米/秒'],
+    ['stlFumZ', 'def', '终结 掉球向上速度', 1, 0, 4, 0.1, '掉球向上速度，米/秒'],
     ['stlPokeV', 'def', '抢断 捅球速度', 3.2, 0, 8, 0.1, '米/秒：向持球人身后弹出'],
     ['stlPokeVR', 'def', '抢断 捅球速度随机', 0.6, 0, 3, 0.05, '米/秒：水平速度 ± 这个值'],
     ['stlPokeZ', 'def', '抢断 捅球上抛速度', 1, 0, 6, 0.1, '米/秒'],
@@ -3038,6 +3050,9 @@
     const b = G.ball;
     const poke = b.poke, pokeBy = poke && G.players[poke.by], pokeFrom = poke && G.players[poke.from];
     b.poke = null;
+    if (poke && poke.self && pokeFrom && G.phase === 'live' && TM(pl) !== TM(pokeFrom)) {
+      playLoss(pokeFrom); G.stats[pokeFrom.id].tov++;
+    }
     if (pokeBy && pokeFrom && G.phase === 'live' && G.time - poke.t <= K.stlPokeCredT && TM(pl) === TM(pokeBy)) {
       playLoss(pokeFrom);
       G.stats[pokeBy.id].stl++; G.stats[pokeFrom.id].tov++;
@@ -3499,7 +3514,7 @@
     const btn = a.btn || 'a2', held = !a.rel; f.action = null;
     const ok = startFinish(f, { mx: 0, my: 0, dx: 0, dy: 0 }, 'lay', btn, false, !!a.alley);
     if (!ok || !f.action || f.action.type !== 'layup') { f.action = a; return false; }
-    const na = f.action; na.alley = a.alley; na.cHit = true; na.bump = Math.max(na.bump || 0, bump); na.run0 = a.run0; na.dk0 = a.name;
+    const na = f.action; na.alley = a.alley; na.cHit = true; na.bump = Math.max(na.bump || 0, bump); na.run0 = a.run0; na.dk0 = a.name; na.fumbleChecked = a.fumbleChecked;
     if (now) { na.wp.length = 0; layMeter(na); }
     if (!held && f.ctrl !== 'cpu') na.rearm = true;
     if (cvOk(f, true)) cvSet(f, na, 'dunk2lay'); else { na.cv = 'dunk2lay'; na.cvT = 0; na.cvR = na.ideal; na.lsv = ''; }
@@ -4342,6 +4357,8 @@
       + K.stlFarT * Math.max(0, d - 1) + K.stlRiskT * (read ? read.risk : 0) - (read && read.timed ? K.stlGoodT * read.ballSide : 0));
   }
 
+  const holdingFinish = (p) => p.hasBall && p.action && (p.action.type === 'layup' || p.action.type === 'dunk') && !p.action.released && !p.action.done;
+  function finishProtection(p) { return lerp(1, K.stlFinFloor, clamp((p.r.hnd - K.stlFinLo) / Math.max(0.001, K.stlFinHi - K.stlFinLo), 0, 1)); }
   function updateAction(pl, inp, dt, shootPress) {
     const a = pl.action, df = OP(pl), t0 = a.t;
     if (a.sigMove === 'ginobili' && !a.inSteps) for (const d of G.players) {
@@ -4350,6 +4367,15 @@
     }
     if (a.alley) { inp = zeroInp(); shootPress = false; }
     a.t += dt; a.vt = (a.vt || 0) + dt; // vt：执行后真实经过的时间（5V5 接球即投的 cs 加成只加在 a.t 上）
+    if (holdingFinish(pl) && !a.fumbleChecked && a.vt >= K.stlFumT) {
+      a.fumbleChecked = true;
+      if (rnd() < clamp((K.stlFumH - pl.r.hnd) * K.stlFumP, 0, 1)) {
+        const hp = heldShotPos(pl);
+        looseBall(hp, rr(-K.stlFumV, K.stlFumV), rr(-K.stlFumV, K.stlFumV), K.stlFumZ, pl.id);
+        G.ball.wasShot = false; G.ball.poke = { self: true, from: pl.id, t: G.time };
+        pl.action = null; pl.post = false; float('掉球', pl, '#ffcf88', 1); sfx('steal'); return;
+      }
+    }
     if (a.type === 'dive') { diveTick(pl, a, dt); return; }
     if (a.type === 'shot') {
       const TI = a.ideal;
@@ -4538,16 +4564,17 @@
           if (df.post) ch += K.stlTimed * read.away * read.pf;
           if (df.chinT > G.time) ch *= K.stlChin;
           if (pl.ctrl === 'cpu') ch *= K.stlCpu0 + K.stlCpuD * G.diff;
-          if (da && (da.type === 'dunk' || da.type === 'layup')) ch = 0;
+          const finishing = holdingFinish(df);
+          if (finishing) ch = (K.stlFinB + K.stlFinS * (pl.r.stl - df.r.hnd)) * finishProtection(df) * bk(pl, 'pick', K.stlBdPick) * bk(df, 'tight', K.stlBdTight);
           else if (gsk(pl, 'steal') && !(df.chinT > G.time)) { ch = 99; fireSkill(pl); }   // V3.9o 追梦掏球：必定掏下（护球 chin 中除外）
           const chance = ch * CFG.stealMul * (tkIs(pl, 'def') ? K.stlTk : 1);
-          if (rnd() < (ch === 99 ? chance : clamp(chance, 0, K.stlMax))) {
+          if (rnd() < (ch === 99 ? chance : clamp(chance, 0, finishing ? K.stlFinMax : K.stlMax))) {
             a.poked = true;
             const stTier = da && da.type === 'move' ? 2 : 1;
             reachTo(pl, { x: G.ball.x, y: G.ball.y, z: Math.max(0.3, G.ball.z) }, K.stlReach, K.stlReachT);
             const bx = G.ball.x, by = G.ball.y, ux = (pl.x - df.x) / (dd || 1), uy = (pl.y - df.y) / (dd || 1);
             df.action = null; df.stunK = 'off'; df.post = false;
-            const clean = ch === 99 || rnd() < clamp(clamp(K.stlCl0 + K.stlClS * Math.max(0, pl.r.stl - K.stlClR) + (read.timed ? K.stlClTm : 0), 0, 1) * bk(pl, 'pick', K.stlBdClean), 0, 1);
+            const clean = !finishing && (ch === 99 || rnd() < clamp(clamp(K.stlCl0 + K.stlClS * Math.max(0, pl.r.stl - K.stlClR) + (read.timed ? K.stlClTm : 0), 0, 1) * bk(pl, 'pick', K.stlBdClean), 0, 1));
             df.stun = df.stunT0 = clean ? K.stlStun : K.stlPokeStun;
             a.T = K.stlRecT;
             if (clean) {
@@ -4559,7 +4586,7 @@
               const an = Math.atan2(-uy, -ux) + rr(-K.stlPokeA, K.stlPokeA) * Math.PI / 180, v = Math.max(0, K.stlPokeV + rr(-K.stlPokeVR, K.stlPokeVR)), z = G.ball.z;
               looseBall({ x: bx, y: by, z }, Math.cos(an) * v, Math.sin(an) * v, K.stlPokeZ, pl.id);
               G.ball.noPick = K.stlPokeNP; G.ball.poke = { by: pl.id, from: df.id, t: G.time };
-              float('捅掉', pl, '#7dff8a', 1);
+              float(finishing ? '掏掉' : '捅掉', pl, '#7dff8a', 1); if (finishing) sfx('steal');
             }
           } else { reachTo(pl, { x: G.ball.x, y: G.ball.y, z: Math.max(0.3, G.ball.z) }, K.stlMissReach, K.stlMissReachT); a.T = Math.max(a.t, stealMissTime(pl, dd, read)); float(read.risk > 0.5 ? '伸手失位' : '抢断落空', pl, '#9aa3c0', read.risk > 0.5 ? 1 : 0); bpop(df, 'tight'); }
         } else { a.T = Math.max(a.t, stealMissTime(pl, dd, read)); float('伸手失位', pl, '#9aa3c0', 1); }
@@ -6270,6 +6297,9 @@
     const seek = 1 + awareness * (sr.timed ? K.stlAiWindow : -K.stlAiBad * (sr.moving ? 1 : sr.across));
     const angle = (1 + awareness * (sr.ballSide - sr.across * K.stlAiBad)) * lerp(K.stlAiPosFloor, 1, sr.pf);
     const ready = D.steal > 0 && dd < K.aiStlD && ai.stealCd <= 0 && !pl.action && pl.stun <= 0 && pl.cd <= 0 && pl.z <= 0;
+    if (ready && dd < K.stlR && holdingFinish(opp) && rnd() < K.stlFinCpu * dt * clamp(K.stlFumH - opp.r.hnd, 0, 1) * D.steal) {
+      o.a1 = false; o.a2 = true; ai.stealCd = rr(K.aiStlCd0, K.aiStlCd1); return o;
+    }
     if (ai.stealPlan && (ai.stealPlan.move !== oa || oa.t + K.stlHitT > sr.windowEnd)) ai.stealPlan = null;
     if (ready && awareness > 0 && sr.moving && !sr.safe && ai.stealSeen !== oa && oa.t + K.stlHitT <= sr.windowEnd) {
       ai.stealSeen = oa;
