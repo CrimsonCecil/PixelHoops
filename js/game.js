@@ -1451,7 +1451,7 @@
   for (const p of RXP) { OVR[p.key] = p.ovr; if (p.form) FORM_OF[p.key] = p.form; }
   // V3.3：招牌投篮姿势 + 左手球员（Fadeaway World 现役最佳左手榜等）
   Object.assign(FORM_OF, { harden: 'harden', durant: 'kd', jokic: 'jokic', sga: 'sga', lillard: 'dame', trae: 'trae', wemby: 'wemby', booker: 'booker', kawhi: 'kawhi', tatum: 'tatum', embiid: 'embiid', brunson: 'brunson' });
-  for (const k of ['harden', 'brunson', 'avdija', 'zion', 'fox', 'randle', 'barrett', 'mbridges', 'sabonis', 'podz', 'oubre', 'vanderbilt', 'bagley', 'scheierman', 'kolek', 'tshannon', 'ajay', 'hartenstein', 'lmiller', 'battle']) if (ARCH[k]) ARCH[k].lefty = true;
+  for (const k of ['harden', 'brunson', 'avdija', 'zion', 'fox', 'randle', 'barrett', 'mbridges', 'sabonis', 'podz', 'oubre', 'vanderbilt', 'bagley', 'scheierman', 'kolek', 'tshannon', 'ajay', 'hartenstein', 'lmiller', 'battle', 'claxton', 'djj', 'harper', 'mamu', 'conwell', 'camara', 'cmb', 'jase', 'herb']) if (ARCH[k]) ARCH[k].lefty = true;
   for (const k in ARCH) ARCH[k].form = FORM_OF[k] || 'std';
   const formOf = (pl) => SF[(pl.arch && pl.arch.form) || 'std'] || SF.std;
   const ROSTER = Object.keys(ARCH).sort((a, b) => OVR[b] - OVR[a]);
