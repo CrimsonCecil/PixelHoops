@@ -22,6 +22,8 @@ for (const mode of ['cpu', '2p', 'train', 't5']) {
   assert.equal(p.dribbleCombo, undefined);
   for (let n = 1; n <= 4; n++) { move(); assert.equal(p.dribbleCombo.count, n); G.time += 0.4; }
   assert(p.dribbleCombo.name);
+  for (let i = 0; p.action && i < 180; i++) step();
+  assert.equal(p.action, null, mode + ' move ends before the idle timeout');
   G.time += 1.6; step();
   assert.equal(p.dribbleCombo.count, 0, mode + ' timeout');
   assert.equal(p.dribbleCombo.shown, 4);
