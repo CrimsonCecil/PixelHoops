@@ -1,0 +1,89 @@
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
+const vm = require('node:vm');
+
+function load() {
+  const ctx = vm.createContext({ performance: { now: () => 0 }, setTimeout: () => {} });
+  ctx.window = ctx;
+  vm.runInContext('let seed = 7; Math.random = () => ((seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0) / 4294967296)', ctx);
+  for (const name of ['tune', 'ptype', 'render', 'roster', 'measurements', 'r5', 'game', 'team3']) vm.runInContext(fs.readFileSync(path.join(__dirname, '../js', name + '.js'), 'utf8'), ctx, { filename: name + '.js' });
+  const said = [];
+  ctx.PH.audio = { voLine: (k, ev, i) => ({ f: k + ev + i, t: k + ':' + ev + ':' + i, d: 1.5 }), voSay: (it) => said.push(it.f), voStop() {}, play() {} };
+  ctx.PH.input = { read: () => ctx.PH.game.t5.zeroInp(), endTick() {} };
+  ctx.PH.game.seed(7);
+  return { ctx, Gm: ctx.PH.game, G: ctx.PH.game.G, said };
+}
+function runIntro(Gm, G) {
+  let n = 0, saw = { walk: false, sig: new Set(), lines: [] };
+  while (G.intro && n++ < 60 * 40) {
+    const I = G.intro;
+    if (G.time < I.t0 + 1) saw.walk = saw.walk || G.players.some((p) => p.speed > 1);
+    for (const p of G.players) if (p.anim === 'cel') saw.sig.add(p.id);
+    if (I.li >= 0 && saw.lines[saw.lines.length - 1] !== I.lines[I.li]) saw.lines.push(I.lines[I.li]);
+    Gm.introTick(1 / 60);
+  }
+  assert.equal(G.intro, null, 'intro finishes on its own');
+  return saw;
+}
+
+{
+  const { Gm, G, said } = load();
+  Gm.newGame({ mode: 'cpu', arch0: 'lebron', arch1: 'curry' });
+  const want = G.players.map((p) => [p.x, p.y]);
+  Gm.introStart();
+  assert.equal(G.phase, 'intro');
+  assert.ok(Math.abs(G.players[0].x) > 6 && Math.abs(G.players[1].x) > 6, 'players start on the sidelines');
+  assert.equal(G.intro.sig[0].ty, 'chalk', 'LeBron opens with the chalk toss');
+  const saw = runIntro(Gm, G);
+  assert.ok(saw.walk, 'players walk in');
+  assert.deepEqual([...saw.sig].sort(), [0, 1], 'both players do a signature move');
+  assert.match(saw.lines[0].t, /1 比 3/);
+  assert.match(saw.lines[1].t, /四枚/);
+  assert.equal(saw.lines.length, 4);
+  assert.deepEqual(said, ['currydom0'], 'only the voiced line plays the voice pack');
+  assert.equal(G.phase, 'check');
+  G.players.forEach((p, i) => { assert.equal(p.x, want[i][0]); assert.equal(p.y, want[i][1]); });
+  assert.ok(G.banner && G.banner.text === '开球', 'tip-off banner restored');
+  assert.ok(!/猩猩|动物园/.test(JSON.stringify(Gm.TALK)), 'no ape / zoo lines');
+  console.log('PASS: 1V1 LeBron vs Curry intro walks in, does signatures, plays 4 rivalry lines, then hands off to the check.');
+}
+{
+  const { Gm, G } = load();
+  Gm.newGame({ mode: '2p', arch0: 'maxey', arch1: 'joe' });
+  Gm.introStart();
+  const L = G.intro.lines;
+  assert.equal(L.length, 2);
+  Gm.introPress(); Gm.introPress();
+  assert.equal(G.intro.li, 0, 'first press skips to the dialogue, second completes the typing');
+  Gm.introPress(); Gm.introPress(); Gm.introPress();
+  assert.equal(G.intro, null);
+  assert.equal(L[0].t, 'maxey:taunt:' + L[0].i);
+  assert.equal(G.phase, 'check');
+  console.log('PASS: generic matchup uses voiced taunt/dom clips; presses advance and finish the intro.');
+}
+{
+  const { ctx, Gm, G } = load();
+  const slots = ['curry', 'joe', 'maxey', 'kyrie', 'white', 'herb'].map((arch) => ({ arch, role: 'cpu' }));
+  ctx.PH.T3.start({ slots, target: 21, clock: 14, replay: false });
+  const want = G.players.map((p) => [p.x, p.y]);
+  Gm.introStart();
+  assert.equal(G.phase, 'intro');
+  assert.equal(G.intro.sig.map((s) => G.players[s.id].arch.key).sort().join(), 'curry,kyrie', '3V3 features the rivalry pair');
+  const saw = runIntro(Gm, G);
+  assert.ok(saw.walk);
+  assert.match(saw.lines[0].t, /2016 抢七/);
+  G.players.forEach((p, i) => { assert.equal(p.x, want[i][0]); assert.equal(p.y, want[i][1]); });
+  for (let i = 0; i < 120; i++) ctx.PH.T3.tick(1 / 60, []);
+  assert.equal(G.phase, 'live', '3V3 goes live after the intro');
+  console.log('PASS: 3V3 intro features Curry vs Kyrie, restores the six check spots and the match goes live.');
+}
+{
+  const { Gm, G } = load();
+  Gm.newGame({ mode: 'cpu', arch0: 'kobe', arch1: 'shaq' });
+  Gm.introStart(); Gm.introEnd();
+  assert.equal(G.intro, null); assert.equal(G.phase, 'check');
+  for (let i = 0; i < 90; i++) Gm.tick(1 / 60);
+  assert.equal(G.phase, 'live');
+  console.log('PASS: Esc skip hands straight to the tip-off and 1V1 goes live.');
+}

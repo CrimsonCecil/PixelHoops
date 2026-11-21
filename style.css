@@ -936,3 +936,27 @@ select.pf, input.pf, .tn-row.pf, .sl.pf, .crow.pf, .mx.pf { outline: calc(var(--
 #qvol .mx b { text-align: right; color: var(--text); font-weight: normal; }
 #pause.inmenu .ingame, #pause:not(.inmenu) .inmenu { display: none; }
 @media (max-width: 700px), (max-height: 420px) { #menutop { top: 6px; right: 6px; } }
+
+/* 开场入场：电影黑边 + 垃圾话对话框 */
+#lbox { position: absolute; inset: 0; z-index: 14; pointer-events: none; display: none; }
+#stage.intro #lbox { display: block; }
+#lbox i { position: absolute; left: 0; right: 0; height: 9%; background: #000; animation: lbIn 0.45s steps(6) both; }
+#lbox i:first-child { top: 0; transform-origin: top; }
+#lbox i:last-child { bottom: 0; transform-origin: bottom; }
+#intro-skip { position: absolute; right: 14px; top: 3%; transform: translateY(-50%); color: #cfd6ea; font-size: 12px; font-weight: normal; opacity: 0.85; pointer-events: auto; cursor: pointer; letter-spacing: 1px; }
+@keyframes lbIn { from { transform: scaleY(0); } }
+#stage.intro #hint, #stage.intro #shotcard, #stage.intro #touch { visibility: hidden; }
+#talk { position: absolute; left: 4%; width: min(62%, 760px); bottom: 11%; z-index: 16; display: flex; align-items: center; gap: 14px; padding: 12px 18px; --tc: #4aa3ff;
+  background: rgba(8, 10, 22, 0.9); border: 3px solid var(--tc); box-shadow: 0 0 0 3px #000, 6px 6px 0 rgba(0, 0, 0, 0.55); cursor: pointer; pointer-events: auto; }
+#talk.pop { animation: tkIn 0.2s steps(4) both; }
+#talk.right { left: auto; right: 4%; flex-direction: row-reverse; text-align: right; }
+#talk canvas { width: 76px; height: 76px; flex: none; image-rendering: pixelated; background: #141a30; border: 2px solid var(--tc); }
+#talk .tk-body { flex: 1; min-width: 0; }
+#talk .tk-name { color: var(--tc); font-weight: bold; font-size: 14px; letter-spacing: 1px; margin-bottom: 6px; text-shadow: 1px 1px 0 #000; }
+#talk .tk-text { color: #fff; font-size: 20px; line-height: 1.4; min-height: 1.4em; text-shadow: 2px 2px 0 #000; }
+#talk .tk-more { position: absolute; right: 12px; bottom: 6px; color: #ffd24a; font-size: 12px; visibility: hidden; animation: tkBlink 0.8s steps(2) infinite; }
+#talk.right .tk-more { right: auto; left: 12px; }
+#talk.done .tk-more { visibility: visible; }
+@keyframes tkIn { from { transform: translateY(14px) scale(0.96); opacity: 0; } }
+@keyframes tkBlink { 50% { opacity: 0; } }
+@media (max-width: 640px) { #talk, #talk.right { left: 2%; right: 2%; width: auto; padding: 8px 10px; gap: 8px; } #talk canvas { width: 54px; height: 54px; } #talk .tk-text { font-size: 15px; } }

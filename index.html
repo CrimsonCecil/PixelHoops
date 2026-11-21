@@ -111,6 +111,7 @@
       <div class="row" id="row-p1"><label id="lab-p1">你的球员</label><button class="pick" id="pick0" data-testid="pick-p1"></button></div>
       <div class="row" id="row-p2"><label id="lab-p2">对手</label><button class="pick" id="pick1" data-testid="pick-p2"></button></div>
       <div class="row" id="row-info"><label>球员信息</label><div class="seg" data-opt="info"><button data-v="show" class="on" data-testid="info-show">显示</button><button data-v="hide" data-testid="info-hide">隐藏</button></div></div>
+      <div class="row" id="row-intro"><label>入场动画</label><div class="seg" data-opt="intro"><button data-v="on" class="on" data-testid="intro-on">开</button><button data-v="off" data-testid="intro-off">关</button></div></div>
       <div class="row" id="row-fb"><label>投篮反馈</label><div class="seg" data-opt="fb"><button data-v="simple" class="on" data-testid="fb-simple">精简</button><button data-v="detail" data-testid="fb-detail">详细</button></div></div>
       <p class="desc" id="arch-desc"></p>
       <section id="lobby3" class="hidden" aria-labelledby="lobby3-title">
@@ -161,6 +162,8 @@
     </div>
   </div>
 
+  <div id="lbox" data-testid="intro-bars"><i></i><i></i><b id="intro-skip" data-testid="intro-skip">空格 / 点击 下一句 · Esc 跳过 ▶▶</b></div>
+  <div id="talk" class="hidden" data-testid="talk"><canvas id="talk-face" width="128" height="128"></canvas><div class="tk-body"><div class="tk-name" id="talk-name"></div><div class="tk-text" id="talk-text"></div></div><span class="tk-more">▼</span></div>
   <div id="cutin" class="hidden" data-testid="cutin"><div class="ci-lines"></div><div class="ci-eyes"><canvas id="ci-eyes" width="160" height="48"></canvas></div><div class="ci-flash"></div><div class="ci-band"><canvas id="ci-face" width="128" height="128"></canvas><div class="ci-txt"><span class="ci-name"></span><b class="ci-skill"></b><i class="ci-en"></i></div></div></div>
 
   <div id="tipsbar" class="hidden" data-testid="tipsbar"><div><b id="tips-n"></b><span id="tips-d"></span></div><button id="tips-back" data-testid="tips-back">返回说明</button></div>

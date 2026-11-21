@@ -212,5 +212,6 @@
       if (!G.shotClock && b.state !== 'shot' && !rebounding) lost(ballCarrier || G.players[b.lastTouch], T.clock + ' 秒违例');
     }
   }
-  PH.T3 = { T, start, stop, tick, holder };
+  function rearm() { T.acquired = G.time; T.nextPass = G.time + 1.4; }
+  PH.T3 = { T, start, stop, tick, holder, rearm };
 })();

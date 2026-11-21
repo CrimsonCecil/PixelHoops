@@ -301,6 +301,16 @@
     voBusy = now + ((it.d || 1.5) * 1000) + 500;
     return it;
   }
+  // 指定一条语音（开场对话用）：voLine 按序号取条目，voSay 打断当前语音直接播
+  function voLine(key, ev, i) { const L = voM && voM[key] && voM[key].lines && voM[key].lines[ev]; return L && L.length ? L[(i || 0) % L.length] : null; }
+  function voStop() { if (voCur) { try { voCur.stop(); } catch (e) { /* 已停 */ } voCur = null; } voBusy = 0; }
+  function voSay(it) {
+    if (!it || !voOn || !sfxOn || pauseOn || !ensure()) return;
+    voStop(); const want = it.f; voSayF = want;
+    voBuf(it.f).then((buf) => { if (!buf || !voOn || pauseOn || voSayF !== want) return; const src = ac.createBufferSource(); src.buffer = buf; src.connect(voGain); src.start(0, 0.1); voCur = src; duckMusic(buf.duration); }).catch(() => {});
+    voBusy = performance.now() + ((it.d || 1.5) * 1000) + 500;
+  }
+  let voSayF = '';
   // 离线混音测量：用 OfflineAudioContext 按当前总线增益渲染一段（音乐 / 某个音效 / 某条语音），返回采样
   // name 为音乐场景名（加 '!' 后缀 = 关键时刻强度全开）；空名 = 1V1 比赛音乐
   async function mixRender(kind, name, secs) {
@@ -318,5 +328,5 @@
     return Array.from(out.getChannelData(0));
   }
   function setMix(k, v) { MIX[k] = v; applyMix(); }
-  PH.audio = { setPaused: setPaused, get paused() { return pauseOn; }, get pauseLevel() { return pauseGain ? pauseGain.gain.value : 1; }, mixRender: mixRender, MIX: MIX, BASE: BASE, setMix: setMix, voPreload: voPreload, sfxNames: () => Object.keys(SFX), vo: vo, setVo: (v) => { voOn = v; }, get voOn() { return voOn; }, play: play, ensure: ensure, startMusic: startMusic, stopMusic: stopMusic, scene: scene, intensity: intensity, get scene_() { return curName; }, get hot() { return hotWant; }, tracks: () => Object.keys(TRK), setMusic: setMusic, setSfx: setSfx, get musicOn() { return musicOn; }, get sfxOn() { return sfxOn; } };
+  PH.audio = { setPaused: setPaused, get paused() { return pauseOn; }, get pauseLevel() { return pauseGain ? pauseGain.gain.value : 1; }, mixRender: mixRender, MIX: MIX, BASE: BASE, setMix: setMix, voPreload: voPreload, voLine: voLine, voSay: voSay, voStop: voStop, sfxNames: () => Object.keys(SFX), vo: vo, setVo: (v) => { voOn = v; }, get voOn() { return voOn; }, play: play, ensure: ensure, startMusic: startMusic, stopMusic: stopMusic, scene: scene, intensity: intensity, get scene_() { return curName; }, get hot() { return hotWant; }, tracks: () => Object.keys(TRK), setMusic: setMusic, setSfx: setSfx, get musicOn() { return musicOn; }, get sfxOn() { return sfxOn; } };
 })();

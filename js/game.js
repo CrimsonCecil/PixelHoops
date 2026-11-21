@@ -1538,7 +1538,7 @@
     G.tips = null; G.mode = o.mode || 'cpu'; G.diff = o.diff == null ? 1 : o.diff; G.target = o.target || 21; G.glen = G.mode === 'cpu' || G.mode === '2p' ? (o.glen || 0) : 0; G.gclock = G.glen; G.sd = false; G.gEnd = false; G.mp = -1; G.mpT = 0; G.clkTick = 99; G.fb = o.fb || 'simple'; G.bpops = []; G.shotN = 0; G.hero = null; G.cz = null; G.hlQ = null; G.rec = []; G.replay = null;
     const c0 = G.mode === 'demo' ? 'cpu' : 'p1', c1 = G.mode === '2p' ? 'p2' : 'cpu';
     if (G.mode === 'cpu' || G.mode === 'train') G.aiPlay = {};
-    G.players = [makePlayer(0, ARCH[o.arch0] ? o.arch0 : 'dosunmu', c0), makePlayer(1, ARCH[o.arch1] ? o.arch1 : 'joe', c1)]; G.cutin = null;
+    G.players = [makePlayer(0, ARCH[o.arch0] ? o.arch0 : 'dosunmu', c0), makePlayer(1, ARCH[o.arch1] ? o.arch1 : 'joe', c1)]; G.cutin = null; G.intro = null;
     if (G.mode !== 'demo') applyMatchKits(G.players);
     G.ball = { x: 0, y: 4, z: 1, vx: 0, vy: 0, vz: 0, state: 'held', holder: 0, spin: 0, shot: null, lastTouch: 0, noPick: 0, dead: false, under: false, trail: null };
     G.score = [0, 0]; G.floats = []; G.banner = null; G.net = 0; G.time = 0; G.winner = -1; G.lastShot = null; G.streak = [0, 0]; G.scout = [{}, {}]; G.lastScorer = 0; G.hz = [{}, {}];
@@ -2417,6 +2417,97 @@
     const o = zeroInp();
     if (p.id !== C.id) { const s = G.players[C.id]; if (C.sd == null) C.sd = p.x >= s.x ? 1 : -1; const dx = s.x + C.sd * 1.6 - p.x, dy = s.y + 0.15 - p.y, d = Math.hypot(dx, dy); if (d > 0.3) { const k = Math.min(1, d) * 0.75; o.mx = dx / d * k; o.my = dy / d * k; } }
     return o;
+  }
+  // 开场入场：双方从两侧边线走到开球站位 → 主角依次做招牌动作（镜头推近）→ 对话框互相垃圾话，空格 / 点击下一句，Esc 跳过
+  const ISIG = { lebron: 'chalk', curry: 'night', kobe: 'cool', shaq: 'flex', giannis: 'roar', luka: 'shrug', kyrie: 'shush', herb: 'wag' };
+  const ISIG_CN = { chalk: '撒镁粉', night: '晚安手势', shimmy: '抖肩', flex: '秀肌肉', roar: '仰天怒吼', chest: '捶胸', toosmall: 'Too Small', shush: '嘘声', cool: '抱臂冷视', point: '隔空点名', dance: '尬舞', shrug: '耸肩', wag: '摇手指' };
+  // 宿敌台词：[说话人, 文本] 只有字幕；[说话人, 语音事件, 序号] 播语音包里的原声并显示它的字幕
+  const TALK = {
+    'curry|lebron': [['lebron', '2016 总决赛，1 比 3 落后我照样翻盘，还记得吗？'], ['curry', '记得。可我手上四枚总冠军戒指，你数数自己几枚？'], ['lebron', '73 胜又怎样？今天我就是要赢你！'], ['curry', 'dom', 0]],
+    'kobe|lebron': [['kobe', '五枚戒指，我只认冠军，别的都是数据。'], ['lebron', '历史得分王的名字，现在写的是我。'], ['kobe', 'taunt', 3], ['lebron', 'taunt', 3]],
+    'kobe|shaq': [['shaq', '湖人三连冠，内线是谁扛下来的？'], ['kobe', '没有我在外线撕开防守，你早被三人包夹了。'], ['shaq', 'dom', 1], ['kobe', 'dom', 1]],
+    'curry|kyrie': [['kyrie', '2016 抢七最后那记三分，就是在你头上投进的。'], ['curry', '那球我记得。可接下来两座总冠军，是我们拿的。'], ['kyrie', 'dom', 2], ['curry', 'dom', 2]],
+    'kyrie|lebron': [['lebron', '2016 那记三分，空位还是我帮你拉出来的。'], ['kyrie', '晃开防守是我自己的本事。今天单挑，你看好了。'], ['lebron', 'taunt', 0], ['kyrie', 'taunt', 2]],
+    'giannis|lebron': [['giannis', '2021 总决赛第六场 50 分，冠军是我自己扛回来的。'], ['lebron', '一个冠军就上头了？我有四个。'], ['giannis', 'taunt', 2], ['lebron', 'dom', 0]],
+    'lebron|luka': [['luka', '老大哥，现在湖人是谁在控球？'], ['lebron', '想接班？先把防守脚步练明白。'], ['luka', 'taunt', 0], ['lebron', 'taunt', 1]],
+    'curry|luka': [['luka', '2022 西决输给你，今天我要讨回来。'], ['curry', '4 比 1 那轮系列赛，还想再来一次？'], ['luka', 'taunt', 2], ['curry', 'dom', 0]],
+    'kobe|kyrie': [['kyrie', '2012 年就说要跟你单挑，今天兑现！'], ['kobe', 'taunt', 0], ['kyrie', 'taunt', 3]] };
+  const IW = 2.6, IS = 1.9;
+  const plById = (id) => G.players.find((p) => p.id === id);
+  function introStart() {
+    if (G.mode === 'demo' || G.mode === 'train' || G.mode === 't5') return;
+    const ps = G.players.filter((p) => !p.off && !p.dummy), A = ps.filter((p) => TM(p) === 0), B = ps.filter((p) => TM(p) === 1);
+    if (!A.length || !B.length) return;
+    let fa = null, fb = null, sc = null;
+    for (const a of A) for (const b of B) { const k = [a.arch.key, b.arch.key].sort().join('|'); if (!sc && TALK[k] && a.arch.key !== b.arch.key) { fa = a; fb = b; sc = TALK[k]; } }
+    if (!fa) { const best = (L) => L.slice().sort((x, y) => (OVR[y.arch.key] || 0) - (OVR[x.arch.key] || 0))[0]; fa = best(A); fb = best(B); }
+    if (sc && sc[0][0] === fb.arch.key) { const t = fa; fa = fb; fb = t; }
+    let h = 0; for (const c of fa.arch.key + fb.arch.key) h = (h * 31 + c.charCodeAt(0)) >>> 0;
+    const lines = sc ? sc.map((L) => ({ id: (L[0] === fa.arch.key ? fa : fb).id, t: L.length === 2 ? L[1] : '', v: L.length > 2 ? L[1] : null, i: L[2] || 0 }))
+      : [{ id: fa.id, t: '', v: 'taunt', i: h % 4 }, { id: fb.id, t: '', v: 'dom', i: (h >>> 3) % 3 }];
+    const spots = ps.map((p) => ({ p: p, x: p.x, y: p.y, face: p.face }));
+    spots.forEach((s, i) => { const sd = TM(s.p) === 0 ? -1 : 1; Object.assign(s.p, { x: sd * 7.1, y: clamp(s.y + 1.4 + (i % 3) * 0.35, 0.5, 12.5), face: sd < 0 ? 0 : Math.PI, vx: 0, vy: 0, speed: 0 }); });
+    const t0 = G.time;
+    G.intro = { t0: t0, spots: spots, lines: lines, li: -1, lt: 0, ld: 0, tT: t0 + IW + 2 * IS, cam: null, foc: null, banner: G.banner, phaseT: G.phaseT,
+      sig: [fa, fb].map((p, j) => ({ id: p.id, ty: ISIG[p.arch.key] || (CELS[p.arch.key] || ['flex'])[0], t0: t0 + IW + j * IS, T: 1.7, on: false, fx: false })) };
+    G.banner = null; G.cz = null; G.cutin = null; G.phase = 'intro';
+  }
+  const introSig = (pl) => { const I = G.intro; if (!I) return null; for (const S of I.sig) if (S.id === pl.id && G.time >= S.t0 && G.time < S.t0 + S.T) return S; return null; };
+  function introFace(pl) {
+    const I = G.intro; if (introSig(pl)) return -Math.PI / 2;
+    if (pl.speed > 1 || G.time < I.t0 + IW) return null;
+    const o = OP(pl); if (!o) return null; const a1 = Math.atan2(o.y - pl.y, o.x - pl.x); return Math.atan2(Math.sin(a1) - 0.9, Math.cos(a1));
+  }
+  function introCam(p, u) { const I = G.intro; I.cam = p ? { x: p.x, y: p.y, u: u } : null; }
+  function introTick(dt) {
+    const I = G.intro; if (!I || G.state !== 'play') return;
+    G.cutin = null; fxUpdate(dt); G.time += dt;
+    if (G.banner) { G.banner.t += dt; if (G.banner.t > G.banner.dur) G.banner = null; }
+    const now = G.time;
+    for (const s of I.spots) {
+      const p = s.p, inp = zeroInp(), dx = s.x - p.x, dy = s.y - p.y, d = Math.hypot(dx, dy);
+      if (d > 0.12) { const k = Math.min(1, d / 0.9) * 0.8; inp.mx = dx / d * k; inp.my = dy / d * k; }
+      updatePlayer(p, inp, dt);
+    }
+    updateBall(dt);
+    for (const S of I.sig) {
+      const p = plById(S.id);
+      if (!S.on && now >= S.t0) { S.on = true; banner(p.arch.full, '招牌动作 · ' + ISIG_CN[S.ty], p.team.css, S.T); introCam(p, 0.3); sfx('cheer'); }
+      if (S.ty === 'chalk' && !S.fx && now >= S.t0 + 0.42) { S.fx = true; burst(p.x, p.y, p.h + 0.45, 70, ['#ffffff', '#f4f1e8', '#e2ded2', '#fffbe9'], 2.3, 1.7, 1.1, 2); }
+    }
+    if (I.li < 0 ? now >= I.tT : now >= I.lt + I.ld) introNext();
+    if (!G.intro) return;
+    const C = I.cam;
+    if (G.mode === 't3') I.foc = C;
+    else {
+      if (!G.cz && C) G.cz = { x: C.x, y: C.y, z: 1.2, t: 0, T: 999, u: C.u, k: 0 };
+      if (G.cz) { const z = G.cz, r = Math.min(1, dt * 4); z.t = 0; if (C) { z.x += (C.x - z.x) * r; z.y += (C.y - z.y) * r; z.u = C.u; } z.k += ((C ? 1 : 0) - z.k) * Math.min(1, dt * 3); if (!C && z.k < 0.02) G.cz = null; }
+    }
+  }
+  function introNext() {
+    const I = G.intro; if (!I) return;
+    if (I.li < 0 && G.time < I.tT) { for (const s of I.spots) Object.assign(s.p, { x: s.x, y: s.y, vx: 0, vy: 0, speed: 0 }); for (const S of I.sig) { S.on = true; S.fx = true; S.t0 = -99; } G.banner = null; }
+    I.li++;
+    if (I.li >= I.lines.length) { introEnd(); return; }
+    const L = I.lines[I.li], p = plById(L.id);
+    if (L.v) { const it = PH.audio && PH.audio.voLine ? PH.audio.voLine(p.arch.key, L.v, L.i) : null; if (it) { L.t = it.t; L.d = it.d; if (G.mode !== 'demo') PH.audio.voSay(it); } }
+    if (!L.t) L.t = L.v === 'dom' ? '别急，看看最后谁笑。' : '今天这场，我拿下了！';
+    L.done = false; I.lt = G.time; I.ld = clamp(Math.max(1.0 + L.t.length * 0.12, (L.d || 0) + 0.8), 2.2, 4.8);
+    introCam(p, 0.18);
+  }
+  // 按键：字没打完先补全，打完了才翻下一句
+  function introPress() {
+    const I = G.intro; if (!I) return; const L = I.lines[I.li];
+    if (L && !L.done && (G.time - I.lt) * 30 < L.t.length) { L.done = true; return; }
+    introNext();
+  }
+  function introEnd() {
+    const I = G.intro; if (!I) return;
+    for (const s of I.spots) Object.assign(s.p, { x: s.x, y: s.y, face: s.face, vx: 0, vy: 0, speed: 0 });
+    G.intro = null; G.cz = null; G.phase = 'check'; G.phaseT = I.phaseT;
+    if (I.banner) { G.banner = I.banner; G.banner.t = 0; }
+    if (PH.audio && PH.audio.voStop) PH.audio.voStop();
+    if (G.mode === 't3' && PH.T3 && PH.T3.rearm) PH.T3.rearm();
   }
   function queueScoreReplay(id, s) {
     if (!G.hlQ || s >= G.hlQ.s) G.hlQ = { s, t: G.time, pid: id, x: HOOP.x, y: HOOP.y, z: HOOP.z };
@@ -3990,6 +4081,7 @@
     else if (pl.hasBall) tf = pl.speed > 1.2 ? Math.atan2(pl.vy, pl.vx) : hA;
     else if ((opp.hasBall && !opp.off) || b.state === 'shot' || pl.dummy) { const tx = opp.hasBall ? opp.x : b.x, ty = opp.hasBall ? opp.y : b.y; if (opp.hasBall || Math.hypot(tx - pl.x, ty - pl.y) > 1.0) tf = Math.atan2(ty - pl.y, tx - pl.x); }
     else if (pl.speed > 1) tf = Math.atan2(pl.vy, pl.vx);
+    if (G.intro && !a) { const f = introFace(pl); if (f != null) tf = f; }
     if (celOn() && !a) { const o2 = OP(pl), sd = o2.x >= pl.x ? 1 : -1; tf = pl.id === G.cel.id ? Math.PI / 2 - sd * 0.45 : (() => { const a1 = Math.atan2(o2.y - pl.y, o2.x - pl.x); return Math.atan2(Math.sin(a1) + 0.9, Math.cos(a1)); })(); }
     if (snap) pl.face = tf;
     else if (pl.stun > 0 && pl.stunK === 'spin' && pl.stunT0 - pl.stun < (pl.spinW || 0.5)) { if (pl.spinF0 == null) pl.spinF0 = pl.face; pl.face = pl.spinF0 + pl.spinD * (pl.spinA || Math.PI * 0.6) * sm(clamp((pl.stunT0 - pl.stun) / (pl.spinW || 0.5), 0, 1)); }
@@ -4001,6 +4093,7 @@
     else if (a) an = { shot: 'shoot', fake: 'fake', layup: 'layup', dunk: 'dunk', move: 'move', block: 'block', steal: 'steal', dive: 'dive' }[a.type];
     else if (pl.stun > 0) an = 'stun';
     else if (air) an = 'block';
+    else if (G.intro && introSig(pl)) an = 'cel';
     else if (celOn()) an = pl.id === G.cel.id ? 'cel' : 'hurt';
     else if (pl.hasBall && pl.landT && G.time - pl.landT < (pl.recT - pl.landT) + 0.05 && pl.speed < 2) an = 'land';
     else if (G.phase === 'dead' && G.lastScorer === pl.id && G.phaseT < 1.3 && G.mode !== 'train') an = 'win';
@@ -4206,7 +4299,7 @@
     }
     else if (an === 'win') { const w = Math.sin(G.time * 9); set({ lean: -0.05, aLp: 2.8 + 0.2 * w, aLe: 0.2, aRp: 2.8 - 0.2 * w, aRe: 0.2, aLq: 0.3, aRq: 0.3, lB: 0.3 + 0.2 * w, rB: 0.3 - 0.2 * w }); }
     else if (an === 'cel') {
-      const e = G.time - G.cel.t0, w = Math.sin(e * 10), w2 = Math.sin(e * 22), k = clamp(e / 0.18, 0, 1), ty = G.cel.ty;
+      const CC = (G.intro && introSig(pl)) || G.cel, e = G.time - CC.t0, w = Math.sin(e * 10), w2 = Math.sin(e * 22), k = clamp(e / 0.18, 0, 1), ty = CC.ty, up = sm(clamp((e - 0.3) / 0.14, 0, 1));
       const L0 = { lA: 0.12, lB: 0.25, rA: 0.12, rB: 0.25, lS: 0.18, rS: 0.18 };
       const P = {
         flex: { lean: -0.12, aLp: 1.55, aLq: 1.55, aLe: 1.7 + 0.2 * w, aRp: 1.55, aRq: 1.55, aRe: 1.7 - 0.2 * w, lS: 0.3, rS: 0.3, lB: 0.45, rB: 0.45 },
@@ -4220,6 +4313,7 @@
         dance: { lean: 0.05 * w, aLp: 1.8 + 0.8 * w, aLq: 0.9, aLe: 0.6, aRp: 1.8 - 0.8 * w, aRq: 0.9, aRe: 0.6, lA: 0.4 * w, lB: 0.5, rA: -0.4 * w, rB: 0.5 },
         shrug: { lean: -0.05, aLp: 0.8, aLq: 1.3, aLe: 1.5, aRp: 0.8, aRq: 1.3, aRe: 1.5 },
         wag: { lean: 0, aLp: 0.3, aLq: 0.4, aLe: 0.3, aRp: 2.3, aRq: 0.25 + 0.35 * w2, aRe: 0.3 },
+        chalk: { lean: lerp(0.06, -0.26, up), aLp: lerp(1.1, 2.85, up), aLq: lerp(0.25, 0.6, up), aLe: lerp(2.1, 0.25, up), aRp: lerp(1.1, 2.85, up), aRq: lerp(0.25, 0.6, up), aRe: lerp(2.1, 0.25, up), lB: 0.35 * (1 - up), rB: 0.35 * (1 - up) },
         cool: { lean: -0.1, aLp: 1.05, aLq: 0.05, aLe: 2.35, aRp: 1.0, aRq: 0.05, aRe: 2.35 } }[ty] || {};
       const o = Object.assign({}, L0, P); if (k < 1) for (const kk in o) o[kk] *= k; set(o);
     }
@@ -5410,7 +5504,7 @@
   // 坐标永远是"进攻方坐标"：进攻方朝 HOOP（y=12.425）进攻，后场 y<0；球权转换时 team5 把整个场景旋转 180°。
   let t5Saved = null;
   function t5begin(players, o) {
-    o = o || {};
+    o = o || {}; G.intro = null;
     if (!t5Saved) t5Saved = { shotClock: CFG.shotClock };
     CFG.shotClock = o.half ? o.clock : 24;
     G.mode = o.half ? 't3' : 't5'; G.diff = o.diff == null ? 1 : o.diff; G.target = o.half ? o.target : 999; G.glen = 0; G.gclock = 0; G.sd = false; G.gEnd = false; G.mp = -1; G.mpT = 0; G.clkTick = 99;
@@ -5478,7 +5572,7 @@
     TU.on((ks) => { if (!ks || ks.indexOf('l1_shotClock') >= 0) CFG.shotClock = TU.get('l1_shotClock'); syncK(); });
     syncK();
   }
-  PH.game = { ptIs: ptIs, ptOf: ptOf, ibuf: ibuf, t5: T5API, G: G, HZ: HZ, HZN: HZN, zoneOf: zoneOf, hzBase: hzBase, hzLvl: hzLvl, MVX: MVX, DPKG: DPKG, DPK_OF: DPK_OF, ST: ST, GW_OUT: K.gwOut, zones: zones, K: K, TDEF: TDEF, blkTier: blkTier, blkReact: blkReact, blkMove: blkMove, _qa: { finEdge: finEdge, blockBall: blockBall, greenWidth: greenWidth, ratingOf: ratingOf, SV: SV, LVR: LVR, startDunk: startDunk, startFinish: startFinish, finPlan: finPlan, contactAdv: contactAdv, bodyPow: bodyPow }, mobOf: mobOf, winnerNow: winnerNow, moveSet: moveSet, SF: SF, dunkPkg: dunkPkg, TKD: TKD, CB: CB, TIPS: TIPS, tipsStart: tipsStart, tipsStop: tipsStop, tkType: tkType, hcMod: hcMod, lookOf: lookOf, newGame: newGame, tick: tick, toText: toText, ARCH: ARCH, ATTRS: ATTRS, BADGES: BADGES, BADGE_TIER: BADGE_TIER, TIER_CN: TIER_CN, TIER_F: TIER_F, btier: btier, bk: bk, ba: ba, ROSTER: ROSTER, NBA: TEAMS_NBA, hasB: hasB, TEAMS: TEAMS, DIFF: DIFF, CFG: CFG, CFG_DEF: CFG_DEF, isThree: isThree, distHoop: distHoop, setupCheck: setupCheck, contestInfo: contestInfo,
+  PH.game = { ptIs: ptIs, ptOf: ptOf, ibuf: ibuf, t5: T5API, G: G, HZ: HZ, HZN: HZN, zoneOf: zoneOf, hzBase: hzBase, hzLvl: hzLvl, MVX: MVX, DPKG: DPKG, DPK_OF: DPK_OF, ST: ST, GW_OUT: K.gwOut, zones: zones, K: K, TDEF: TDEF, blkTier: blkTier, blkReact: blkReact, blkMove: blkMove, _qa: { finEdge: finEdge, blockBall: blockBall, greenWidth: greenWidth, ratingOf: ratingOf, SV: SV, LVR: LVR, startDunk: startDunk, startFinish: startFinish, finPlan: finPlan, contactAdv: contactAdv, bodyPow: bodyPow }, mobOf: mobOf, winnerNow: winnerNow, moveSet: moveSet, SF: SF, dunkPkg: dunkPkg, TKD: TKD, CB: CB, TIPS: TIPS, tipsStart: tipsStart, tipsStop: tipsStop, tkType: tkType, hcMod: hcMod, lookOf: lookOf, newGame: newGame, tick: tick, introStart: introStart, introTick: introTick, introPress: introPress, introEnd: introEnd, TALK: TALK, ISIG: ISIG, toText: toText, ARCH: ARCH, ATTRS: ATTRS, BADGES: BADGES, BADGE_TIER: BADGE_TIER, TIER_CN: TIER_CN, TIER_F: TIER_F, btier: btier, bk: bk, ba: ba, ROSTER: ROSTER, NBA: TEAMS_NBA, hasB: hasB, TEAMS: TEAMS, DIFF: DIFF, CFG: CFG, CFG_DEF: CFG_DEF, isThree: isThree, distHoop: distHoop, setupCheck: setupCheck, contestInfo: contestInfo,
     _dbg: { tkStart: tkStart, tkAdd: tkAdd, startShot: startShot, releaseShot: releaseShot, greenWidth: greenWidth, startMove: startMove, startBlock: startBlock, startFinish: startFinish, startDunk: startDunk, contestOf: contestOf, contestInfo: contestInfo, finPlan: finPlan }, TIERS: TIERS, grade: grade, DIMS: DIMS, applyTrain: applyTrain, applyMatchKits: applyMatchKits, placeDummy: placeDummy, trainReset: trainReset, giveBall: giveBall, newTrainStats: newTrainStats, styOf: styOf, styK: styK, STY_NAME: STY_NAME, seed: (s) => { seed = s | 1; } };
   PH.game.setAudioSink = (sink) => { audioSink = sink; };
   Object.defineProperty(PH.game, 'GW_OUT', { enumerable: true, configurable: true, get: () => K.gwOut });

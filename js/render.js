@@ -1670,9 +1670,9 @@
     return { x: q.x, y: q.y + 0.34 * q.s * (t3 ? 0.62 : 1) };
   }
   function camera3(G, dt, hintY) {
-    const b = G.ball, p = b.state === 'held' ? G.players[b.holder] : null;
-    const x = p ? p.x + p.vx * 0.28 : b.x + (b.state === 'pass' ? 0 : b.vx * 0.12);
-    const y = p ? p.y + p.vy * 0.28 + 1.3 : b.state === 'shot' ? b.y * 0.65 + HOOP.y * 0.35 : b.y;
+    const b = G.ball, p = b.state === 'held' ? G.players[b.holder] : null, fp = G.intro && G.intro.foc;
+    const x = fp ? fp.x : p ? p.x + p.vx * 0.28 : b.x + (b.state === 'pass' ? 0 : b.vx * 0.12);
+    const y = fp ? fp.y + 1.3 : p ? p.y + p.vy * 0.28 + 1.3 : b.state === 'shot' ? b.y * 0.65 + HOOP.y * 0.35 : b.y;
     const tx = Math.max(-7.5, Math.min(7.5, x)), ty = Math.max(0, Math.min(14, y));
     const fresh = follow3?.players !== G.players;
     if (fresh) follow3 = { players: G.players, x: tx, y: ty, zoom: 1 };
@@ -1704,9 +1704,9 @@
       fit(bottom - board.y, footLimit - 36 - pad),
       fit(nameAnchor - top, nameLimit - 16 - pad),
       fit(nameAnchor - board.y, nameLimit - 36 - pad));
-    const targetZoom = frameZoom(6);
+    const targetZoom = frameZoom(6) * (fp ? 1 + fp.u : 1);
     // Smooth the padded framing; the outer fit still catches a sudden snapshot or pass.
-    const zoom = fresh ? targetZoom : Math.min(frameZoom(0), follow3.zoom + (targetZoom - follow3.zoom) * k);
+    const zoom = fresh ? targetZoom : Math.min(frameZoom(0) * (fp ? 1 + fp.u : 1), follow3.zoom + (targetZoom - follow3.zoom) * k);
     follow3.zoom = zoom;
     const center = H / 2 + cam.oy;
     const scaledY = (y) => center + (y - center) * zoom;
