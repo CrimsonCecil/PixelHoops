@@ -1710,7 +1710,8 @@
     if (!cur || cur.offsetParent === null || !cur.matches(NAV_SEL)) { cur = root.id === 'menu' ? root.querySelector('.menu-modes .on') : navPri(root); if (!list.includes(cur)) cur = list[0]; navSet(root, cur); return; }
     if (dx && cur.type === 'range') { navAdjust(cur, dx); return; }
     const r0 = cur.getBoundingClientRect(), cx = r0.left + r0.width / 2, cy = r0.top + r0.height / 2;
-    let best = null, bs = 1e9;
+    const verticalPicker = dy !== 0 && cur.hasAttribute('data-pk');
+    let best = null, bs = 1e9, bestIsPlayer = false;
     for (const b of list) {
       if (b === cur) continue;
       const r = b.getBoundingClientRect(), ex = r.left + r.width / 2 - cx, ey = r.top + r.height / 2 - cy;
@@ -1724,7 +1725,10 @@
         const along = ex * dx; if (along < 4 || Math.abs(ey) > Math.max(r.height, r0.height) * 0.8) continue;
         sc = along + Math.abs(ey) * 3;
       }
-      if (sc < bs) { bs = sc; best = b; }
+      const isPlayer = verticalPicker && b.hasAttribute('data-pk');
+      if ((isPlayer && !bestIsPlayer) || (isPlayer === bestIsPlayer && sc < bs)) {
+        bs = sc; best = b; bestIsPlayer = isPlayer;
+      }
     }
     if (best) { navSet(root, best); PH.audio.play('ui'); if (best.hasAttribute('data-pk')) pkDetail(best.getAttribute('data-pk')); }
     else if (dx && cur.tagName === 'SELECT') navAdjust(cur, dx);   // 下拉：左右旁边没有别的控件时才左右切选项（A 也能切下一项）
