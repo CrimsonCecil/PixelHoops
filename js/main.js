@@ -999,13 +999,15 @@
   // 5V5 镜头设置（参考 2K：2K 镜头 / 转播 + 远近 0~10 + 高度 0~10（2K 镜头 0~20）；两种镜头各记一套，登记在调参台 t5_cam*）
   function cam5Labels() { const C = PH.T5.CAMS; $('c5-preset').textContent = '镜头 ' + (C.preset === '2k' ? '2K 镜头' : '转播'); $('c5-z').textContent = '远近 ' + C.zoom; $('c5-h').textContent = '高度 ' + C.height; camCloud(); }
   // 镜头参数存云端：镜头值都是调参台参数，“保存到云端”就是保存当前调参配置（官方默认时新建一份并设为默认），打开游戏时默认配置自动套用
+  let camDefPend = '';
   function camCloudState() {
     const CS = PH.CS; if (!CS) return { t: '保存到云端', h: '云端存储未加载', dis: true };
     const S = CS.S, cur = CS.cur(), dirty = CS.dirty(), off = S.ready && !S.online;
-    const t = S.busy ? '保存中…' : off ? '云端离线' : !S.ready ? '连接云端…' : S.status === 'error' ? '保存失败，点击重试' : dirty ? '保存到云端' : cur.id === 'official' ? '保存到云端' : '已保存到云端';
+    const pend = !!camDefPend && camDefPend === cur.id && S.def !== cur.id;
+    const t = S.busy ? '保存中…' : off ? '云端离线' : !S.ready ? '连接云端…' : S.status === 'error' ? '保存失败，点击重试' : dirty || pend ? '保存到云端' : cur.id === 'official' ? '保存到云端' : '已保存到云端';
     const h = S.status === 'error' && S.err ? S.err : cur.id === 'official' ? '会新建配置「我的配置」并设为默认，下次打开自动套用' :
       '存进调参配置「' + cur.name + '」' + (S.def === cur.id ? '（默认配置，下次打开自动套用）' : '（不是默认配置：到调参台设为默认，打开时才会套用）') + (dirty && tuneOtherDirty() ? '；调参台里其它未保存改动也会一起保存' : '');
-    return { t: t, h: h, dis: off || !S.ready || S.busy || !dirty };
+    return { t: t, h: h, dis: off || !S.ready || S.busy || !(dirty || pend) };
   }
   function tuneOtherDirty() {
     const T = PH.TUNE, CS = PH.CS; if (!T || !CS) return false;
@@ -1019,7 +1021,12 @@
   }
   async function camSave() {
     const CS = PH.CS; if (!CS || CS.S.busy) return;
-    if (CS.cur().id === 'official') { if (await CS.saveAs('我的配置')) await CS.setDefault(); } else await CS.save();
+    if (CS.cur().id === 'official') { if (await CS.saveAs('我的配置')) { camDefPend = CS.cur().id; await CS.setDefault(); } }
+    else {
+      const ok = CS.dirty() ? await CS.save() : true;
+      if (ok && camDefPend === CS.cur().id && CS.S.def !== camDefPend) await CS.setDefault();
+    }
+    if (CS.S.def === camDefPend) camDefPend = '';
     camCloud();
   }
   $('cam-save').addEventListener('click', () => camSave());
