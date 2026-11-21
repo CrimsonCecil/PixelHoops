@@ -41,7 +41,7 @@
     G.ball = { x: h.x, y: h.y, z: 1, vx: 0, vy: 0, vz: 0, state: 'held', holder: h.id, spin: 0, shot: null, lastTouch: h.id, noPick: 0, dead: false, under: false, trail: null };
     matchups();
     A.banner(message || '弧顶交换球', GM.TEAMS[team].name + '球权', GM.TEAMS[team].css, 0.9);
-    def[0].x = h.x + 1.6; def[0].y = h.y + 1.25; A.checkBall(def[0], h);
+    A.checkBall(def[0], h);
   }
   function lost(by, text, receiving) {
     if (by) G.stats[by.id].tov++;

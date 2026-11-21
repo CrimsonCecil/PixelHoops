@@ -18,6 +18,10 @@ function load(extra = []) {
 
 function watch(G, step, offId, defId) {
   const log = [];
+  { const o = G.players[offId], d = G.players[defId], hy = 12.425, r = (p) => Math.hypot(p.x, p.y - hy);
+    assert(r(o) > 6.75 && r(o) < 8, 'receiver starts just outside the arc at the top');
+    assert(r(d) < 6.75 && d.y > o.y, 'checker stands inside the arc between the receiver and the hoop');
+    const gap = Math.hypot(d.x - o.x, d.y - o.y); assert(gap > 1.3 && gap < 1.8, 'checker faces the receiver about 1.5 m away (' + gap.toFixed(2) + ')'); }
   for (let i = 0; i < 120 && G.phase === 'check'; i++) {
     const o = G.players[offId], d = G.players[defId], b = G.ball;
     log.push({ t: i / 60, state: b.state, z: b.z, dO: Math.hypot(b.x - o.x, b.y - o.y), dD: Math.hypot(b.x - d.x, b.y - d.y), oBall: o.hasBall, dHands: !!(d.pose && d.pose.passHands) });

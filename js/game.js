@@ -1646,11 +1646,11 @@
     const o = G.players[offId], d = G.players[1 - offId], b = G.ball;
     G.off = offId; G.needClear = false; G.illId = -1; G.shotClock = CFG.shotClock; G.phase = 'check'; G.phaseT = 1.1;
     for (const p of G.players) { p.vx = p.vy = p.vz = 0; p.z = 0; p.action = null; p.stun = 0; p.hasBall = false; p.stance = false; p.box = false; p.jbuf = 0; p.post = false; p.boost = 0; p.combo = 0; p.stam = Math.min(100, p.stam + 25); p.ai.t = 0.3; p.ai.jumpAt = -1; p.ai.hold = false; p.ai.comboAt = -1; }
-    o.x = 0; o.y = 4.4; o.face = Math.PI / 2; o.hasBall = true; o.hand = o.arch.lefty ? -1 : 1; o.handX = 0.33 * o.hand;
+    o.x = 0; o.y = 4.65; o.face = Math.PI / 2; o.hasBall = true; o.hand = o.arch.lefty ? -1 : 1; o.handX = 0.33 * o.hand;
     if (!d.off) { d.x = 0; d.y = 6.6; d.face = -Math.PI / 2; } d.ai.hx = o.x; d.ai.hy = o.y;
     b.state = 'held'; b.holder = offId; b.dead = false; b.shot = null; b.lastTouch = offId; b.under = false; b.trail = null; b.wasShot = false; b.slam = null;
     if (msg) banner(msg, G.mode === 'train' ? '' : o.team.name + '球权', o.team.css, 1.1);
-    G.chk = null; if (G.mode !== 'train' && !d.off) { d.x = o.x + 1.6; d.y = o.y + 1.25; checkStart(d, o); }
+    G.chk = null; if (G.mode !== 'train' && !d.off) checkStart(d, o);
     mpCheck();
   }
   // check ball（1V1 / 3V3）：防守人在弧顶持球，击地传给进攻人，接住才算活球
@@ -1661,7 +1661,10 @@
     const rx = Math.sin(p.face) * 0.11, ry = -Math.cos(p.face) * 0.11;
     p.pose.passHands = { L: [c[0] - rx, c[1] - ry, c[2]], R: [c[0] + rx, c[1] + ry, c[2]], follow: 0 };
   }
+  // 2K 式站位：进攻人在弧顶三分线外，防守人在三分线内正面对着他、离 1.5 米（稍偏一点免得镜头被进攻人挡住）
+  const CHK_GAP = 1.5, CHK_SIDE = 0.45;
   function checkStart(d, o) {
+    d.x = o.x + CHK_SIDE; d.y = o.y + CHK_GAP; d.vx = d.vy = 0;
     const b = G.ball;
     d.hasBall = o.hasBall = false; chkFace(d, o); chkFace(o, d);
     G.chk = { d: d.id, o: o.id, t: 0, bnc: false };
