@@ -3779,12 +3779,14 @@
     if (hesiBurst && !df.off && front > 0 && dd < 3) {
       const side = Math.abs(q.lat) > 0.1 ? Math.sign(q.lat) : Math.abs((df.x - pl.x) * -hy + (df.y - pl.y) * hx) > 0.15 ? openS : -h0;
       const rawX = q.x / q.l, rawY = q.y / q.l, toX = df.x - pl.x, toY = df.y - pl.y, radius = K.bdR + 0.12;
-      const angle = Math.atan2(toY, toX), spread = Math.asin(Math.min(1, radius / dd)), lanes = [[rawX, rawY]];
+      const fwd = Math.max(0, q.fwd), len = Math.hypot(fwd, q.lat) || 1, stickX = (hx * fwd - hy * q.lat) / len, stickY = (hy * fwd + hx * q.lat) / len;
+      const angle = Math.atan2(toY, toX), spread = Math.asin(Math.min(1, radius / dd)), lanes = [[rawX, rawY], [stickX, stickY]];
       for (const s of [side, -side]) lanes.push([Math.cos(angle + s * spread), Math.sin(angle + s * spread)]);
-      let best = -Infinity; dx = rawX; dy = rawY;
+      let best = -Infinity; dx = stickX; dy = stickY;
       for (const lane of lanes) {
         const toward = Math.max(0, toX * lane[0] + toY * lane[1]);
         if (lane[0] * hx + lane[1] * hy < -1e-9 || dd * dd - toward * toward < radius * radius - 1e-9) continue;
+        if (Math.abs(q.lat) > 0.1 && (lane[0] * -hy + lane[1] * hx) * q.lat < -1e-9) continue;
         const score = lane[0] * rawX + lane[1] * rawY;
         if (score > best + 1e-9) { best = score; dx = lane[0]; dy = lane[1]; }
       }

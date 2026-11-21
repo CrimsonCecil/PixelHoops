@@ -460,8 +460,30 @@ for (const hand of [1, -1]) for (const side of [1, -1]) {
   assert.equal(p.action.dy, 1);
 }
 
+for (const hand of [1, -1]) for (const side of [1, -1]) for (const defX of [0, 0.65]) {
+  const { game, p, d } = fixture(hand);
+  game.G.mode = '2p';
+  Object.assign(p, { x: 0, y: 6.8, face: Math.PI / 2 });
+  Object.assign(d, { x: side * defX, y: defX ? 7.3 : 8.05, vx: 0, vy: 0, dummy: false, ctrl: 'p2', stun: 0 });
+  const step = inp => game.tick(1 / 120, q => q === p ? inp : game.t5.zeroInp());
+  for (let i = 0; i < 24; i++) step({ mx: 0, my: 0, a3: true, hesi: true });
+  step({ mx: side * 0.9, my: -0.3 });
+  const a = p.action;
+  assert(a.hesiBurst);
+  assert.equal(a.kind, hand * side > 0 ? 'inout' : 'cross', 'slight backward input is not a stepback');
+  assert.equal(a.dx, side, 'clamped stick candidate or fallback must keep the requested lateral side');
+  assert(Math.abs(a.dy) < 1e-9, 'remove the backward component instead of reversing the lateral component');
+  for (let i = 0; i < 100 && p.action === a; i++) {
+    step({ mx: side * 0.9, my: -0.3 });
+    assert.equal(a.dx, side);
+    assert(Math.abs(a.dy) < 1e-9);
+    assert(p.x * side >= -1e-9, 'release never exits on the opposite side');
+  }
+}
+
 console.log('Hesitation: sideways one-hand fake, release directions, buffering, move requirements, post-up, possession loss, and 5V5 passed.');
 console.log('PASS hesitation shoulder lanes: forward/diagonal releases, both hands, 1V1/5V5, forward-held recovery, and CPU combo exits');
 console.log('PASS forward hesitation near baseline: defender beyond rim, both hands');
 console.log('PASS sideways hesitation: clear stick lanes preserved against diagonal defenders, both hands and sides');
 console.log('PASS blocked sideways hesitation: open inside shoulder, full burst, both hands/sides, raw fallback when no lane clears');
+console.log('PASS slightly backward sideways hesitation: clamped stick candidate/fallback, no opposite-side exit, both hands and sides');
