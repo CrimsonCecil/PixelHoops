@@ -3526,12 +3526,12 @@
   }
   // 起跳那一刻定扣篮方式：轻按=自动（看速度/角度/对抗），按住不放=花式，连按两下=双手暴扣；摇杆 / L+方向：前=双手、左右=单手、后=花式
   function pickDunk(pl, a) {
+    const mode = pl.ctrl === 'cpu' ? a.aiMode : a.stick || (a.dbl ? 'two' : !a.rel && (a.hT || 0) >= 0.15 ? 'flashy' : 'auto');
     const spot = { x: HOOP.x + clamp(pl.x - HOOP.x, -0.4, 0.4) * 0.5, y: HOOP.y - 0.5 };
-    if (a.vcRunway && skOf(pl, 'carter') && !a.stand && dunkPkg(pl.arch).S.windmill && !G.players.some((d) => !d.off && TM(d) !== TM(pl) && Math.hypot(d.x - spot.x, d.y - spot.y) < K.vcSetRadius && Math.hypot(d.vx, d.vy) < K.vcSetSpeed && d.z <= 0.05)) { a.sigMove = 'carter'; fireSkill(pl); return 'windmill'; }
+    if (mode === 'auto' && a.vcRunway && skOf(pl, 'carter') && !a.stand && dunkPkg(pl.arch).S.windmill && !G.players.some((d) => !d.off && TM(d) !== TM(pl) && Math.hypot(d.x - spot.x, d.y - spot.y) < K.vcSetRadius && Math.hypot(d.vx, d.vy) < K.vcSetSpeed && d.z <= 0.05)) { a.sigMove = 'carter'; fireSkill(pl); return 'windmill'; }
     const df = OP(pl), c = contestOf(pl, df, 'in'), dR = dunkR(pl, a.run0 || 0), edge = df.off ? 1 : dunkAtk(pl, dR) - rimDef(df);
     const baseline = pl.y > HOOP.y - 0.9 && Math.abs(pl.x - HOOP.x) > 0.7;
     const PK = dunkPkg(pl.arch), S = PK.S, pw = PK.cls === 'power', tk0 = distHoop(pl);
-    const mode = pl.ctrl === 'cpu' ? a.aiMode : a.stick || (a.dbl ? 'two' : !a.rel && (a.hT || 0) >= 0.15 ? 'flashy' : 'auto');
     // 按权重从这个人会的扣法里抽一个
     const pick = (W) => { if (pl.arch.key === 'carter') W.windmill = 0; let sum = 0; for (const k in W) if (S[k] && W[k] > 0) sum += W[k]; if (!sum) return S.two ? 'two' : 'one'; let x = rnd() * sum; for (const k in W) if (S[k] && W[k] > 0 && (x -= W[k]) < 0) return k; return 'two'; };
     const shaqy = S.shaq ? 1 : 0;

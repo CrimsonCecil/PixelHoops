@@ -145,16 +145,26 @@ for (const [label, key, v, distance, expired] of [
   gm.t5.aiInput(p, 0.01); Q.updateAction(p, {}, 0.01, false);
   assert.equal(p.action.sigMove, 'iverson', 'CPU uses existing held-hesi cross release');
 }
-function dunk(key = 'carter', runway = true, planted = false, speed = 5) {
+function dunk(key = 'carter', runway = true, planted = false, speed = 5, request = {}) {
   const { p, d } = setup(key, 4.5);
   p.sk.runway = runway ? K.vcRunway + 0.5 : 0; p.vy = speed;
-  gm._dbg.startDunk(p, gm._dbg.finPlan(p), 'a2'); const a = p.action;
+  gm._dbg.startDunk(p, gm._dbg.finPlan(p), 'a2', request.stick); const a = p.action;
+  Object.assign(a, request);
   const w = a.wp[a.wp.length - 1]; Object.assign(p, { x: w.x, y: w.y });
   if (planted) Object.assign(d, { x: H.x, y: H.y - 0.5, stance: true, vx: 0, vy: 0 });
   Q.dunkTakeoff(p, a);
   return { p, d, a };
 }
 assert.equal(dunk().a.v, 'windmill'); assert.equal(dunk().a.sigMove, 'carter');
+for (const request of [{ stick: 'two' }, { dbl: true }, { stick: 'side' }, { stick: 'flashy' }, { hT: 0.2 }]) {
+  const { p, a } = dunk('carter', true, false, 5, request);
+  assert(a.vcRunway, 'explicit-request fixture qualifies for runway signature');
+  assert.equal(a.sigMove, undefined, 'explicit dunk requests override signature preference');
+  assert.equal(p.sk.cd, 0, 'explicit requests do not consume signature cooldown');
+  assert.notEqual(a.v, 'windmill');
+  if (request.stick === 'two' || request.dbl) assert(['two', 'rimpull'].includes(a.v), 'forward input and double-tap retain two-handed selection');
+}
+console.log('PASS Carter explicit dunk requests: forward/two-handed, double-tap, side, flashy and held input override runway windmill preference');
 for (const [key, runway, planted, speed] of [['carter', false, false, 5], ['carter', true, true, 5], ['carter', true, false, 1], ['kobe', true, false, 5]]) {
   const { a } = dunk(key, runway, planted, speed);
   assert.equal(a.sigMove, undefined, 'runway, speed, planted and player gates');
