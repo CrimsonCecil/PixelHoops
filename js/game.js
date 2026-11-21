@@ -2439,7 +2439,7 @@
     'kobe|kyrie': [['kyrie', '2012 年就说要跟你单挑，今天兑现！'], ['kobe', 'taunt', 0], ['kyrie', 'taunt', 3]] };
   // 入场走位时的造势动作（上半身），走到位后再做招牌动作
   const IWALK = { lebron: ['raise', 'wave'], curry: ['wave', 'shimmy'], kobe: ['wave', 'point'], shaq: ['raise', 'dance'], giannis: ['chest', 'flex'], luka: ['wave', 'wag'], kyrie: ['point', 'wave'], herb: ['flex', 'chest'] };
-  const IW = 4.6, IS = 1.7, IG = 1.7;
+  const IWA = 3.8;
   const plById = (id) => G.players.find((p) => p.id === id);
   function introStart() {
     if (G.mode === 'demo' || G.mode === 'train' || G.mode === 't5') return;
@@ -2455,22 +2455,19 @@
     const spots = ps.map((p) => ({ p: p, x: p.x, y: p.y, face: p.face }));
     spots.forEach((s, i) => { const sd = TM(s.p) === 0 ? -1 : 1; Object.assign(s.p, { x: sd * 7.1, y: clamp(s.y + 1.4 + (i % 3) * 0.35, 0.5, 12.5), face: sd < 0 ? 0 : Math.PI, vx: 0, vy: 0, speed: 0 }); });
     const t0 = G.time;
-    const walk = [];
-    for (const p of ps) {
-      const L = p === fa || p === fb ? IWALK[p.arch.key] || ((CELS[p.arch.key] || []).slice(1, 2).concat(['wave'])).slice(0, 2).reverse() : ['wave'];
-      L.forEach((ty, j) => walk.push({ id: p.id, ty: ty, t0: t0 + 0.45 + j * (IG + 0.25) + (p === fa || p === fb ? 0 : 1 + (p.id % 3) * 0.4), T: IG }));
-    }
-    G.intro = { t0: t0, duo: [fa.id, fb.id], walk: walk, spots: spots, lines: lines, li: -1, lt: 0, ld: 0, tT: t0 + IW + 2 * IS, cam: null, foc: null, banner: G.banner, phaseT: G.phaseT,
-      sig: [fa, fb].map((p, j) => ({ id: p.id, ty: ISIG[p.arch.key] || (CELS[p.arch.key] || ['flex'])[0], t0: t0 + IW + j * IS, T: IS - 0.1, on: false, fx: false })) };
+    const sigOf = (p) => ISIG[p.arch.key] || (CELS[p.arch.key] || ['flex'])[0], walk = [];
+    for (const s of spots) { const p = s.p, star = p === fa || p === fb; s.w0 = t0 + (TM(p) === TM(fa) ? 0 : IWA); s.w1 = s.w0 + IWA;
+      (star ? [(IWALK[p.arch.key] || ['wave'])[0], sigOf(p)] : ['wave']).forEach((ty, j) => walk.push({ id: p.id, ty: ty, t0: s.w0 + (star ? 0.3 + j * 1.75 : 0.9 + (p.id % 3) * 0.3), T: 1.6, fx: false })); }
+    G.intro = { t0: t0, duo: [fa.id, fb.id], walk: walk, spots: spots, lines: lines, li: -1, lt: 0, ld: 0, tT: t0 + 2 * IWA + 0.4, cam: null, foc: null, banner: G.banner, phaseT: G.phaseT,
+      sig: [] };
     G.cz = null; G.cutin = null; G.phase = 'intro';
-    banner(fa.arch.full + '  VS  ' + fb.arch.full, G.mode === 't3' ? '3V3 · 球员入场' : '1V1 · 球员入场', '#ffd24a', 2.2);
   }
   const introSig = (pl) => { const I = G.intro; if (!I) return null; for (const S of I.sig) if (S.id === pl.id && G.time >= S.t0 && G.time < S.t0 + S.T) return S; return null; };
   const introWalk = (pl) => { const I = G.intro; if (!I || !I.walk) return null; for (const S of I.walk) if (S.id === pl.id && G.time >= S.t0 && G.time < S.t0 + S.T) return S; return null; };
   function introFace(pl) {
     const I = G.intro; if (introSig(pl)) return -Math.PI / 2;
     if (introWalk(pl) && pl.speed > 0.5) { const m = Math.atan2(pl.vy, pl.vx); return Math.atan2(Math.sin(m) - 1.1, Math.cos(m)); }
-    if (pl.speed > 1 || G.time < I.t0 + IW) return null;
+    if (pl.speed > 1) return null;
     const o = OP(pl); if (!o) return null; const a1 = Math.atan2(o.y - pl.y, o.x - pl.x); return Math.atan2(Math.sin(a1) - 0.9, Math.cos(a1));
   }
   function introCam(p, u) { const I = G.intro; I.cam = p ? { x: p.x, y: p.y, u: u } : null; }
@@ -2481,25 +2478,24 @@
     const now = G.time;
     for (const s of I.spots) {
       const p = s.p, inp = zeroInp(), dx = s.x - p.x, dy = s.y - p.y, d = Math.hypot(dx, dy);
-      if (d > 0.12) { const v = d / Math.max(0.35, I.t0 + IW - 0.35 - now), k = Math.min(1, d / 0.9) * clamp(v / 4.4, 0.22, 0.85); inp.mx = dx / d * k; inp.my = dy / d * k; }
+      if (d > 0.12 && now >= s.w0) { const v = d / Math.max(0.35, s.w1 - 0.35 - now), k = Math.min(1, d / 0.9) * clamp(v / 4.4, 0.22, 0.85); inp.mx = dx / d * k; inp.my = dy / d * k; }
       updatePlayer(p, inp, dt);
     }
     updateBall(dt);
-    for (const S of I.sig) {
-      const p = plById(S.id);
-      if (!S.on && now >= S.t0) { S.on = true; banner(p.arch.full, '招牌动作 · ' + ISIG_CN[S.ty], p.team.css, S.T); introCam(p, 0.3); sfx('cheer'); }
-      if (S.ty === 'chalk' && !S.fx && now >= S.t0 + 0.42) { S.fx = true; burst(p.x, p.y, p.h + 0.45, 70, ['#ffffff', '#f4f1e8', '#e2ded2', '#fffbe9'], 2.3, 1.7, 1.1, 2); }
-    }
+    for (const S of I.walk) if (S.ty === 'chalk' && !S.fx && now >= S.t0 + 0.42) { S.fx = true; const p = plById(S.id); burst(p.x, p.y, p.h + 0.45, 70, ['#ffffff', '#f4f1e8', '#e2ded2', '#fffbe9'], 2.3, 1.7, 1.1, 2); sfx('cheer'); }
     if (I.li < 0 ? now >= I.tT : now >= I.lt + I.ld) introNext();
     if (!G.intro) return;
     const A = plById(I.duo[0]), B2 = plById(I.duo[1]), mid = { x: (A.x + B2.x) / 2, y: (A.y + B2.y) / 2 };
-    if (now < I.t0 + IW) I.cam = { x: mid.x * 0.8, y: mid.y, u: clamp(0.2 - (Math.abs(A.x - B2.x) - 3) * 0.06, -0.25, 0.2) };
+    const sh = I.li < 0 ? (now < I.t0 + IWA ? A : B2) : null;
+    if (sh) { if (I.shot !== sh.id) { I.shot = sh.id; I.snap = true; banner(sh.arch.full, '入场 · ' + (ISIG_CN[(I.walk.find((S) => S.id === sh.id && S.ty === (ISIG[sh.arch.key] || S.ty)) || {}).ty] || '登场'), sh.team.css, 2.6); } I.cam = { x: sh.x, y: sh.y, u: 0.3 }; }
     else if (I.li >= 0) I.cam = { x: mid.x, y: mid.y, u: 0.1 };
+    const cut = I.snap; I.snap = false;
     const C = I.cam;
     if (G.mode === 't3') I.foc = C;
     else {
       if (!G.cz && C) G.cz = { x: C.x, y: C.y, z: 1.2, t: 0, T: 999, u: C.u, k: 0 };
-      if (G.cz) { const z = G.cz, r = Math.min(1, dt * 4); z.t = 0; if (C) { z.x += (C.x - z.x) * r; z.y += (C.y - z.y) * r; z.u = C.u; } z.k += ((C ? 1 : 0) - z.k) * Math.min(1, dt * 3); if (!C && z.k < 0.02) G.cz = null; }
+      if (G.cz && cut) G.cz.k = 1;
+      if (G.cz) { const z = G.cz, r = cut ? 1 : Math.min(1, dt * 4); z.t = 0; if (C) { z.x += (C.x - z.x) * r; z.y += (C.y - z.y) * r; z.u = C.u; } z.k += ((C ? 1 : 0) - z.k) * Math.min(1, dt * 3); if (!C && z.k < 0.02) G.cz = null; }
     }
   }
   function introNext() {
@@ -2522,7 +2518,7 @@
     const I = G.intro; if (!I) return;
     for (const s of I.spots) Object.assign(s.p, { x: s.x, y: s.y, face: s.face, vx: 0, vy: 0, speed: 0 });
     G.intro = null; G.cz = null; G.phase = 'check'; G.phaseT = I.phaseT;
-    if (I.banner) { G.banner = I.banner; G.banner.t = 0; }
+    banner('GAME START', '比赛开始', '#ffd24a', 1.8);
     if (PH.audio && PH.audio.voStop) PH.audio.voStop();
     if (G.mode === 't3' && PH.T3 && PH.T3.rearm) PH.T3.rearm();
   }

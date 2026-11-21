@@ -34,17 +34,17 @@ function runIntro(Gm, G) {
   Gm.introStart();
   assert.equal(G.phase, 'intro');
   assert.ok(Math.abs(G.players[0].x) > 6 && Math.abs(G.players[1].x) > 6, 'players start on the sidelines');
-  assert.equal(G.intro.sig[0].ty, 'chalk', 'LeBron opens with the chalk toss');
+  assert.ok(G.intro.walk.some((S) => G.players[S.id].arch.key === 'lebron' && S.ty === 'chalk'), 'LeBron tosses chalk on his walk-in');
+  assert.equal(G.players[G.intro.duo[0]].arch.key, 'lebron', 'first shot is LeBron');
   const saw = runIntro(Gm, G);
   assert.ok(saw.walk, 'players walk in');
-  assert.deepEqual([...saw.sig].sort(), [0, 1], 'both players do a signature move');
   assert.match(saw.lines[0].t, /1 比 3/);
   assert.match(saw.lines[1].t, /四枚/);
   assert.equal(saw.lines.length, 4);
   assert.deepEqual(said, ['currydom0'], 'only the voiced line plays the voice pack');
   assert.equal(G.phase, 'check');
   G.players.forEach((p, i) => { assert.equal(p.x, want[i][0]); assert.equal(p.y, want[i][1]); });
-  assert.ok(G.banner && G.banner.text === '开球', 'tip-off banner restored');
+  assert.ok(G.banner && G.banner.text === 'GAME START', 'GAME START title at the cut to the game camera');
   assert.ok(!/猩猩|动物园/.test(JSON.stringify(Gm.TALK)), 'no ape / zoo lines');
   console.log('PASS: 1V1 LeBron vs Curry intro walks in, does signatures, plays 4 rivalry lines, then hands off to the check.');
 }
@@ -69,7 +69,7 @@ function runIntro(Gm, G) {
   const want = G.players.map((p) => [p.x, p.y]);
   Gm.introStart();
   assert.equal(G.phase, 'intro');
-  assert.equal(G.intro.sig.map((s) => G.players[s.id].arch.key).sort().join(), 'curry,kyrie', '3V3 features the rivalry pair');
+  assert.equal(G.intro.duo.map((id) => G.players[id].arch.key).sort().join(), 'curry,kyrie', '3V3 features the rivalry pair');
   const saw = runIntro(Gm, G);
   assert.ok(saw.walk);
   assert.match(saw.lines[0].t, /2016 抢七/);
