@@ -23,7 +23,7 @@ for (const [key, type, ovr, inches, pounds, open, reply] of [
   assert(game.ROSTER.indexOf(key) < game.ROSTER.indexOf('peat'));
   assert.equal(a.skill.id, key);
   assert.equal(PT.of(a).id, type);
-  assert.equal(ctx.PH.buildTags[key], 'lean');
+  assert.equal(ctx.PH.buildTags[key], key === 'tmac' ? 'balanced' : 'lean');
   assert.deepEqual(Array.from(ctx.PH.measurements[key]), [inches, pounds]);
   for (const b of a.badges) assert(game.BADGES[b], b);
   assert.equal(audio.voLine(key, 'dom', 0).t, open);

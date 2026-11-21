@@ -1359,6 +1359,7 @@
   };
 
   const SZ = 300, OX = 150, OY = 270;
+  const PINSTRIPES = [0.23, 0.5, 0.77];
   const FACES = { square: { w: 1, h: 1.05, r: 0.1, rb: 0.12, chin: 0 }, round: { w: 1.04, h: 1.02, r: 0.42, rb: 0.42, chin: 0 }, oval: { w: 0.9, h: 1.14, r: 0.34, rb: 0.38, chin: 0.12 },
     long: { w: 0.84, h: 1.26, r: 0.24, rb: 0.3, chin: 0.08 }, wide: { w: 1.2, h: 0.98, r: 0.34, rb: 0.3, chin: 0 },
     tapered: { w: 1, h: 1.14, r: 0.33, rb: 0.34, chin: 0.13 },
@@ -1485,13 +1486,18 @@
       if (h >= 15) px(0, h * 0.22, w, 1, shade(C.band, 1.16));
     }
     if (!away) {
-      const ey = h * 0.49, open = C.eyes === 'open', es = Math.max(1, Math.floor(w * (open ? 0.22 : 0.15))), ei = Math.max(1, Math.round(w * (open ? 0.2 : 0.19)));
+      const ey = h * 0.49, open = C.eyes === 'open', hooded = C.eyes === 'hooded';
+      const es = Math.max(1, Math.floor(w * (open ? 0.22 : hooded ? 0.24 : 0.15))), ei = Math.max(1, Math.round(w * (open ? 0.2 : 0.19)));
       const eyes = profile ? [side > 0 ? w - ei - es : ei] : [ei, w - ei - es];
       const cx = w * 0.5 + side * w * 0.21, nose = shade(skin, fs.soft ? 0.91 : 0.81);
       const browWidth = es + (C.brow === 'heavy' ? 1 : 0) - (fs.soft ? 1 : 0), browColor = fs.soft ? shade(skin, 0.62) : hr;
       for (const ex of eyes) {
         if (w >= 10) px(ex, ey - (open ? 3 : C.brow === 'soft' ? 1 : 2), browWidth, 1, browColor);
-        if (open && es > 2) {
+        if (hooded) {
+          px(ex, ey - 1, es, 1, shade(skin, 0.57));
+          if (es > 1) px(ex, ey, es, 1, shade(skin, 1.48));
+          px(ex + Math.floor(es / 2), ey, 1, 1, '#211620');
+        } else if (open && es > 2) {
           px(ex, ey, es, 1, '#eee6da');
           px(ex + 1, ey + 1, es - 2, 1, '#eee6da');
           px(ex + Math.floor(es / 2), ey, 1, 2, '#3d2c24');
@@ -1519,8 +1525,17 @@
         px(0, h * cheekTop, w * cheek, h * (1 - cheekTop), hr); px(w * (1 - cheek), h * cheekTop, w * cheek, h * (1 - cheekTop), hr);
         px(0, h * 0.82, w, h * 0.18, hr); px(cx - w * 0.18, h * 0.73, w * 0.36, 1, hr);
       } else if (bd === 'goatee') {
-        px(cx - w * 0.14, h * 0.84, w * 0.28, h * 0.16, hr);
-        if (C.smile) px(cx - w * 0.23, h * 0.72, w * 0.46, 1, hr);
+        if (C.beardFit === 'light') {
+          const beard = shade(skin, 0.46), moustache = shade(skin, 0.57);
+          px(cx - w * 0.11, h * 0.86, w * 0.22, h * 0.12, beard);
+          if (w >= 12) {
+            px(cx - w * 0.17, h * 0.73, w * 0.13, 1, moustache);
+            px(cx + w * 0.04, h * 0.73, w * 0.13, 1, moustache);
+          } else px(cx - w * 0.13, h * 0.73, w * 0.26, 1, moustache);
+        } else {
+          px(cx - w * 0.14, h * 0.84, w * 0.28, h * 0.16, hr);
+          if (C.smile) px(cx - w * 0.23, h * 0.72, w * 0.46, 1, hr);
+        }
       } else if (bd === 'trimmed') {
         px(w * 0.04, h * 0.72, w * 0.1, h * 0.19, hr); px(w * 0.86, h * 0.72, w * 0.1, h * 0.19, hr);
         px(w * 0.1, h * 0.87, w * 0.8, h * 0.13, hr); px(cx - w * 0.17, h * 0.73, w * 0.34, 1, hr);
@@ -1635,7 +1650,7 @@
       J.neck = { x: lerpN(Q.x, J.head.x, 0.55), y: lerpN(Q.y, J.head.y, 0.55), d: Q.d };
       seg('pelvis', 'mid', 0.32 * B.waist, C.jersey, 0, shoulderTop);
       seg('mid', 'chest', 0.375 * tw, C.jersey, 0, shoulderTop);
-      if (B.taper) {
+      if (B.taper || C.pinstripes) {
         segs[segs.length - 2].hidden = true;
         segs[segs.length - 1].torso = true;
       }
@@ -1650,6 +1665,7 @@
         segs[segs.length - 1].tattoos = true;
       }
       seg('el' + side, 'hand' + side, (B ? 0.106 : 0.095) * armWidth, sleeve);
+      if (C.wristband) segs[segs.length - 1].wristband = true;
       if (B || (pl.pose['fl' + side] || 0) > 0.15) seg('hand' + side, 'fg' + side, 0.075 * lw, C.skin);
     }
     segs.push({ head: true, d: J.head.d - 0.02 });
@@ -1676,12 +1692,22 @@
           const x = Math.round(lerpN(J.chest.x, J.pelvis.x, t) - width / 2);
           sctx.fillStyle = C.jersey[0]; sctx.fillRect(x, y, width, 1);
           sctx.fillStyle = C.jersey[1]; sctx.fillRect(x, y, Math.max(1, width - 1), 1);
+          if (C.pinstripes && width >= 5) {
+            sctx.fillStyle = C.pinstripes;
+            for (const u of PINSTRIPES) sctx.fillRect(x + Math.round(u * (width - 2)), y, 1, 1);
+          }
         }
         if (g === lastJersey) drawJerseyNumber(sctx, C, numberTorso, s);
       } else if (g.hidden) {
         continue;
       } else {
         brush(sctx, g.a.x, g.a.y, g.b.x, g.b.y, g.w, g.c[0], g.c[1], g.top, !!B && (g.c === C.jersey || g.c === C.shorts), g.endWidth);
+        if (g.wristband) {
+          const x = lerpN(g.a.x, g.b.x, 0.81), y = lerpN(g.a.y, g.b.y, 0.81);
+          const dx = g.b.x - g.a.x, dy = g.b.y - g.a.y, len = Math.hypot(dx, dy) || 1;
+          const half = g.w * 0.35 / len, nx = dy * half, ny = -dx * half;
+          brush(sctx, x - nx, y - ny, x + nx, y + ny, Math.max(2, 0.046 * s), ...C.wristband);
+        }
         if (g.tattoos) {
           sctx.fillStyle = '#344947';
           for (const t of [0.25, 0.4, 0.65]) {

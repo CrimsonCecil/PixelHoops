@@ -1482,7 +1482,8 @@
       three: 0.88, mid: 0.9, lay: 0.99, dunk: 0.35, spd: 0.9, acc: 0.95, hnd: 0.99, str: 0.45, def: 0.62, blk: 0.3, stl: 0.68, vert: 0.7, sta: 0.82,
       badges: ['ankle', 'acrobat', 'tight', 'clutch'], skin: '#9a623f', hair: '#120c08', style: 'short', beard: 'full', band: '#f4f0e0',
       skill: { id: 'kyrie', name: '魔术手', en: 'UNCLE DREW', cond: '防守人 3 米内，连续使出 2 个不同运球动作（第 2 个动作时释放）', eff: '必定晃倒防守人 1.5 秒，第 3 个动作爆发 +20%；之后 1.6 秒内的下一次出手（跳投或上篮）绿区 ×1.7、干扰减半' } }),
-    tmac: A({ key: 'tmac', tier: 'star', name: '麦迪', full: '特雷西·麦克格雷迪', pos: '得分后卫/小前锋', num: 1, desc: '修长锋卫，直上直下的高点干拔', h: 2.032, bw: 0.88, wing: 1,
+    tmac: A({ key: 'tmac', tier: 'star', kitTeam: 'ORL', name: '麦迪', full: '特雷西·麦克格雷迪', pos: '得分后卫/小前锋', num: 1, desc: '修长锋卫，直上直下的高点干拔', h: 2.032, bw: 0.88, wing: 1,
+      matchKit: { jersey: '#0874c9', shorts: '#0865b2', trim: '#f4f7fa', pinstripes: '#68acd9' },
       three: 0.86, mid: 0.96, lay: 0.88, dunk: 0.85, spd: 0.85, acc: 0.84, hnd: 0.92, str: 0.63, def: 0.73, blk: 0.57, stl: 0.68, vert: 0.88, sta: 0.85,
       badges: ['pullup', 'deadeye'], skin: '#925f40', hair: '#120c08', style: 'buzz', beard: 'goatee',
       skill: { id: 'tmac', name: '一步拔起', en: 'ONE-STEP PULL-UP', cond: '试探或运球后短时间内直起干拔；收球侧贴防取消加成', eff: '高点直起、稍快出手，温和命中加成；仍受干扰和封盖' } }),
@@ -1725,7 +1726,7 @@
     return 0.3 * r + 0.59 * g + 0.11 * b;
   };
   function applyMatchKits(players) {
-    const [home, away] = players.map(p => TEAMS_NBA[p.arch.kitTeam || (p.arch.team === 'LEG' ? 'LAL' : p.arch.team)] || TEAMS[p.id]);
+    const [home, away] = players.map(p => p.arch.matchKit || TEAMS_NBA[p.arch.kitTeam || (p.arch.team === 'LEG' ? 'LAL' : p.arch.team)] || TEAMS[p.id]);
     let awayKit = away;
     if (kitDistance(home.jersey, away.jersey) < 120) {
       const white = '#eeeae0';
@@ -1736,7 +1737,7 @@
     players.forEach((p, i) => {
       const kit = i === 0 ? home : awayKit, light = kitLuma(kit.jersey) > 150;
       const jerseyInk = Math.abs(kitLuma(kit.trim) - kitLuma(kit.jersey)) >= 105 ? kit.trim : light ? '#15101f' : '#f4f0e0';
-      Object.assign(p.col, { jersey: pair(kit.jersey), shorts: pair(kit.shorts), trim: kit.trim, jerseyInk, jerseyNo: p.arch.num == null ? null : String(p.arch.num) });
+      Object.assign(p.col, { jersey: pair(kit.jersey), shorts: pair(kit.shorts), trim: kit.trim, jerseyInk, jerseyNo: p.arch.num == null ? null : String(p.arch.num), pinstripes: kit.pinstripes });
     });
   }
   const DIFF = [
@@ -1811,14 +1812,14 @@
     flagg: { style: 'swept', face: 'long', beard: '' },
     kessler: { style: 'crop', hair: '#30251f', build: 0.15, shoulder: 1.08, muscle: 0.14 },
   };
-  Object.assign(SIGNATURE_LOOK, { tmac: { style: 'buzz', face: 'long', shoulder: 0.98 }, nash: { style: 'long', face: 'long', shoulder: 0.94 }, rip: { style: 'buzz', face: 'long', shoulder: 0.95, mask: true } });
+  Object.assign(SIGNATURE_LOOK, { tmac: { style: 'buzz', face: 'long', skin: '#a46a45', eyes: 'hooded', beard: 'goatee', beardFit: 'light', shoulder: 1.02, waistScale: 0.96, wristband: '#f4f0e0' }, nash: { style: 'long', face: 'long', shoulder: 0.94 }, rip: { style: 'buzz', face: 'long', shoulder: 0.95, mask: true } });
   const BUILD_RANGES = { lean: [-0.42, -0.12], balanced: [-0.1, 0.325], muscular: [0.335, 1.075], heavy: [0.9, 2.05] };
   function lookOf(a) {
     const sig = SIGNATURE_LOOK[a.key] || {};
     const m = PH.measurements && PH.measurements[a.key];
     const buildTag = PH.buildTags?.[a.key] || 'balanced';
     const look = { skin: pair(sig.skin || a.skin), hair: sig.hair || a.hair, style: sig.style || a.style, beard: sig.beard ?? a.beard ?? '', beardFit: sig.beardFit, band: sig.band ?? a.band ?? '',
-      bw: a.bw || 1, wing: a.wing || 1, face: sig.face || FACE[a.key] || 'square', brow: sig.brow, eyes: sig.eyes, smile: sig.smile, mouthguard: sig.mouthguard, mask: sig.mask, sleeve: sig.sleeve, dyed: sig.dyed, tattoos: sig.tattoos, buildTag };
+      bw: a.bw || 1, wing: a.wing || 1, face: sig.face || FACE[a.key] || 'square', brow: sig.brow, eyes: sig.eyes, smile: sig.smile, mouthguard: sig.mouthguard, mask: sig.mask, sleeve: sig.sleeve, wristband: sig.wristband ? pair(sig.wristband) : null, dyed: sig.dyed, tattoos: sig.tattoos, buildTag };
     if (m) {
       const [inches, pounds, span, hand] = m, height = inches * 0.0254;
       const bmi = pounds * 0.45359237 / (height * height);
