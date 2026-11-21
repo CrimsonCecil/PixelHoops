@@ -10,7 +10,7 @@ for (const name of ['tune', 'render', 'roster', 'r5', 'game']) {
   vm.runInContext(fs.readFileSync(path.join(__dirname, '../js', name + '.js'), 'utf8'), ctx, { filename: name + '.js' });
 }
 const gm = ctx.PH.game;
-const lefties = ['claxton', 'djj', 'harper', 'mamu', 'conwell', 'camara', 'cmb', 'jase', 'herb', 'harden'];
+const lefties = ['claxton', 'djj', 'harper', 'mamu', 'conwell', 'camara', 'cmb', 'jase', 'herb', 'harden', 'ginobili'];
 const righties = ['mitchell', 'mrobinson', 'ziaire', 'dqueen', 'kuminga', 'bogdan', 'joshgreen', 'lyles'];
 for (const key of [...lefties, ...righties]) {
   const lefty = lefties.includes(key);
@@ -39,4 +39,4 @@ for (const key of [...lefties, ...righties]) {
   assert(p.action.released, key + ' release');
   for (const [i, axis] of ['x', 'y', 'z'].entries()) assert(Math.abs(g.ball[axis] - expected[i]) < 1e-9, key + ' release from ' + (lefty ? 'left' : 'right') + ' hand');
 }
-console.log('PASS lefty shooters: nine corrected players and Harden use left-handed jump-shot releases; Mitchell, Robinson and six audited righties stay right-handed');
+console.log('PASS lefty shooters: nine corrected players, Harden and Ginobili use left-handed jump-shot releases; Mitchell, Robinson and six audited righties stay right-handed');
