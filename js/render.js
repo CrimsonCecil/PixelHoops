@@ -1970,7 +1970,7 @@
       else if (curOn(p, G)) { const q = proj(p.x, p.y, 0); ring(ctx, q.x, q.y, 0.62 * q.s, 0.62 * q.s * 0.34, p.col.ringCol); }   // V3.9s 1V1 电脑方也有光标（单线）
       if (skR || skH) { const q = proj(p.x, p.y, 0), pu = 0.5 + 0.5 * Math.sin(G.time * 14), rr2 = 0.62 * q.s + 3 + (skR ? pu * 2 : 0); ctx.globalAlpha = skR ? 0.6 + 0.4 * pu : 0.45; ring(ctx, q.x, q.y, rr2, rr2 * 0.34, '#ffd24a'); if (skR) ring(ctx, q.x, q.y, rr2 + 1, rr2 * 0.34 + 1, '#fff2b0'); ctx.globalAlpha = 1; }
     }
-    shadow(b.x, b.y, b.z, 0.16);
+    if (!G.intro) shadow(b.x, b.y, b.z, 0.16);
     const teamTags = G.mode === 't3' && !RP;
     const maxNameY = teamTags ? Math.min(H - 13, Math.floor((hintY ?? H) - 14)) : H - 13;
     // 脚下体力条（V4.4 30×2 + 刻度 + 阈值 + 残影，见 stamBar）
@@ -1981,7 +1981,8 @@
     }
     // 运球（没在做动作）时球总画在持球人身前，背对镜头时也不会被身体挡住
     const hb = b.state === 'held' ? G.players[b.holder] : null, hbFront = hb && hb.action && hb.action.type === 'shot' && hb.action.V && hb.action.V.hook;
-    const items = [{ y: HOOP.y, t: 'rim' }, { y: hbFront ? Math.min(b.y, hb.y - 0.02) : b.y + (b.under ? 0.5 : 0), t: 'ball' }];
+    const items = [{ y: HOOP.y, t: 'rim' }];
+    if (!G.intro) items.push({ y: hbFront ? Math.min(b.y, hb.y - 0.02) : b.y + (b.under ? 0.5 : 0), t: 'ball' });
     for (const p of G.players) if (!p.off) items.push({ y: p.y, t: 'pl', p: p });
     items.sort((a, c) => c.y - a.y);
     const heads = [];
