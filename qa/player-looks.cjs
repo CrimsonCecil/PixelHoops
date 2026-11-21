@@ -442,6 +442,6 @@ console.log('PASS 5V5 starters share the measured appearance profiles');
   const activeNames = new Set(G.players.map(p => p.arch.name));
   const names = [...playerLabels].filter(([name]) => activeNames.has(name));
   assert.deepEqual(names.map(([name]) => name), [T.ctl.arch.name, foe.arch.name]);
-  assert(names.every(([, font]) => font.startsWith('10px ')));
-  console.log('PASS: 5V5 draws compact labels for the controlled player and opponent; 1V1 keeps 12px.');
+  assert(names.every(([, font]) => font.startsWith('12px ')));
+  console.log('PASS: 5V5 and 1V1 share native-12px labels for the controlled player and opponent.');
 }

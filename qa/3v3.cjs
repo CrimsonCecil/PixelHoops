@@ -92,8 +92,8 @@ function fixture(options = {}) {
   assert(nameRows.length && Math.max(...nameRows) < hintY);
   assert(staminaRows.length && Math.max(...staminaRows) < hintY);
   assert.deepEqual([...teamNames.keys()].sort(), [...rosterNames].sort());
-  assert([...teamNames.values()].every(({ font, y }) => font.startsWith('10px') && y + 12 < hintY));
-  console.log('PASS: 3V3 draws six compact under-foot names above the hint bar.');
+  assert([...teamNames.values()].every(({ font, y }) => font.startsWith('12px') && y + 12 < hintY));
+  console.log('PASS: 3V3 draws six native-12px under-foot names above the hint bar.');
   assert(visible(feet()) && visible(rim()));
   const origin = R.cam.x;
   move(7.4, 1);
