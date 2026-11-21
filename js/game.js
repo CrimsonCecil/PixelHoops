@@ -13,6 +13,17 @@
   // 每项：[字段, 组, 中文名, 默认, 最小, 最大, 步长, 说明（单位 / 效果，只在调参台显示）, mode]
   const TU = PH.TUNE || null;
   const TDEF = [
+    ['manuContest', 'lay', '妖刀 提前封堵干扰倍率', 0.65, 0.3, 1, 0.05, '倍率：第二步落地前已举手或起跳的防守人'],
+    ['manuSteal', 'def', '妖刀 收球护球抢断倍率', 0.55, 0.1, 1, 0.05, '倍率：欧洲步收球期间的伸手抢断'],
+    ['manuCpu', 'ai', '妖刀 电脑欧洲步偏好', 0.75, 0, 1, 0.05, '概率：可上篮时优先左手欧洲步'],
+    ['aiCommit', 'drib', '答案 重心横移门槛', 0.65, 0.1, 3, 0.05, '米/秒：防守人往试探侧横移才有启动优势'],
+    ['aiProbeRange', 'drib', '答案 试探有效距离', 2.6, 1, 4, 0.1, '米：防守人退开不触发'],
+    ['aiBurst', 'drib', '答案 启动速度增幅', 0.2, 0, 0.5, 0.02, '比例：前半段加速、后半段回收，不增加总位移'],
+    ['aiChain', 'ai', '答案 电脑双变向频率', 0.35, 0, 1, 0.05, '概率：犹豫步后接低变向'],
+    ['vcRunway', 'lay', '卡特 风车助跑距离', 1.5, 0.5, 4, 0.1, '米：持球向筐连续助跑'],
+    ['vcSpeed', 'lay', '卡特 风车向筐速度', 3.5, 1, 7, 0.1, '米/秒：发起扣篮时的最低向筐速度'],
+    ['vcSetRadius', 'lay', '卡特 落点站定半径', 1.5, 0.5, 3, 0.1, '米：起跳前落点附近站定防守人阻止招牌风车'],
+    ['vcSetSpeed', 'lay', '卡特 防守站定速度', 0.65, 0.1, 2, 0.05, '米/秒：低于此速度视为站定'],
     ['alleyWindow', 'lay', '空接 完美判定阈值', 0.075, 0.02, 0.3, 0.005, '秒：自动能力判定的随机偏差不超过此值时为完美'],
     ['alleyOpen', 'lay', '空接 空位窗口增幅', 0.5, 0, 2, 0.05, '倍率：无人封堵时扩大窗口'],
     ['alleyLob', 'lay', '空接 终结者窗口增幅', 0.3, 0, 2, 0.05, '倍率：空接终结者类型扩大窗口'],
@@ -1372,13 +1383,16 @@
       skill: { id: 'shaq', name: '篮架摧毁', en: 'SHAQ ATTACK', cond: '背打累计 ≥0.6 秒（松开背打 0.6 秒内也算），离篮筐 4.2 米内、防守人 2.4 米内时按终结键（K / 手柄 Y）', eff: '双手暴扣不可被盖、必进，撞飞防守人，篮板碎裂' } }),
     ginobili: A({ key: 'ginobili', tier: 'star', name: '基诺比利', full: '马努·基诺比利', pos: '得分后卫', num: 20, desc: '马刺妖刀，左手欧洲步与灵巧终结', h: 1.98, bw: 0.86, wing: 1,
       three: 0.84, mid: 0.82, lay: 0.97, dunk: 0.72, spd: 0.89, acc: 0.95, hnd: 0.9, str: 0.52, def: 0.76, blk: 0.3, stl: 0.85, vert: 0.78, sta: 0.9,
-      badges: ['acrobat', 'fakes'], skin: '#e8bf98', hair: '#30251f', style: 'receding', beard: 'stubble' }),
+      badges: ['acrobat', 'fakes'], skin: '#e8bf98', hair: '#30251f', style: 'receding', beard: 'stubble',
+      skill: { id: 'ginobili', name: '左手错拍欧洲步', en: 'MANU EURO', cond: '欧洲步右侧带球后跨回左手终结', eff: '提前举手或起跳的防守人干扰降低，收球护球；等待第二步仍正常干扰与封盖' } }),
     iverson: A({ key: 'iverson', tier: 'star', name: '艾弗森', full: '阿伦·艾弗森', pos: '控球后卫', num: 3, desc: '76人答案，闪电第一步与致命变向', h: 1.83, bw: 0.65, wing: 1,
       three: 0.76, mid: 0.86, lay: 0.98, dunk: 0.55, spd: 0.99, acc: 0.99, hnd: 0.99, str: 0.3, def: 0.62, blk: 0.18, stl: 0.96, vert: 0.9, sta: 0.98,
-      badges: ['ankle', 'tight', 'pullup'], skin: '#805034', hair: '#120c08', style: 'braids', beard: 'goatee', band: '#f4f0e0' }),
+      badges: ['ankle', 'tight', 'pullup'], skin: '#805034', hair: '#120c08', style: 'braids', beard: 'goatee', band: '#f4f0e0',
+      skill: { id: 'iverson', name: '答案双变向', en: 'THE ANSWER', cond: '犹豫步后窗口内低变向，防守人重心移向试探侧', eff: '固定方向启动更快，不增加总位移；不保证晃倒，正常抢断与碰撞' } }),
     carter: A({ key: 'carter', tier: 'star', name: '卡特', full: '文斯·卡特', pos: '得分后卫/小前锋', num: 15, desc: '猛龙半人半神，风车暴扣与飞天终结', h: 1.98, bw: 1.02, wing: 1,
       three: 0.83, mid: 0.82, lay: 0.92, dunk: 0.99, spd: 0.94, acc: 0.95, hnd: 0.84, str: 0.76, def: 0.7, blk: 0.55, stl: 0.7, vert: 0.99, sta: 0.9,
-      badges: ['launch', 'poster'], skin: '#9a623f', hair: '#120c08', style: 'bald', beard: 'goatee' }),
+      badges: ['launch', 'poster'], skin: '#9a623f', hair: '#120c08', style: 'bald', beard: 'goatee',
+      skill: { id: 'carter', name: '半人半神', en: 'HALF-MAN HALF-AMAZING', cond: '向筐助跑后扣篮，落点没有提前站定的防守人', eff: '优先单手风车，仍按正常对抗、封盖与命中判定' } }),
     // 主力档
     maxey: A({ key: 'maxey', tier: 'mid', name: '马克西', full: '泰瑞斯·马克西', pos: '控球后卫', num: 0, desc: '联盟顶级速度，快攻与急停跳投', h: 1.88, bw: 0.86, wing: 1.0,
       three: 0.87, mid: 0.85, lay: 0.88, dunk: 0.45, spd: 0.97, acc: 0.96, hnd: 0.88, str: 0.45, def: 0.62, blk: 0.25, stl: 0.62, vert: 0.72, sta: 0.95,
@@ -2163,6 +2177,8 @@
     if (k < 0.75 && c > 0.04) src += ' · 身高劣势'; else if (k > 1.25 && c > 0.04) src += ' · 身高压制';
     { const PL = d.ai && d.ai.dm && d.ai.dm.plan; if (PL && d.ctrl === 'cpu') { const ins = cls === 'in', th = isThree(s.x, s.y);
       c *= PL === 'post' ? (s.post || ins ? 1.15 : 1) : PL === 'postspin' ? (s.post ? 0.85 : 1) : PL === 'drive' ? (ins ? 1.12 : 0.85) : PL === 'three' || PL === 'stepback' ? (th ? 1.15 : ins ? 0.9 : 1) : PL === 'mid' ? (!ins && !th ? 1.12 : 0.95) : 1; } }
+    const euro = s.action, early = euro && euro.manuEarly && euro.manuEarly[d.id];
+    if (cls === 'in' && euro && euro.sigMove === 'ginobili' && early && ((d.action && d.action.type === 'block' && early.block === d.action) || (!(d.action && d.action.type === 'block') && d.stance && early.stance))) c = clamp(c, 0, 1) * K.manuContest;
     return { c: clamp(c, 0, 1), src: src, k: k, zone: zone };
   }
   function contestOf(s, d, cls) { return contestInfo(s, d, cls).c; }
@@ -2339,6 +2355,10 @@
     if ((a.type === 'shot' && !a.V.hook) || a.type === 'fake') {
       const h = a.lefty || (a.type === 'fake' && pl.arch.lefty) ? k.handL : k.handR;
       hd = mid.map((v, i) => lerp(v, h[i], 0.72)); hd[2] += 0.02;
+    } else if (a.sigMove === 'ginobili' && a.inSteps) {
+      const w = a.wp[a.si], u = w ? sm(clamp(a.st / w.T, 0, 1)) : 1;
+      const carry = a.si === 0 ? 1 : lerp(1, -1, u), hand = carry > 0 ? k.handR : k.handL;
+      hd = mid.map((v, i) => lerp(v, hand[i], Math.abs(carry)));
     } else if ((a.type === 'dunk' && a.v === 'two') || (a.type === 'layup' && a.v === 'power') || a.type === 'dive' || a.inSteps) hd = mid;
     else if (a.type === 'shot' && a.V.hook && a.t < K.shotJump * 1.2) {
       const h = a.hand < 0 ? k.handL : k.handR, w = sm(clamp(a.t / (K.shotJump * 1.2), 0, 1));
@@ -3383,6 +3403,7 @@
       let sum = 0; for (const k in W) sum += W[k]; let x = rnd() * sum, pk = 'normal'; for (const k in W) if (W[k] > 0 && (x -= W[k]) < 0) { pk = k; break; }
       if (pk === 'euro') { v = 'euro'; eS = dlat >= 0 ? 1 : -1; } else if (pk === 'hop') { v = 'hop'; eS = dlat >= 0 ? -1 : 1; } else if (pk === 'floater') v = 'floater';
     }
+    if (pl.ctrl === 'cpu' && skOf(pl, 'ginobili') && canLay(pl, 'euro') && P.lay && P.d > 2 && v !== 'back' && rnd() < K.manuCpu) { v = 'euro'; eS = -1; }
     if (want === 'auto' && pl.ctrl !== 'cpu' && pl.stam <= ST.dunk && pl.r.dunk >= 0.5) noGas(pl, '没体力 改上篮');
     else if (want === 'auto' && pl.ctrl !== 'cpu' && G.fb === 'detail') float(pl.r.dunk < 0.5 ? '扣篮能力不足，改为上篮' : pl.stam <= ST.dunk ? '体力不足，改为上篮' : v === 'floater' ? '起跳点太远，改为抛投' : '起跳点太远，改为上篮', pl, '#ffd24a');
     let sty = v;
@@ -3403,6 +3424,12 @@
     if (v === 'reverse') a.hand = pl.x >= HOOP.x ? -1 : 1;
     if (v === 'back') a.hand = backSide(pl) > 0 ? -1 : 1;
     laySide(pl, a, P, df, baseline);
+    if (v === 'euro' && skOf(pl, 'ginobili')) {
+      a.sigMove = 'ginobili'; a.manuEarly = {}; a.hand = -1; a.side = 0; a.lsv = ''; a.farLsv = false;
+      a.sty = Math.abs(pl.x - HOOP.x) > P.d * 0.5 ? 'glass' : 'scoop';
+      a.V = Object.assign({}, LVR.euro, { name: pl.arch.skill.name }); eS = -1;
+      fireSkill(pl);
+    }
     a.wp = buildSteps(pl, a, P, v, eS);
     hzSet(pl, a); if (pl.sk.ky > G.time) { a.ky = true; pl.sk.ky = 0; }
     { const S = gsk(pl, 'lay'); if (S && gTrig(pl, S, df)) { a.skill = S.id; pl.sk.cd = 12; G.ball.lastSk = { id: pl.id, sk: S.id }; } }
@@ -3445,6 +3472,7 @@
     if (cv === 'hang') { a.ideal += K.cvHangD; if (pl.ai && pl.ai.relFor === a) pl.ai.releaseAt += K.cvHangD; }
     else if (cv === 'revAvoid' || cv === 'scoop') { const h = hoopDir(pl), lat = (df.x - pl.x) * h.y - (df.y - pl.y) * h.x; if (!df.off && Math.abs(lat) > 0.1) { a.hand = lat > 0 ? -1 : 1; if (a.side) a.side = a.hand; } a.lsv = ''; }
     else if (cv === 'bump') { const dx = df.x - pl.x, dy = df.y - pl.y, l = Math.hypot(dx, dy) || 1; a.cvDx = dx / l; a.cvDy = dy / l; a.cvK = clamp(powOf(df) / powOf(pl), 0, 1); }
+    if (a.sigMove === 'ginobili') a.hand = -1;
     a.cvR = a.ideal;
   }
   // 起跳那一刻挑变体：能力 + 徽章 + 封堵程度加权随机
@@ -3489,6 +3517,7 @@
     if (shaqReady(pl)) { skill = 'shaq'; v = 'two'; }
     const a = { type: 'dunk', v: v, v0: v, name: DK[v], t: 0, T: 0.52, done: false, pts: 2, inSteps: true, si: 0, st: 0, btn: btn || 'a2', rel: false, dbl: false, stick: stick || null, skill: skill, chaseD: Math.hypot(df.x - pl.x, df.y - pl.y) * (distHoop(df) > P.d ? 1 : 0) };
     if (skill) { fireSkill(pl); a.name = '篮架摧毁'; }
+    a.vcRunway = !!(skOf(pl, 'carter') && (pl.sk.runway || 0) >= K.vcRunway && P.fv >= K.vcSpeed);
     a.hand = handSide(pl, stick === 'side' ? sd : 0); if (v === 'reverse') a.hand = pl.x >= HOOP.x ? -1 : 1; a.run0 = P.run;
     if (pl.ctrl === 'cpu') { const u = rnd(), dR = dunkR(pl, P.run); const K = dunkPkg(pl.arch); a.aiMode = u < 0.25 ? 'two' : u < 0.25 + (K.cls === 'ath' && dR > 0.85 ? 0.3 : K.cls === 'power' ? 0.15 : 0.08) ? 'flashy' : 'auto'; }
     if (stick === 'stand') a.stand = true;
@@ -3498,12 +3527,14 @@
   }
   // 起跳那一刻定扣篮方式：轻按=自动（看速度/角度/对抗），按住不放=花式，连按两下=双手暴扣；摇杆 / L+方向：前=双手、左右=单手、后=花式
   function pickDunk(pl, a) {
+    const spot = { x: HOOP.x + clamp(pl.x - HOOP.x, -0.4, 0.4) * 0.5, y: HOOP.y - 0.5 };
+    if (a.vcRunway && skOf(pl, 'carter') && !a.stand && dunkPkg(pl.arch).S.windmill && !G.players.some((d) => !d.off && TM(d) !== TM(pl) && Math.hypot(d.x - spot.x, d.y - spot.y) < K.vcSetRadius && Math.hypot(d.vx, d.vy) < K.vcSetSpeed && d.z <= 0.05)) { a.sigMove = 'carter'; fireSkill(pl); return 'windmill'; }
     const df = OP(pl), c = contestOf(pl, df, 'in'), dR = dunkR(pl, a.run0 || 0), edge = df.off ? 1 : dunkAtk(pl, dR) - rimDef(df);
     const baseline = pl.y > HOOP.y - 0.9 && Math.abs(pl.x - HOOP.x) > 0.7;
-    const K = dunkPkg(pl.arch), S = K.S, pw = K.cls === 'power', tk0 = distHoop(pl);
+    const PK = dunkPkg(pl.arch), S = PK.S, pw = PK.cls === 'power', tk0 = distHoop(pl);
     const mode = pl.ctrl === 'cpu' ? a.aiMode : a.stick || (a.dbl ? 'two' : !a.rel && (a.hT || 0) >= 0.15 ? 'flashy' : 'auto');
     // 按权重从这个人会的扣法里抽一个
-    const pick = (W) => { let sum = 0; for (const k in W) if (S[k] && W[k] > 0) sum += W[k]; if (!sum) return S.two ? 'two' : 'one'; let x = rnd() * sum; for (const k in W) if (S[k] && W[k] > 0 && (x -= W[k]) < 0) return k; return 'two'; };
+    const pick = (W) => { if (pl.arch.key === 'carter') W.windmill = 0; let sum = 0; for (const k in W) if (S[k] && W[k] > 0) sum += W[k]; if (!sum) return S.two ? 'two' : 'one'; let x = rnd() * sum; for (const k in W) if (S[k] && W[k] > 0 && (x -= W[k]) < 0) return k; return 'two'; };
     const shaqy = S.shaq ? 1 : 0;
     if (mode === 'two') return pick({ two: 3, rimpull: pw ? 2 : 0.5, shaq: shaqy * 2.5 });
     if (mode === 'stand') return pick({ two: pw ? 5 : 3, one: pw ? 1.5 : 3, rimpull: pw ? 1.5 : 0.3 });
@@ -3574,6 +3605,9 @@
     float(C.name, pl, '#5ee0ff', 1);
   }
   function stepUpdate(pl, a, inp, dt) {
+    if (a.sigMove === 'ginobili') for (const d of G.players) if (!d.off && TM(d) !== TM(pl)) {
+      a.manuEarly[d.id] = { block: d.action && d.action.type === 'block' ? d.action : null, stance: !!d.stance };
+    }
     let lmT = null;
     if (a.type === 'layup' && a.meter) { layMeter(a); let e = a.st + dt; for (let i = 0; i < a.si && i < a.wp.length; i++) e += a.wp[i].T || 0; lmT = e + a.meter.t0; if (a.tapAt == null) a.meter.v = layDisp(a, lmT); }
     if (a.type === 'dunk' && a.btn) { if (!btnHeld(pl, a, inp)) a.rel = true; else if (a.rel) a.dbl = true; else a.hT = (a.hT || 0) + dt; }
@@ -3742,8 +3776,9 @@
       else pl.grip = null;
       return;
     }
-    const two = a.inSteps ? 1 : 1 - sm(clamp(a.t / 0.12, 0, 1));
+    const two = a.inSteps ? (a.sigMove === 'ginobili' ? 0 : 1) : 1 - sm(clamp(a.t / 0.12, 0, 1));
     let w = a.hand < 0 ? 0 : 1, rim = 0;
+    if (a.sigMove === 'ginobili' && a.inSteps) w = a.si === 0 ? 1 : a.wp[a.si] ? 1 - sm(clamp(a.st / a.wp[a.si].T, 0, 1)) : 0;
     if (dunk) {
       const u = a.inSteps ? 0 : a.t / (a.T * 0.8);
       if (TWOH[a.v]) w = 0.5;
@@ -3811,7 +3846,7 @@
     if (a.lsv === 'far') { o.lA = Math.min(o.lA, K.lvFarKnee); o.rA = Math.min(o.rA, K.lvFarKnee); o.lB = Math.min(o.lB, 0.9); o.rB = Math.min(o.rB, 0.9); }
     o.lean = 0.24 + (last ? 0.1 * u : 0);
     if (a.v === 'euro') {
-      const lead = w.lead === 'R' ? 1 : -1, first = a.wp[0].lead === 'R' ? 1 : -1;
+      const lead = w.lead === 'R' ? 1 : -1, first = a.sigMove === 'ginobili' ? 1 : a.wp[0].lead === 'R' ? 1 : -1;
       const carry = lerp(first, a.hand, last ? sm(u) : 0), plant = Math.sin(Math.PI * u);
       o.lean = 0.22 + 0.17 * plant; o.tilt = 0.08 * carry + 0.42 * lead * plant;
       o.yaw = -0.24 * lead * plant;
@@ -3981,6 +4016,7 @@
     const cb = force ? null : comboOf(pl, kind, q, linked, seq);
     if (cb) { const C = CB[cb]; kind = C.base; if (cb === 'sham') { const s2 = latS(seq[seq.length - 2]); dx = hx * 0.8 - hy * s2 * 0.6; dy = hy * 0.8 + hx * s2 * 0.6; pl.hand = s2 > 0 ? -1 : 1; } else if (cb === 'hgo') { dx = hx; dy = hy; } else if (cb === 'dbl') { const ls = q.lat >= 0 ? 1 : -1; pl.hand = ls > 0 ? -1 : 1; } }
     if (cb) mvx = null;
+    const answer = skOf(pl, 'iverson') && kind === 'cross' && pl.lastMove === 'hesi' && linked && q.lat * h0 > 0.25 && pl.hand === -h0 && !df.off && dd < K.aiProbeRange && front > 0 && (df.vx * -hy + df.vy * hx) * -h0 >= K.aiCommit && df.vx * hx + df.vy * hy <= 0;
     const hesiBurst = (!cb || cb === 'hgo') && (kind === 'cross' || kind === 'inout') && pl.lastMove === 'hesi' && (moving || G.time - pl.mvEndT <= K.cbWin);
     if (hesiBurst && !df.off && front > 0 && dd < 3) {
       const side = Math.abs(q.lat) > 0.1 ? Math.sign(q.lat) : Math.abs((df.x - pl.x) * -hy + (df.y - pl.y) * hx) > 0.15 ? openS : -h0;
@@ -4014,6 +4050,7 @@
     // V4.2 胯下接背后：最后一下背后换到摇杆那一侧的手（先胯下换走、再背后换回）
     let spH0 = mvx === 'tbb' ? pl.hand : h0; if (kind === 'spin' || kind === 'postspin') spH0 = -pl.hand;
     pl.action = { type: 'move', kind: kind, cb: cb, t: 0, T: MT, cw: clamp(0.95 - 0.55 * hnd, 0.4, 0.9), dx: dx, dy: dy, sp: sp * (CBk ? CBk.sp : 1), name: CBk ? CBk.name : M.name, mv: mvx, bp: X ? X.bp : null, f0: pl.face, sd: pl.hand, hx: hx, hy: hy, os: openS, h0: spH0, h1: pl.hand, v0x: pl.vx, v0y: pl.vy };
+    if (answer) { pl.action.sigMove = 'iverson'; pl.action.hesiDrive = true; pl.action.name = pl.arch.skill.name; fireSkill(pl); }
     if (kind === 'uu') {
       const quality = uuQuality(pl);
       const distance = mvx === 'uuForward' ? K.uuForward : mvx === 'uuBack' ? K.uuBack : K.uuSide;
@@ -4271,7 +4308,8 @@
     const dx = pl.x - df.x, dy = pl.y - df.y, dd = Math.hypot(dx, dy) || 1;
     const fx = Math.cos(df.face), fy = Math.sin(df.face);
     const front = (dx * fx + dy * fy) / dd;
-    const ballX = moving ? a.kind === 'hesi' ? a.h0 : movePath(a, clamp((a.t + ahead) / a.T, 0, 1))[0] : df.handX;
+    const carry = a && a.sigMove === 'ginobili' && a.inSteps ? (a.si === 0 ? 1 : a.wp[a.si] ? 1 - 2 * sm(clamp(a.st / a.wp[a.si].T, 0, 1)) : -1) : null;
+    const ballX = carry != null ? carry : moving ? a.kind === 'hesi' ? a.h0 : movePath(a, clamp((a.t + ahead) / a.T, 0, 1))[0] : df.handX;
     const side = (dx * fy - dy * fx) / dd * Math.sign(ballX);
     const across = Math.max(0, -side), ballSide = Math.max(0, side);
     const poor = Math.max(0, -front) * (1 - ballSide);
@@ -4291,6 +4329,10 @@
 
   function updateAction(pl, inp, dt, shootPress) {
     const a = pl.action, df = OP(pl), t0 = a.t;
+    if (a.sigMove === 'ginobili' && !a.inSteps) for (const d of G.players) {
+      const early = a.manuEarly[d.id];
+      if (early) { if (d.action !== early.block) early.block = null; if (!d.stance) early.stance = false; }
+    }
     if (a.alley) { inp = zeroInp(); shootPress = false; }
     a.t += dt; a.vt = (a.vt || 0) + dt; // vt：执行后真实经过的时间（5V5 接球即投的 cs 加成只加在 a.t 上）
     if (a.type === 'dive') { diveTick(pl, a, dt); return; }
@@ -4422,7 +4464,7 @@
       if (kd === 'uu') {
         vx = a.dx * sp * Math.PI / 2 * Math.sin(Math.PI * u);
         vy = a.dy * sp * Math.PI / 2 * Math.sin(Math.PI * u);
-      } else if (kd === 'cross' || kd === 'legs' || kd === 'behind') {
+      } else if ((kd === 'cross' || kd === 'legs' || kd === 'behind') && !a.hesiDrive) {
         const p0 = kd === 'behind' ? 0.15 : 0.3; // 先踩住减速，再横向蹬出
         if (u < p0) { const s = 1 - (u / p0) * 0.75; vx = a.v0x * s; vy = a.v0y * s; }
         else { const s = (1 - (u - p0) * 0.5) * (kd === 'legs' ? 0.85 : 1); vx = a.dx * sp * s; vy = a.dy * sp * s; }
@@ -4431,8 +4473,11 @@
         const back = K.hesiBack * (sm(clamp(a.t / end, 0, 1)) - sm(clamp(t0 / end, 0, 1))) / dt;
         vx = -Math.cos(a.f0) * back; vy = -Math.sin(a.f0) * back;
       } else if (a.hesiDrive) {
-        const s = sp * (1 - u * 0.4);
-        vx = a.dx * s; vy = a.dy * s;
+        if (a.sigMove === 'iverson') {
+          const p0 = 0.3;
+          if (u < p0) { const s = 1 - u / p0 * 0.75; vx = a.v0x * s; vy = a.v0y * s; }
+          else { const s = sp * (1 - (u - p0) * 0.5 + K.aiBurst * (1 - 2 * (u - p0) / (1 - p0))); vx = a.dx * s; vy = a.dy * s; }
+        } else { const s = sp * (1 - u * 0.4); vx = a.dx * s; vy = a.dy * s; }
       } else if (kd === 'inout') {
         const s = u < 0.45 ? 0.8 : -0.4, m = 1 - u * 0.4;
         vx = (a.dx - a.hy * a.os * s) * sp * m; vy = (a.dy + a.hx * a.os * s) * sp * m;
@@ -4478,7 +4523,8 @@
           if (df.post) ch += K.stlTimed * read.away * read.pf;
           if (df.chinT > G.time) ch *= K.stlChin;
           if (pl.ctrl === 'cpu') ch *= K.stlCpu0 + K.stlCpuD * G.diff;
-          if (da && (da.type === 'dunk' || da.type === 'layup')) ch = 0;
+          if (da && da.sigMove === 'ginobili' && da.inSteps) ch *= K.manuSteal;
+          else if (da && (da.type === 'dunk' || da.type === 'layup')) ch = 0;
           else if (gsk(pl, 'steal') && !(df.chinT > G.time)) { ch = 99; fireSkill(pl); }   // V3.9o 追梦掏球：必定掏下（护球 chin 中除外）
           const chance = ch * CFG.stealMul * (tkIs(pl, 'def') ? K.stlTk : 1);
           if (rnd() < (ch === 99 ? chance : clamp(chance, 0, K.stlMax))) {
@@ -4678,6 +4724,12 @@
   }
   function updatePlayer(pl, inp, dt) {
     if (pl.off) { pl.anim = 'idle'; pl.stance = false; return; }
+    if (pl.arch.key === 'carter') {
+      const h = hoopDir(pl), run = pl.sk.runwayPos, speed = pl.vx * h.x + pl.vy * h.y;
+      if (!pl.hasBall || G.phase !== 'live' || pl.z > 0.05 || speed < K.vcSpeed || pl.stun > 0) pl.sk.runway = 0;
+      else if (run && !pl.action) pl.sk.runway = (pl.sk.runway || 0) + Math.max(0, (pl.x - run.x) * h.x + (pl.y - run.y) * h.y);
+      pl.sk.runwayPos = { x: pl.x, y: pl.y };
+    }
     const frozen = G.phase === 'check' || G.phase === 'over';
     const rsRaw = inp;
     inp = rightStickInput(pl, inp);
@@ -5097,6 +5149,7 @@
       if (v === 'floater') M({ lean: 0.06, lA: 0.3, lB: 0.7, rA: 0.6, rB: 0.9, aRp: rel ? 2.7 : 2.3, aRe: rel ? 0.15 : 0.8, aRq: 0.05, aLp: 0.9, aLe: 0.9 });
       else if (clutch) M(clutchPose(a));
       else if (v === 'power') set({ lean: 0.04, lA: 0.45, lB: 0.85, rA: 0.45, rB: 0.85, lS: 0.12, rS: 0.12, aRp: rel ? 2.85 : 2.6, aRe: rel ? 0.1 : 0.4, aRq: 0.1, aLp: rel ? 2.3 : 2.5, aLe: 0.4, aLq: 0.1 });
+      else if (a && a.sigMove === 'ginobili') M(kf(LKF[a.sty], rel ? 1 : clamp(a.t / a.ideal, 0, 1)));
       else if (flow) M(layFlow(a));
       else { const fr = LKF[a ? a.sty : 'tip'] || LKF.tip; M(kf(fr, rel ? 1 : clamp((a ? a.t : 1) / K.layTi, 0, 1))); }
       // 出手 IK：出手那一下，持球手伸向篮筐
@@ -5838,6 +5891,10 @@
         return o;
       }
       // V4.2 AI 连招续招：当前招做到 ai_cb_at 比例时按下一段（a3 上升沿：做招期间 a3 一直是松开的），走 pl.buf 缓冲，到取消点直接接上 → pl.dcn 连段
+      if (a && a.kind === 'hesi' && skOf(pl, 'iverson') && a.t >= a.T * 0.36) {
+        if (a.answerChain == null) a.answerChain = rnd() < K.aiChain;
+        if (a.answerChain) { const h = hoopDir(pl); a.hesiHold = 'a3'; a.hesiExit = inDir(pl, { mx: h.x * 0.6 - h.y * a.h0, my: h.y * 0.6 + h.x * a.h0 }); return o; }
+      }
       if (a && a.type === 'move' && ai.cb) {
         const C = ai.cb;
         if (C.a !== a) { C.a = a; C.k++; C.pr = false; C.at = (a.T || 0.4) * clamp((K.ai_cb_at + K.ai_cb_atJ * (rnd() - 0.5)) * (1.25 - 0.5 * pl.r.hnd), Math.min(0.15, K.ai_cb_at * 0.5), Math.max(0.95, K.ai_cb_at)); }
@@ -6653,7 +6710,7 @@
   }
   // V4.0 注册到调参台（ST / GW_TYPE / BLK_K / BLK_T / LSV 这些对象保持同一引用，值随调参刷新）
   if (TU) {
-    TU.reg(TDEF.map((d) => ({ k: 'l1_' + d[0], g: d[1], label: d[2], v: d[3], min: d[4], max: d[5], step: d[6], note: d[7], mode: d[8] || 'num', tmp: !!d[9], ...(d[0] === 'stLift' ? { wide: false } : {}), ...(/^(alley|selfAlley)/.test(d[0]) ? { cat: 'fin', sub: '上篮', gm: 'both' } : {}) })));
+    TU.reg(TDEF.map((d) => ({ k: 'l1_' + d[0], g: d[1], label: d[2], v: d[3], min: d[4], max: d[5], step: d[6], note: d[7], mode: d[8] || 'num', tmp: !!d[9], ...(d[0] === 'stLift' || /^(manu|aiCommit|aiProbeRange|aiBurst|aiChain|vc)/.test(d[0]) ? { wide: false } : {}), ...(/^manu/.test(d[0]) ? { cat: 'fin', sub: '上篮变体', gm: 'both' } : {}), ...(/^vc/.test(d[0]) ? { cat: 'fin', sub: '扣篮', gm: 'both' } : {}), ...(/^ai(Commit|ProbeRange|Burst|Chain)/.test(d[0]) ? { cat: 'drib', sub: '连招', gm: 'both' } : {}), ...(/^(alley|selfAlley)/.test(d[0]) ? { cat: 'fin', sub: '上篮', gm: 'both' } : {}) })));
     TU.reg(RDEF.map((d) => ({ k: 'l1_' + d[0], g: 'rules', label: d[1], v: CFG_DEF[d[0]], min: d[2], max: d[3], step: d[4], note: d[5], mode: d[6] || 'num' })));
     for (const d of RDEF) if (d[0] !== 'shotClock') Object.defineProperty(CFG, d[0], { enumerable: true, configurable: true, get: () => TU.get('l1_' + d[0]), set: (v) => { TU.set('l1_' + d[0], v); } });
     // 进攻时间是“本场”设置（比赛开始界面 / 5V5 会临时改），所以 CFG.shotClock 仍是普通字段，调参改动时同步过去
