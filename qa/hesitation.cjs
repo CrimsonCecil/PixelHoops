@@ -431,7 +431,37 @@ for (const hand of [1, -1]) for (const side of [1, -1]) {
   }
 }
 
+for (const hand of [1, -1]) for (const side of [1, -1]) {
+  const { game, p, d } = fixture(hand);
+  game.G.mode = '2p';
+  Object.assign(p, { x: 0, y: 6.8, face: Math.PI / 2 });
+  Object.assign(d, { x: side * 1.2, y: 6.9, vx: 0, vy: 0, dummy: false, ctrl: 'p2', stun: 0 });
+  const step = inp => game.tick(1 / 120, q => q === p ? inp : game.t5.zeroInp());
+  for (let i = 0; i < 24; i++) step({ mx: 0, my: 0, a3: true, hesi: true });
+  step({ mx: side, my: 0 });
+  const a = p.action, x = d.x - p.x, y = d.y - p.y, radius = game.K.bdR + 0.12;
+  assert(a.hesiBurst && a.dy > 0, 'blocked outside lane must use the open inside shoulder');
+  const toward = Math.max(0, x * a.dx + y * a.dy);
+  assert(x * x + y * y - toward * toward >= radius * radius - 1e-9);
+  for (let i = 0; i < 100 && p.action === a; i++) {
+    step({ mx: side, my: 0 });
+    assert(Math.hypot(p.x - d.x, p.y - d.y) >= radius - 1e-9, 'inside shoulder clears the body for the whole burst');
+    assert.equal(p.stun, 0, 'open lane must not lose burst time to body contact');
+  }
+  assert(a.t >= a.T, 'burst completes without collision cancellation');
+}
+
+{
+  const { game, p, d } = fixture();
+  Object.assign(d, { x: p.x, y: p.y + 0.5 });
+  game._dbg.startMove(p, { mx: 0, my: 0 }, 'hesi');
+  game._dbg.startMove(p, { mx: 0, my: 1 }, 'inout');
+  assert.equal(p.action.dx, 0, 'with no clear candidate keep the raw stick direction');
+  assert.equal(p.action.dy, 1);
+}
+
 console.log('Hesitation: sideways one-hand fake, release directions, buffering, move requirements, post-up, possession loss, and 5V5 passed.');
 console.log('PASS hesitation shoulder lanes: forward/diagonal releases, both hands, 1V1/5V5, forward-held recovery, and CPU combo exits');
 console.log('PASS forward hesitation near baseline: defender beyond rim, both hands');
 console.log('PASS sideways hesitation: clear stick lanes preserved against diagonal defenders, both hands and sides');
+console.log('PASS blocked sideways hesitation: open inside shoulder, full burst, both hands/sides, raw fallback when no lane clears');

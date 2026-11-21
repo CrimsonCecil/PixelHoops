@@ -3778,14 +3778,16 @@
     const hesiBurst = (!cb || cb === 'hgo') && (kind === 'cross' || kind === 'inout') && pl.lastMove === 'hesi' && (moving || G.time - pl.mvEndT <= K.cbWin);
     if (hesiBurst && !df.off && front > 0 && dd < 3) {
       const side = Math.abs(q.lat) > 0.1 ? Math.sign(q.lat) : Math.abs((df.x - pl.x) * -hy + (df.y - pl.y) * hx) > 0.15 ? openS : -h0;
-      const ahead = (df.x - pl.x) * hx + (df.y - pl.y) * hy, across = (df.x - pl.x) * -hy + (df.y - pl.y) * hx;
-      const angle = Math.atan2(across, Math.max(0.01, ahead)) + side * Math.asin(Math.min(0.95, (K.bdR + 0.12) / dd));
-      const fwd = Math.max(0.2, Math.cos(angle)), lat = side * Math.max(0, Math.sin(angle) * side, Math.abs(q.lat));
-      const len = Math.hypot(fwd, lat);
-      dx = (hx * fwd - hy * lat) / len; dy = (hy * fwd + hx * lat) / len;
-      const rawX = q.x / q.l, rawY = q.y / q.l, toX = df.x - pl.x, toY = df.y - pl.y;
-      const rawToward = Math.max(0, toX * rawX + toY * rawY), laneToward = Math.max(0, toX * dx + toY * dy);
-      if (dd * dd - rawToward * rawToward >= K.bdR * K.bdR || laneToward > rawToward) { dx = rawX; dy = rawY; }
+      const rawX = q.x / q.l, rawY = q.y / q.l, toX = df.x - pl.x, toY = df.y - pl.y, radius = K.bdR + 0.12;
+      const angle = Math.atan2(toY, toX), spread = Math.asin(Math.min(1, radius / dd)), lanes = [[rawX, rawY]];
+      for (const s of [side, -side]) lanes.push([Math.cos(angle + s * spread), Math.sin(angle + s * spread)]);
+      let best = -Infinity; dx = rawX; dy = rawY;
+      for (const lane of lanes) {
+        const toward = Math.max(0, toX * lane[0] + toY * lane[1]);
+        if (lane[0] * hx + lane[1] * hy < -1e-9 || dd * dd - toward * toward < radius * radius - 1e-9) continue;
+        const score = lane[0] * rawX + lane[1] * rawY;
+        if (score > best + 1e-9) { best = score; dx = lane[0]; dy = lane[1]; }
+      }
     }
     const M = mvEff(kind, mvx, PK), X = mvx ? MVX[mvx] : null, CBk = cb ? CB[cb] : null;
     if (kind === 'uu') { M.T = K.uuT; M.cost = K.uuCost; }
