@@ -39,7 +39,7 @@
   const CLS = [
     [/^(po(Drop|Face|Shim|Front|OneLat|Stride|Fake|BlendT|ReturnT|Follow|Q)|bgDream)/, 'moves', '背打'],
     [/^uuCpu$/, 'ai', '进攻决策'], [/^(uu|bgFakes)/, 'moves', '上下步'],
-    [/^(stDepth|stWidth|stStep|stLift|stHzMin|stHzMax)$/, 'move', '防守滑步'],
+    [/^(stDepth|stLean|stWidth|stStep|stLift|stHzMin|stHzMax)$/, 'move', '防守滑步'],
     [/^(drCrouch|drHeight|drTier[ST]|dr(Lean|Roll|Push|Step)[SMT]|gaHzMin|gaHzMax|gaHeight)$/, 'move', '跑步与运球'],
     [/^bg(Acro[GC]|Bully[GC]|Dead|Lim|Fade|Step[GC]|Clutch|Quick|T\d)/, 'shot', '徽章'], [/^bg(Launch|Poster)/, 'fin', '扣篮'], [/^bgRimD/, 'ct', '封堵对抗'],
     [/^bgBullyP/, 'ct', '身体碰撞'], [/^bgClampC/, 'def', '封盖干扰'], [/^bg(Dream|BullySpin)/, 'drib', '背身转身'], [/^bgStepD/, 'drib', '招式位移'],

@@ -341,8 +341,9 @@
       const k = rig(pl, { ...pose, crab: 0 }, false, pl.col && pl.col.body), reach = 0.012 * Hh;
       const base = (side) => {
         const foot = k[side < 0 ? 'kneeL' : 'kneeR'];
-        return [pl.x + fy * side * w + fx * ((foot[0] - pl.x) * fx + (foot[1] - pl.y) * fy),
-          pl.y - fx * side * w + fy * ((foot[0] - pl.x) * fx + (foot[1] - pl.y) * fy), 0];
+        const forward = (foot[0] - pl.x) * fx + (foot[1] - pl.y) * fy - 0.075 * Hh;
+        return [pl.x + fy * side * w + fx * forward,
+          pl.y - fx * side * w + fy * forward, 0];
       };
       let c = pl.crab;
       if (!c || Math.abs(c.width - w) > 0.001 || Math.hypot(pl.x - c.x, pl.y - c.y) > 1) {
@@ -361,7 +362,7 @@
       c.face = pl.face;
       const dx = pl.x - c.x, dy = pl.y - c.y, distance = Math.hypot(dx, dy);
       c.x = pl.x; c.y = pl.y;
-      if (distance < 0.00001) { c[c.side][2] = Math.max(0, c[c.side][2] - 0.6 * dt); c.rest = c[c.side][2] === 0; }
+      if (distance < 0.00001) { c[c.side][2] = Math.max(0, c[c.side][2] - 0.6 * dt); c.rest = c[c.side][2] === 0; c.settling = !c.rest; }
       else {
         if (c.rest) { c.side = dx * fy - dy * fx < 0 ? 'L' : 'R'; c.phase = 0; c.rest = false; }
         const v = distance / dt, lo = tune('stHzMin', 1), hi = Math.max(lo, tune('stHzMax', 2.4));
@@ -373,15 +374,16 @@
           if (c.phase === 0) {
             c.from = c[c.side].slice(); c.to = base(c.side === 'L' ? -1 : 1);
             c.to[0] += dx / distance * step; c.to[1] += dy / distance * step;
+            c.lift = tune('stLift', 0.07) * Math.min(1, v / 0.8);
           }
           const take = Math.min(1 - c.phase, advance); c.phase += take; advance -= take;
           const u = c.phase, blend = u * u * (3 - 2 * u), foot = c[c.side];
           foot[0] = c.from[0] + (c.to[0] - c.from[0]) * blend;
           foot[1] = c.from[1] + (c.to[1] - c.from[1]) * blend;
-          const lift = u >= 1 ? 0 : Math.sin(Math.PI * u) * tune('stLift', 0.07) * Math.min(1, v / 0.8), prevZ = previous[c.side][2];
-          foot[2] = cl(lift, Math.max(0, prevZ - 0.6 * dt), prevZ + 0.6 * dt);
+          const lift = u >= 1 ? 0 : Math.sin(Math.PI * u) * c.lift, prevZ = previous[c.side][2];
+          foot[2] = c.settling ? cl(lift, Math.max(0, prevZ - 0.6 * dt), prevZ + 0.6 * dt) : lift;
           if (u >= 1 && foot[2] > 0) break;
-          if (u >= 1) { foot[2] = 0; c.side = c.side === 'L' ? 'R' : 'L'; c.phase = 0; }
+          if (u >= 1) { foot[2] = 0; c.side = c.side === 'L' ? 'R' : 'L'; c.phase = 0; c.settling = false; }
         }
       }
       for (const side of ['L', 'R']) {

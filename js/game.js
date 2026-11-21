@@ -669,6 +669,7 @@
     ['bdWBall', 'ct', '身体碰撞 持球人吃亏', 0.12, 0, 0.5, 0.01, '比例：位移分配时持球人多让出的份额'],
     ['bdStPow', 'ct', '防守站姿 力量加成', 0.25, 0, 0.6, 0.01, '比例：站姿者接触力量 × (1 + 加成)，用于卡位、顶回、冲撞与背打；大吨位差仍占优'],
     ['stDepth', 'def', '防守马步 下蹲深度', 1, 0.6, 1.2, 0.01, '倍率：只影响主动防守姿态的屈髋和屈膝'],
+    ['stLean', 'def', '防守蹲姿 躯干前倾', 0.52, 0.35, 0.65, 0.01, '弧度：胸口前移到膝盖上方，保留低重心宽站姿'],
     ['stWidth', 'def', '防守马步 双脚宽度', 0.42, 0.3, 0.5, 0.01, '米：单脚离身体中线的距离，随身高缩放'],
     ['stStep', 'def', '螃蟹步 步频距离', 0.42, 0.2, 0.6, 0.01, '米：用于移动速度到步频的换算；短步之外的位移由贴地滑行补足'],
     ['stHzMin', 'def', '防守滑步 最低步频', 1, 0.5, 1.5, 0.05, '次/秒：左右脚合计；极慢移动继续放缓，静止不迈步'],
@@ -5091,9 +5092,9 @@
       const s = Math.sin(ph * 1.4) * Math.min(1, pl.speed / 2);
       const deep = pl.stance ? 1 : 0.75;
       set({ lean: 0.3 * deep, lA: 0.48 * deep, lB: 0.9 * deep, rA: 0.48 * deep, rB: 0.9 * deep, lS: 0.36 + 0.14 * s, rS: 0.36 - 0.14 * s, aLp: 0.55, aLq: 1.05, aLe: 0.55, aRp: 0.55, aRq: 1.05, aRe: 0.55 });
-      if (pl.stance) set({ lean: 0.12, lA: 0.8 * K.stDepth, rA: 0.8 * K.stDepth, lB: 1.6 * K.stDepth, rB: 1.6 * K.stDepth, lS: 0.6, rS: 0.6 });
+      if (pl.stance) set({ lean: K.stLean, lA: 0.96 * K.stDepth, rA: 0.96 * K.stDepth, lB: 1.6 * K.stDepth, rB: 1.6 * K.stDepth, lS: 0.6, rS: 0.6 });
       if (pl.stance) set({ aRp: 2.5, aRq: 0.25, aRe: 0.25, aLp: 0.7, aLq: 1.1 });
-      if (pl.rx === 'press') set({ lean: 0.42, aLp: 2.3, aLq: 0.35, aLe: 0.3 }); else if (pl.rx === 'sag') set({ lean: 0.08, lB: 0.6, rB: 0.6 });
+      if (!pl.stance && pl.rx === 'press') set({ lean: 0.42, aLp: 2.3, aLq: 0.35, aLe: 0.3 }); else if (!pl.stance && pl.rx === 'sag') set({ lean: 0.08, lB: 0.6, rB: 0.6 });
     } else if (an === 'box') {
       const s = Math.sin(ph * 1.6) * Math.min(1, pl.speed / 1.5);
       set({ lean: 0.2, lA: 0.55, lB: 1.0, rA: 0.55, rB: 1.0, lS: 0.45 + 0.1 * s, rS: 0.45 - 0.1 * s, aLp: 1.1, aLq: 1.25, aLe: 0.7, aRp: 1.1, aRq: 1.25, aRe: 0.7 });

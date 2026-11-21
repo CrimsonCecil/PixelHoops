@@ -16,6 +16,45 @@ assert.equal(TUNE.meta('l1_stLift').max, 0.15, 'UI slider maximum');
 vm.runInContext(fs.readFileSync(path.join(__dirname, '../js/tuneui.js'), 'utf8').replace('PH.TUNEUI = {', 'PH.rowQA = rowHTML; PH.TUNEUI = {'), ctx);
 assert.match(ctx.PH.rowQA(TUNE.meta('l1_stLift')), /min="0" max="0.15"/, 'rendered UI slider bounds');
 console.log('PASS rendered stLift UI slider range 0–0.15m');
+const uiNodes = new Map();
+ctx.document = { getElementById(id) {
+  if (!uiNodes.has(id)) uiNodes.set(id, { handlers: {}, addEventListener(type, fn) { this.handlers[type] = fn; } });
+  return uiNodes.get(id);
+} };
+ctx.addEventListener = () => {};
+ctx.fetch = () => new Promise(() => {});
+vm.runInContext(fs.readFileSync(path.join(__dirname, '../js/cfgstore.js'), 'utf8'), ctx);
+ctx.PH.TUNEUI.wire();
+for (const profile of ['official', 'saved']) for (const lift of [0, 0.07, 0.15]) {
+  ctx.PH.CS.loadData(profile === 'saved' ? { l1_stLift: 0.12, l1_stStep: 0.15, l1_stWidth: 0.43, l1_stHzMin: 2.05, l1_stHzMax: 3.5 } : {});
+  uiNodes.get('tn-body').handlers.input({ target: { type: 'range', value: String(lift), getAttribute: () => 'l1_stLift' } });
+  assert.equal(game.K.stLift, lift, 'UI/profile key reaches gait tuning');
+  game.newGame({ mode: 'train', arch0: 'mrobinson', arch1: 'curry' });
+  Object.assign(game.G, { phase: 'live', intro: null, tips: null });
+  const [a, b] = game.G.players;
+  Object.assign(a, { x: 0, y: 6, face: Math.PI / 2, hasBall: false, action: null, stun: 0 });
+  b.hasBall = true; Object.assign(game.G.ball, { state: 'held', holder: b.id });
+  let peak = 0;
+  for (let i = 0; i < 480; i++) {
+    a.stam = 100; b.x = a.x; b.y = a.y + 4;
+    game.t5.step([{ ...game.t5.zeroInp(), mx: 0.26, a3: true }, game.t5.zeroInp()], 1 / 60);
+    if (i < 90) continue;
+    const k = rig(a, a.pose, false, a.col.body), sole = 0.06 * (1 + (a.col.body.height / 1.95 - 1) * 1.55);
+    assert(k.pelvis[2] - a.z <= 0.62, 'defensive crouch stays low');
+    for (const s of ['L', 'R']) {
+      const height = k['foot' + s][2] - a.z - sole;
+      peak = Math.max(peak, height);
+      if (s !== a.crab.side) assert(Math.abs(height) < 1e-8, 'UI/profile support foot grounded');
+    }
+    assert(Math.atan2(Math.hypot(k.chest[0] - k.pelvis[0], k.chest[1] - k.pelvis[1]), k.chest[2] - k.pelvis[2]) * 180 / Math.PI >= 20, 'athletic torso lean');
+    const forward = v => (v[0] - k.pelvis[0]) * Math.cos(a.face) + (v[1] - k.pelvis[1]) * Math.sin(a.face);
+    assert(forward(k.footL) > 0.1 && forward(k.footR) > 0.1, 'hips behind heels');
+    assert(forward(k.kneeL) > forward(k.footL) && forward(k.kneeR) > forward(k.footR), 'shins angle forward');
+  }
+  assert(lift === 0 ? peak < 1e-8 : peak >= lift - 0.002 && peak <= lift + 1e-8, 'live UI/profile lift amplitude');
+  console.log(`PASS live UI/profile ${profile}: slider ${lift.toFixed(2)}m, peak ${peak.toFixed(3)}m; forward crouch, hips behind heels`);
+}
+ctx.PH.CS.select('official');
 game.newGame({ mode: '2p', arch0: 'herb', arch1: 'wemby' });
 Object.assign(game.G, { phase: 'live', intro: null, tips: null });
 const [p, opponent] = game.G.players;
@@ -132,7 +171,7 @@ assert.equal(gait.drib(short), gait.drib(tall));
 TUNE.reset('l1_drHeight');
 const fallback = { h: 1.95, speed: 0 };
 assert(Number.isFinite(gait.drib(fallback)), 'height fallback without measured body');
-for (const name of ['stDepth', 'stWidth', 'stStep', 'stLift', 'stHzMin', 'stHzMax', 'gaHzMin', 'gaHzMax', 'gaHeight', 'drCrouch', 'drHeight']) {
+for (const name of ['stDepth', 'stLean', 'stWidth', 'stStep', 'stLift', 'stHzMin', 'stHzMax', 'gaHzMin', 'gaHzMax', 'gaHeight', 'drCrouch', 'drHeight']) {
   const d = TUNE.list().find(d => d.k === 'l1_' + name);
   assert(d && d.cat === 'move' && ['防守滑步', '跑步与运球'].includes(d.sub), '移动与姿态 classification');
 }
