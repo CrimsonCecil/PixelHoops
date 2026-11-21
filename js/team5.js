@@ -309,6 +309,8 @@
   const L1D = { l1_stLow: 15, l1_contestRange: 2.7, l1_stlCpu0: 0.6, l1_stlCpuD: 0.35, l1_stealMul: 1, l1_gwSkill: 1.7, l1_gwBadge: 1.45, l1_smKy: 0.5 };
   const TV = {}; for (const d of T5REG) TV[d.k] = d.v; Object.assign(TV, L1D);
   const T5_DISPLAY = {
+    t5_b5k_chaser: ['徽章强度 篮板追逐', '越大篮板追逐徽章对抢板范围的增益越强；1 = 原强度，0 = 无增益'],
+    t5_b5k_boxout: ['徽章强度 卡位', '越大卡位徽章越能压缩对手抢板范围；1 = 原强度，0 = 无增益'],
     t5_k5_ra_c: ['篮下上篮 干扰倍数', '越大篮下普通上篮越受防守干扰；1 = 基准，距筐 3.2 米内'],
     t5_k5_ra_p: ['篮下上篮 命中倍数', '越大篮下普通上篮越准；1 = 基准，距筐 3.2 米内'],
     t5_k5_ra_blk: ['篮下上篮 被盖倍数', '越大篮下普通上篮越容易被盖；1 = 基准，距筐 3.2 米内'],
