@@ -8,6 +8,7 @@
   const lobby3 = ['curry', 'lebron', 'jokic', 'edwards', 'durant', 'giannis'].map((arch, i) => ({ arch, role: i === 0 ? 'human' : i % 3 === 2 ? 'waiting' : 'cpu' }));
   const rooms = PH.rooms, room = rooms.room;
   let localSlot = -1, roomSlot = -1, matchConfig = null, netFrame = 0;
+  GM.localInputSlot = (p) => matchConfig && G.mode !== 't5' ? (p.id === localSlot ? 0 : null) : p.ctrl === 'cpu' ? null : p.ctrl === 'p2' ? 1 : 0;
   let scale = 2, paused = false, manual = false, screen = 'menu', last = 0, acc = 0, fps = 60, debug = /[?&]debug/.test(location.search);
   const isTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
   if (isTouch) document.getElementById('stage').classList.add('touch');
@@ -469,6 +470,11 @@
   const KING_LIVES = 3;
   const KING_AT = [AT_CLOSE, ['mid', '中投'], ['three', '三分'], ['fade', '后仰'], ['lay', '上篮'], ['flo', '抛投'], ['dunk', '扣篮'], ['post', '背打'], ['hnd', '控球'], ['spd', '速度'], ['str', '力量'], ['def', '外防'], ['intD', '内防'], ['stl', '抢断'], ['blk', '盖帽'], ['dreb', '篮板']];
   function kingTop(a) { return KING_AT.filter(([k]) => Number.isFinite(a[k])).map(([k, n]) => [n, A99(a[k])]).sort((x, y) => y[1] - x[1]).slice(0, 6).map(([n, v]) => '<span>' + n + '<i class="' + vcl(v) + '">' + v + '</i></span>').join(''); }
+  function kingLifeFx(left) {
+    const o = document.createElement('div'); o.className = 'klfx' + (left ? '' : ' last'); o.setAttribute('data-testid', 'king-life-fx');
+    o.innerHTML = '<div class="klfx-b"><i></i><em>-1</em></div><b>' + (left ? '还剩 ' + left + ' 次机会' : '最后一搏 · 再输出局') + '</b>';
+    document.body.appendChild(o); setTimeout(() => PH.audio.play('rebound'), 450); setTimeout(() => o.remove(), 2600);
+  }
   function kingTopHid() { return '<span>??<i>??</i></span>'.repeat(6); }
   function kingLives(left, brk, cls) { let h = '<span class="klives' + (cls ? ' ' + cls : '') + '" data-testid="king-lives" data-left="' + left + '">'; for (let i = 0; i < KING_LIVES; i++) h += '<i class="' + (i >= left ? 'x' : '') + (i === brk ? ' brk' : '') + '"></i>'; return h + '</span>'; }
   function kingNew() { kingLadderView(); KR = { arch: opts.arch0, ladder: kingLadder.slice(), tags: kingTags(kingLadder), target: opts.ktarget, open: opts.kreveal === 'show', stage: 0, lives: KING_LIVES, res: [], retry: 0, from: -1, last: null, done: false }; kingVS(); }
@@ -508,7 +514,7 @@
     const s = KR.stage, win = G.winner === 0, sc = G.score.slice();
     KR.last = { win: win };
     const brk = win ? -1 : KR.lives - 1, dead = !win && KR.lives <= 0;
-    if (!win && !dead) KR.lives--;
+    if (!win && !dead) { KR.lives--; kingLifeFx(KR.lives); }
     if (dead) { KR.done = true; KR.dead = true; }
     if (win) KR.res[s] = { k: KR.ladder[s], sc: sc, retry: KR.retry };
     if (win && s === 4) { setTimeout(kingVictory, 200); return true; }
