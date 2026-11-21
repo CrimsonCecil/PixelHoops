@@ -1209,6 +1209,23 @@
     }
     k.ball = center;
   }
+  function fitLimb(k, root, joint, tip, extra, upper, lower) {
+    const start = k[root], end = k[tip], elbow = k[joint];
+    let axis = end.map((v, i) => v - start[i]), d0 = Math.hypot(...axis);
+    if (d0 < 0.0001) { axis = [0, 0, -1]; d0 = 1; }
+    const v = axis.map(x => x / d0), d = Math.max(Math.abs(upper - lower) + 0.0001, Math.min(distance3(start, end), upper + lower - 0.0001));
+    const along = (d * d + upper * upper - lower * lower) / (2 * d);
+    const perp = a => { const dot = a.reduce((sum, x, i) => sum + x * v[i], 0); return a.map((x, i) => x - dot * v[i]); };
+    let bend = perp(elbow.map((x, i) => x - start[i])), n = Math.hypot(...bend);
+    if (n < 0.0001) { bend = perp(Math.abs(v[2]) < 0.9 ? [0, 0, -1] : [0, -1, 0]); n = Math.hypot(...bend); }
+    const height = Math.sqrt(Math.max(0, upper * upper - along * along));
+    const target = start.map((x, i) => x + v[i] * d);
+    k[joint] = start.map((x, i) => x + v[i] * along + bend[i] * height / n);
+    k[tip] = target;
+    k[extra] = k[extra].map((x, i) => x + target[i] - end[i]);
+  }
+  function distance3(a, b) { return Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]); }
+
   function rig(pl, P = pl.pose, grip = true, body) {
     // 卡通化体型：身高差放大 1.7 倍，宽度/臂展按球员体型
     const C = pl.col || {}, bw = C.bw || 1, wg = C.wing || 1;
@@ -1279,15 +1296,22 @@
     return k;
   }
   PH.rig = rig;
+  PH.footTarget = (pl, side) => visualRig(pl)['foot' + side];
 
   function visualRig(pl) {
     const body = pl.col.body;
-    if (!body) return rig(pl);
-    const k = rig(pl, pl.pose, false, body);
+    const k = rig(pl, pl.pose, !body, body);
     // 用比赛骨架的手部落点，保持持球、触球和盖帽动作对齐。
-    if (pl.grip || pl.hasBall || pl.anim === 'block' || pl.anim === 'steal' || pl.armS || pl.pose.passHands) {
+    if (body && (pl.grip || pl.hasBall || pl.anim === 'block' || pl.anim === 'steal' || pl.armS || pl.pose.passHands)) {
       const live = rig(pl);
       for (const side of ['L', 'R']) gripArm(k, side, live['hand' + side], false, true);
+    }
+    const height = body ? body.height * pl.h / body.baseHeight : pl.h;
+    const Hh = 1 + (height / 1.95 - 1) * (body ? 1.55 : 1.7), arm = body ? 0.94 * body.arm : pl.col.wing || 1;
+    const leg = 0.41 * Hh * (body ? 0.95 * body.legs : 1);
+    for (const side of ['L', 'R']) {
+      fitLimb(k, 'hip' + side, 'knee' + side, 'foot' + side, 'toe' + side, leg, leg);
+      fitLimb(k, 'sh' + side, 'el' + side, 'hand' + side, 'fg' + side, 0.28 * Hh * arm, 0.26 * Hh * arm);
     }
     return k;
   }

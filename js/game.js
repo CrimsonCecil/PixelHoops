@@ -5191,7 +5191,12 @@
       if (p0 * Math.sin(pl.drib) < 0) { if (!(pl.f5 && pl.f5.ck)) { pl.catchDribbled = true; if (pl.arch.key === 'rallen') pl.sk.rayDribN = (pl.sk.rayDribN || 0) + 1; } sfx('bounce'); if (pl.z <= 0.01) pl.sqv = (pl.sqv || 0) - 3.0; }
     }
     pl.handX = lerp(pl.handX, pl.hand * 0.33, Math.min(1, dt * 16));
-    if (an === 'steal' && (!pl.stealFoot || pl.stealFoot.action !== a)) {
+    if (pl.stealFoot && !pl.stealFoot.cancelled && (pl.stun > 0 || a && a.type !== 'steal' || G.phase !== 'live')) {
+      const f = pl.stealFoot, foot = PH.footTarget(pl, f.side);
+      Object.assign(f, { action: null, cancelled: true, end: foot, pos: foot.slice(), returnT: 0, returnDuration: 0.09 });
+    }
+    if (an === 'steal' && pl.stun > 0) a.footDone = true;
+    if (an === 'steal' && !a.footDone && (!pl.stealFoot || pl.stealFoot.action !== a)) {
       const side = a.swipe < 0 ? 'L' : 'R', start = PH.rig(pl)['foot' + side].slice(), length = K.stlLungeStep * pl.h / 1.95;
       const stance = Object.assign(Object.create(pl), { anim: 'def', action: null, stealFoot: null, crab: null, sq: 1, speed: 0 });
       const home = PH.rig(stance, poseTarget(stance), false)['foot' + side], floor = pl.z + 0.06 * (1 + (pl.h / 1.95 - 1) * 1.7);
@@ -5210,15 +5215,26 @@
     squash(pl, a, dt);
     if (pl.stealFoot) {
       const f = pl.stealFoot; f.t += dt;
-      const back = Math.max(K.stlHitT + 0.05, f.action.T - 0.02), returning = f.t > back;
-      const phase = clamp(returning ? (f.t - back) / 0.16 : f.t / Math.max(0.02, K.stlHitT * 0.75), 0, 1);
+      if (f.action && !f.released) f.back = Math.max(K.stlHitT + 0.05, f.action.T - 0.02);
+      if (!a) { f.action = null; f.back = Math.min(f.back, f.t); }
+      const returning = f.cancelled || f.t > f.back;
+      if (returning) {
+        if (f.returnT == null) { f.returnT = 0; f.end = f.pos.slice(); }
+        f.returnT += dt;
+      }
+      const phase = clamp(returning ? f.returnT / (f.returnDuration || 0.18) : f.t / Math.max(0.02, K.stlHitT * 0.75), 0, 1);
       f.sampling = true;
-      const home = PH.rig(pl)['foot' + f.side];
+      const home = PH.footTarget(pl, f.side);
       f.sampling = false;
-      const travel = sm(clamp((phase - 0.2) / 0.6, 0, 1)), from = returning ? f.end : f.start, to = returning ? home : f.end;
+      const travel = returning ? sm(phase) : sm(clamp((phase - 0.2) / 0.6, 0, 1)), from = returning ? f.end : f.start, to = returning ? home : f.end;
       f.pos = from.map((v, i) => lerp(v, to[i], travel));
-      f.pos[2] = Math.max(f.pos[2], Math.min(from[2], to[2]) + 0.16 * Math.sin(Math.PI * phase));
-      if (returning && phase >= 1) pl.stealFoot = null;
+      f.pos[2] = Math.max(f.pos[2], (returning ? home[2] : Math.min(from[2], to[2])) + (f.cancelled ? 0.08 : 0.16) * Math.sin(Math.PI * phase));
+      const foot = PH.footTarget(pl, f.side);
+      if (!returning && Math.hypot(...foot.map((v, i) => v - f.pos[i])) > 0.001) {
+        f.pos = foot; f.end = foot.slice();
+        if (!f.released) { f.back = f.t; f.released = true; }
+      }
+      if (returning && phase >= 1) { f.pos = home.slice(); if (f.action) f.action.footDone = true; pl.stealFoot = null; }
     }
     updateGrip(pl, a, dt);
     // 残影
