@@ -1555,7 +1555,7 @@
     const own = !pl || pl.ctrl !== 'cpu' || G.players.every((p) => p.ctrl === 'cpu');
     const dur = 0.62 + tier * 0.24;
     G.fx.scoreFx = { t: 0, dur, col, col2, kind: kind || 'shot', pts: pts || 2, tier, own };
-    if (kind === 'dunk') { spawnConfetti(tier >= 2 ? 64 : 42, [col, '#ffd24a', '#ff8a2a', '#ffffff'], 'cannon'); sfx('confettiCannon'); }
+    if (kind === 'dunk') spawnConfetti(tier >= 2 ? 64 : 42, [col, '#ffd24a', '#ff8a2a', '#ffffff'], 'cannon');
     else if (pts === 3) spawnConfetti(tier >= 2 ? 44 : 30, [col, '#ffd24a', '#5ee0ff', '#ffffff'], 'burst');
     else spawnConfetti(tier >= 2 ? 32 : 16, [col, '#ffd24a', '#ffffff'], 'burst');
     G.fx.cheer = Math.max(G.fx.cheer, kind === 'dunk' ? 2.4 + tier * 0.5 : pts === 3 ? 1.8 : 0.95);
@@ -2597,7 +2597,6 @@
     G.intro = { t0: t0, duo: [fa.id, fb.id], walk: walk, spots: spots, lines: lines, li: -1, lt: 0, ld: 0, tT: t0 + 2 * IWA + 0.4, cam: foc0, foc: foc0, banner: G.banner, phaseT: G.phaseT,
       sig: [], confettiT: 0 };
     G.cz = null; G.cutin = null; G.phase = 'intro';
-    if (G.mode !== 'demo' && PH.audio && PH.audio.introCrowd) PH.audio.introCrowd(0.9);
   }
   const introSig = (pl) => { const I = G.intro; if (!I) return null; for (const S of I.sig) if (S.id === pl.id && G.time >= S.t0 && G.time < S.t0 + S.T) return S; return null; };
   const introWalk = (pl) => { const I = G.intro; if (!I || !I.walk) return null; for (const S of I.walk) if (S.id === pl.id && G.time >= S.t0 && G.time < S.t0 + S.T) return S; return null; };
@@ -2620,8 +2619,8 @@
     }
     updateBall(dt);
     if (I.li < 0) for (const S of I.walk) {
-      if (S.ty === 'chalk' && !S.fx && now >= S.t0 + 0.42) { S.fx = true; const p = plById(S.id); burst(p.x, p.y, p.h + 0.45, 70, ['#ffffff', '#f4f1e8', '#e2ded2', '#fffbe9'], 2.3, 1.7, 1.1, 2); spawnConfetti(28, [p.team.css, '#ffd24a', '#ffffff'], 'burst'); sfx('confettiCannon'); sfx('cheer'); if (G.mode !== 'demo' && PH.audio && PH.audio.vo) { const speak = () => (!G.intro || G.intro.li >= 0) ? true : PH.audio.vo(p.arch.key, 'taunt', 'pri'); if (!speak() && PH.audio.voWhenReady) PH.audio.voWhenReady(speak); } }
-      else if (S.sig && !S.fx && now >= S.t0 + 0.35) { S.fx = true; const p = plById(S.id); spawnConfetti(26, [p.team.css, '#ffd24a', '#ffffff', '#ff8a2a'], 'burst'); flash('#ffffff', 0.08); G.fx.cheer = Math.max(G.fx.cheer, 2.6); sfx('confettiCannon'); sfx('cheer'); if (G.mode !== 'demo' && PH.audio && PH.audio.vo) { const speak = () => (!G.intro || G.intro.li >= 0) ? true : PH.audio.vo(p.arch.key, 'taunt', 'pri'); if (!speak() && PH.audio.voWhenReady) PH.audio.voWhenReady(speak); } }
+      if (S.ty === 'chalk' && !S.fx && now >= S.t0 + 0.42) { S.fx = true; const p = plById(S.id); burst(p.x, p.y, p.h + 0.45, 70, ['#ffffff', '#f4f1e8', '#e2ded2', '#fffbe9'], 2.3, 1.7, 1.1, 2); spawnConfetti(28, [p.team.css, '#ffd24a', '#ffffff'], 'burst'); if (G.mode !== 'demo' && PH.audio && PH.audio.vo) { const speak = () => (!G.intro || G.intro.li >= 0) ? true : PH.audio.vo(p.arch.key, 'taunt', 'pri'); if (!speak() && PH.audio.voWhenReady) PH.audio.voWhenReady(speak); } }
+      else if (S.sig && !S.fx && now >= S.t0 + 0.35) { S.fx = true; const p = plById(S.id); spawnConfetti(26, [p.team.css, '#ffd24a', '#ffffff', '#ff8a2a'], 'burst'); flash('#ffffff', 0.08); G.fx.cheer = Math.max(G.fx.cheer, 2.6); if (G.mode !== 'demo' && PH.audio && PH.audio.vo) { const speak = () => (!G.intro || G.intro.li >= 0) ? true : PH.audio.vo(p.arch.key, 'taunt', 'pri'); if (!speak() && PH.audio.voWhenReady) PH.audio.voWhenReady(speak); } }
     }
     if (I.li < 0 ? now >= I.tT : now >= I.lt + I.ld) introNext();
     if (!G.intro) return;
@@ -2637,8 +2636,6 @@
         led('NOW ENTERING  ' + sh.arch.full + '  震撼登场', sh.team.css, IWA);
         G.fx.cheer = 3.2; flash(sh.team.css, 0.12);
         spawnConfetti(48, [sh.team.css, '#ffd24a', '#ffffff', '#ff8a2a'], 'cannon');
-        sfx('confettiCannon');
-        sfx('introCheer');
       }
       I.cam = { x: sh.x, y: sh.y, u: G.mode === 't3' ? 0.08 : 0.3, mode: 'walk' };
     }
@@ -2653,7 +2650,6 @@
     if (I.li < 0 && G.time < I.tT) { for (const s of I.spots) Object.assign(s.p, { x: s.x, y: s.y, vx: 0, vy: 0, speed: 0 }); for (const S of I.sig) { S.on = true; S.fx = true; S.t0 = -99; } for (const S of I.walk) S.fx = true; G.banner = null; I.snap = true; }
     I.li++;
     if (I.li >= I.lines.length) { introEnd(); return; }
-    if (I.li === 0 && G.mode !== 'demo' && PH.audio && PH.audio.introCrowd) PH.audio.introCrowd(0.35);
     const L = I.lines[I.li], p = plById(L.id);
     if (L.v) {
       const sayVo = () => {
@@ -2682,7 +2678,6 @@
     G.intro = null; G.cz = null; G.phase = 'check'; G.phaseT = I.phaseT;
     if (G.fx && G.fx.confetti) G.fx.confetti.length = 0;
     banner('GAME START', '比赛开始', '#ffd24a', 1.8); G.banner.top = true;
-    if (PH.audio && PH.audio.introCrowd) PH.audio.introCrowd(0);
     if (PH.audio && PH.audio.voStop) PH.audio.voStop();
     if (PH.input && PH.input.flush) PH.input.flush();
     if (G.mode === 't3' && PH.T3 && PH.T3.rearm) PH.T3.rearm();

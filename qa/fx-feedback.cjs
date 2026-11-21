@@ -10,52 +10,45 @@ function load() {
   for (const name of ['tune', 'ptype', 'render', 'roster', 'measurements', 'r5', 'game', 'team3']) {
     vm.runInContext(fs.readFileSync(path.join(__dirname, '../js', name + '.js'), 'utf8'), ctx, { filename: name + '.js' });
   }
-  const played = [], crowdLevels = [], voiced = [], said = [];
+  const played = [], voiced = [], said = [];
   let manifestReady = true, readyCbs = [];
   ctx.PH.audio = {
     voLine: (k, ev, i) => (manifestReady ? { f: k + ev + i, t: k + ':' + ev + ':' + i, d: 1.5 } : null),
     voSay: (it) => said.push(it.f),
     voStop() {},
     voWhenReady: (cb) => { if (manifestReady) cb(); else readyCbs.push(cb); },
-    introCrowd: (lv) => crowdLevels.push(lv),
     play: (n) => played.push(n),
     vo: (k, ev, mode) => { if (!manifestReady) return null; voiced.push(k + ':' + ev + ':' + (mode || '')); return { f: k + ev }; },
   };
   ctx.PH.input = { read: () => ctx.PH.game.t5.zeroInp(), endTick() {} };
   ctx.PH.game.seed(11);
   return {
-    ctx, Gm: ctx.PH.game, G: ctx.PH.game.G, played, crowdLevels, voiced, said,
+    ctx, Gm: ctx.PH.game, G: ctx.PH.game.G, played, voiced, said,
     setManifestReady: (v) => { manifestReady = v; if (v) { const cbs = readyCbs; readyCbs = []; cbs.forEach((cb) => cb()); } }
   };
 }
 
-// 1. Pre-game entrance: cheering, sustained crowd bed, confetti cannons, walk-in voice, and clean handoff
+// 1. Pre-game entrance: visuals and walk-in voice packs stay intact without noisy procedural intro SFX
 {
-  const { Gm, G, played, crowdLevels, voiced } = load();
+  const { Gm, G, played, voiced } = load();
   Gm.newGame({ mode: 'cpu', arch0: 'lebron', arch1: 'curry' });
   Gm.introStart();
-  assert.ok(crowdLevels[0] > 0.5, 'introStart begins sustained stadium crowd bed');
-  let maxConfetti = 0, sawIntroCheer = false, sawCannon = false, sawLed = false, sawHighCheer = false;
+  let maxConfetti = 0, sawLed = false, sawHighCheer = false;
   for (let i = 0; i < 60 * 9 && G.intro; i++) {
     Gm.introTick(1 / 60);
     maxConfetti = Math.max(maxConfetti, G.fx.confetti.length);
-    if (played.includes('introCheer')) sawIntroCheer = true;
-    if (played.includes('confettiCannon')) sawCannon = true;
     if (G.fx.led && /NOW ENTERING/.test(G.fx.led.text)) sawLed = true;
     if (G.fx.cheer >= 2.2) sawHighCheer = true;
   }
-  assert.ok(sawIntroCheer, 'entrance plays introCheer audio');
-  assert.ok(sawCannon, 'entrance fires confettiCannon audio');
+  assert.equal(played.length, 0, 'entrance does not fire noisy procedural intro SFX (' + played.join(',') + ')');
   assert.ok(sawLed, 'entrance drives LED ticker');
-  assert.ok(sawHighCheer, 'entrance keeps crowd cheering');
+  assert.ok(sawHighCheer, 'entrance keeps crowd visual cheering');
   assert.ok(maxConfetti >= 40, 'entrance spawns abundant confetti (' + maxConfetti + ')');
   assert.ok(voiced.some((v) => v.startsWith('lebron:taunt')), 'LeBron plays voice pack during walk-in');
   assert.ok(voiced.some((v) => v.startsWith('curry:taunt')), 'Curry plays voice pack during walk-in');
-  assert.ok(crowdLevels.some((lv) => lv > 0 && lv < 0.5), 'crowd bed ducks for intro dialogue');
   Gm.introEnd();
   assert.equal(G.fx.confetti.length, 0, 'introEnd clears leftover entrance confetti');
-  assert.equal(crowdLevels[crowdLevels.length - 1], 0, 'introEnd stops sustained crowd bed');
-  console.log('PASS: entrance walk-in plays cheering/cannons/crowd bed, triggers voice packs, drives LED/confetti, and cleans up on end.');
+  console.log('PASS: entrance walk-in keeps visuals and voice packs without noisy intro SFX.');
 }
 
 // 1b. Delayed vo/manifest.json load still plays voiced intro dialogue line once ready
@@ -74,7 +67,7 @@ function load() {
   console.log('PASS: delayed vo/manifest.json load still triggers voiced intro dialogue line.');
 }
 
-// 1c. Skipping walk-in suppresses pending walk-in voices/cannons during dialogue
+// 1c. Skipping walk-in suppresses pending walk-in voices during dialogue
 {
   const { Gm, G, played, voiced } = load();
   Gm.newGame({ mode: 'cpu', arch0: 'lebron', arch1: 'curry' });
@@ -83,8 +76,8 @@ function load() {
   played.length = 0; voiced.length = 0;
   for (let i = 0; i < 60 * 6 && G.intro; i++) Gm.introTick(1 / 60);
   assert.equal(voiced.length, 0, 'skipped walk-in voices do not interrupt dialogue');
-  assert.ok(!played.includes('confettiCannon'), 'skipped walk-in cannons do not fire during dialogue');
-  console.log('PASS: skipping walk-in suppresses pending walk-in voices and cannons during dialogue.');
+  assert.equal(played.length, 0, 'skipped walk-in plays no intro SFX during dialogue');
+  console.log('PASS: skipping walk-in suppresses pending walk-in voices during dialogue.');
 }
 
 // 2. 1V1 scoring full-screen feedback and dunk screen shake
