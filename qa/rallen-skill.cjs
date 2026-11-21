@@ -51,6 +51,20 @@ for (const mode of ['2p', 't3', 't5']) {
 }
 console.log('PASS retreat + feet set fires in 1V1/3V3/5V5, including off-ball relocation; compact form/meter; team-only green x1.2; cooldown/cut-in');
 
+{
+  const { p } = fixture(); relocate(p, { set: false });
+  Object.assign(p, { vx: 0, vy: 0, speed: 0 }); tick(p, K.raySetT / 3);
+  p.drib = Math.PI - 0.01;
+  const before = p.sk.rayDribN || 0;
+  qa.updatePlayer(p, zero(), 1 / 120); tick(p, 1 / 120);
+  assert.equal(p.sk.rayDribN, before + 1, 'automatic bounce occurs while still settling');
+  assert(p.sk.raySet < K.raySetT);
+  tick(p, K.raySetT);
+  assert.equal(p.sk.hint, 'ready');
+  assert.equal(shoot(p).skill, 'rallen', 'settling bounce must not disqualify a ready 1V1 shot');
+}
+console.log('PASS 1V1 automatic settling bounce does not disqualify feet-set ready shot');
+
 for (const reason of ['moving', 'short-set', 'inside', 'airborne', 'stale', 'cooldown', 'bounce', 'move', 'no-relocation', 'team-dribble', 'no-catch', 'old-catch']) {
   const mode = reason.startsWith('team') || reason.includes('catch') ? 't3' : '2p';
   const { p } = fixture(mode);
@@ -60,7 +74,7 @@ for (const reason of ['moving', 'short-set', 'inside', 'airborne', 'stale', 'coo
   if (reason === 'airborne') p.z = 0.3;
   if (reason === 'stale') G.time += K.rayWindow + 0.01;
   if (reason === 'cooldown') p.sk.cd = 1;
-  if (reason === 'bounce') { p.drib = Math.PI - 0.01; qa.updatePlayer(p, zero(), 1 / 60); }
+  if (reason === 'bounce') { p.drib = Math.PI - 0.01; qa.updatePlayer(p, zero(), 1 / 60); tick(p, 0); assert.equal(p.sk.hint, '', 'post-set bounce removes ready cue'); }
   if (reason === 'move') { qa.startMove(p, { ...zero(), dx: 1 }, 'hesi'); p.action = null; }
   if (mode === 't3') { p.passCatchT = reason === 'no-catch' ? null : G.time - (reason === 'old-catch' ? 0.7 : 0.1); p.passQuality = 0.8; p.catchDribbled = reason === 'team-dribble'; }
   qa.startShot(p, zero(), 'a1');

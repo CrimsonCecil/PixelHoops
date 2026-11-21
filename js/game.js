@@ -2039,7 +2039,7 @@
     const outward = -pl.vx * h.x - pl.vy * h.y, sideways = Math.abs(pl.vx * h.y - pl.vy * h.x);
     if (!three || outward >= K.rayOutV || outward >= 0 && sideways >= K.raySideV) k.rayMoveT = G.time;
     const set = three && pl.z <= K.rayGround && Math.hypot(pl.vx, pl.vy) < K.raySetV && !pl.action && pl.stun <= 0;
-    if (!set || !k.raySet || !pl.hasBall || !k.rayHadBall) k.raySetDrib = k.rayDribN || 0;
+    if (!set || !(k.raySet >= K.raySetT) || !pl.hasBall || !k.rayHadBall) k.raySetDrib = k.rayDribN || 0;
     k.raySet = set ? (k.raySet || 0) + dt : 0;
     k.rayHadBall = pl.hasBall;
   }
@@ -2067,7 +2067,7 @@
     else if (S.id === 'shaq') h = shaqReady(pl) ? 'ready' : pl.post && k.postT > 0.3 ? 'half' : '';
     else if (dropSignature(S)) h = pl.hasBall && postFollow(pl) && pl.postMove.signature ? 'ready' : pl.post && k.postT > 0.3 ? 'half' : '';
     else if (S.trig === 'vertical') h = !pl.hasBall && verticalBlockReady(pl, opp) ? 'ready' : '';
-    else if (S.id === 'rallen') h = isThree(pl.x, pl.y) && G.time - (k.rayMoveT ?? -Infinity) <= K.rayWindow && !pl.action ? k.raySet >= K.raySetT ? 'ready' : 'half' : '';
+    else if (S.id === 'rallen') h = isThree(pl.x, pl.y) && G.time - (k.rayMoveT ?? -Infinity) <= K.rayWindow && !pl.action && (teamPlay() || !pl.hasBall || (k.rayDribN || 0) === k.raySetDrib) ? k.raySet >= K.raySetT ? 'ready' : 'half' : '';
     else if (S.id === 'rodman') h = rodReady(pl) ? 'ready' : '';
     else if (S.id === 'bwallace') h = benSealed(pl) ? 'ready' : pl.box && rebBall() ? 'half' : '';
     else if (S.type === 'shot') h = pl.hasBall && gTrig(pl, S, opp) ? 'ready' : '';
