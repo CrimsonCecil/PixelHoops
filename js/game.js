@@ -106,6 +106,8 @@
     ['layGlide', 'zone', '滑翔上篮额外距离', 0.35, 0, 1.2, 0.05, '米：滑翔风格起跳更远（再乘总系数）'],
     ['hopD', 'zone', '跳步上篮收球距离', 2.6, 1.5, 4, 0.05, '米：第一步落在离筐约这么远处，再双脚跳步'],
     ['euroD', 'zone', '欧洲步第二步距离', 1.2, 0.6, 2.5, 0.05, '米：欧洲步第二步落到离筐约这么远'],
+    ['euroTempo', 'zone', '欧洲步时长倍率', 1.8, 0.8, 4, 0.05, '倍率：越大越慢；两步与停顿一起缩放，保留小幅速度/加速能力差异；不改变空中出手时机'],
+    ['euroBeat', 'zone', '欧洲步第一步落地停顿', 0.24, 0, 0.45, 0.01, '秒：第一步落地后压节奏，再迈第二步；受欧洲步时长倍率影响，0 为不停顿'],
     ['dunkMax', 'zone', '扣篮最远起跳', 3.2, 1.5, 5, 0.05, '米：扣篮起跳距离上限'],
     ['bkDunkDist', 'zone', '空中飞猪 额外起跳距离', 1, 0, 1.5, 0.05, '米：路线空旷的跑扣额外起跳距离'],
     ['bkDunkSpeed', 'zone', '空中飞猪 向筐速度', 1.8, 0.5, 5, 0.1, '米/秒：不需要冲刺或蓄力'],
@@ -3743,10 +3745,13 @@
     }
     const s = clamp(Math.max(need / 2, P.L * K.step2K), K.step2A, P.L);
     if (kind === 'euro') {
+      const tempo = K.euroTempo * lerp(1.1, 0.95, clamp((pl.r.spd + pl.r.acc) / 2, 0, 1));
+      const beat = K.euroBeat * tempo, euroT = (len) => sT(len) * tempo;
       const w = clamp(s * 0.75, 0.55, 1.0);
-      push(x + h.x * s * 0.75 + lx * eS * w, y + h.y * s * 0.75 + ly * eS * w, sT(s) + GATHER_T + 0.02, 0.1, eS > 0 ? 'L' : 'R');
+      push(x + h.x * s * 0.75 + lx * eS * w, y + h.y * s * 0.75 + ly * eS * w, euroT(s) + (GATHER_T + 0.02) * tempo + beat, 0.1, eS > 0 ? 'L' : 'R');
+      wp[0].hold = beat;
       const d1 = Math.hypot(HOOP.x - x, HOOP.y - y), s2 = clamp(d1 - K.euroD, 0.6, P.L * 1.05);
-      push(x + h.x * s2 * 0.8 - lx * eS * w * 1.25, y + h.y * s2 * 0.8 - ly * eS * w * 1.25, sT(s2) + 0.04, 0.1, eS > 0 ? 'R' : 'L');
+      push(x + h.x * s2 * 0.8 - lx * eS * w * 1.25, y + h.y * s2 * 0.8 - ly * eS * w * 1.25, euroT(s2) + 0.04 * tempo, 0.1, eS > 0 ? 'R' : 'L');
     } else {
       // 第一步（大步，同时收球）→ 第二步（起跳脚）
       push(x + h.x * s, y + h.y * s, sT(s) + GATHER_T, 0.1, hd);
@@ -4070,10 +4075,10 @@
     const w = a.wp[a.si];
     if (!w) { if (a.type === 'dunk') dunkTakeoff(pl, a); else layJump(pl, a); return; }
     a.st += dt; a.t = 0;
-    const u = clamp(a.st / w.T, 0, 1);
+    const moveT = w.T - (w.hold || 0), u = clamp(a.st / moveT, 0, 1);
     pl.x = lerp(w.fx, w.x, u); pl.y = lerp(w.fy, w.y, u); pl.z = w.z * Math.sin(Math.PI * u); pl.vz = 0;
-    pl.vx = (w.x - w.fx) / w.T; pl.vy = (w.y - w.fy) / w.T;
-    if (u >= 1) {
+    pl.vx = u < 1 ? (w.x - w.fx) / moveT : 0; pl.vy = u < 1 ? (w.y - w.fy) / moveT : 0;
+    if (a.st >= w.T) {
       a.si++; a.st = 0; pl.z = 0;
       // 收球不出声；每一步落地一声，最后一步直接是起跳声
       if (a.si < a.wp.length) sfx('squeak');
@@ -4290,7 +4295,7 @@
   function stepPose(a) {
     const w = (a.wp && (a.wp[a.si] || a.wp[a.wp.length - 1])), o = { aLp: 0.5, aLq: 0.28, aLe: 1.05, aRp: 0.5, aRq: 0.28, aRe: 1.05 };
     if (!w) return Object.assign(o, { lean: 0.3, lA: 0.2, lB: 0.6, rA: 0.2, rB: 0.6 });   // 扣篮改上篮当帧还没排步点（下一帧直接起跳）
-    const u = clamp(a.st / w.T, 0, 1), last = a.si >= a.wp.length - 1;
+    const u = clamp(a.st / (w.T - (w.hold || 0)), 0, 1), last = a.si >= a.wp.length - 1;
     if (w.lead === 'B') return Object.assign(o, { lean: 0.32, lA: 0.45 + 0.25 * u, lB: 0.85 + 0.45 * u, rA: 0.45 + 0.25 * u, rB: 0.85 + 0.45 * u, lS: 0.25, rS: 0.25 });
     const sk = clamp(Math.hypot(w.x - w.fx, w.y - w.fy) / 1.1, 0.7, 1.6);
     const A = lerp(-0.3 * sk, 0.95 * sk, u), B = 0.3 + 0.6 * Math.sin(Math.PI * u) + (last ? 0.35 * u : 0), tA = lerp(0.6 * sk, -0.65 * sk, u), tB = 0.55 + 0.3 * Math.sin(Math.PI * u);
@@ -6880,7 +6885,8 @@
     pl.rx = RX.m;
     const dd = Math.hypot(opp.x - pl.x, opp.y - pl.y), oa = opp.action;
     if (oa && (oa.type === 'shot' || oa.type === 'layup' || oa.type === 'dunk' || oa.type === 'fake')) {
-      if (ai.seenAct !== oa && oa.type !== 'fake' && !oa.inSteps) {
+      const euroPlant = oa.type === 'layup' && oa.v === 'euro' && oa.inSteps && (oa.si > 0 || oa.wp?.[0] && oa.st >= oa.wp[0].T - (oa.wp[0].hold || 0));
+      if (ai.seenAct !== oa && oa.type !== 'fake' && (!oa.inSteps || euroPlant)) {
         ai.seenAct = oa;
         const bite = oa.type !== 'shot' || rnd() < D.bite * (pl.dummy ? 1 : DM.bite), rc = D.react * (pl.dummy ? 1 : DM.react * (1.35 - 0.6 * pl.r.def));
         ai.jumpAt = G.time + (oa.type === 'shot' ? (bite ? rc * 0.7 : Math.max(K.aiJmpMin, rc) + rc * 0.6) : rc * 0.8);
@@ -7371,7 +7377,7 @@
   }
   // V4.0 注册到调参台（ST / GW_TYPE / BLK_K / BLK_T / LSV 这些对象保持同一引用，值随调参刷新）
   if (TU) {
-    TU.reg(TDEF.map((d) => ({ k: 'l1_' + d[0], g: d[1], label: d[2], v: d[3], min: d[4], max: d[5], step: d[6], note: d[7], mode: d[8] || 'num', tmp: !!d[9], ...(d[0] === 'stLift' || d[0] === 'stReach' || /^(manu|aiCommit|aiProbeRange|aiBurst|aiChain|vc)/.test(d[0]) ? { wide: false } : {}), ...(/^manu/.test(d[0]) ? { cat: 'fin', sub: '上篮变体', gm: 'both' } : {}), ...(/^vc/.test(d[0]) ? { cat: 'fin', sub: '扣篮', gm: 'both' } : {}), ...(/^ai(Commit|ProbeRange|Burst|Chain)/.test(d[0]) ? { cat: 'drib', sub: '连招', gm: 'both' } : {}), ...(/^(alley|selfAlley)/.test(d[0]) ? { cat: 'fin', sub: '上篮', gm: 'both' } : {}) })));
+    TU.reg(TDEF.map((d) => ({ k: 'l1_' + d[0], g: d[1], label: d[2], v: d[3], min: d[4], max: d[5], step: d[6], note: d[7], mode: d[8] || 'num', tmp: !!d[9], ...(d[0] === 'stLift' || d[0] === 'stReach' || /^(euroTempo|euroBeat|manu|aiCommit|aiProbeRange|aiBurst|aiChain|vc)/.test(d[0]) ? { wide: false } : {}), ...(/^manu/.test(d[0]) ? { cat: 'fin', sub: '上篮变体', gm: 'both' } : {}), ...(/^vc/.test(d[0]) ? { cat: 'fin', sub: '扣篮', gm: 'both' } : {}), ...(/^ai(Commit|ProbeRange|Burst|Chain)/.test(d[0]) ? { cat: 'drib', sub: '连招', gm: 'both' } : {}), ...(/^(alley|selfAlley)/.test(d[0]) ? { cat: 'fin', sub: '上篮', gm: 'both' } : {}) })));
     TU.reg(RDEF.map((d) => ({ k: 'l1_' + d[0], g: 'rules', label: d[1], v: CFG_DEF[d[0]], min: d[2], max: d[3], step: d[4], note: d[5], mode: d[6] || 'num' })));
     for (const d of RDEF) if (d[0] !== 'shotClock') Object.defineProperty(CFG, d[0], { enumerable: true, configurable: true, get: () => TU.get('l1_' + d[0]), set: (v) => { TU.set('l1_' + d[0], v); } });
     // 进攻时间是“本场”设置（比赛开始界面 / 5V5 会临时改），所以 CFG.shotClock 仍是普通字段，调参改动时同步过去

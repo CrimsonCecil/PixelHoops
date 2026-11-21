@@ -62,7 +62,7 @@
     [/^(gw|green)/, 'shot', '绿区'], [/^fk(?!Cpu)/, 'shot', '假投'], [/^hz/, 'shot', '热区与手感'],
     [/^smKy$/, 'shot', '主宰'], [/^smEsc$/, 'ct', '封堵对抗'], [/^sm/, 'shot', '命中'],
     [/^(dunk|dkTgt|d2lE)/, 'fin', '扣篮'], [/^sd/, 'fin', '站扣'], [/^(sP|sRev|lv)/, 'fin', '上篮变体'], [/^cv/, 'fin', '被封堵变体'],
-    [/^(lay|flo|runV|step|hopD|euroD|gathT)/, 'fin', '脚步与起跳'], [/^aiLay$/, 'ai', '进攻决策'],
+    [/^(lay|flo|runV|step|hopD|euro|gathT)/, 'fin', '脚步与起跳'], [/^aiLay$/, 'ai', '进攻决策'],
     [/^ctThru/, 'ct', '顶翻'], [/^(ct|df)/, 'ct', '封堵对抗'], [/^bdLay|^smBump$/, 'ct', '身体碰撞'], [/^bd/, 'ct', '身体碰撞'], [/^po/, 'ct', '背打'],
     [/^(speedMul|sprintSp)$/, 'drib', '移动'], [/^(dm|mvEdge)/, 'drib', '招式位移'], [/^cb/, 'drib', '连招'],
     [/^akKy/, 'drib', '魔术手'], [/^akPs/, 'drib', '背身转身'], [/^(akCpu|akRead)/, 'ai', '防守反应'],
