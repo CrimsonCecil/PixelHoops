@@ -178,16 +178,16 @@
     if (!T.on) return;
     if (G.replay) { A.replayTick(dt); return; }
     T.inputs = inputs || {};
-    const h = holder();
+    const h = holder(), owner = h || (G.phase === 'check' && G.chk ? G.players[G.chk.o] : null);
     for (const p of G.players) {
       const inp = T.inputs[p.id], pass = !!(inp?.pass && p.ctrl !== 'cpu');
-      if (pass && !T.prev[p.id] && p === h && (G.phase === 'check' || G.phase === 'live')) {
+      if (pass && !T.prev[p.id] && p === owner && (G.phase === 'check' || G.phase === 'live')) {
         T.passQueue = { p, inp, until: G.time + 1 };
       }
       if (p === h || G.phase !== 'live') T.prev[p.id] = pass;
     }
     const queued = T.passQueue;
-    if (queued && (queued.p !== h || queued.until <= G.time || send(h, target(h, queued.inp).p))) T.passQueue = null;
+    if (queued && (queued.p !== owner || queued.until <= G.time || h && send(h, target(h, queued.inp).p))) T.passQueue = null;
     if (G.phase === 'live') {
       matchups();
       for (const p of G.players) {

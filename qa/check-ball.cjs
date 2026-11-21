@@ -76,6 +76,19 @@ function verify(log, G, offId, label) {
   console.log('PASS: 3V3 check ball goes defender -> bounce pass -> offense catch -> live.');
 }
 
+{
+  const PH = load(['team3']), GM = PH.game, G = GM.G, T3 = PH.T3;
+  const slots = ['curry', 'edwards', 'jokic', 'lebron', 'durant', 'giannis'].map((arch, i) => ({ arch, role: i === 0 ? 'human' : 'cpu' }));
+  T3.start({ slots, target: 21, clock: 14, replay: false });
+  let passed = false;
+  for (let i = 0; i < 120 && !passed; i++) {
+    T3.tick(1 / 60, { 0: Object.assign(GM.t5.zeroInp(), { pass: i === 10 }) });
+    passed = G.phase === 'live' && G.ball.state === 'pass' && G.ball.lastTouch === 0;
+  }
+  assert(passed, '3V3: a pass pressed during the check goes out after the catch');
+  console.log('PASS: 3V3 pass pressed during the check is sent after the catch.');
+}
+
 for (const mode of ['cpu', 't3']) {
   const PH = load(['team3']), GM = PH.game, G = GM.G, api = GM.t5;
   if (mode === 't3') PH.T3.start({ slots: ['curry', 'edwards', 'jokic', 'lebron', 'durant', 'giannis'].map((arch) => ({ arch, role: 'cpu' })), target: 21, clock: 14, replay: false });
