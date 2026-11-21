@@ -271,9 +271,12 @@ console.log('PASS post button ownership: early release fakes without a stick-dri
 for (const mode of ['2p', 't5']) {
   for (const [x, y, move, shot] of [[1, 0, 'postspin', 'turn'], [0.7, 0.7, 'postdrop', 'postfront'], [0, -1, 'postface', 'postfade'], [1, -0.7, 'postspin', 'postfade1']]) {
     let { p } = fixture(mode);
-    gamepadStep(mode, p, { x, y }, 5);
-    assert.equal(p.action, null, 'A pending post flick must not move immediately');
+    gamepadStep(mode, p, { x, y });
+    assert.equal(p.action?.kind, move, 'A post move starts on the deflection frame');
+    const flickMove = p.action;
+    gamepadStep(mode, p, { x, y }, 4);
     gamepadStep(mode, p);
+    assert.strictEqual(p.action, flickMove, 'Neutral keeps the same post move without replaying the input');
     assert.equal(p.action?.kind, move, `${mode} flick ${x},${y}`);
     ({ p } = fixture(mode));
     gamepadStep(mode, p, { x, y }, holdFrames());
@@ -324,24 +327,24 @@ for (const mode of ['2p', 't5']) {
   const real = p.action; gamepadStep(mode, p);
   assert(real.released, 'Full hold after chained post fakes still releases a real shot');
 
-  for (const state of ['stun', 'noBall', 'dead', 'noStamina', 'cancel', 'disconnect']) {
+  for (const state of ['stun', 'noBall', 'dead', 'cancel', 'disconnect']) {
     const { p } = fixture(mode);
     gamepadStep(mode, p, { x: 1 }, 4);
     if (state === 'stun') p.stun = 3;
     if (state === 'noBall') p.hasBall = false;
     if (state === 'dead') G.ball.dead = true;
-    if (state === 'noStamina') p.stam = 0;
     if (state === 'cancel') gamepadStep(mode, p, { x: 1, post: false }, 2);
     if (state === 'disconnect') { pads.length = 0; step(p); }
     gamepadStep(mode, p);
-    assert(!p.action || !['move', 'shot'].includes(p.action.type), `${mode} ${state} cancels pending post gesture`);
+    assert(!p.action || !['move', 'shot'].includes(p.action.type), `${mode} ${state} cancels the owned post move before hold conversion`);
   }
   {
     const { p } = fixture(mode); p.post = false; p.opp.off = true;
     gamepadStep(mode, p, { x: 1, post: false });
-    assert.equal(p.action, null, 'PR81 shared non-post stick waits for flick or hold');
+    assert.equal(p.action?.type, 'move', 'Shared non-post stick starts moving on deflection');
+    const move = p.action;
     gamepadStep(mode, p, { post: false });
-    assert.equal(p.action.type, 'move', 'PR81 shared non-post flick triggers its move on release');
+    assert.strictEqual(p.action, move, 'Shared non-post flick leaves the same move running');
     assert(!p.rsGesture);
   }
   {
@@ -359,10 +362,45 @@ pads.length = 0;
 console.log('PASS post stick: shared PR81 flick/hold, directional shots, held meter and release, hook and expiring follow-ups in 1V1/5V5; movement+shoot preserved and shared non-post gestures');
 console.log('PASS chained post fakes: early stick/button release retains posting and ball, alternating ids/poses, free stamina, real-shot follow-up and invalid-state cancellation');
 
+for (const mode of ['2p', 't5']) {
+  for (const stamina of [0, gm.K.stAct]) {
+    const { p } = fixture(mode); p.stam = stamina;
+    gamepadStep(mode, p, { x: 1 }, holdFrames() + 2);
+    assert.equal(p.action, null, 'Insufficient stamina rejects the move and its held-shot conversion before charging');
+    assert.equal(p.stam, stamina);
+  }
+  for (const [x, y, kind] of [[1, 0, 'postspin'], [0, 1, 'postdrop'], [0, -1, 'postface']]) {
+    for (const hold of [false, true]) {
+      const { p } = fixture(mode); p.stam = gm.K.stAct + 0.1;
+      gamepadStep(mode, p, { x, y });
+      const move = p.action, paidStamina = p.stam;
+      assert.equal(move?.kind, kind, 'Stamina above the start threshold accepts the post move');
+      assert(paidStamina < gm.K.stAct, 'The accepted move cost crosses the stamina threshold');
+      gamepadStep(mode, p, { x, y });
+      assert.strictEqual(p.action, move, 'A paid move survives its second frame below the stamina threshold');
+      assert.equal(p.stam, paidStamina, 'Holding does not charge the same move again');
+      if (hold) {
+        gamepadStep(mode, p, { x, y }, holdFrames() - 2);
+        const shot = p.action;
+        assert.equal(shot?.type, 'shot', 'A paid post move retains its held-shot follow-up at low stamina');
+        gamepadStep(mode, p, { x, y }, Math.max(1, Math.floor((shot.ideal - shot.t) / dt) - 1));
+        gamepadStep(mode, p);
+        assert(shot.released && G.ball.state === 'shot', 'Neutral still releases the low-stamina post shot');
+      } else {
+        gamepadStep(mode, p, {}, Math.ceil((move.T - move.t) / dt) + 2);
+        assert.equal(p.action, null, 'A paid quick-flick move completes rather than being cancelled');
+        assert(p.hasBall && G.ball.state === 'held');
+        assert.equal(p.stam, paidStamina);
+      }
+    }
+  }
+}
+console.log('PASS post stamina: reject unpaid starts at/below threshold; paid spin/drop/face moves survive their cost, finish on flick and retain held-shot releases in 1V1/5V5');
+
 {
   const { p } = fixture(); tune.set('l1_rsHold', 0.4);
-  gamepadStep('2p', p, { x: 1 }, 30); assert.equal(p.action, null);
-  gamepadStep('2p', p); assert.equal(p.action.kind, 'postspin');
+  gamepadStep('2p', p, { x: 1 }, 30); assert.equal(p.action.kind, 'postspin');
+  gamepadStep('2p', p, { x: 1 }, 21); assert.equal(p.action.type, 'shot');
 }
 let cpuFakes = 0;
 for (let seed = 1; seed <= 80; seed++) {
