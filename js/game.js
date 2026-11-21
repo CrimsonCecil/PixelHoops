@@ -174,6 +174,7 @@
     ['uuBack', 'drib', '上下步 后撤距离', 1.15, 0.2, 3, 0.05, '米'],
     ['uuSide', 'drib', '上下步 横移距离', 1.25, 0.2, 3, 0.05, '米'],
     ['rsHold', 'drib', '右摇杆 长推投篮阈值', 0.2, 0.1, 0.4, 0.01, '秒：推杆立即运球，持续长推转投篮；上下步接出手，回中松手定时；突破终结仍按住计时'],
+    ['rsCancel', 'drib', '右摇杆 接招取消点', 0, 0, 1, 0.01, '动作进度：新推杆或换方向接招；0立即取消，1沿用原连招窗口；不影响B键运球'],
     ['uuReq', 'drib', '上下步 能力门槛', 0.45, 0, 1, 0.01, '背控、近投、控球三者最高值'],
     ['uuCost', 'drib', '上下步 体力系数', 0.3, 0, 1, 0.01, '倍率：基础运球消耗'],
     ['uuBonus', 'shot', '上下步 骗跳命中加成', 0.08, 0, 0.3, 0.01, '概率：最近防守人被假投骗跳或仍在落地恢复'],
@@ -4392,12 +4393,14 @@
       let rs = pl.rsGesture;
       inp = Object.assign({}, inp, { a3: !!(inp.dribble || inp.hesi) });
       if (held) {
+        const dir = (Math.round(Math.atan2(inp.dy, inp.dx) / (Math.PI / 4)) + 8) % 8;
+        if (rs && !rs.finish && !rs.shot && pl.action && pl.action.type === 'move' && rs.dir !== dir) rs = null;
         if (!rs) {
           const P = !pl.action && !pl.post && !inp.post && !pl.uuFake && finPlan(pl);
           const q = inDir(pl, inp, true);
           const finish = P && P.fv > 2 && (inp.sprint && P.dunk || (P.inside || P.back) &&
             (P.lay || P.flo && q.fwd < -0.75 && P.d > 1.4 && canLay(pl, 'floater')));
-          rs = pl.rsGesture = { t: G.time, x: inp.dx, y: inp.dy, d: distHoop(pl), shot: false, finish: !!finish, follow: pl.postMove };
+          rs = pl.rsGesture = { t: G.time, x: inp.dx, y: inp.dy, dir, d: distHoop(pl), shot: false, finish: !!finish, follow: pl.postMove };
           inp.a3 = inp.rsFlick = true;
         }
         rs.x = inp.dx; rs.y = inp.dy;
@@ -4425,7 +4428,8 @@
     if (frozen || pl.stun > 0) inp = { mx: 0, my: 0, sprint: false, a1: frozen ? false : inp.a1, a2: false, a3: false, post: false, dx: 0, dy: 0 };
     // 开了输入缓冲：边沿按原始按键算（硬直中按的键交给缓冲；一直按住穿过硬直不会在结束时凭空多出一次）
     const src = IB && !frozen ? raw : inp;
-    const pr = { a1: src.a1 && !pl.prev.a1, a2: src.a2 && !pl.prev.a2, a3: src.a3 && !pl.prev.a3 };
+    const pr = { a1: src.a1 && !pl.prev.a1, a2: src.a2 && !pl.prev.a2, a3: src.rsFlick || src.a3 && !pl.prev.a3 };
+    if (inp.rsFlick && !pl.action && pl.hasBall && !frozen && pl.stun <= 0) pl.cd = 0;
     if (pr.a3 && pl.ctrl !== 'cpu' && !frozen && pl.stun <= 0 && pl.hasBall && pl.action &&
         pl.action.type === 'shot' && !pl.action.released && !btnHeld(pl, pl.action, inp, pl.action.btn || 'a1')) updateAction(pl, inp, 0, false);
     if (!pl.hasBall || frozen || G.ball.dead || pl.stun > 0) { pl.uuFake = null; pl.uuShot = null; }
@@ -4516,7 +4520,7 @@
       const a = pl.action, sameMove = a === moveAtStart, a2 = sameMove && pr.a2, a3 = sameMove && pr.a3;
       if (pr.a1 || a2 || a3) {
         const q0 = inDir(pl, inp, true);
-        pl.buf = { a1: pr.a1, a2: a2, a3: a3, t: G.time, until: G.time + Math.max(0.45, pr.a1 ? a.T - a.t + 0.15 : 0), x: q0.x, y: q0.y, l: q0.l, hesi: a3 && !inp.post ? hesitationInput(pl, inp, q0) : null };
+        pl.buf = { a1: pr.a1, a2: a2, a3: a3, rs: a3 && inp.rsFlick, t: G.time, until: G.time + Math.max(0.45, pr.a1 ? a.T - a.t + 0.15 : 0), x: q0.x, y: q0.y, l: q0.l, hesi: a3 && !inp.post ? hesitationInput(pl, inp, q0) : null };
       }
     }
     if (pl.post) pl.postAt = G.time;
@@ -4530,7 +4534,7 @@
           pl.vx = pl.vy = pl.vz = pl.z = pl.speed = 0;
           if (a.kind !== 'stepback') float('急停干拔', pl, '#f6efe0', 1);
         }
-      } else if (a.t >= a.T * (shot ? 1 : (a.cw || 0.55))) { pl.action = null; pl.cd = 0; pl.mvEndT = G.time; }
+      } else if (a.t >= a.T * (shot ? 1 : B.rs ? Math.min(K.rsCancel, a.cw || 0.55) : (a.cw || 0.55))) { pl.action = null; pl.cd = 0; pl.mvEndT = G.time; }
     }
     if (pl.buf && !pl.action) {
       const B = pl.buf; pl.buf = null;
