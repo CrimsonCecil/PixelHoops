@@ -6,7 +6,7 @@
   const mode = m => ({ cpu: '1V1', '2p': '1V1', train: '训练', t3: '3V3', t5: '5V5' }[m] || m);
   const clock = t => { t = Math.max(0, Number(t) || 0); return String(Math.floor(t / 60)).padStart(2, '0') + ':' + (t % 60).toFixed(1).padStart(4, '0'); };
   const duration = () => { const f = V.row.tape.frames; return f.length ? f[f.length - 1].t - f[0].t : 0; };
-  const frame = () => V.row && T.at(V.row.tape, V.t);
+  const frame = () => V.row && V.row.tape.frames[V.index];
   function info() { return { ...T.summary(frame()), name: V.row && V.row.name, t: V.t, playing: V.playing, speed: V.speed }; }
   function hud() {
     if (!V.row) return;
@@ -16,13 +16,14 @@
     $('tape-scrub').max = duration(); $('tape-scrub').value = V.t;
     $('tape-play').textContent = V.playing ? '暂停' : '播放'; $('tape-speed').textContent = V.speed + '×';
   }
-  function seek(t) { if (!V.row) return; V.t = Math.max(0, Math.min(duration(), Number(t) || 0)); hud(); return info(); }
+  function seek(t) { if (!V.row) return; V.t = Math.max(0, Math.min(duration(), Number(t) || 0)); V.index = V.row.tape.frames.indexOf(T.at(V.row.tape, V.t)); hud(); return info(); }
   function toggle() { if (V.t >= duration()) seek(0); V.playing = !V.playing; hud(); }
   function speed() { const rates = [0.25, 0.5, 1, 2]; V.speed = rates[(rates.indexOf(V.speed) + 1) % rates.length]; hud(); }
   function step(dir) {
     if (V.playing || !V.row) return;
-    const frames = V.row.tape.frames, f = frame(), i = frames.indexOf(f);
-    seek(frames[Math.max(0, Math.min(frames.length - 1, i + dir))].t - frames[0].t);
+    const frames = V.row.tape.frames;
+    V.index = Math.max(0, Math.min(frames.length - 1, V.index + dir));
+    V.t = frames[V.index].t - frames[0].t; hud();
   }
   async function list() {
     const token = ++request;

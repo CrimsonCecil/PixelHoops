@@ -1,0 +1,18 @@
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const vm = require('node:vm');
+const elements = new Map();
+const document = { getElementById(id) { if (!elements.has(id)) elements.set(id, { classList: { toggle() {} } }); return elements.get(id); }, addEventListener() {} };
+const c = vm.createContext({ document, PH: { TAPE: require('../js/tape.js') } }); c.window = c;
+vm.runInContext(fs.readFileSync(__dirname + '/../js/tapeview.js', 'utf8'), c);
+c.PH.tapeView.row = { name: 'duplicates', tape: { frames: [10, 10, 10.1].map((t, x) => ({ t, p: [], b: { x }, s: {} })) } };
+c.tapeSeek(0);
+assert.equal(c.tapeInfo().ball.x, 0);
+elements.get('tape-next').onclick(); assert.equal(c.tapeInfo().ball.x, 1);
+elements.get('tape-next').onclick(); assert.equal(c.tapeInfo().ball.x, 2);
+elements.get('tape-prev').onclick(); assert.equal(c.tapeInfo().ball.x, 1);
+elements.get('tape-prev').onclick(); assert.equal(c.tapeInfo().ball.x, 0);
+elements.get('tape-prev').onclick(); assert.equal(c.tapeInfo().ball.x, 0);
+c.PH.tapeView.playing = true;
+elements.get('tape-next').onclick(); assert.equal(c.tapeInfo().ball.x, 0);
+console.log('PASS paused frame steps traverse duplicate timestamps in both directions and clamp at bounds');
