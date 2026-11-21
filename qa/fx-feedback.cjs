@@ -10,39 +10,68 @@ function load() {
   for (const name of ['tune', 'ptype', 'render', 'roster', 'measurements', 'r5', 'game', 'team3']) {
     vm.runInContext(fs.readFileSync(path.join(__dirname, '../js', name + '.js'), 'utf8'), ctx, { filename: name + '.js' });
   }
-  const played = [];
+  const played = [], crowdLevels = [], voiced = [], said = [];
+  let manifestReady = true, readyCbs = [];
   ctx.PH.audio = {
-    voLine: (k, ev, i) => ({ f: k + ev + i, t: k + ':' + ev + ':' + i, d: 1.5 }),
-    voSay() {},
+    voLine: (k, ev, i) => (manifestReady ? { f: k + ev + i, t: k + ':' + ev + ':' + i, d: 1.5 } : null),
+    voSay: (it) => said.push(it.f),
     voStop() {},
+    voWhenReady: (cb) => { if (manifestReady) cb(); else readyCbs.push(cb); },
+    introCrowd: (lv) => crowdLevels.push(lv),
     play: (n) => played.push(n),
-    vo() {},
+    vo: (k, ev, mode) => { if (!manifestReady) return null; voiced.push(k + ':' + ev + ':' + (mode || '')); return { f: k + ev }; },
   };
   ctx.PH.input = { read: () => ctx.PH.game.t5.zeroInp(), endTick() {} };
   ctx.PH.game.seed(11);
-  return { ctx, Gm: ctx.PH.game, G: ctx.PH.game.G, played };
+  return {
+    ctx, Gm: ctx.PH.game, G: ctx.PH.game.G, played, crowdLevels, voiced, said,
+    setManifestReady: (v) => { manifestReady = v; if (v) { const cbs = readyCbs; readyCbs = []; cbs.forEach((cb) => cb()); } }
+  };
 }
 
-// 1. Pre-game entrance: cheering, confetti, LED ticker, and clean handoff
+// 1. Pre-game entrance: cheering, sustained crowd bed, confetti cannons, walk-in voice, and clean handoff
 {
-  const { Gm, G, played } = load();
+  const { Gm, G, played, crowdLevels, voiced } = load();
   Gm.newGame({ mode: 'cpu', arch0: 'lebron', arch1: 'curry' });
   Gm.introStart();
-  let maxConfetti = 0, sawIntroCheer = false, sawLed = false, sawHighCheer = false;
-  for (let i = 0; i < 60 * 8 && G.intro; i++) {
+  assert.ok(crowdLevels[0] > 0.5, 'introStart begins sustained stadium crowd bed');
+  let maxConfetti = 0, sawIntroCheer = false, sawCannon = false, sawLed = false, sawHighCheer = false;
+  for (let i = 0; i < 60 * 9 && G.intro; i++) {
     Gm.introTick(1 / 60);
     maxConfetti = Math.max(maxConfetti, G.fx.confetti.length);
     if (played.includes('introCheer')) sawIntroCheer = true;
+    if (played.includes('confettiCannon')) sawCannon = true;
     if (G.fx.led && /NOW ENTERING/.test(G.fx.led.text)) sawLed = true;
     if (G.fx.cheer >= 2.2) sawHighCheer = true;
   }
   assert.ok(sawIntroCheer, 'entrance plays introCheer audio');
+  assert.ok(sawCannon, 'entrance fires confettiCannon audio');
   assert.ok(sawLed, 'entrance drives LED ticker');
   assert.ok(sawHighCheer, 'entrance keeps crowd cheering');
   assert.ok(maxConfetti >= 40, 'entrance spawns abundant confetti (' + maxConfetti + ')');
+  assert.ok(voiced.some((v) => v.startsWith('lebron:taunt')), 'LeBron plays voice pack during walk-in');
+  assert.ok(voiced.some((v) => v.startsWith('curry:taunt')), 'Curry plays voice pack during walk-in');
+  assert.ok(crowdLevels.some((lv) => lv > 0 && lv < 0.5), 'crowd bed ducks for intro dialogue');
   Gm.introEnd();
   assert.equal(G.fx.confetti.length, 0, 'introEnd clears leftover entrance confetti');
-  console.log('PASS: entrance walk-in plays cheering, drives LED/crowd, spawns confetti, and cleans up on end.');
+  assert.equal(crowdLevels[crowdLevels.length - 1], 0, 'introEnd stops sustained crowd bed');
+  console.log('PASS: entrance walk-in plays cheering/cannons/crowd bed, triggers voice packs, drives LED/confetti, and cleans up on end.');
+}
+
+// 1b. Delayed vo/manifest.json load still plays voiced intro dialogue line once ready
+{
+  const { Gm, G, said, setManifestReady } = load();
+  setManifestReady(false);
+  Gm.newGame({ mode: 'cpu', arch0: 'maxey', arch1: 'joe' });
+  Gm.introStart();
+  Gm.introPress(); Gm.introPress(); // line 0 (template)
+  Gm.introPress(); Gm.introPress(); // line 1 (template)
+  Gm.introPress(); // line 2 (voiced taunt, manifest not loaded yet)
+  assert.equal(said.length, 0, 'nothing played before manifest resolves');
+  setManifestReady(true);
+  assert.equal(said.length, 1, 'voiced intro line plays once manifest resolves');
+  assert.match(G.intro.lines[2].t, /^maxey:taunt:/, 'subtitle updates to resolved voice line');
+  console.log('PASS: delayed vo/manifest.json load still triggers voiced intro dialogue line.');
 }
 
 // 2. 1V1 scoring full-screen feedback and dunk screen shake
