@@ -854,7 +854,7 @@
     const S = tipsSave; if (!S) return; tipsSave = null; GM.tipsStop();
     for (const k of Object.keys(G)) if (!(k in S.G)) delete G[k];
     Object.assign(G, S.G); Object.assign(G.train, S.train); G.tips = null;
-    screen = S.screen; paused = S.paused; R.setCam(S.cam);
+    screen = S.screen; paused = S.paused; R.setCam(R.camTuned ? R.camTuned() : S.cam);
     TIPS_VIS.forEach((k, i) => show(k, S.vis[i])); stage.classList.toggle('panel', S.panel); camShift();
     show('tipsbar', false); if (S.from === 'picker') { pkDetail(S.pkShown || pkSel); } else { show('help', true); renderHelp(); $('help-body').scrollTop = S.sc; } clearPf();
   }
@@ -986,6 +986,7 @@
     if (!camOpen) return;
     $('cam-body').innerHTML = CAMS.map((c) => '<label class="crow"><span>' + c[1] + '</span><input type="range" data-cam="' + c[0] + '" min="' + c[2] + '" max="' + c[3] + '" step="' + c[4] + '" value="' + R.CAMV[c[0]] + '" data-testid="cam-' + c[0] + '"><b>' + (+R.CAMV[c[0]]).toFixed(2) + '</b></label>').join('').replace('<label class="crow"><span>推近力度', '<button class="cam-push" data-testid="cam-push">禁区推近 ' + (R.CAMV.push ? '开' : '关') + '</button><label class="crow"><span>推近力度');
     $('cam-info').textContent = '球员信息 ' + (opts.info === 'show' ? '显示' : '隐藏');
+    camCloud();
   }
   function toggleCam(on) {
     if (screen !== 'play') return;
@@ -995,8 +996,37 @@
     else if (G.mode !== 'train') paused = camWasPaused;
   }
   $('btn-cam').addEventListener('click', () => { if (screen === 'play5') { setView('cam5'); return; } show('pause', false); camFromSet = true; toggleCam(true); });
-  // 5V5 镜头设置（参考 2K：2K 镜头 / 转播 + 远近 0~10 + 高度 0~10（2K 镜头 0~20）；两种镜头各记一套，只存在内存里）
-  function cam5Labels() { const C = PH.T5.CAMS; $('c5-preset').textContent = '镜头 ' + (C.preset === '2k' ? '2K 镜头' : '转播'); $('c5-z').textContent = '远近 ' + C.zoom; $('c5-h').textContent = '高度 ' + C.height; }
+  // 5V5 镜头设置（参考 2K：2K 镜头 / 转播 + 远近 0~10 + 高度 0~10（2K 镜头 0~20）；两种镜头各记一套，登记在调参台 t5_cam*）
+  function cam5Labels() { const C = PH.T5.CAMS; $('c5-preset').textContent = '镜头 ' + (C.preset === '2k' ? '2K 镜头' : '转播'); $('c5-z').textContent = '远近 ' + C.zoom; $('c5-h').textContent = '高度 ' + C.height; camCloud(); }
+  // 镜头参数存云端：镜头值都是调参台参数，“保存到云端”就是保存当前调参配置（官方默认时新建一份并设为默认），打开游戏时默认配置自动套用
+  function camCloudState() {
+    const CS = PH.CS; if (!CS) return { t: '保存到云端', h: '云端存储未加载', dis: true };
+    const S = CS.S, cur = CS.cur(), dirty = CS.dirty(), off = S.ready && !S.online;
+    const t = S.busy ? '保存中…' : off ? '云端离线' : !S.ready ? '连接云端…' : S.status === 'error' ? '保存失败，点击重试' : dirty ? '保存到云端' : cur.id === 'official' ? '保存到云端' : '已保存到云端';
+    const h = S.status === 'error' && S.err ? S.err : cur.id === 'official' ? '会新建配置「我的配置」并设为默认，下次打开自动套用' :
+      '存进调参配置「' + cur.name + '」' + (S.def === cur.id ? '（默认配置，下次打开自动套用）' : '（不是默认配置：到调参台设为默认，打开时才会套用）') + (dirty && tuneOtherDirty() ? '；调参台里其它未保存改动也会一起保存' : '');
+    return { t: t, h: h, dis: off || !S.ready || S.busy || !dirty };
+  }
+  function tuneOtherDirty() {
+    const T = PH.TUNE, CS = PH.CS; if (!T || !CS) return false;
+    const o = T.over(), p = CS.cur().data || {};
+    for (const k of new Set(Object.keys(o).concat(Object.keys(p)))) if (!/^(cam(Zoom|Height|Dist|Follow|Push|Pin|Plow)|t5_cam)/.test(k) && !(k in o && k in p && Math.abs(o[k] - p[k]) < 1e-9)) return true;
+    return false;
+  }
+  function camCloud() {
+    const st = camCloudState();
+    for (const [b, h] of [['cam-save', 'cam-cs'], ['c5-save', 'c5-cs']]) { const be = $(b), he = $(h); if (be) { be.textContent = st.t; be.disabled = st.dis; } if (he) he.textContent = st.h; }
+  }
+  async function camSave() {
+    const CS = PH.CS; if (!CS || CS.S.busy) return;
+    if (CS.cur().id === 'official') { if (await CS.saveAs('我的配置')) await CS.setDefault(); } else await CS.save();
+    camCloud();
+  }
+  $('cam-save').addEventListener('click', () => camSave());
+  $('c5-save').addEventListener('click', () => camSave());
+  if (PH.CS) PH.CS.on(() => camCloud());
+  camCloud();
+  if (PH.TUNE) PH.TUNE.on(() => camCloud());
   $('c5-preset').addEventListener('click', () => { PH.T5.setCam({ preset: PH.T5.CAMS.preset === '2k' ? 'broadcast' : '2k' }); cam5Labels(); });
   $('c5-zm').addEventListener('click', () => { PH.T5.setCam({ zoom: PH.T5.CAMS.zoom - 1 }); cam5Labels(); });
   $('c5-zp').addEventListener('click', () => { PH.T5.setCam({ zoom: PH.T5.CAMS.zoom + 1 }); cam5Labels(); });
@@ -1005,11 +1035,11 @@
   $('c5-reset').addEventListener('click', () => { PH.T5.resetCam(); cam5Labels(); });
   $('cam-close').addEventListener('click', () => toggleCam(false));
   let camFromSet = false;
-  $('cam-reset').addEventListener('click', () => { R.setCam(R.CAM_DEF); camBody(); });
+  $('cam-reset').addEventListener('click', () => { R.resetCamTuned(); camBody(); });
   $('cam-info').addEventListener('click', () => toggleInfo());
-  $('cam-body').addEventListener('input', (e) => { const k = e.target.getAttribute('data-cam'); if (!k) return; const v = +e.target.value; R.setCam({ [k]: v }); e.target.nextElementSibling.textContent = v.toFixed(2); });
+  $('cam-body').addEventListener('input', (e) => { const k = e.target.getAttribute('data-cam'); if (!k) return; const v = +e.target.value; R.setCamTuned({ [k]: v }); e.target.nextElementSibling.textContent = v.toFixed(2); });
   $('cam-body').addEventListener('change', (e) => { if (e.target.blur) e.target.blur(); });
-  $('cam-body').addEventListener('click', (e) => { if (!e.target.closest || !e.target.closest('.cam-push')) return; R.setCam({ push: R.CAMV.push ? 0 : 1 }); camBody(); });
+  $('cam-body').addEventListener('click', (e) => { if (!e.target.closest || !e.target.closest('.cam-push')) return; R.setCamTuned({ push: R.CAMV.push ? 0 : 1 }); camBody(); });
   function toggleMusic() { PH.audio.setMusic(!PH.audio.musicOn); setLabels(); }
   $('btn-music').addEventListener('click', () => toggleMusic());
   document.addEventListener('click', (e) => { if (e.target.tagName === 'BUTTON') e.target.blur(); });
