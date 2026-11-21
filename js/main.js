@@ -1661,11 +1661,34 @@
   // 浏览器要求用户操作后才能出声：第一次点击 / 按键时启动音乐（主菜单就有音乐）
   const musKick = () => { if (PH.audio.ensure()) { PH.audio.startMusic(); musicPick(); } };
   window.addEventListener('pointerdown', musKick, true); window.addEventListener('keydown', musKick, true);
-  let lastReplayCover = 0;
+  const wipeStyles = ['shutters', 'diagonal', 'blinds', 'pixels'];
+  const wipeBag = [];
+  let lastReplay = null, lastReplayCover = 0;
+  function pickWipeStyle() {
+    if (!wipeBag.length) {
+      wipeBag.push(...wipeStyles);
+      for (let i = wipeBag.length - 1; i > 0; i--) {
+        const j = (Math.random() * (i + 1)) | 0;
+        [wipeBag[i], wipeBag[j]] = [wipeBag[j], wipeBag[i]];
+      }
+      if (wipeBag.at(-1) === replayWipe.dataset.style) wipeBag.unshift(wipeBag.pop());
+    }
+    const style = wipeBag.pop(), pixels = replayWipe.querySelector('.wipe-pixels');
+    if (style === 'pixels' && !pixels.childElementCount) {
+      for (let i = 0; i < 96; i++) {
+        const tile = document.createElement('i');
+        tile.style.setProperty('--step', (i * 37 % 96) / 128);
+        pixels.appendChild(tile);
+      }
+    }
+    replayWipe.dataset.style = style;
+  }
   function draw(dt) {
     PH.audio.setPaused((screen === 'play' || screen === 'play5') && paused);
     musicPick();
     const r5 = PH.render5.rpl, replay = screen === 'play' ? G.replay : screen === 'play5' && r5.on ? r5 : null;
+    if (replay && replay !== lastReplay) pickWipeStyle();
+    lastReplay = replay;
     const cover = GM.replayFlow.cover(replay);
     if (cover !== lastReplayCover) { replayWipe.style.setProperty('--cover', cover); lastReplayCover = cover; }
     if (screen === 'play5') { PH.render5.render(PH.T5.T, manual ? 0.05 : 1 / Math.max(30, fps)); hud5(); cutin(); return; }
