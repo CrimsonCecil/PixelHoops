@@ -9,6 +9,7 @@ function fixture(mode) {
   vm.runInContext('let seed = 7; Math.random = () => ((seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0) / 4294967296)', ctx);
   for (const name of ['tune', 'ptype', 'render', 'input', 'roster', 'measurements', 'r5', 'game', 'b5', 'team5', 'team3']) {
     let code = fs.readFileSync(path.join(__dirname, '../js', name + '.js'), 'utf8');
+    if (name === 'render') code = code.replace('curCol: curCol,', 'curCol: curCol, pokePromptBox,');
     if (name === 'game') code = code.replace('_qa: {', '_qa: { updateAction, updateBall,');
     vm.runInContext(code, ctx, { filename: name + '.js' });
   }
@@ -45,6 +46,15 @@ function fixture(mode) {
 
 for (const mode of ['1V1', '3V3', '5V5']) {
   const f = fixture(mode), { gm, G, K } = f;
+  for (const head of [{ x: 240, y: 210 }, { x: 2, y: 2 }, { x: 478, y: 268 }]) {
+    for (const ball of [{ x: head.x, y: head.y - 30, s: 40 }, { x: 240, y: 215, s: 60 }]) {
+      const box = f.PH.render.pokePromptBox(head, ball, 100), r = Math.max(2, f.PH.render.BALL_R * ball.s) + 12;
+      assert(box, 'prompt has a visible placement');
+      assert(box.x >= 0 && box.y >= 0 && box.x + box.w <= f.PH.render.W && box.y + box.h <= f.PH.render.H, 'prompt stays on screen');
+      assert(box.x + box.w < ball.x - r || box.x > ball.x + r || box.y + box.h < ball.y - r || box.y > ball.y + r, 'prompt avoids ball and flash ring');
+    }
+  }
+  console.log(`PASS ${mode}: player-anchored prompt placement avoids ball and viewport edges`);
   {
     const cleanDefaults = { stlCl0: K.stlCl0, stlClS: K.stlClS, stlClTm: K.stlClTm };
     const { p, d } = f.reset();

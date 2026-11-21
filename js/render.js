@@ -1864,14 +1864,28 @@
     }
     ctx.restore();
   }
-  function drawScreenFx(G) {
+  function pokePromptBox(head, ball, width) {
+    const w = Math.min(W - 8, width + 10), h = 19, r = Math.max(2, BALL_R * ball.s) + 12;
+    const candidates = [[head.x - w / 2, head.y - h - 12], [head.x - w / 2, head.y + 12],
+      [head.x - w / 2, ball.y - r - h - 4], [head.x - w / 2, ball.y + r + 4],
+      [ball.x - r - w - 4, head.y - h / 2], [ball.x + r + 4, head.y - h / 2]];
+    for (const [cx, cy] of candidates) {
+      const x = Math.round(Math.max(4, Math.min(W - w - 4, cx))), y = Math.round(Math.max(4, Math.min(H - h - 4, cy)));
+      if (x + w < ball.x - r || x > ball.x + r || y + h < ball.y - r || y > ball.y + r) return { x, y, w, h };
+    }
+    return null;
+  }
+  function drawScreenFx(G, cueView) {
     const cue = PH.game && PH.game.pokeCue && PH.game.pokeCue();
     if (cue && cue.prompts.length) {
       ctx.save(); ctx.font = "12px 'Fusion Pixel 12px Proportional SC', monospace"; ctx.textBaseline = 'bottom';
-      cue.prompts.forEach((v, i) => {
-        const w = ctx.measureText(v.text).width, x = Math.round((W - w) / 2), y = H - 55 - i * 19;
-        ctx.fillStyle = '#15101f'; ctx.fillRect(x - 5, y - 15, w + 10, 19);
-        ctx.fillStyle = '#fff0a0'; ctx.fillText(v.text, x, y);
+      cue.prompts.forEach((v) => {
+        const pl = G.players[v.id], head = cueView && cueView.heads[v.id] || proj(pl.x, pl.y, pl.z + pl.h);
+        const ball = cueView && cueView.ball || proj(G.ball.x, G.ball.y, G.ball.z);
+        const box = pokePromptBox(head, ball, ctx.measureText(v.text).width);
+        if (!box) return;
+        ctx.fillStyle = '#15101f'; ctx.fillRect(box.x, box.y, box.w, box.h);
+        ctx.fillStyle = '#fff0a0'; ctx.fillText(v.text, box.x + 5, box.y + 15, box.w - 10);
       });
       ctx.restore();
     }
@@ -2202,7 +2216,7 @@
       }
     }
     ctx.setTransform(1, 0, 0, 1, 0, 0);
-    if (!RP) drawScreenFx(G);
+    if (!RP) drawScreenFx(G, { heads, ball: proj(b.x, b.y, b.z) });
     if (F.flash > 0) { ctx.globalAlpha = Math.min(0.5, F.flash * 3.2); ctx.fillStyle = F.flashCol; ctx.fillRect(0, 0, W, H); ctx.globalAlpha = 1; }
     if (F.slow > 0) { ctx.fillStyle = '#05070f'; ctx.fillRect(0, 0, W, 14); ctx.fillRect(0, H - 14, W, 14); }
     if (RP) {
