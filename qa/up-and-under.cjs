@@ -38,7 +38,7 @@ function fixture(mode = '1v1', flipped = false, camera = '2k') {
     const X = team.stick(1, 0), Y = team.stick(0, 1);
     return [x * X.x + y * X.y, x * Y.x + y * Y.y];
   };
-  const direction = (x, y, binding = 'stick') => {
+  const direction = (x, y, binding = 'stick', flick = true) => {
     const [rx, ry] = raw(x, y);
     if (binding === 'pad') {
       pads[0] = { connected: true, index: 0, axes: [0, 0, rx, -ry], buttons: Array.from({ length: 16 }, () => ({ pressed: false })) };
@@ -51,6 +51,11 @@ function fixture(mode = '1v1', flipped = false, camera = '2k') {
       if (x > 0.5) key('KeyD'); if (x < -0.5) key('KeyA');
       if (y > 0.5) key('KeyW'); if (y < -0.5) key('KeyS');
       key('KeyL');
+    }
+    if (flick && (binding === 'pad' || mode === '5v5' && binding === 'stick')) {
+      step(6);
+      if (binding === 'pad') pads[0].axes[2] = pads[0].axes[3] = 0;
+      else for (const k of ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight']) key(k, false);
     }
   };
   const neutral = () => { pads.length = 0; for (const k of ['KeyW', 'KeyA', 'KeyS', 'KeyD', 'KeyL', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight']) key(k, false); };
