@@ -100,7 +100,7 @@
   const AT_CLOSE = GM.ATTRS.find(([k]) => k === 'close').slice(0, 2);
   // V4.2 属性分组（参考 2K 六大类）：只列游戏里真实使用的字段；第三项 1 = 5V5 专用能力（js/r5.js，取自 2K），没有数据的球员不显示该项
   const AGRP = [
-    ['投篮', '投篮', [AT_CLOSE, ['mid', '中投'], ['three', '三分'], ['fade', '后仰'], ['ocon', '进攻稳定'], ['siq', '投篮 IQ', 1]]],
+    ['投篮', '投篮', [AT_CLOSE, ['mid', '中投'], ['three', '三分'], ['ft', '罚球'], ['drawFoul', '造犯规'], ['fade', '后仰'], ['ocon', '进攻稳定'], ['siq', '投篮 IQ', 1]]],
     ['终结', '终结', [['lay', '上篮'], ['flo', '抛投'], ['dunk', '扣篮'], ['sdunk', '站扣'], ['post', '低位'], ['hook', '勾手']]],
     ['组织', '组织', [['hnd', '控球'], ['spdB', '持球速度'], ['pac', '传球准度', 1], ['piq', '传球 IQ', 1], ['vis', '传球视野', 1], ['iq', '球商', 1], ['hands', '接球', 1]]],
     ['运动', '运动', [['spd', '速度'], ['acc', '敏捷'], ['str', '力量'], ['vert', '弹跳高度'], ['rej', '二次起跳'], ['leap', '起跳距离'], ['hang', '滞空'], ['sta', '体力'], ['hus', '拼抢'], ['dur', '耐久']]],
@@ -1386,7 +1386,8 @@
       if (ft) {
         const shooter = G.players[ft.id];
         const key = hasPad ? 'X' : two && ft.id === 1 ? '小键盘 1' : kb.a1;
-        $('hint').innerHTML = shooter.ctrl === 'cpu' || !two && shooter !== local ? '等待对手罚球' : '按住 <b>' + key + '</b>，到绿区松手罚球';
+        const help = shooter.ctrl === 'cpu' || !two && shooter !== local ? '等待对手罚球' : '按住 <b>' + key + '</b>，到绿区松手罚球';
+        $('hint').innerHTML = '罚球能力 ' + A99(shooter.r.ft) + ' · ' + help;
       }
       if (isTouch) {
         $('tb1').textContent = ft && ft.id === local?.id ? '罚球' : offBall ? '篮板' : off ? '投篮' : '盖帽'; $('tb2').textContent = offBall ? '扑球' : off ? '终结' : '抢断'; $('tb3').textContent = offBall ? '卡位' : off ? '运球' : '姿态'; $('tbalt').textContent = '背打';
@@ -1435,7 +1436,7 @@
     PTS: ['得分', (p) => p.pts, null, '得分', { el: (p) => p.pts >= 21 && p.fgp >= 0.55 }],
     FG: ['投篮', (p) => p.fgp, (p) => p.fg + '/' + p.fga, '投篮命中 / 出手', { el: (p) => p.fga >= 8 && p.fgp >= 0.65, bad: (p) => p.fga >= 6 && p.fgp < 0.35 ? (p.fgp < 0.25 ? 2 : 1) : 0 }],
     '3P': ['三分', (p) => p.tpp, (p) => p.tp + '/' + p.tpa, '三分命中 / 出手', { el: (p) => p.tpa >= 4 && p.tpp >= 0.5, bad: (p) => p.tpa >= 4 && p.tpp < 0.2 ? 1 : 0 }],
-    FT: ['罚球', (p) => p.ftp, (p) => p.ftm + '/' + p.fta, '罚球命中 / 出手', {}],
+    FT: ['罚球', (p) => p.ftp, (p) => p.ftm + '/' + p.fta + '<br><small>能力 ' + p.ftAbility + '</small>', '罚球命中 / 出手；下方为罚球能力，不是命中率', {}],
     PF: ['犯规', (p) => p.pf, null, '个人犯规', { low: true }],
     IN: ['内线', (p) => p.inp, (p) => p.inm + '/' + p.ina, '上篮 / 扣篮 / 补篮 命中 / 出手', { el: (p) => p.ina >= 5 && p.inp >= 0.75 }],
     REB: ['篮板', (p) => p.reb, (p) => p.reb + '<small>' + p.oreb + '前</small>', '篮板（其中前场板）', { el: (p) => p.reb >= 10 }],
@@ -1519,7 +1520,7 @@
   }
   function renderBox() {
     if (G.mode === 't3') { renderBox3(); return; }
-    const P = [bxStat(0), bxStat(1)], cols = VIEWS[BX.view].concat(BX.adv ? ADVC : []), cat = BX.view !== 'box';
+    const P = G.players.map((pl, i) => Object.assign(bxStat(i), { ftAbility: A99(pl.r.ft) })), cols = VIEWS[BX.view].concat(BX.adv ? ADVC : []), cat = BX.view !== 'box';
     if (!cat && G.fouls) cols.splice(3, 0, 'FT', 'PF');
     const nm = [$('n0').textContent, $('n1').textContent], cw = cat ? VIEWS[BX.view].map((k) => catWin(k, P)) : null;
     let h = '<thead><tr><th class="pcol">球员</th>' + cols.map((k) => '<th title="' + C[k][3] + '">' + C[k][0] + '</th>').join('') + (cat ? '<th class="cw">胜项</th>' : '') + '</tr></thead><tbody>';
