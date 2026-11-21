@@ -335,7 +335,28 @@
     return it;
   }
   // 指定一条语音（开场对话用）：voLine 按序号取条目，voSay 打断当前语音直接播
-  function voLine(key, ev, i) { const L = voM && voM[key] && voM[key].lines && voM[key].lines[ev]; return L && L.length ? L[(i || 0) % L.length] : null; }
+  function voLine(key, ev, i, skip) {
+    const lines = voM && voM[key] && voM[key].lines;
+    if (!lines) return null;
+    const pick = (e) => {
+      const L = lines[e];
+      if (!L || !L.length) return null;
+      for (let k = 0; k < L.length; k++) {
+        const it = L[((i || 0) + k) % L.length];
+        if (!skip || !skip.has(it.f)) return it;
+      }
+      return null;
+    };
+    const hit = pick(ev);
+    if (hit || !skip) return hit;
+    for (const fb of ['taunt', 'dom', 'win']) {
+      if (fb === ev) continue;
+      const alt = pick(fb);
+      if (alt) return alt;
+    }
+    const L = lines[ev];
+    return L && L.length ? L[(i || 0) % L.length] : null;
+  }
   function voStop() { voSeq++; voSayF = ''; if (voQTimer) { clearTimeout(voQTimer); voQTimer = null; } if (voCur) { try { voCur.stop(); } catch (e) { /* 已停 */ } voCur = null; } voBusy = 0; }
   function voSay(it, onStart) {
     if (!it || !voOn || !sfxOn || pauseOn || !ensure()) return false;

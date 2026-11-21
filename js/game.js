@@ -2698,7 +2698,7 @@
     const foc0 = { x: fa.x, y: fa.y, u: G.mode === 't3' ? 0.08 : 0.3, mode: 'walk', snap: true };
     if (PH.audio && PH.audio.voPreload) PH.audio.voPreload([fa.arch.key, fb.arch.key]);
     G.intro = { t0: t0, duo: [fa.id, fb.id], walk: walk, spots: spots, lines: lines, li: -1, lt: 0, ld: 0, tT: t0 + 2 * IWA + 0.15, cam: foc0, foc: foc0, banner: G.banner, phaseT: G.phaseT,
-      sig: [], confettiT: 0 };
+      sig: [], confettiT: 0, usedVo: new Set() };
     G.cz = null; G.cutin = null; G.phase = 'intro';
   }
   const introSig = (pl) => { const I = G.intro; if (!I) return null; for (const S of I.sig) if (S.id === pl.id && G.time >= S.t0 && G.time < S.t0 + S.T) return S; return null; };
@@ -2722,7 +2722,7 @@
     }
     updateBall(dt);
     if (I.li < 0) for (const S of I.walk) {
-      if (S.vo && !S.voDone && now >= (S.voAt != null ? S.voAt : S.t0)) { S.voDone = true; const p = plById(S.id); if (G.mode !== 'demo' && PH.audio && PH.audio.vo) { const speak = () => { if (!G.intro || G.intro.li >= 0) return true; const it = PH.audio.vo(p.arch.key, 'taunt', 'pri'); if (it && it.d && p.id === G.intro.duo[1]) G.intro.tT = Math.max(G.intro.tT, G.time + it.d + 0.2); return it; }; if (!speak() && PH.audio.voWhenReady) PH.audio.voWhenReady(speak); } }
+      if (S.vo && !S.voDone && now >= (S.voAt != null ? S.voAt : S.t0)) { S.voDone = true; const p = plById(S.id); if (G.mode !== 'demo' && PH.audio && PH.audio.vo) { const speak = () => { if (!G.intro || G.intro.li >= 0) return true; const it = PH.audio.vo(p.arch.key, 'taunt', 'pri'); if (it && it.f && G.intro.usedVo) G.intro.usedVo.add(it.f); if (it && it.d && p.id === G.intro.duo[1]) G.intro.tT = Math.max(G.intro.tT, G.time + it.d + 0.2); return it; }; if (!speak() && PH.audio.voWhenReady) PH.audio.voWhenReady(speak); } }
       if (S.ty === 'chalk' && !S.fx && now >= S.t0 + 0.42) { S.fx = true; const p = plById(S.id); burst(p.x, p.y, p.h + 0.45, 70, ['#ffffff', '#f4f1e8', '#e2ded2', '#fffbe9'], 2.3, 1.7, 1.1, 2); spawnConfetti(28, [p.team.css, '#ffd24a', '#ffffff'], 'burst'); }
       else if (S.sig && !S.fx && now >= S.t0 + 0.35) { S.fx = true; const p = plById(S.id); spawnConfetti(26, [p.team.css, '#ffd24a', '#ffffff', '#ff8a2a'], 'burst'); flash('#ffffff', 0.08); G.fx.cheer = Math.max(G.fx.cheer, 2.6); }
     }
@@ -2759,8 +2759,9 @@
     if (L.v) {
       const sayVo = () => {
         if (!G.intro || G.intro.lines[G.intro.li] !== L) return false;
-        const it = PH.audio && PH.audio.voLine ? PH.audio.voLine(p.arch.key, L.v, L.i) : null;
+        const it = PH.audio && PH.audio.voLine ? PH.audio.voLine(p.arch.key, L.v, L.i, G.intro.usedVo) : null;
         if (!it) return false;
+        if (it.f && G.intro.usedVo) G.intro.usedVo.add(it.f);
         L.t = it.t; L.d = it.d;
         G.intro.ld = Math.max(clamp(0.8 + L.t.length * 0.1, 1.9, 4.5), (L.d || 0) + 0.55);
         if (G.mode !== 'demo') {
