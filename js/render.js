@@ -399,6 +399,7 @@
     function pose(pl, T, an, a) {
       if (!a || !(an === 'shoot' || an === 'fake')) return;
       if (an === 'shoot' && (a.type !== 'shot' || !a.V || a.V.hook)) return;
+      if (a.stride && a.t < a.stride.T) return;
       if (an === 'fake' && a.type !== 'fake') return;
       const GM = PH.game || {}, K = GM.K || {}, F = (a.F) || (GM.SF && GM.SF.std) || { setP: 2.7, dip: 1, two: true };
       const sd = (an === 'fake' ? pl.arch && pl.arch.lefty : a.lefty) ? -1 : 1, D = dims(pl, T), H = D.Hh, hd = D.head;
@@ -408,7 +409,8 @@
       const chestB = [sd * 0.06 * H, 0.3 * H, 0.5 * H], dipB = [sd * 0.09 * H, 0.27 * H, (0.28 - 0.1 * ((F.dip || 1) - 0.8)) * H];
       const gSide = [-sd * (BRAD + 0.035), -0.01, 0.02];   // 辅助手：贴在球的外侧
       if (an === 'fake') { const u = sm((a.t || 0) / 0.14); const B = [lp(chestB[0], S[0], u), lp(chestB[1], S[1], u), lp(chestB[2], S[2] - 0.08 * H, u)]; hands(T, D, sd, B, gSide, 1, 1); return; }
-      const jT = a.jT || K.shotJump || 0.12, TI = a.ideal || 0.5, t = a.t || 0, rel = !!a.released;
+      const strideT = a.stride ? a.stride.T : 0;
+      const jT = (a.jT || K.shotJump || 0.12) - strideT, TI = (a.ideal || 0.5) - strideT, t = (a.t || 0) - strideT, rel = !!a.released;
       const AS = sd > 0 ? ['aRp', 'aRq', 'aRe'] : ['aLp', 'aLq', 'aLe'], A0 = {}; for (const n of AS) A0[n] = T[n];   // 投篮包原本的投篮手角度
       if (!rel) {
         let B;
