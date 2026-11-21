@@ -192,6 +192,50 @@ console.log('PASS right-stick metadata survives host sanitization and pending ge
 }
 console.log('PASS 5V5 sprint + physical X/J still starts and holds through the directional pivot');
 
+for (const [mode, flipped, camera] of [['1v1', false, '2k'], ['3v3', false, '2k'], ['5v5', false, '2k'], ['5v5', true, '2k'], ['5v5', true, 'broadcast']]) {
+  for (const [x, y, variant] of [[-1, 0, 'hop'], [Math.SQRT1_2, -Math.SQRT1_2, 'euro'], [0, -1, 'floater'], [0, 1, 'normal']]) {
+    for (const timing of ['early', 'ideal', 'late']) {
+      const f = fixture(mode, flipped, camera, 'curry');
+      Object.assign(f.p.r, { lay: 0.9, spd: 0.85, acc: 0.85 });
+      Object.assign(f.p, { y: f.ctx.PH.render.HOOP.y - 3.2, speed: 4, vy: 4, face: Math.PI / 2 });
+      f.direction(x, y, 'pad', false); f.step();
+      const a = f.p.action;
+      assert.equal(a?.type, 'layup', 'a reachable drive finish starts on stick deflection, not neutral');
+      assert.equal(a.v, variant); assert.equal(a.btn, 'a3');
+      assert(!a.tap && a.tapAt == null, 'the initiating stick input is still held');
+      const target = timing === 'early' ? 0.15 : a.ideal + (timing === 'late' ? 0.07 : 0);
+      for (let i = 0; i < 240 && (a.inSteps || a.t < target - 1 / 240); i++) f.step();
+      assert(!a.inSteps && !a.released && !a.tap, 'holding beyond rsHold keeps the selected finish and its meter live');
+      assert.strictEqual(f.p.action, a);
+      assert(f.p.hasBall);
+      f.pads[0].axes[2] = f.pads[0].axes[3] = 0; f.step();
+      assert(a.released && a.relAt >= 0, 'returning the stick to neutral releases the finish at the actual meter time');
+      assert.equal(a.tapAt, undefined, 'the finish was not forced into an early gather tap');
+      const e = f.G.lastShot.e;
+      if (timing === 'ideal') assert(Math.abs(e) < 0.1, `timed release has near-zero error, got ${e}`);
+      else if (timing === 'early') assert(e < -0.5, 'deliberately early release retains its penalty');
+      else assert(e > 0.4 && e < 0.8, 'late release retains its actual timing error');
+    }
+  }
+  console.log(`PASS ${mode} flipped=${flipped} ${camera}: drive stick starts hop/euro/floater/normal finishes immediately, holds their meters and times early/ideal/late neutral releases`);
+}
+
+{
+  const f = fixture();
+  Object.assign(f.p, { y: f.ctx.PH.render.HOOP.y - 3.2, speed: 4, vy: 4 });
+  f.direction(-1, 0, 'pad'); f.step();
+  const a = f.p.action;
+  assert.equal(a?.type, 'layup');
+  assert(a.tap && a.tapAt < 0, 'a genuine quick drive flick releases during the gather, rather than creating a second gesture');
+  assert.equal(f.p.rsGesture, null);
+  assert.equal(f.p.ib, null);
+  const far = fixture();
+  Object.assign(far.p, { y: far.ctx.PH.render.HOOP.y - 6.5, speed: 4, vy: 4 });
+  far.direction(-1, 0, 'pad', false); far.step();
+  assert(!far.p.action, 'an unreachable lateral finish still waits for flick or hold');
+}
+console.log('PASS drive quick flick is an explicit early release; unreachable finishes retain ordinary flick/hold detection');
+
 for (const [mode, flipped, camera] of [['1v1', false, '2k'], ['5v5', false, '2k'], ['5v5', true, '2k'], ['5v5', true, 'broadcast']]) {
   for (const binding of mode === '1v1' ? ['stick', 'pad', 'B'] : ['stick', 'pad', 'B']) {
     for (const [mv, x, y] of directions) {

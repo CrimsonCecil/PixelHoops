@@ -4218,14 +4218,21 @@
       let rs = pl.rsGesture;
       inp = Object.assign({}, inp, { a3: !!(inp.dribble || inp.hesi) });
       if (held) {
-        if (!rs) rs = pl.rsGesture = { t: G.time, x: inp.dx, y: inp.dy, shot: false };
+        if (!rs) {
+          const P = !pl.action && !pl.post && !inp.post && !pl.uuFake && finPlan(pl);
+          const q = inDir(pl, inp, true);
+          const finish = P && P.fv > 2 && (inp.sprint && P.dunk || (P.inside || P.back) &&
+            (P.lay || P.flo && q.fwd < -0.75 && P.d > 1.4 && canLay(pl, 'floater')));
+          rs = pl.rsGesture = { t: G.time, x: inp.dx, y: inp.dy, shot: false, finish: !!finish };
+        }
         rs.x = inp.dx; rs.y = inp.dy;
-        const press = !rs.shot && G.time - rs.t >= K.rsHold;
+        const press = !rs.finish && !rs.shot && G.time - rs.t >= K.rsHold;
         if (press) rs.shot = true;
+        if (rs.finish) inp.a3 = true;
         inp.rsHold = rs.shot;
         if (rs.shot) { inp.a1 = true; inp.shootPress = inp.shootPress || press; inp.mx = rs.x; inp.my = rs.y; }
       } else if (rs) {
-        if (!rs.shot) { inp.a3 = inp.rsFlick = true; inp.dx = rs.x; inp.dy = rs.y; }
+        if (!rs.shot && !rs.finish) { inp.a3 = inp.rsFlick = true; inp.dx = rs.x; inp.dy = rs.y; }
         pl.rsGesture = null;
       }
     }
