@@ -5012,7 +5012,7 @@
       f.sampling = false;
       const travel = sm(clamp((phase - 0.2) / 0.6, 0, 1)), from = returning ? f.end : f.start, to = returning ? home : f.end;
       f.pos = from.map((v, i) => lerp(v, to[i], travel));
-      f.pos[2] += 0.16 * Math.sin(Math.PI * phase);
+      f.pos[2] = Math.max(f.pos[2], Math.min(from[2], to[2]) + 0.16 * Math.sin(Math.PI * phase));
       if (returning && phase >= 1) pl.stealFoot = null;
     }
     updateGrip(pl, a, dt);

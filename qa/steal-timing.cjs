@@ -392,6 +392,7 @@ console.log(`PASS planted steal foot: hit/miss, six distances including 0.94m, b
   console.log('PASS planted steal foot transforms: broadcast and rotated 2K, both directions, possession flip; grounded and attached to shin');
 }
 
+let maxRepeatedSwing = 0;
 for (const fps of [60, 120]) for (const opposite of [false, true]) for (const initialSide of [-1, 1]) {
   const visual = fixture(), { G, K, _qa, t5 } = visual, [p, d] = G.players, dt = 1 / fps;
   Object.assign(d.r, { stl: 1 });
@@ -408,14 +409,19 @@ for (const fps of [60, 120]) for (const opposite of [false, true]) for (const in
   resetBall();
   for (let i = 0; i < fps / 2; i++) step();
   const stance = visual.rig(d);
-  for (let attempt = 0; attempt < 3; attempt++) {
+  let firstPeak = 0;
+  for (let attempt = 0; attempt < (opposite ? 3 : 5); attempt++) {
     const side = opposite && attempt % 2 ? -initialSide : initialSide;
     p.hand = side; p.handX = side * 0.33; p.drib = 1;
     resetBall();
     _qa.startSteal(d); d.action.swipe = side;
     const action = d.action, lead = side < 0 ? 'footL' : 'footR';
-    for (let frame = 0; frame < Math.ceil(0.22 * fps); frame++) {
+    for (let frame = 0; frame < Math.ceil(0.25 * fps); frame++) {
       step();
+      const swing = visual.rig(d)[lead][2] - stance[lead][2];
+      if (attempt === 0) firstPeak = Math.max(firstPeak, swing);
+      else assert(swing <= firstPeak + 0.01, `${fps}fps attempt=${attempt}: repeated swing ${swing}m exceeds first peak ${firstPeak}m`);
+      maxRepeatedSwing = Math.max(maxRepeatedSwing, swing);
       if (frame * dt >= 0.1 && frame * dt < K.stlHitT) {
         const foot = visual.rig(d)[lead], home = stance[lead];
         const stride = Math.hypot(foot[0] - home[0], foot[1] - home[1]);
@@ -426,7 +432,7 @@ for (const fps of [60, 120]) for (const opposite of [false, true]) for (const in
     assert(action.poked && !d.action && d.stealFoot, 'next steal begins legally after quick-hit timer but during visual foot recovery');
   }
 }
-console.log('PASS repeated steal stride: same/opposite sides, both initial arms, three quick hits, 60/120fps; capped stance-relative stride and grounded landing');
+console.log(`PASS repeated steal stride: five same-side/three alternating quick hits, both initial arms, 50ms tap intervals, 60/120fps; capped stance-relative stride, grounded landing, swing <=first peak+0.01m; max swing=${maxRepeatedSwing.toFixed(3)}m`);
 
 if (process.env.STEAL_BASELINE) {
   const before = fixture(fs.readFileSync(process.env.STEAL_BASELINE, 'utf8'));
