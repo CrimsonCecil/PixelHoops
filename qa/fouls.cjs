@@ -46,7 +46,7 @@ function jumper(y, made, fouls) {
   until(() => G.ball.state !== 'shot');
   return [p, d];
 }
-function freeThrow(green) {
+function freeThrow(green, pause = 0.7, stalled = false) {
   const p = G.players[G.ft.id], phase = G.ft.index;
   // A button held through the whistle must not start a new attempt.
   until(() => G.phaseT === 0, true);
@@ -59,7 +59,36 @@ function freeThrow(green) {
   tick();
   assert.equal(G.ball.shot.kind, 'ft');
   assert.equal(G.ball.shot.made, green);
-  until(() => !G.ft || G.ft.index !== phase);
+  if (phase === G.ft.total) {
+    until(() => !G.ft);
+    return;
+  }
+  until(() => G.ball.state !== 'shot');
+  assert.equal(G.ball.state, 'loose');
+  assert(G.ball.dead && !p.hasBall && G.ball.z > 0.13);
+  const rimTime = G.time;
+  const checkWait = () => {
+    assert.equal(G.phase, 'ft');
+    assert.equal(G.ft.index, phase);
+    assert.equal(G.ball.state, 'loose');
+    assert(G.ball.dead && !p.hasBall && p.action === null);
+  };
+  if (stalled) {
+    G.ball.vz = 40;
+    while (G.time - rimTime < 1.5 - dt) { checkWait(); tick(true); }
+    assert(G.ball.z > 0.13, 'safety timeout is tested with the ball still airborne');
+  } else {
+    while (G.ball.z > 0.13 && G.time - rimTime < 1.5) { checkWait(); tick(true); }
+    assert(G.ball.z <= 0.13, 'the ball reaches the floor before the safety timeout');
+  }
+  const start = stalled ? rimTime + 1.5 : G.time;
+  assert(G.time > rimTime + dt);
+  while (G.time < start + pause - dt) { checkWait(); tick(true); }
+  until(() => G.ft.index !== phase, true);
+  assert(G.time >= start + pause - 1e-9 && G.time <= start + pause + dt * 2);
+  assert.equal(G.ft.index, phase + 1);
+  assert.equal(G.ball.state, 'held');
+  assert(p.hasBall && p.action === null);
 }
 
 set('foulJump', 1);
@@ -89,7 +118,8 @@ heardFoul('foulShot');
 assert.equal(G.stats[0].fga, 0, 'missed fouled shot does not count as a field goal attempt');
 freeThrow(false);
 assert.equal(G.phase, 'ft', 'missed intermediate attempt is dead');
-freeThrow(true);
+set('ftBetween', 0.35);
+freeThrow(true, 0.35);
 freeThrow(false);
 assert.equal(G.score[0], 1);
 assert.equal(G.stats[0].fta, 3);
@@ -104,6 +134,11 @@ for (let i = 0; i < 600 && G.ball.state === 'loose'; i++) {
 until(() => G.stats[0].reb + G.stats[1].reb === 1);
 assert.equal(G.ball.state, 'held');
 assert.deepEqual(audio, [], 'free throws do not repeat the foul call');
+
+jumper(4.65, false);
+heardFoul('foulShot');
+freeThrow(false, 0.35, true);
+console.log('PASS FT pacing: made and missed intermediate throws stay dead until floor contact plus the tuneable pause; airborne timeout recovers');
 
 jumper(7, true, false);
 assert.equal(G.phase, 'dead');
