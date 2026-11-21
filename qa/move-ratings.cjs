@@ -99,6 +99,22 @@ for (const mode of ['2p', 't3', 't5']) {
     near(samples[1].distance / samples[0].distance, 1.15 / 0.55, `${mode} UU distance ratio`);
   }
 }
+for (const mode of ['2p', 't3', 't5']) for (const rating of [0.4, 0.98]) {
+  for (const move of ['uuForward', 'uuBack', 'uuLeft', 'uuRight', 'Spin', 'Back', 'Front']) {
+    const { p } = fixture(mode); p.r.post = p.r.close = p.r.lay = rating;
+    const uu = move.startsWith('uu');
+    tune.set('l1_' + (uu ? 'uuTime' : 'poStrideTime') + (rating < 0.5 ? 'Low' : 'High'), 0);
+    if (uu) { p.post = false; dbg.startMove(p, zero(), move); }
+    else dbg.startShot(p, { ...zero(), mx: move === 'Spin' ? 1 : 0, my: move === 'Back' ? -1 : move === 'Front' ? 1 : 0 }, 'a1');
+    const a = p.action;
+    assert((uu ? a.T : a.stride.T) > 0, `${mode} ${move} zero multiplier needs a positive duration`);
+    for (let i = 0; i < 12; i++) {
+      step(p, { post: !uu, a1: !uu });
+      assert([p.x, p.y, p.vx, p.vy].every(Number.isFinite), `${mode} ${move} positions and velocities stay finite`);
+    }
+  }
+}
+console.log('PASS zero duration tuning: low/high multipliers keep all UU and post strides finite in every mode');
 console.log('PASS move quality: post Spin/Back/Front and all four UU steps are larger/faster at high ratings in 1V1/3V3/5V5');
 console.log('PASS fake limits: no dream=1, bronze=2, silver=3, gold/HOF unlimited; excess early releases become rushed real shots in all modes');
 

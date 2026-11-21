@@ -3061,7 +3061,7 @@
       if (kind) {
         const mob = mobOf(pl), PS = psK(pl), tK = lerp(1.35, 0.84, mob), dK = lerp(0.55, 1.15, mob);
         const quality = postQuality(pl);
-        const T = K['poStride' + kind + 'T'] * tK * (1 + 0.25 * fat(pl)) * lerp(K.poStrideTimeLow, K.poStrideTimeHigh, quality);
+        const T = Math.max(0.01, K['poStride' + kind + 'T'] * tK * (1 + 0.25 * fat(pl)) * lerp(K.poStrideTimeLow, K.poStrideTimeHigh, quality));
         const distance = K['poStride' + kind + 'Sp'] * K['poStride' + kind + 'T'] * dK * PS.sp * (1 - K.mvFat * fat(pl)) * (1 + 0.25 * fat(pl)) * lerp(K.poStrideDistLow, K.poStrideDistHigh, quality);
         const side = a.postSide || a.latS, h = q.h;
         a.stride = { kind, T, distance, side, f0: pl.face, dx: kind === 'Spin' ? -h.y * side * 0.75 + h.x * 0.66 : h.x * (kind === 'Back' ? -1 : 1), dy: kind === 'Spin' ? h.x * side * 0.75 + h.y * 0.66 : h.y * (kind === 'Back' ? -1 : 1) };
@@ -3904,7 +3904,7 @@
     if (kind === 'uu') {
       const quality = uuQuality(pl);
       const distance = mvx === 'uuForward' ? K.uuForward : mvx === 'uuBack' ? K.uuBack : K.uuSide;
-      pl.action.T = K.uuT * lerp(K.uuTimeLow, K.uuTimeHigh, quality); pl.action.sp = distance * lerp(K.uuDistLow, K.uuDistHigh, quality) * bk(pl, 'fakes', K.bgFakesStep) / pl.action.T;
+      pl.action.T = Math.max(0.01, K.uuT * lerp(K.uuTimeLow, K.uuTimeHigh, quality)); pl.action.sp = distance * lerp(K.uuDistLow, K.uuDistHigh, quality) * bk(pl, 'fakes', K.bgFakesStep) / pl.action.T;
       pl.action.cw = 1; pl.action.v0x = pl.action.v0y = 0;
       pl.uuShot = Object.assign({}, pl.uuFake, { mv: mvx, until: G.time + pl.action.T + K.uuWin });
       pl.uuFake = null; pl.vx = pl.vy = 0;
