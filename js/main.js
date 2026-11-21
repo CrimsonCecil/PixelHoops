@@ -136,7 +136,6 @@
     const AT = {}; GM.ATTRS.forEach((t) => { AT[t[0]] = t[2]; }); Object.assign(AT, R5TIP);
     const AG = attrGroups(a, a), bl = bList(a, true), have = {}; bl.forEach((x) => { have[x[0]] = x[1]; });
     if (pkTab === 'ov') {
-      h += '<div class="rating-legend" aria-label="属性颜色分档">' + [[95, '金 95+'], [88, '橙 88+'], [80, '紫 80+'], [72, '蓝 72+'], [64, '绿 64+'], [55, '白 55+'], [0, '灰 &lt;55']].map(([v, n]) => '<span class="' + vcl(v) + '">' + n + '</span>').join('') + '</div>';
       h += '<div class="pkov" data-testid="pk-ov">' + AG.map(([g, gs, v]) => '<div class="pko1"><span>' + g + '</span><b class="' + vcl(v) + '">' + v + '</b></div>').join('') + '</div>';
       { const F = GM.SF[a.form] || GM.SF.std, sp = F.sp <= 0.85 ? '极快' : F.sp <= 0.92 ? '快' : F.sp <= 1.04 ? '中等' : F.sp <= 1.15 ? '偏慢' : '慢', hi = F.blk <= 0.85 ? '高' : F.blk >= 1.1 ? '低' : '中'; h += '<p class="pkform">投篮包 <b>' + F.name + '</b>' + (a.lefty ? ' · 左手' : '') + ' · 出手 ' + sp + ' · 出手点 ' + hi + (F.two ? ' · 两段式' : ' · 一段式') + '</p>'; }
       { const K = GM.dunkPkg(a), N = { two: '双手', one: '单手', rimpull: '挂筐', reverse: '背扣', tomahawk: '战斧', poster: '隔扣', cock: '拉弓', windmill: '风车', '360': '360', glide: '滑翔', cradle: '摇篮', pump: '双抽', scissor: '剪刀腿', shaq: '大鲨鱼' }, L = Object.keys(N).filter((k) => K.S[k]).map((k) => N[k]);
@@ -166,6 +165,18 @@
   function pkMark() { $('pk-grid').querySelectorAll('.pkc').forEach((b) => b.classList.toggle('on', b.getAttribute('data-pk') === pkSel)); }
   // V3.2：按球队筛选（全部 = 按档位分组）
   let pkTeam = 'all';
+  const pkPositions = new Set();
+  const PK_POSITIONS = { PG: '控球后卫', SG: '得分后卫', SF: '小前锋', PF: '大前锋', C: '中锋' };
+  function playerPositions(a) {
+    return String(a.pos || '').split(/[\/／、,，\s]+/).flatMap((p) => {
+      if (p === '后卫') return ['PG', 'SG'];
+      if (p === '前锋') return ['SF', 'PF'];
+      return Object.keys(PK_POSITIONS).filter((k) => p === k || p === PK_POSITIONS[k]);
+    });
+  }
+  function pkPositionChips() {
+    $('pk-positions').innerHTML = '<span class="pk-pos-label">位置 · 多选</span>' + Object.entries(PK_POSITIONS).map(([k, n]) => '<button class="pkt' + (pkPositions.has(k) ? ' on' : '') + '" data-pos="' + k + '" aria-pressed="' + pkPositions.has(k) + '" title="' + n + '">' + k + '</button>').join('');
+  }
   function pkTeams() {
     const N = GM.NBA || {}, ks = Object.keys(N).filter((k) => k !== 'LEG').sort((x, y) => N[x].name.localeCompare(N[y].name, 'zh-Hans-u-co-pinyin'));
     const chip = (v, t, col) => '<button class="pkt' + (pkTeam === v ? ' on' : '') + '" data-tm="' + v + '" data-testid="pkt-' + v + '">' + (col ? '<i style="background:' + col + '"></i>' : '') + t + '</button>';
@@ -173,18 +184,27 @@
     $('pk-teams').classList.toggle('hidden', !ks.length);
   }
   function pkFill() {
-    let gh = pkSide && pkSlot === null ? pkCard('random') : '';
-    if (pkTeam === 'all') { for (const t of Object.keys(GM.TIERS)) { const ks = GM.ROSTER.filter((k) => GM.ARCH[k].tier === t); if (ks.length) gh += '<div class="pk-tier t' + TT[t] + '"><i>' + TT[t] + '</i>' + GM.TIERS[t] + '</div>' + ks.map(pkCard).join(''); } }
-    else gh += GM.ROSTER.filter((k) => pkTeam === 'rook' ? GM.ARCH[k].tier === 'rook' : GM.ARCH[k].team === pkTeam).map(pkCard).join('');
+    const roster = GM.ROSTER.filter((k) => !pkPositions.size || playerPositions(GM.ARCH[k]).some((p) => pkPositions.has(p)));
+    let gh = pkSide && pkSlot === null && !pkPositions.size ? pkCard('random') : '';
+    if (pkTeam === 'all') { for (const t of Object.keys(GM.TIERS)) { const ks = roster.filter((k) => GM.ARCH[k].tier === t); if (ks.length) gh += '<div class="pk-tier t' + TT[t] + '"><i>' + TT[t] + '</i>' + GM.TIERS[t] + '</div>' + ks.map(pkCard).join(''); } }
+    else gh += roster.filter((k) => pkTeam === 'rook' ? GM.ARCH[k].tier === 'rook' : GM.ARCH[k].team === pkTeam).map(pkCard).join('');
+    if (!gh) gh = '<p class="tnote">没有符合条件的球员</p>';
     $('pk-grid').innerHTML = gh; $('pk-grid').scrollTop = 0;
     $('pk-grid').querySelectorAll('canvas.pkf').forEach((cv) => portrait(cv, GM.ARCH[cv.parentElement.getAttribute('data-pk')], GM.TEAMS[pkSide]));
     pkMark();
   }
   $('pk-teams').addEventListener('click', (e) => { const b = e.target.closest('.pkt'); if (!b) return; pkTeam = b.getAttribute('data-tm'); $('pk-teams').querySelectorAll('.pkt').forEach((x) => x.classList.toggle('on', x === b)); pkFill(); PH.audio.play('ui'); });
+  $('pk-positions').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-pos]'); if (!b) return;
+    const p = b.getAttribute('data-pos');
+    if (pkPositions.has(p)) pkPositions.delete(p); else pkPositions.add(p);
+    b.classList.toggle('on', pkPositions.has(p)); b.setAttribute('aria-pressed', pkPositions.has(p));
+    pkFill(); PH.audio.play('ui');
+  });
   function openPicker(side, slot = null) {
     pkSide = side; pkSlot = slot; pkSel = slot === null ? (side ? opts.arch1 : opts.arch0) : lobby3[slot].arch;
     $('pk-title').textContent = slot === null ? (side ? (opts.mode === '2p' ? '选择玩家 2 的球员' : opts.mode === 'train' ? '选择训练对手' : '选择对手') : opts.mode === '2p' ? '选择玩家 1 的球员' : '选择你的球员') : '选择' + lobbySlotName(slot) + '的球员';
-    pkTeams(); pkFill(); pkDetail(pkSel); clearPf(); show('picker', true);
+    pkTeams(); pkPositionChips(); pkFill(); pkDetail(pkSel); clearPf(); show('picker', true);
     const cur = $('pk-grid').querySelector('.pkc.on'); if (cur) { cur.classList.add('pf'); cur.scrollIntoView({ block: 'nearest' }); }
     PH.audio.play('ui');
   }
