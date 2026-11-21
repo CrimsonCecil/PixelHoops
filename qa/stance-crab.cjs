@@ -333,15 +333,18 @@ for (const liftSetting of [0, 0.15]) {
 TUNE.reset('l1_stLift');
 console.log('PASS lift slider 0–0.15m: zero lift, maximum lift, matched knee rise and continuous feet');
 
-for (const dt of [1 / 120, 1 / 60, 1 / 30]) for (const restart of [false, true]) {
+for (const lift of [0.07, 0.12, 0.15]) for (const dt of [1 / 120, 1 / 60, 1 / 30]) for (const restart of [false, true]) for (const stopPhase of [0.15, 0.65]) for (const abrupt of [false, true]) {
+  TUNE.load(lift === 0.07 ? {} : { l1_stLift: lift, l1_stStep: 0.15, l1_stHzMin: 2.05, l1_stHzMax: 3.5 });
   const a = game.t5.makePlayer(0, 'mrobinson', 'p1');
-  Object.assign(a, { x: 0, y: 6, z: 0, sq: 1, face: Math.PI / 2, stance: true, anim: 'def', action: null, hasBall: false, speed: 0.874 });
+  Object.assign(a, { x: 0, y: 6, z: 0, sq: 1, face: Math.PI / 2, stance: true, anim: 'def', action: null, hasBall: false, speed: 1.5 });
   a.pose = poseQA.poseTarget(a);
-  let decel = -1, previous, peak = 0, vertical = 0;
+  let decel = -1, previous, peak = 0, vertical = 0, horizontal = 0;
   for (let i = 0; i < 3 / dt; i++) {
-    if (decel < 0 && a.crab && a.crab[a.crab.side][2] >= 0.043) decel = i;
+    if (decel < 0 && a.crab && a.crab.phase >= stopPhase) decel = i;
     const since = decel < 0 ? -1 : (i - decel) * dt;
-    const speed = since < 0 ? 0.874 : since < dt * 2 ? 0.136 : restart && since > 0.04 && since < 0.15 ? -0.136 : 0;
+    const speed = abrupt
+      ? since < 0 ? 0.874 : since < dt * 2 ? 0.136 : restart && since > 0.04 && since < 0.15 ? -0.136 : 0
+      : since < 0 ? 1.5 : since < 0.12 ? Math.max(0.136, 1.4 - since * 10) : restart && since < 0.2 ? -0.136 : 0;
     a.x += speed * dt; a.speed = Math.abs(speed); a.vx = speed;
     gait.crab(a, dt); a.pose = poseQA.poseTarget(a);
     const k = rig(a, a.pose, false, a.col.body);
@@ -352,14 +355,16 @@ for (const dt of [1 / 120, 1 / 60, 1 / 30]) for (const restart of [false, true])
     if (previous && decel >= 0) for (let s = 0; s < 2; s++) {
       peak = Math.max(peak, Math.hypot(...feet[s].map((v, j) => v - previous[s][j])) / dt / 60);
       vertical = Math.max(vertical, Math.abs(feet[s][2] - previous[s][2]) / dt / 60);
+      horizontal = Math.max(horizontal, Math.hypot(feet[s][0] - previous[s][0], feet[s][1] - previous[s][1]) / dt / 60);
     }
     previous = feet;
   }
   assert(decel >= 0, 'decelerates mid-swing');
-  console.log(`Decel-stop ${Math.round(1 / dt)}Hz restart=${restart}: 3D ${(peak * 100).toFixed(3)}cm, vertical ${(vertical * 100).toFixed(3)}cm per 16.7ms`);
+  console.log(`Decel-stop lift=${lift} ${Math.round(1 / dt)}Hz restart=${restart} phase=${stopPhase} abrupt=${abrupt}: 3D ${(peak * 100).toFixed(3)}cm, vertical ${(vertical * 100).toFixed(3)}cm, horizontal ${(horizontal * 100).toFixed(3)}cm per 16.7ms`);
   assert(peak <= 0.01501 && vertical <= 0.01001, 'deceleration continuity');
   assert.equal(a.crab.L[2] + a.crab.R[2], 0, 'stopped feet settle onto floor');
 }
+TUNE.reset();
 
 for (const moving of [false, true]) {
   const a = game.t5.makePlayer(0, 'mrobinson', 'p1');

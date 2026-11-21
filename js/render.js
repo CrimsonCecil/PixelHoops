@@ -361,6 +361,9 @@
       }
       c.face = pl.face;
       const dx = pl.x - c.x, dy = pl.y - c.y, distance = Math.hypot(dx, dy);
+      const speed = distance / dt;
+      if (c.speed != null && speed < c.speed - 0.01 * dt) c.settling = true;
+      c.speed = speed;
       c.x = pl.x; c.y = pl.y;
       if (distance < 0.00001) { c[c.side][2] = Math.max(0, c[c.side][2] - 0.6 * dt); c.rest = c[c.side][2] === 0; c.settling = !c.rest; }
       else {
