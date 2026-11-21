@@ -302,8 +302,11 @@
     const brAmp = (pl) => 0.03 + 0.07 * (pl.exr || 0) + 0.05 * fat(pl);
     const brS = (pl) => Math.sin(pl.brPh || 0);
     const br = (pl) => brS(pl) * brAmp(pl);
-    // 步频（runPh 每秒弧度，一个周期两步）：走 ≈1Hz，冲刺 ≈2.3Hz；比原来的 2.7×速度 更像人：快了主要靠步幅
-    function cad(pl) { const v = pl.speed || 0; return v < 0.05 ? 0 : 4.2 * Math.min(1, v / 0.8) + 1.35 * v; }
+    // runPh 一周两次落脚；低速放慢，高个球员用更长的步幅，不由运球频率反推步频
+    function cad(pl) {
+      const v = pl.speed || 0, lo = tune('gaHzMin', 0.45), hi = Math.max(lo, tune('gaHzMax', 2.8));
+      return v < 0.05 ? 0 : Math.PI * (lo + (hi - lo) * Math.pow(cl(v / 7.2, 0, 1), 1.4)) * Math.min(1, v / 0.7) * Math.pow(1.95 / height(pl), tune('gaHeight', 0.8));
+    }
     // 运球相位速率：身高缩放频率，冲刺跟随同比缩放的步频，避免锁相抵消身高差
     function drib(pl) {
       const s = spW(pl), scale = Math.pow(2 / height(pl), tune('drHeight', 1.8)), base = (5.4 + 0.35 * (pl.speed || 0)) * scale;
@@ -311,8 +314,9 @@
       let d = ((pl.runPh || 0) * scale - Math.PI / 2) - (pl.drib || 0); d = d - Math.round(d / Math.PI) * Math.PI;
       return base + (cad(pl) * scale - base) * s + 5 * s * d;
     }
-    function crab(pl, dt) {
+    function crab(pl, dt, pose = pl.pose) {
       if (!pl.stance || pl.anim !== 'def' || pl.z > 0.01) { pl.crab = null; return; }
+      if (!(dt > 0)) return;
       const fx = Math.cos(pl.face), fy = Math.sin(pl.face), w = tune('stWidth', 0.42) * (1 + (height(pl) / 1.95 - 1) * 1.55);
       const base = (side) => [pl.x + fy * side * w, pl.y - fx * side * w, 0];
       let c = pl.crab;
@@ -321,22 +325,50 @@
         c = pl.crab = { x: pl.x, y: pl.y, width: w, phase: 0, side: lat < 0 ? 'L' : 'R', L: base(-1), R: base(1) };
         c.from = c[c.side].slice(); c.to = c.from.slice();
       }
-      const dx = pl.x - c.x, dy = pl.y - c.y, distance = Math.hypot(dx, dy), step = tune('stStep', 0.42);
+      const dx = pl.x - c.x, dy = pl.y - c.y, distance = Math.hypot(dx, dy);
       c.x = pl.x; c.y = pl.y;
       if (distance < 0.00001) { c[c.side][2] = Math.max(0, c[c.side][2] - dt); c.rest = true; return; }
       if (c.rest) { c.side = dx * fy - dy * fx < 0 ? 'L' : 'R'; c.phase = 0; c.rest = false; }
-      let advance = distance / step;
+      const v = distance / dt, lo = tune('stHzMin', 1), hi = Math.max(lo, tune('stHzMax', 2.4));
+      const hz = cl(v / (tune('stStep', 0.42) + 0.12 * v), lo, hi) * Math.min(1, v / 0.35);
+      const k = rig(pl, pose, false, pl.col && pl.col.body), Hh = 1 + (height(pl) / 1.95 - 1) * 1.55, floor = pl.z + 0.06 * Hh;
+      const legLength = Math.hypot(...k.kneeL.map((x, i) => x - k.hipL[i])) + Math.hypot(...k.footL.map((x, i) => x - k.kneeL[i]));
+      const radius = Math.sqrt(Math.max(0.01, legLength * legLength * 0.98 - (k.hipL[2] - floor) ** 2));
+      const hw = Math.hypot(k.hipR[0] - k.hipL[0], k.hipR[1] - k.hipL[1]) / 2, lateral = Math.abs((dx * fy - dy * fx) / distance);
+      const spread = Math.max(0, w - hw), dot = spread * lateral;
+      const reach = Math.max(0.12, 1.9 * (Math.sqrt(Math.max(0.01, dot * dot + radius * radius - spread * spread)) - dot));
+      const travel = v / hz, step = Math.min(travel, reach), excess = Math.max(0, travel - step);
+      c.hz = hz; c.lead = dx * fy - dy * fx < 0 ? 'L' : 'R';
+      let advance = hz * dt;
       while (advance > 0) {
         if (c.phase === 0) {
           c.from = c[c.side].slice(); c.to = base(c.side === 'L' ? -1 : 1);
-          c.to[0] += dx / distance * step * 1.2; c.to[1] += dy / distance * step * 1.2;
+          c.to[0] += dx / distance * step * 1.5; c.to[1] += dy / distance * step * 1.5;
         }
         const take = Math.min(1 - c.phase, advance); c.phase += take; advance -= take;
         const u = c.phase, blend = u * u * (3 - 2 * u), foot = c[c.side];
-        foot[0] = c.from[0] + (c.to[0] - c.from[0]) * blend;
-        foot[1] = c.from[1] + (c.to[1] - c.from[1]) * blend;
-        foot[2] = Math.sin(Math.PI * u) * tune('stLift', 0.12);
+        foot[0] = c.from[0] + (c.to[0] + dx / distance * excess * u - c.from[0]) * blend;
+        foot[1] = c.from[1] + (c.to[1] + dy / distance * excess * u - c.from[1]) * blend;
+        const drag = lateral * ss(0.02, 0.2, excess) * (c.side === c.lead ? 0 : 1);
+        foot[2] = Math.sin(Math.PI * u) * tune('stLift', 0.12) * (1 - drag);
         if (u >= 1) { foot[2] = 0; c.side = c.side === 'L' ? 'R' : 'L'; c.phase = 0; }
+      }
+      const bounds = {};
+      for (const side of ['L', 'R']) {
+        const f = c[side], hip = k['hip' + side], dz = hip[2] - floor - f[2];
+        const r = Math.sqrt(Math.max(0.01, legLength * legLength * 0.98 - dz * dz));
+        const x = f[0] - hip[0], y = f[1] - hip[1], d = Math.hypot(x, y);
+        if (d > r) { f[0] = hip[0] + x * r / d; f[1] = hip[1] + y * r / d; }
+        const forward = (f[0] - hip[0]) * fx + (f[1] - hip[1]) * fy, span = Math.sqrt(Math.max(0, r * r - forward * forward));
+        const center = (hip[0] - pl.x) * fy - (hip[1] - pl.y) * fx;
+        bounds[side] = [center - span, center + span];
+      }
+      const left = (c.L[0] - pl.x) * fy - (c.L[1] - pl.y) * fx, right = (c.R[0] - pl.x) * fy - (c.R[1] - pl.y) * fx, gap = 0.12 * Hh;
+      if (right - left < gap) {
+        const mid = cl((left + right) / 2, Math.max(bounds.L[0] + gap / 2, bounds.R[0] - gap / 2), Math.min(bounds.L[1] + gap / 2, bounds.R[1] - gap / 2));
+        for (const [side, old, target] of [['L', left, mid - gap / 2], ['R', right, mid + gap / 2]]) {
+          c[side][0] += fy * (target - old); c[side][1] -= fx * (target - old);
+        }
       }
     }
     // 跑动运球：球在最低点往身前推多少（米）
@@ -344,7 +376,8 @@
     // 跑步姿势：替换 poseTarget 里 an==='run' 那一段
     function run(pl, T) {
       const ph = pl.runPh || 0, s = Math.sin(ph), k = kW(pl), sp = spW(pl);
-      const amp = 0.14 + 0.62 * k + 0.3 * sp, ampF = Math.min(amp * (1 + 0.15 * sp), 1.05), ampB = Math.min(amp * (1 - 0.3 * sp), 0.62); // 前摆封顶（高抬腿靠屈膝），后蹬腿别拖成水平线
+      const stride = cl((pl.speed || 0) / Math.max(0.1, cad(pl) / Math.PI) / (1.2 * height(pl) / 1.95), 0.7, 1.5);
+      const amp = (0.14 + 0.62 * k + 0.3 * sp) * stride, ampF = Math.min(amp * (1 + 0.15 * sp), 1.05), ampB = Math.min(amp * (1 - 0.3 * sp), 0.72); // 前摆封顶（高抬腿靠屈膝），后蹬腿别拖成水平线
       const kb = 0.25 + 0.75 * k + 0.75 * sp, c1 = Math.cos(ph - 0.15), bump = (c) => Math.pow(Math.max(0, c), 1.2); // 屈膝只在摆动期（大腿往前摆过竖直时收脚跟），支撑腿基本伸直
       const arm = 0.14 + 0.58 * k + 0.6 * sp, armF = arm * (1 + 0.25 * sp), armB = arm * (1 - 0.1 * sp), el = 0.22 + 0.85 * k + 0.55 * sp;
       const sw = (v, f, b) => (v > 0 ? f * v : b * v);
