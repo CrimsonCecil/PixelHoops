@@ -76,6 +76,15 @@
     dunk: () => { tone(55, 0.34, 'sine', 0.52, 0, 28); tone(90, 0.35, 'sawtooth', 0.3, 0, 40); noise(0.3, 0.3, 700, 0.7); tone(300, 0.2, 'square', 0.12); },
     buzzer: () => { tone(196, 0.7, 'sawtooth', 0.22); tone(198, 0.7, 'square', 0.12); },
     whistle: () => { tone(2300, 0.22, 'square', 0.1); tone(2350, 0.22, 'sine', 0.1); },
+    foulWhistle: () => {
+      const now = ac.currentTime;
+      for (const [delay, dur] of [[0, 0.125], [0.155, 0.18]]) {
+        const t = now + delay;
+        tone(2750, dur, 'sine', 0.29, t, 3100);
+        tone(3120, dur, 'triangle', 0.15, t, 3260);
+        noise(dur, 0.14, 3050, 4, t, 3400);
+      }
+    },
     squeak: () => { tone(1900, 0.07, 'sine', 0.07, 0, 2600); },
     steal: () => { tone(500, 0.06, 'square', 0.16, 0, 900); noise(0.05, 0.15, 3000, 2); },
     poke: () => {
@@ -286,6 +295,8 @@
   // 球员配音：vo/manifest.json 列出每名球员每类事件的若干条语音，随机选、不连播同一条
   let voM = null, voOn = true, voCur = null, voLast = {}, voBusy = 0;
   const VO_WALK = { barkley: 'shaq_dunk_2.mp3' };
+  const VO_FOUL = { foulCharge: 'daniels_hurt_1.mp3', foulShot: 'edwards_hurt_1.mp3', foulAndOne: 'chet_hurt_1.mp3' };
+  const FOUL_VO_DELAY = 0.36;
   const VO_INTRO = {
     barkley: [['shaq_make_1.mp3', 'shaq_make_0.mp3'], ['shaq_dom_1.mp3', 'shaq_block_0.mp3']],
     yao: [['sengun_dom_0.mp3', 'sengun_dom_2.mp3'], ['sengun_taunt_1.mp3', 'sengun_make_0.mp3']],
@@ -352,9 +363,11 @@
       }
       return null;
     }
+    const foul = voIdx[VO_FOUL[ev]];
+    const delay = foul ? FOUL_VO_DELAY : 0;
     const walk = ev === 'walk' ? voIdx[VO_WALK[key]] : null;
     if (ev === 'walk' && !walk) ev = 'taunt';
-    let L = walk ? [walk.it] : voLines(key, ev);
+    let L = foul ? [foul.it] : walk ? [walk.it] : voLines(key, ev);
     if (!L || !L.length) L = voLines(key, VO_FB[ev]);
     if (!L || !L.length) return null;
     const now = performance.now(); if (now < voBusy && !pri) return null;
@@ -363,9 +376,9 @@
     if (!ensure()) return null;
     if (voQTimer) { clearTimeout(voQTimer); voQTimer = null; }
     if (voCur && pri) { try { voCur.stop(); } catch (e) { /* 已停 */ } voCur = null; }
-    const seq = ++voSeq;
-    voBuf(it.f).then((buf) => { if (!buf || !voOn || pauseOn || seq !== voSeq) return; if (ac.state === 'suspended') ac.resume(); const lead = voLead(buf), src = ac.createBufferSource(); src.buffer = buf; src.connect(voGain); src.start(0, lead); voCur = src; if (lead > 0.1) voBusy = Math.min(voBusy, performance.now() + Math.max(0.3, (buf.duration || it.d || 1.5) - lead) * 1000 + 250); }).catch(() => {});
-    voBusy = now + ((it.d || 1.5) * 1000) + 250;
+    const seq = ++voSeq, start = ac.currentTime + delay;
+    voBuf(it.f).then((buf) => { if (!buf || !voOn || !sfxOn || pauseOn || seq !== voSeq) return; if (ac.state === 'suspended') ac.resume(); const lead = voLead(buf), src = ac.createBufferSource(); src.buffer = buf; src.connect(voGain); src.start(delay ? start : 0, lead); voCur = src; if (lead > 0.1) voBusy = Math.min(voBusy, performance.now() + (delay + Math.max(0.3, (buf.duration || it.d || 1.5) - lead)) * 1000 + 250); }).catch(() => {});
+    voBusy = now + (delay + (it.d || 1.5)) * 1000 + 250;
     return it;
   }
   // 指定一条语音（开场对话用）：voLine 按序号取条目，voSay 打断当前语音直接播

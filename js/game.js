@@ -2088,7 +2088,8 @@
     const p = clamp(K.foulCharge - K.foulChargeSlope * Math.max(0, edge - K.foulChargeEdge), 0, 1);
     if (p <= 0 || rnd() >= p) return false;
     G.stats[pl.id].pf = (G.stats[pl.id].pf || 0) + 1;
-    turnover(df.id, '进攻犯规');
+    turnover(df.id, '进攻犯规', 'foulWhistle');
+    vo(pl, 'foulCharge', 'pri');
     return true;
   }
   function shootingFoul(pl, df, a, ci, kind) {
@@ -2106,7 +2107,8 @@
     G.stats[df.id].pf = (G.stats[df.id].pf || 0) + 1;
     G.ft = { id, index: 1, total: made ? 1 : pts };
     G.cel = null; G.hlQ = null;
-    sfx('whistle');
+    sfx('foulWhistle');
+    vo(G.players[id], made ? 'foulAndOne' : 'foulShot', 'pri');
     beginFreeThrow('投篮犯规');
   }
   function beginFreeThrow(message) {
@@ -3397,7 +3399,7 @@
     for (const p of G.players) { p.ai.t = 0.25; p.ai.hold = false; }
     if (teamPlay() && G.h5) G.h5.pickup(pl, change, wasShot);
   }
-  function turnover(toId, msg) { if (teamPlay()) { if (G.h5) G.h5.turnover(toId, msg); return; } const o = G.players[1 - toId]; playLoss(o); if (G.stats && G.stats[1 - toId] && G.mode !== 'train') G.stats[1 - toId].tov++; if (o) tkAdd(o, -8); sfx('whistle'); setupCheck(toId, msg); }
+  function turnover(toId, msg, sound = 'whistle') { if (teamPlay()) { if (G.h5) G.h5.turnover(toId, msg); return; } const o = G.players[1 - toId]; playLoss(o); if (G.stats && G.stats[1 - toId] && G.mode !== 'train') G.stats[1 - toId].tov++; if (o) tkAdd(o, -8); sfx(sound); setupCheck(toId, msg); }
   // ---------- 主宰（Takeover）----------
   // 参考 2K：好球攒能量、坏球掉能量；攒满自动进入主宰 24 秒。按球员最强的一项分五种：
   // 全部属性 +5，本类属性再 +15（封顶 99），外加本类专属能力；体力消耗 -30%。总评越低攒得越快

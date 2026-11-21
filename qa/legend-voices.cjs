@@ -46,4 +46,61 @@ module.exports = (async () => {
     assert.equal(ctx.PH.audio.voSay(ctx.PH.audio.voLine(key, 'dom', 0)), false, 'no audio device remains safe');
     console.log('PASS:', key, '8 Mandarin voice lines, contiguous 120-byte sprites, real manifest intro/comeback and offline-device safety');
   }
+
+  const gainNodes = [], voices = [], tones = [];
+  const param = () => ({ setValueAtTime() {}, exponentialRampToValueAtTime() {} });
+  class AudioContext {
+    currentTime = 1;
+    sampleRate = 24000;
+    createGain() {
+      const node = { gain: param(), connect(dest) { this.dest = dest; return dest; } };
+      gainNodes.push(node);
+      return node;
+    }
+    createBuffer() { return { getChannelData: () => new Float32Array(this.sampleRate) }; }
+    createBiquadFilter() { return { frequency: param(), Q: {}, connect: (dest) => dest }; }
+    createOscillator() { return { frequency: param(), connect: (dest) => dest, start: (when) => tones.push(when), stop() {} }; }
+    createBufferSource() {
+      return {
+        connect(dest) { this.dest = dest; return dest; },
+        start(when) { if (this.buffer.decoded) voices.push({ when, dest: this.dest, buffer: this.buffer }); },
+        stop() {}
+      };
+    }
+    decodeAudioData(data, resolve) { resolve({ decoded: data, duration: data.byteLength / 120 * 0.024 }); }
+  }
+  ctx.AudioContext = AudioContext;
+  ctx.fetch = async (url) => {
+    const data = fs.readFileSync(path.join(__dirname, '..', url));
+    return { ok: true, arrayBuffer: async () => data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength) };
+  };
+  const audio = ctx.PH.audio;
+  audio.play('foulWhistle');
+  assert.deepEqual(tones, [1, 1, 1.155, 1.155], 'two distinct whistle blasts');
+  for (const [event, key, index, line] of [
+    ['foulCharge', 'daniels', 1, '啧，碰一下也算我犯规？'],
+    ['foulShot', 'edwards', 1, '嘶，裁判你看见没？'],
+    ['foulAndOne', 'chet', 1, '嘿，犯规也拦不住我！']
+  ]) {
+    const pack = manifest.voices[key], clip = pack.lines.hurt[index];
+    assert.equal(audio.vo('curry', event, 'pri').t, line);
+    await new Promise(setImmediate);
+    const { when, dest, buffer } = voices.shift();
+    assert(when > tones.at(-1) + 0.18, 'reaction starts after the whistle');
+    assert.equal(dest, gainNodes[4], 'reaction uses the voice bus');
+    const data = fs.readFileSync(path.join(__dirname, '../vo', pack.s));
+    assert.deepEqual(Buffer.from(buffer.decoded), data.subarray(clip.o * 120, (clip.o + clip.n) * 120));
+  }
+  audio.setMix('vo', 0);
+  assert.equal(gainNodes[4].gain.value, 0);
+  audio.setMix('sfx', 0);
+  assert.equal(gainNodes[3].gain.value, 0);
+  audio.setVo(false);
+  assert.equal(audio.vo('curry', 'foulShot', 'pri'), null);
+  audio.setVo(true);
+  audio.setSfx(false);
+  audio.play('foulWhistle');
+  assert.equal(audio.vo('curry', 'foulShot', 'pri'), null);
+  assert.equal(tones.length, 4);
+  console.log('PASS foul mixer: two whistle blasts, three existing Mandarin clips, whistle before voice, existing mutes and mixer buses');
 })().catch(error => { console.error(error); process.exitCode = 1; });
