@@ -1250,6 +1250,7 @@
       if (rsM > 0.5) { o.a3 = true; o.dx = RS.x / rsM; o.dy = RS.y / rsM; }
       if (R.hesi) o.a3 = o.hesi = true;
       o.post = R.LT;
+      if (R.rsPad) { const rs = stick(R.rsX, R.rsY); o.rsPad = true; o.rsX = rs.x; o.rsY = rs.y; }
       passKeys(p, L);
       if (E.LB) callPick(p, true);
       return o;

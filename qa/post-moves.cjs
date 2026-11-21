@@ -237,3 +237,140 @@ for (const mode of ['2p', 't5']) for (const arch of ['embiid', 'jokic']) {
   }
 }
 console.log(`PASS post arm reach: ${armFrames} player-frames in 1V1 and 5V5, Embiid/Jokic vs Gobert, max shoulder-hand/reach=${maxArmRatio.toFixed(6)}; segment lengths, empty/reachable/stale targets and gameplay rig preserved`);
+
+function gamepadStep(mode, p, options = {}, n = 1) {
+  const { x = 0, y = 0, mx = 0, my = 0, post = true, shot = false } = options;
+  const axis = (x, y) => {
+    if (mode !== 't5') return [x, -y];
+    const a = team.qaStick(1, 0), b = team.qaStick(0, 1);
+    return [x * a.x + y * a.y, -(x * b.x + y * b.y)];
+  };
+  pads[0] = { connected: true, index: 0, axes: [...axis(mx, my), ...axis(x, y)], buttons: Array.from({ length: 16 }, (_, i) => ({ pressed: i === 6 && post || i === 2 && shot })) };
+  for (let i = 0; i < n; i++) {
+    let inp;
+    if (mode === 't5') { const X = team.T.R.X; team.T.R = input.read5(); team.T.E = { X: shot && !X }; inp = team.qaHumanInp(p); }
+    else inp = input.read(0, true, true);
+    step(p, inp); input.endTick();
+  }
+}
+const holdFrames = () => Math.ceil(gm.K.rsHoldT / dt) + 1;
+for (const mode of ['2p', 't5']) {
+  for (const [x, y, move, shot] of [[1, 0, 'postspin', 'turn'], [0.7, 0.7, 'postdrop', 'postfront'], [0, -1, 'postface', 'postfade'], [1, -0.7, 'postspin', 'postfade1']]) {
+    let { p } = fixture(mode);
+    gamepadStep(mode, p, { x, y }, 5);
+    assert.equal(p.action, null, 'A pending post flick must not move immediately');
+    gamepadStep(mode, p);
+    assert.equal(p.action?.kind, move, `${mode} flick ${x},${y}`);
+    ({ p } = fixture(mode));
+    gamepadStep(mode, p, { x, y }, holdFrames());
+    assert.equal(p.action?.v, shot, `${mode} hold ${x},${y}`);
+    const a = p.action;
+    gamepadStep(mode, p, { x, y }, Math.max(1, Math.floor((a.ideal - a.t) / dt) - 1));
+    assert(!a.released && a.meter.v > 0, 'Holding the stick holds the ordinary shot meter');
+    gamepadStep(mode, p);
+    assert(a.released && G.ball.state === 'shot', 'Stick release fires the committed shot');
+  }
+  for (const [kind, distance, bite, expected] of [['postspin', 5, false, 'spinfade'], ['postshim', 5, true, 'shimshot'], ['postdrop', 3, false, 'drophook']]) {
+    const { p } = fixture(mode, distance);
+    p.post = false; p.postFaceLock = kind === 'postdrop'; p.postMove = { kind, t: G.time - gm.K.poFollow + 0.1, side: -1, bite };
+    gamepadStep(mode, p, { x: 1 }, holdFrames());
+    assert.equal(p.action?.v, expected, `${mode} hold began inside ${kind} follow-up window`);
+  }
+  { const { p } = fixture(mode, 3); gamepadStep(mode, p, { y: 1 }, holdFrames()); assert.equal(p.action.v, 'hook'); }
+  for (const x of [-1, 1]) {
+    const { p } = fixture(mode);
+    gamepadStep(mode, p, { x: -x, mx: x, shot: true });
+    assert.equal(p.action?.v, 'turn', 'Button post shots still use movement rather than right-stick input');
+  }
+  for (const my of [-1, 1]) {
+    const { p } = fixture(mode);
+    gamepadStep(mode, p, { my, shot: true });
+    assert.equal(p.action?.v, my < 0 ? 'postfade' : 'postfront');
+  }
+  const { p } = fixture(mode);
+  const ids = [], poses = [];
+  for (const x of [1, -1, 1, -1]) {
+    gamepadStep(mode, p, { x }, holdFrames());
+    assert.equal(p.action.type, 'shot');
+    const stamina = p.stam;
+    gamepadStep(mode, p);
+    const fake = p.action;
+    assert(fake.postFake && p.post && p.hasBall && p.z === 0 && G.ball.state === 'held', 'Early release remains in a grounded post fake with the ball');
+    assert.equal(p.stam, stamina, 'Post fakes retain the default free-fake convention');
+    ids.push(fake.fakeId);
+    fake.t = fake.T / 2; p.animT = fake.t;
+    poses.push(JSON.stringify(qa.poseTarget(p)));
+    gamepadStep(mode, p, {}, Math.ceil(fake.T / dt) + 2);
+  }
+  for (let i = 1; i < ids.length; i++) { assert.notEqual(ids[i], ids[i - 1]); assert.notEqual(poses[i], poses[i - 1]); }
+  gamepadStep(mode, p, { shot: true }); gamepadStep(mode, p);
+  assert(p.action.postFake && p.post, 'Shoot-button early release also stays posting');
+  gamepadStep(mode, p, {}, 45);
+  gamepadStep(mode, p, { y: -1 }, holdFrames() + 45);
+  const real = p.action; gamepadStep(mode, p);
+  assert(real.released, 'Full hold after chained post fakes still releases a real shot');
+
+  for (const state of ['stun', 'noBall', 'dead', 'noStamina', 'cancel', 'disconnect']) {
+    const { p } = fixture(mode);
+    gamepadStep(mode, p, { x: 1 }, 4);
+    if (state === 'stun') p.stun = 3;
+    if (state === 'noBall') p.hasBall = false;
+    if (state === 'dead') G.ball.dead = true;
+    if (state === 'noStamina') p.stam = 0;
+    if (state === 'cancel') gamepadStep(mode, p, { x: 1, post: false }, 2);
+    if (state === 'disconnect') { pads.length = 0; step(p); }
+    gamepadStep(mode, p);
+    assert(!p.action || !['move', 'shot'].includes(p.action.type), `${mode} ${state} cancels pending post gesture`);
+  }
+  {
+    const { p } = fixture(mode); p.post = false; p.opp.off = true;
+    gamepadStep(mode, p, { x: 1, post: false });
+    assert.equal(p.action.type, 'move', 'Non-post stick still triggers its move on the initial press');
+    assert(!p.postStick);
+  }
+  {
+    const { p } = fixture(mode); p.post = false;
+    gamepadStep(mode, p, { shot: true, post: false }); gamepadStep(mode, p, { post: false });
+    assert.equal(p.action.type, 'fake'); assert(!p.action.postFake && !p.post && p.uuFake, 'Non-post pump fake and up-and-under window stay unchanged');
+  }
+}
+pads.length = 0;
+console.log('PASS post stick: real gamepad flick/hold, directional shots, held meter and release, hook and expiring follow-ups in 1V1/5V5; movement+shoot and non-post stick unchanged');
+console.log('PASS chained post fakes: early stick/button release retains posting and ball, alternating ids/poses, free stamina, real-shot follow-up and invalid-state cancellation');
+
+{
+  const { p } = fixture(); tune.set('l1_rsHoldT', 0.4);
+  gamepadStep('2p', p, { x: 1 }, 30); assert.equal(p.action, null);
+  gamepadStep('2p', p); assert.equal(p.action.kind, 'postspin');
+}
+let cpuFakes = 0;
+for (let seed = 1; seed <= 80; seed++) {
+  const { p } = fixture('2p', 4); p.ctrl = 'cpu'; G.mode = 'cpu';
+  Object.assign(p.ai, { plan: 'post', postT: 20, t: 2, su: null, cb: null, iso: null, om: null, call: null });
+  gm.seed(seed * 101);
+  const out = qa.aiInput(p, dt);
+  if (out.a1 && p.ai.fakeNext) cpuFakes++;
+}
+assert(cpuFakes > 0 && cpuFakes < 80);
+console.log(`PASS live l1_rsHoldT threshold and seeded post AI fakes=${cpuFakes}/80`);
+
+for (const bite of [0, 1]) {
+  const { p, d } = fixture();
+  tune.set('l1_poFakeBite', bite); tune.set('l1_poFakeCost', 2);
+  step(p, { a1: true, post: true }); const before = p.stam;
+  step(p, { post: true });
+  assert(p.action.postFake && p.stam < before);
+  assert.equal(!!d.ai.willJump, !!bite);
+}
+{
+  const { p } = fixture(); tune.set('l1_poFakeCommit', 0);
+  step(p, { a1: true, post: true }); const a = p.action; step(p, { post: true });
+  assert(a.released && !p.action.postFake, 'The fake commit window is live tunable');
+}
+{
+  const { p } = fixture(); p.ctrl = 'cpu'; G.mode = 'cpu'; p.ai.fakeNext = true;
+  step(p, { a1: true, post: true });
+  for (let i = 0; i < 24 && p.action.type === 'shot'; i++) step(p, qa.aiInput(p, dt));
+  assert(p.action.postFake && p.post && p.hasBall, 'AI releases its post fake before committing');
+}
+console.log('PASS post fake tunables: commit window, stamina cost and defender bite; CPU early release preserves posting and ball');

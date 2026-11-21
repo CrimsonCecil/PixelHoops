@@ -13,6 +13,11 @@
   // 每项：[字段, 组, 中文名, 默认, 最小, 最大, 步长, 说明（单位 / 效果，只在调参台显示）, mode]
   const TU = PH.TUNE || null;
   const TDEF = [
+    ['rsHoldT', 'drib', '右摇杆 投篮长推阈值', 0.22, 0.1, 0.5, 0.01, '秒：短拨运球、长推投篮共用阈值'],
+    ['poFakeCommit', 'shot', '背打 假投收球窗口', 0.24, 0, 0.5, 0.01, '秒：起跳前且在窗口内松手保持背打假投'],
+    ['poFakeBite', 'def', '背打 假投骗跳', 0.35, 0, 1, 0.01, '概率：梦幻舞步提升骗跳效果'],
+    ['poFakeCost', 'stam', '背打 假投消耗', 0, 0, 10, 0.1, '体力：沿用动作固定消耗倍率，默认假投免费'],
+    ['aiPoFake', 'ai', '电脑 背打假投频率', 0.12, 0, 1, 0.01, '概率：背打出手前假投，梦幻舞步提升使用率'],
     // —— 触发区域（米，离篮筐地面投影）——
     ['layK', 'zone', '上篮/抛投距离总系数', 0.9, 0.5, 1.5, 0.01, '倍率：上篮、抛投、AI 上篮判定的最远起跳距离整体乘这个数'],
     ['layMax', 'zone', '上篮最远起跳（基数）', 3.0, 1.5, 5, 0.05, '米：两步后起跳点离筐 ≤ 基数 × 总系数才能上篮（euro / 跳步 / 反篮同用）'],
@@ -2919,18 +2924,19 @@
   function faceHoop(pl) { const h = hoopDir(pl); return Math.cos(pl.face) * h.x + Math.sin(pl.face) * h.y; }
   // 背身（背打刚结束 / 转身刚做完且背对篮筐）：投篮键出转身跳投，不出抛投
   function backTurn(pl) { const t = G.time; return !pl.post && pl.hasBall && faceHoop(pl) < -0.2 && (t - (pl.postAt || -9) < 0.7 || ((pl.lastMove === 'spin' || pl.lastMove === 'postspin') && t - pl.lastMoveT < 0.9)); }
-  function postFollow(pl) { return pl.hasBall && pl.postMove && pl.postMove.kind !== 'postface' && G.time >= pl.postMove.t && G.time - pl.postMove.t < K.poFollow; }
+  function postFollow(pl, at = G.time) { return pl.hasBall && pl.postMove && pl.postMove.kind !== 'postface' && at >= pl.postMove.t && at - pl.postMove.t < K.poFollow; }
   function canPullupCancel(pl, a) { return pl.r.hnd >= K.pcHnd || hasB(pl, 'ankle') || hasB(pl, 'tight') || (a.kind === 'stepback' && hasB(pl, 'stepper')); }
   function catchShot(pl) {
     return teamPlay() && pl.passCatchT != null && G.time - pl.passCatchT >= 0 && G.time - pl.passCatchT <= 0.6 && !pl.catchDribbled;
   }
-  function startShot(pl, inp, btn, cancelVariant) {
-    const d = distHoop(pl), q = inDir(pl, inp), df = OP(pl), postSide = postFollow(pl) ? pl.postMove.side : null;
+  function startShot(pl, inp, btn, cancelVariant, postAt = G.time) {
+    const follow = postFollow(pl, postAt) ? pl.postMove : null;
+    const d = distHoop(pl), q = inDir(pl, inp), df = OP(pl), postSide = follow ? follow.side : null;
     let v;
     if (cancelVariant) v = cancelVariant;
     else if (pl.uuShot && G.time <= pl.uuShot.until && pl.uuShot.mv === 'uuBack') v = 'stepback';
-    else if (pl.post || postFollow(pl) || (backTurn(pl) && d < 6.5)) {
-      const follow = postFollow(pl) ? pl.postMove : null, away = q.l > 0.35 && q.fwd < -0.35;
+    else if (pl.post || follow || (backTurn(pl) && d < 6.5)) {
+      const away = q.l > 0.35 && q.fwd < -0.35;
       v = away ? Math.abs(q.lat) > K.poOneLat ? 'postfade1' : 'postfade' : d < 4.8 && sigOf(pl, 'hook') >= 0.5 ? 'hook' : q.l > 0.35 && q.fwd > 0.35 ? 'postfront' : 'turn';
       if (follow && !away) {
         if (follow.kind === 'postdrop' && d < 3.8) v = 'drophook';
@@ -2944,9 +2950,12 @@
     else if (pl.speed > 3) v = 'pullup'; else v = 'set';
     const V = SV[v], three = !V.hook && isThree(pl.x, pl.y), F = formOf(pl), TI = CFG.shotIdeal * F.sp * bk(pl, 'quick', K.bgQuickT) * (v === 'postfront' ? K.poFrontT : 1);
     const a = { type: 'shot', lefty: !V.hook && !!pl.arch.lefty, v: v, V: V, F: F, jT: V.hook ? K.shotJump : clamp(K.shotJump * F.dip, 0.18, TI - 0.12), t: 0, pts: three ? 3 : 2, released: false, jumped: false, latS: q.lat >= 0 ? 1 : -1, ideal: TI, meter: null, skill: null, d0: d, btn: btn || 'a1' };
+    a.postOrigin = !!(pl.post || follow);
+    a.postFollow = follow ? Object.assign({}, follow) : null;
+    a.fakeSide = q.l > 0.35 ? (q.lat >= 0 ? 1 : -1) : -(pl.postFakeSide || -1);
     a.catchShot = catchShot(pl);
     if (V.post) a.postSide = q.l > 0.35 ? (q.lat >= 0 ? 1 : -1) : postSide || 1;
-    if (pl.post || postFollow(pl)) pl.postMove = null;
+    if (pl.post || follow) pl.postMove = null;
     if (G.mode === 't3' && a.catchShot && G.time - pl.passCatchT <= 0.5 && !V.hook) {
       const q = pl.passQuality - 0.65, ready = pl.passQuality >= 0.55 && contestOf(pl, df) < 0.35;
       a.t += Math.max(0, (ready ? 0.04 + 0.04 * clamp((pl.r.three - 0.6) / 0.35, 0, 1) : 0) + 0.06 * q);
@@ -3645,6 +3654,22 @@
     return best;
   }
   function pumpFake(pl, T, jumped) {
+    const shot = pl.action;
+    if (shot && shot.postOrigin && !jumped) {
+      const side = shot.fakeSide, n = pl.postFakeN = (pl.postFakeN || 0) + 1;
+      pl.postFakeSide = side;
+      pl.action = { type: 'fake', postFake: true, fakeId: (side > 0 ? 'left' : 'right') + (n % 2 ? 'Shoulder' : 'High'), side, t: 0, T: 0.32 / bk(pl, 'dream', 1.2), jf: false };
+      pl.animT = 0; pl.post = true; pl.postFaceLock = false;
+      pl.postMove = shot.postFollow && G.time - shot.postFollow.t < K.poFollow ? shot.postFollow : null;
+      pl.uuFake = pl.uuShot = null;
+      pl.stam = Math.max(0, pl.stam - K.poFakeCost * ST.cost);
+      const df = nearestDefender(pl);
+      if (df && Math.hypot(df.x - pl.x, df.y - pl.y) < K.aiJmpD && rnd() < K.poFakeBite * (0.5 + pl.r.post) * bk(pl, 'dream', 1.5)) {
+        df.ai.seenAct = pl.action; df.ai.willJump = true; df.ai.jumpAt = G.time + diffOf(df).react * 0.3;
+        bpop(pl, 'dream');
+      }
+      float('背身假投', pl, '#f6efe0'); return;
+    }
     pl.action = { type: 'fake', t: 0, T: T, jf: !!jumped }; pl.animT = 0;
     pl.uuFake = { until: G.time + T + K.uuWin, def: -1, bitUntil: -1 };
     pl.uuShot = null;
@@ -3992,6 +4017,7 @@
     if (a.type === 'shot') {
       const TI = a.ideal;
       if (!a.released) {
+        if (a.postOrigin && a.vh == null && !a.jumped && a.t < Math.min(a.jT || K.shotJump, K.poFakeCommit) && !btnHeld(pl, a, inp, a.btn || 'a1')) { pumpFake(pl, 0.26, false); return; }
         a.meter.v = Math.max(0, (a.t - a.meter.t0) / a.meter.span);
         if (!a.jumped && a.t >= (a.jT || K.shotJump)) {
           a.jumped = true; const h = hoopDir(pl), V = a.V;
@@ -4004,11 +4030,12 @@
         const rp = a.vh != null, hT = rp ? a.vh : pl.ctrl === 'cpu' ? a.t : (a.vt || a.t); // 假投判定用玩家实际按住的时长（不含 cs 提前量）
         if (rp && a.vh > 1) { if (a.t >= TI) releaseJumpShot(pl, 0); }
         else if (rp ? a.vt >= a.vh : !btnHeld(pl, a, inp, a.btn || 'a1')) {
+          if (a.postOrigin && !a.jumped && hT < K.poFakeCommit) { pumpFake(pl, 0.26, false); return; }
           // 假投窗口（人控球员）：fkT = clamp(0.4 × ideal, 0.17, 最早绿区 − 0.08)，即条涨到约 40% 前松手算假投。起跳前松开 = 原地假投；已离地、fkT 前松开 = 起跳假投：取消出手、快速落地，之后可接运球/传球。
           // fkT 之后到绿区之间松开仍按偏早出手结算；按住到绿区永远是出手。电脑球员仍是 0.17 秒，不改 AI 节奏；ibuf 缓冲的点按（a.vh）回放按住时长后也走这里
           if (a.fkT == null) a.fkT = pl.ctrl === 'cpu' ? K.fkCpu : Math.max(K.fkFloor, Math.min(a.ideal - (a.meter ? a.meter.gw * a.meter.span : 0) - K.fkGap, Math.max(K.fkMin, K.fkFrac * a.ideal))); // 条涨到约 40% 前松手 = 假投
-          if (hT < a.fkT && !a.jumped) { pumpFake(pl, 0.26, false); return; }
-          if (hT < a.fkT && pl.ctrl !== 'cpu') { pumpFake(pl, 0.15, true); pl.vz = Math.min(pl.vz, -1.5); pl.vx *= 0.3; pl.vy *= 0.3; return; }
+          if (!a.postOrigin && hT < a.fkT && !a.jumped) { pumpFake(pl, 0.26, false); return; }
+          if (!a.postOrigin && hT < a.fkT && pl.ctrl !== 'cpu') { pumpFake(pl, 0.15, true); pl.vz = Math.min(pl.vz, -1.5); pl.vx *= 0.3; pl.vy *= 0.3; return; }
           releaseJumpShot(pl, clamp((a.t - TI) / 0.2, -1, 1));
         } else if (a.t > TI + 0.22) releaseJumpShot(pl, 1);
       } else if (pl.z <= 0 && a.t > (a.jT || K.shotJump) + 0.2) pl.action = null;
@@ -4267,11 +4294,35 @@
     const a = pl.action; if (!a || !pl.hasBall) return false;
     return a.type === 'move' || (a.type === 'shot' && !a.released) || (a.type === 'layup' && !a.released) || (a.type === 'dunk' && !a.done);
   }
+  function postStickInput(pl, inp, dt) {
+    let s = pl.postStick;
+    if (!inp.rsPad || pl.ctrl === 'cpu' || !pl.hasBall || G.phase !== 'live' || G.ball.dead || pl.stun > 0) { pl.postStick = null; return inp; }
+    const down = Math.hypot(inp.rsX, inp.rsY) > 0.6;
+    const context = inp.post && (pl.post || postFollow(pl) || !pl.postFaceLock);
+    const out = Object.assign({}, inp, { a3: !!(inp.dribble || inp.hesi), dx: 0, dy: 0 });
+    if (!s && down && context && !inp.a1 && !inp.a2 && (!pl.action || pl.action.postFake)) s = pl.postStick = { t: 0, at: G.time, x: inp.rsX, y: inp.rsY };
+    if (!s) return context && down ? out : inp;
+    if (!inp.post && !s.shot) s.cancelled = true;
+    if (!down) {
+      if (!s.shot && !s.cancelled && s.t < K.rsHoldT && !pl.action && pl.cd <= 0 && pl.stam > ST.act) { out.a3 = true; out.dx = s.x; out.dy = s.y; }
+      pl.postStick = null; return out;
+    }
+    if (s.cancelled) return out;
+    s.t += dt; s.x = inp.rsX; s.y = inp.rsY;
+    if (!s.shot && s.t >= K.rsHoldT && ibReady(pl, 'a1') && pl.cd <= 0 && pl.stam > ST.act) {
+      if (G.needClear) { G.clearPing = G.time; G.illId = pl.id; }
+      startShot(pl, Object.assign({}, out, { mx: s.x, my: s.y }), 'a1', null, s.at);
+      s.shot = pl.action;
+    }
+    if (s.shot && s.shot === pl.action && !s.shot.released) out.a1 = true;
+    return out;
+  }
   function updatePlayer(pl, inp, dt) {
     if (pl.off) { pl.anim = 'idle'; pl.stance = false; return; }
     const frozen = G.phase === 'check' || G.phase === 'over';
     { if (pl.knock) { pl.knockT += dt; if (pl.knockT >= pl.knockD) { pl.knock = null; pl.knockT = 0; pl.knockD = 0; pl.knockUp = 0; } } const s0 = pl.stun; pl.stun = Math.max(0, pl.stun - dt); if (s0 > 0 && pl.stun <= 0) pl.recT = G.time + lerp(K.akRecLo, K.akRecHi, agil(pl)) + K.akRecHv * heavy(pl); }
     pl.cd = Math.max(0, pl.cd - dt); pl.boost = Math.max(0, pl.boost - dt); pl.flash = Math.max(0, pl.flash - dt);
+    inp = postStickInput(pl, inp, dt);
     const IB = ibOn(pl), raw = inp, moveAtStart = pl.action;
     if (pl.action && (pl.action.hesiHold || pl.action.kind === 'uu') && (!pl.hasBall || G.phase !== 'live' || G.ball.dead || pl.stun > 0)) pl.action = null;
     if (frozen || pl.stun > 0) inp = { mx: 0, my: 0, sprint: false, a1: frozen ? false : inp.a1, a2: false, a3: false, post: false, dx: 0, dy: 0 };
@@ -4444,6 +4495,7 @@
     else if (a && a.type === 'layup' && a.v === 'reverse' && !a.inSteps && a.t > 0.12) tf = hA + Math.PI;
     else if (a && a.inSteps && a.v === 'spin' && a.si >= 1 && a.wp[a.si]) { tf = hA + a.spD * Math.PI * 2 * sm(clamp(a.st / a.wp[a.si].T, 0, 1)); snap = true; }
     else if (a && a.inSteps && a.v === 'euro' && pl.speed > 1) tf = Math.atan2(pl.vy, pl.vx) * 0.5 + hA * 0.5;
+    else if (a && a.postFake) { tf = hA + Math.PI + a.side * 0.35 * Math.sin(Math.PI * a.t / a.T); snap = true; }
     else if (a && (a.type === 'shot' || a.type === 'fake' || a.type === 'layup' || a.type === 'dunk')) tf = hA;
     else if (a && (a.type === 'block' || a.type === 'steal')) { const tx = opp.hasBall ? opp.x : b.x, ty = opp.hasBall ? opp.y : b.y; if (!pl.hasBall && Math.hypot(tx - pl.x, ty - pl.y) > (opp.hasBall ? 0.45 : 1.0)) tf = Math.atan2(ty - pl.y, tx - pl.x); }
     else if (pl.post) tf = hA + Math.PI;
@@ -4608,7 +4660,14 @@
           P({ lean: (fd ? -0.34 : V.lat ? 0.12 : 0) + F.lean * ww, lA: (fd ? 0.55 : 0.04) + kk * 0.9, lB: (fd ? 0.3 : 0.12) + kk * 1.2, rA: 0.04, rB: fd ? 0.4 : 0.12, aLp: lerp(1.5, F.setP - 0.35, ww), aLe: lerp(1.7, 1.1, ww), aRp: lerp(1.6, F.setP, ww), aRe: lerp(1.75, F.setE, ww), aLq: 0.08 + F.q * 0.6, aRq: 0.08 + F.q });
         } else P({ lean: (fd ? -0.3 : 0.04) + F.lean, lA: (fd ? 0.5 : 0.02) + F.kick * 0.9, lB: (fd ? 0.3 : 0.1) + F.kick * 1.2, rA: 0.02, rB: 0.1, aLp: F.setP - 0.6, aLe: 0.7, aRp: Math.min(3.05, F.setP + 0.25), aRe: 0.12, aLq: 0.1 + F.q * 0.4, aRq: 0.05 + F.q * 0.6 });
       }
-    } else if (an === 'fake') set({ lean: 0.02, lA: 0.2, lB: 0.4, rA: 0.2, rB: 0.4, aLp: 1.8, aLe: 1.4, aRp: 1.95, aRe: 1.5, aLq: 0.1, aRq: 0.1 });
+    } else if (an === 'fake') {
+      set({ lean: 0.02, lA: 0.2, lB: 0.4, rA: 0.2, rB: 0.4, aLp: 1.8, aLe: 1.4, aRp: 1.95, aRe: 1.5, aLq: 0.1, aRq: 0.1 });
+      if (a && a.postFake) {
+        const u = Math.sin(Math.PI * clamp(t / a.T, 0, 1)), high = a.fakeId.endsWith('High');
+        set({ lean: 0.24, lA: 0.5, lB: 0.95, rA: 0.5, rB: 0.95, lS: 0.4, rS: 0.4, yaw: a.side * (high ? 0.2 : 0.65) * u, tilt: a.side * (high ? 0.08 : 0.2) * u,
+          aLp: 0.9 + (high ? 1.6 : a.side > 0 ? 1.2 : 0.35) * u, aRp: 0.9 + (high ? 1.6 : a.side < 0 ? 1.2 : 0.35) * u, aLe: 0.9, aRe: 0.9, aLq: 0.7, aRq: 0.7 });
+      }
+    }
     else if ((an === 'layup' || an === 'dunk') && a && a.inSteps) set(stepPose(a));
     else if (an === 'layup') {
       const v = a ? a.v : 'normal', rel = a && a.released, M = a && a.hand < 0 ? (o) => set(mir(o)) : set;
@@ -5464,7 +5523,7 @@
         else if (ready) {
           if (playCPU(pl)) ai.postFinish = G.time;
           if ((d < 2.9 && pl.r.dunk > 0.6 && rnd() < 0.4) || (opp.seal > G.time && d < 3.4 && pl.r.sdunk >= 0.6 && rnd() < 0.8) || (d < 3.1 && pj < 0.5 && rnd() < 0.6)) o.a2 = true;
-          else { o.a1 = true; if (pj >= 0.58 && d >= 4.8 && rnd() < K.aiPoFront) { o.mx = hx; o.my = hy; } else if (pj >= 0.58 && (rnd() < 0.4 * pj || d >= 4.8)) { const side = rnd() < K.aiPoOne * sigOf(pl, 'fade') ? ai.side * 0.85 : 0; o.mx = -hx * 0.7 - hy * side; o.my = -hy * 0.7 + hx * side; } }
+          else { o.a1 = true; ai.fakeNext = !late && rnd() < K.aiPoFake * bk(pl, 'dream', 1.6); if (ai.fakeNext) { ai.plan = 'post'; ai.t = 0.6; o.mx = -hy * ai.side; o.my = hx * ai.side; return o; } if (pj >= 0.58 && d >= 4.8 && rnd() < K.aiPoFront) { o.mx = hx; o.my = hy; } else if (pj >= 0.58 && (rnd() < 0.4 * pj || d >= 4.8)) { const side = rnd() < K.aiPoOne * sigOf(pl, 'fade') ? ai.side * 0.85 : 0; o.mx = -hx * 0.7 - hy * side; o.my = -hy * 0.7 + hx * side; } }
           ai.plan = 'drive'; ai.t = 0.5; return o;
         } else {
           o.mx = hx * 0.9 + px * 0.25; o.my = hy * 0.9 + py * 0.25;
