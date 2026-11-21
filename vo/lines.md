@@ -19,6 +19,18 @@
 
 以上入场语音由 edge-tts 合成，ffmpeg loudnorm（-20 LUFS，峰值 -4 dB）处理后编码为 24kHz 单声道、40kbps CBR MP3（每帧 120 字节 / 24ms），逐句拼接至 vo/p/<key>.mp3；manifest 的 o/n 以帧计。
 
+### 三位传奇的比赛事件语音复用
+
+没有 Gemini API key，不重新合成比赛语音。`js/audio.js` 的 `VO_ALIAS` 为每个事件显式选择一条已审核的通用台词，不借用原球员姓名、绰号、球队、个人纪录或专属口头禅；原配音包及三位传奇自己的 intro/reply sprites 均不改动。
+
+| 球员 | 比赛语音来源 | 选择理由 | dunk 台词 |
+| --- | --- | --- | --- |
+| ginobili | white / schedar | 冷静、读防守的后卫语气 | 你抬头慢了，我已经扣完 |
+| iverson | kyrie / umbriel | 灵巧控球、变向后的后卫挑衅 | 嘿，篮筐借我，给你看扣！ |
+| carter | lavine / achird | 飞天侧翼、花式扣篮语气 | 胯下换手，我从你头顶过！ |
+
+仅缺失事件使用上述白名单；若今后补录球员自己的事件语音，优先使用本人包。
+
 
 ## 勒布朗·詹姆斯（lebron，音色 fenrir）
 
