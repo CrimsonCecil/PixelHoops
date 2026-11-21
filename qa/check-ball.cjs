@@ -62,3 +62,23 @@ function verify(log, G, offId, label) {
   assert(GM.isThree(G.players[0].x, G.players[0].y), '3V3: the catch is outside the arc');
   console.log('PASS: 3V3 check ball goes defender -> bounce pass -> offense catch -> live.');
 }
+
+for (const mode of ['cpu', 't3']) {
+  const PH = load(['team3']), GM = PH.game, G = GM.G, api = GM.t5;
+  if (mode === 't3') PH.T3.start({ slots: ['curry', 'edwards', 'jokic', 'lebron', 'durant', 'giannis'].map((arch) => ({ arch, role: 'cpu' })), target: 21, clock: 14, replay: false });
+  else GM.newGame({ mode: 'cpu', arch0: 'curry', arch1: 'lebron', target: 11 });
+  const off = G.players[0], def = G.players.find((p) => p.tm !== off.tm && p.id !== off.id) || G.players[1];
+  const rebound = (pl) => {
+    for (const p of G.players) p.hasBall = false;
+    Object.assign(pl, { x: 0.4, y: PH.render.HOOP.y - 1.5 });
+    Object.assign(G.ball, { state: 'loose', holder: -1, wasShot: true, x: pl.x, y: pl.y, z: 1 });
+    api.pickup(pl);
+  };
+  Object.assign(G, { phase: 'live', off: off.tm ?? off.id, needClear: true, illId: off.id });
+  rebound(off);
+  assert.equal(G.needClear, false, mode + ': an offensive rebound needs no clearance');
+  assert.equal(G.illId, -1, mode + ': an offensive rebound clears the uncleared-shot flag');
+  rebound(def);
+  assert.equal(G.needClear, true, mode + ': a defensive rebound inside the arc still needs clearance');
+  console.log('PASS: ' + (mode === 't3' ? '3V3' : '1V1') + ' offensive rebounds play on; defensive rebounds clear the arc.');
+}

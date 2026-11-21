@@ -2538,7 +2538,7 @@
         pl.prev.a1 = held.a1; pl.prev.a2 = held.a2;
       }
     }
-    if (b.wasShot && !change) { pl.orebT = G.time; pl.ai.pb = null; }
+    if (b.wasShot && !change) { pl.orebT = G.time; pl.ai.pb = null; G.needClear = false; G.illId = -1; } // 前场篮板不用再出三分线
     if (b.wasShot) { G.stats[pl.id].reb++; G.stats[pl.id][change ? 'dreb' : 'oreb']++; tkAdd(pl, change ? 3 : 5); if (!change && !train) { const o = OP(pl), hot = !o.off && Math.hypot(o.x - pl.x, o.y - pl.y) < 1.6; float('进攻篮板', pl, '#7dff8a'); bigPlay('oreb', pl, b.x, b.y, Math.max(0.5, b.z), hot ? 1 : 0); } }
     b.wasShot = false;
     G.shotClock = change ? CFG.shotClock : Math.max(G.shotClock, Math.min(14, CFG.shotClock)); b.lastTouch = pl.id;
@@ -4497,7 +4497,8 @@
       }
       if (d < rg && b.z < reach && b.z > p.z - 0.2 && d / rg < bd) { bd = d / rg; best = p; }
     }
-    if (best && b.wasShot && (G.mode === 't3' ? isO(best) && !G.needClear : best.id === G.off) && best.z > 0.12 && tryPutback(best)) return;
+    if (best && b.wasShot && isO(best)) { G.needClear = false; G.illId = -1; }
+    if (best && b.wasShot && (G.mode === 't3' ? isO(best) : best.id === G.off) && best.z > 0.12 && tryPutback(best)) return;
     if (best && b.wasShot && best.z > 0.12 && best.action && best.action.type === 'block' && rebStyle(best)) return;
     if (best) pickup(best);
   }
