@@ -4324,7 +4324,7 @@
     if (pl.action && pl.action.postButton || raw.a1 && !rs.postShot) rs.postButton = true;
     if (rs.postButton) return Object.assign({}, raw, { a3: !!(raw.dribble || raw.hesi), dx: 0, dy: 0, rsHold: false, rsFlick: false });
     if (!pl.hasBall || G.phase !== 'live' || G.ball.dead || pl.stun > 0 || rs.postPad && !inp.rsPad || !inp.post && !rs.postShot) rs.postCancelled = true;
-    if (!rs.postShot && pl.stam <= ST.act) rs.postCancelled = true;
+    if (!rs.move && !rs.postShot && pl.stam <= ST.act) rs.postCancelled = true;
     if (rs.postCancelled) {
       if (pl.action === rs.move) { pl.action = null; pl.postMove = null; }
       return Object.assign({}, inp, { a1: false, a3: !!(inp.dribble || inp.hesi), dx: 0, dy: 0, rsHold: false, rsFlick: false });
