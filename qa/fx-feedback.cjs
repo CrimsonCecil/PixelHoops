@@ -49,8 +49,8 @@ function load() {
   assert.ok(maxConfetti >= 40, 'entrance spawns abundant confetti (' + maxConfetti + ')');
   assert.ok(firstVoAt != null && firstVoAt <= 0.5, 'first entrance voice fires early as the player starts walking in (' + firstVoAt + 's)');
   assert.ok(secondVoAt != null && secondVoAt <= 3.85, 'second entrance voice fires immediately when second player starts walking in (' + secondVoAt + 's)');
-  assert.ok(voiced.some((v) => v.startsWith('lebron:taunt')), 'LeBron plays voice pack during walk-in');
-  assert.ok(voiced.some((v) => v.startsWith('curry:taunt')), 'Curry plays voice pack during walk-in');
+  assert.ok(voiced.some((v) => v.startsWith('lebron:walk:')), 'LeBron plays voice pack during walk-in');
+  assert.ok(voiced.some((v) => v.startsWith('curry:walk:')), 'Curry plays voice pack during walk-in');
   Gm.introEnd();
   assert.equal(G.fx.confetti.length, 0, 'introEnd clears leftover entrance confetti');
   console.log('PASS: entrance walk-in fires voices early (' + firstVoAt.toFixed(2) + 's / ' + secondVoAt.toFixed(2) + 's) and keeps visuals without noisy intro SFX.');
