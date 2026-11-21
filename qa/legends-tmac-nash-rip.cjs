@@ -60,3 +60,4 @@ assert.equal(audio.voLine('tmac', 'missing', 0), null);
 assert.equal(audio.voSay(null), false);
 console.log('PASS: 3V3 lineup, midrange emphasis and missing voice fallbacks');
 require('./legend-skills.cjs');
+require('./legend-voices.cjs');
