@@ -93,7 +93,9 @@
     ['sdT', 'lay', '站扣 收球起跳时间', 0.2, 0.08, 0.5, 0.01, '秒：原地收球到双脚离地'],
     ['sdFly', 'lay', '站扣 空中时间', 0.48, 0.3, 0.8, 0.01, '秒：起跳到扣进'],
     ['lvReachB', 'lay', '侧身上篮 被盖率', 0.8, 0.2, 1.5, 0.01, '倍率'], ['lvReachP', 'lay', '侧身上篮 命中', 0.97, 0.5, 1.2, 0.01, '倍率'], ['lvReachC', 'lay', '侧身上篮 受干扰', 0.92, 0.3, 1.5, 0.01, '倍率'],
-    ['lvFarB', 'lay', '远端手上篮 被盖率', 0.78, 0.2, 1.5, 0.01, '倍率'], ['lvFarP', 'lay', '远端手上篮 命中', 0.96, 0.5, 1.2, 0.01, '倍率'], ['lvFarC', 'lay', '远端手上篮 受干扰', 0.9, 0.3, 1.5, 0.01, '倍率'],
+    ['lvFarB', 'lay', '远端手上篮 被盖率', 0.78, 0.2, 1.5, 0.01, '倍率'], ['lvFarP', 'lay', '远端手上篮 命中', 0.76, 0.5, 1.2, 0.01, '倍率：最终命中乘此值，再加终结能力修正；绿区同样生效'], ['lvFarC', 'lay', '远端手上篮 受干扰', 1.2, 0.3, 1.5, 0.01, '倍率：大于1时更怕干扰'],
+    ['lvFarLay', 'lay', '远端手上篮 终结修正', 0.7, 0, 2, 0.05, '倍率/能力：命中倍率加此值×(上篮能力−0.75)，结果限制在0.25到1'],
+    ['lvFarKnee', 'lay', '远端手上篮 抬膝上限', 0.6, 0.3, 0.9, 0.05, '弧度：远端手收球和侧身出手的大腿前抬上限，避免高抬腿'],
     ['lvRevB', 'lay', '反手上篮 被盖率', 0.72, 0.2, 1.5, 0.01, '倍率'], ['lvRevP', 'lay', '反手上篮 命中', 0.95, 0.5, 1.2, 0.01, '倍率'], ['lvRevC', 'lay', '反手上篮 受干扰', 0.88, 0.3, 1.5, 0.01, '倍率'],
     // —— V4.3 封堵上篮：投篮条不停 + 被封堵时的上篮变体（a.cv）
     ['layNoStop', 'lay', '上篮/扣篮中不顿帧', 1, 0, 1, 1, '开关：有人上篮或扣篮还没出手时，撞人顿帧和慢动作不冻结画面，投篮条一直走'],
@@ -2601,6 +2603,7 @@
     info.uuBonus = uu && ud && ud.id === uu.def && (ud.z > 0.05 || G.time <= uu.bitUntil) ? K.uuBonus * uuQuality(pl) : 0;
     const movePenalty = SK && green ? 0 : a.stride ? K.poStrideMiss * (1 - postQuality(pl)) : uu ? K.uuMiss * (1 - uuQuality(pl)) : 0;
     prob = alleyProb(a, clamp((prob + info.uuBonus) * (1 - movePenalty), K.smMin, 1)); pl.uuShot = null; pl.postFakeCount = 0;
+    if (kind === 'lay' && (a.farLsv || a.lsv === 'far') && !SK) prob *= clamp(K.lvFarP + K.lvFarLay * (pl.r.lay - 0.75), 0.25, 1);
     const made = G.tips && G.tips.mk && pl.id === 0 ? true : rnd() < prob;
     const cl = SK ? '无视干扰' : c < 0.2 ? '空位' : c < 0.5 ? '轻微干扰' : '严重干扰';
     const tl = a.alley ? '自动终结' : green ? '完美' : e < 0 ? (ae > 0.5 ? '很早' : '稍早') : (ae > 0.5 ? '很晚' : '稍晚');
@@ -3240,7 +3243,7 @@
   // 侧翼 / 底线切入、防守人在正面或正在封盖时更倾向侧面出手，用远离防守人一侧的手；被盖率略降、命中略降
   const LSV = { reach: { name: '侧身上篮', blk: 0.8, p: 0.97, c: 0.92 }, far: { name: '远端手上篮', blk: 0.78, p: 0.96, c: 0.9 }, rev: { name: '反手上篮', blk: 0.72, p: 0.95, c: 0.88 } };
   function laySide(pl, a, P, df, baseline) {
-    a.side = 0; a.lsv = '';
+    a.side = 0; a.lsv = ''; a.farLsv = false;
     if (a.v === 'floater' || a.v === 'power' || a.v === 'back') return;
     const h = P.h, dx = df.x - pl.x, dy = df.y - pl.y, dd = Math.hypot(dx, dy) || 1, live = !df.off && dd < 3.2;
     const lat = (dx * h.y - dy * h.x) / dd, front = live ? (dx * h.x + dy * h.y) / dd : -1, ang = Math.atan2(Math.abs(pl.x - HOOP.x), Math.max(0.1, HOOP.y - pl.y));
@@ -3254,8 +3257,8 @@
     else if (a.hand === side) lsv = front > 0.3 || blocking ? 'far' : 'reach';
     else if (baseline || (ang > 0.9 && rnd() < K.sRevAng)) lsv = 'rev';
     else lsv = 'far';
-    a.side = side; a.lsv = lsv; a.hand = side;
-    if (a.v !== 'reverse') { const M = LSV[lsv]; a.V = Object.assign({}, a.V, { name: M.name, blk: a.V.blk * M.blk, p: a.V.p * M.p, c: a.V.c * M.c }); }
+    a.side = side; a.lsv = lsv; a.farLsv = lsv === 'far'; a.hand = side;
+    if (a.v !== 'reverse') { const M = LSV[lsv]; a.V = Object.assign({}, a.V, { name: M.name, blk: a.V.blk * M.blk, p: a.V.p * (lsv === 'far' ? 1 : M.p), c: a.V.c * M.c }); }
   }
   // want: 'lay' | 'floater' | 'auto'(终结键：能扣就扣)
   // fast：加速 + 朝筐 + 投篮键（5V5 是 RT + X）发起的终结——按下当帧就判定：能扣就跑扣，否则立刻上篮（不再排队等跑到扣篮起跳点），上篮方式按站位 / 能力随机挑
@@ -3317,12 +3320,12 @@
     hzSet(pl, a); if (pl.sk.ky > G.time) { a.ky = true; pl.sk.ky = 0; }
     { const S = gsk(pl, 'lay'); if (S && gTrig(pl, S, df)) { a.skill = S.id; pl.sk.cd = 12; G.ball.lastSk = { id: pl.id, sk: S.id }; } }
     const gwE = greenWidth(pl, ratingOf(pl, a), contestOf(pl, df, 'in') * V.c * (a.ky ? 0.5 : 1), shotKind(a), a) * V.g;
-    a.meter = { v: 0, gwE: gwE, done: false, color: '#fff', label: V.name };
+    a.meter = { v: 0, gwE: gwE, done: false, color: '#fff', label: a.V.name };
     layMeter(a);
     pl.stam = Math.max(0, pl.stam - (v === 'euro' || v === 'hop' ? 8 : 5) * ST.cost);
     a.uu = pl.uuShot && G.time <= pl.uuShot.until ? pl.uuShot : null;
     pl.action = a; pl.post = false; pl.animT = 0;
-    float(V.name, pl, '#f6efe0', 1);
+    float(a.V.name, pl, '#f6efe0', 1);
     return true;
   }
   function dunkAtk(p, dR) { return 0.55 * dR + 0.15 * p.r.vert + 0.15 * p.r.str + 0.15 * clamp((p.h - 1.85) / 0.35, 0, 1.2) + ba(p, 'poster', K.bgPoster); }
@@ -3718,6 +3721,7 @@
     const sk = clamp(Math.hypot(w.x - w.fx, w.y - w.fy) / 1.1, 0.7, 1.6);
     const A = lerp(-0.3 * sk, 0.95 * sk, u), B = 0.3 + 0.6 * Math.sin(Math.PI * u) + (last ? 0.35 * u : 0), tA = lerp(0.6 * sk, -0.65 * sk, u), tB = 0.55 + 0.3 * Math.sin(Math.PI * u);
     if (w.lead === 'L') Object.assign(o, { lA: A, lB: B, rA: tA, rB: tB }); else Object.assign(o, { rA: A, rB: B, lA: tA, lB: tB });
+    if (a.lsv === 'far') { o.lA = Math.min(o.lA, K.lvFarKnee); o.rA = Math.min(o.rA, K.lvFarKnee); o.lB = Math.min(o.lB, 0.9); o.rB = Math.min(o.rB, 0.9); }
     o.lean = 0.24 + (last ? 0.1 * u : 0);
     if (a.v === 'euro') {
       const lead = w.lead === 'R' ? 1 : -1, first = a.wp[0].lead === 'R' ? 1 : -1;
