@@ -1081,7 +1081,7 @@
   function dblC() {
     for (const p of ps()) {
       const a = p.action; if (!a || (a.type !== 'shot' && a.type !== 'layup') || a.released || !a.k5 || !a.V || a.skill) continue;
-      const cls = a.type === 'layup' || a.V.hook || a.v === 'postfade' ? 'in' : 'shot', L = [];
+      const cls = a.type === 'layup' || a.V.hook || a.V.post || a.v === 'postfade' ? 'in' : 'shot', L = [];
       for (const d of defs()) if (dist(d, p) < TV.t5_dbl_r) { const c = A5.contestInfo(p, d, cls).c; if (c > 0) L.push(c); }
       L.sort((x, y) => y - x);
       const o = p.opp, co = o ? A5.contestInfo(p, o, cls).c : 0, base = a.V.c / (a.dR || 1);
