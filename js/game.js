@@ -1645,7 +1645,7 @@
     if (!d.off) { d.x = 0; d.y = 6.6; d.face = -Math.PI / 2; } d.ai.hx = o.x; d.ai.hy = o.y;
     b.state = 'held'; b.holder = offId; b.dead = false; b.shot = null; b.lastTouch = offId; b.under = false; b.trail = null; b.wasShot = false; b.slam = null;
     if (msg) banner(msg, G.mode === 'train' ? '' : o.team.name + '球权', o.team.css, 1.1);
-    G.chk = null; if (G.mode !== 'train' && !d.off) checkStart(d, o);
+    G.chk = null; if (G.mode !== 'train' && !d.off) { d.x = o.x + 1.6; d.y = o.y + 1.25; checkStart(d, o); }
     mpCheck();
   }
   // check ball（1V1 / 3V3）：防守人在弧顶持球，击地传给进攻人，接住才算活球
