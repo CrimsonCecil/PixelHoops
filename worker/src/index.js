@@ -48,7 +48,7 @@ export default {
         let b;
         try {
           const raw = await req.text();
-          if (new TextEncoder().encode(raw).length > 8 * 1024 * 1024) return send(400, { error: 'bad body' });
+          if (new TextEncoder().encode(raw).length > 90 * 1024 * 1024) return send(400, { error: 'bad body' });
           b = JSON.parse(raw);
         } catch { return send(400, { error: 'bad body' }); }
         if (!b || typeof b !== 'object' || Array.isArray(b)) return send(400, { error: 'bad body' });

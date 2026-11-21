@@ -46,4 +46,5 @@ async function main() {
   assert.deepEqual(await T.decode(await T.encode(G.tape)), JSON.parse(JSON.stringify(T.quantize(G.tape))));
   console.log('PASS 5V5 ~15fps, ten players, quarter/state and codec');
 }
-main().catch(e => { console.error(e); process.exitCode = 1; });
+module.exports = { load };
+if (require.main === module) main().catch(e => { console.error(e); process.exitCode = 1; });

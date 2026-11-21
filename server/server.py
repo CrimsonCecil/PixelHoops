@@ -115,7 +115,7 @@ class H(BaseHTTPRequestHandler):
         id = self._path()[len('/api/replays/'):]
         if not ID_RE.fullmatch(id): return self._send(400, {'error': 'bad id'})
         if not delete:
-            try: b = self._body(8 * 1024 * 1024)
+            try: b = self._body(90 * 1024 * 1024)
             except Exception: return self._send(400, {'error': 'bad body'})
             if not isinstance(b, dict): return self._send(400, {'error': 'bad body'})
             name = b.get('name'); data = b.get('data')

@@ -1,7 +1,7 @@
 const assert = require('node:assert/strict');
 const { execFileSync } = require('node:child_process');
 const T = require('../js/tape.js');
-globalThis.__API_BASE__ = 'http://localhost:8000';
+globalThis.__API_BASE__ = process.env.QA_API || 'http://localhost:8000';
 const base = globalThis.__API_BASE__;
 const quant = v => JSON.parse(JSON.stringify(v, (k, x) => k === 'parts' ? undefined : typeof x === 'number' ? Math.round(x * 1000) / 1000 : x));
 function synthetic(count, fps) {

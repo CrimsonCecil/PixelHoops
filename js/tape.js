@@ -50,7 +50,7 @@
   function record(G, frame, state) {
     const tape = G.tape;
     if (!tape || G.mode === 'demo' || G.replay) return;
-    if (G.time >= 1200) { tape.meta.truncated = true; return; }
+    if (G.mode === 'train' && G.time >= 1200) { tape.meta.truncated = true; return; }
     if (G.tapeTick++ % (G.mode === 't5' ? 4 : 2)) return;
     const f = quantize({ ...frame, s: state });
     f.b.vx = Math.round((G.ball.vx || 0) * 1000) / 1000;
