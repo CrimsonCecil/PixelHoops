@@ -4217,12 +4217,13 @@
   const diving = (p) => !!(p.action && p.action.type === 'dive' && p.action.t - p.action.pre < p.action.air + p.action.slide);
   function pokeCue() {
     const b = G.ball, active = !!(b.poke && b.state === 'loose' && !b.dead && G.phase === 'live');
+    const inputSlot = (p) => PH.game.localInputSlot ? PH.game.localInputSlot(p) : p.ctrl === 'cpu' ? null : p.ctrl === 'p2' ? 1 : 0;
     const players = active && K.stlPokePrompt ? G.players.filter((p) => {
       const d = Math.hypot(b.x - p.x, b.y - p.y);
-      return p.ctrl !== 'cpu' && !p.off && !p.dummy && !p.action && p.stun <= 0 && p.z <= 0.05 && p.stam > ST.act && b.z <= K.dvMaxZ && d >= K.dvMinD && d <= diveR(p);
+      return inputSlot(p) != null && !p.off && !p.dummy && !p.action && p.stun <= 0 && p.z <= 0.05 && p.stam > ST.act && b.z <= K.dvMaxZ && d >= K.dvMinD && d <= diveR(p);
     }) : [];
     return { active, glow: active ? K.stlPokeFlash * (0.5 + 0.5 * Math.cos(G.time * Math.PI * 2 * K.stlPokeHz)) : 0,
-      prompts: players.map((p) => ({ id: p.id, text: (p.ctrl === 'p2' ? 'P2 ' : 'P1 ') + '扑球！按 ' + (PH.input && PH.input.diveLabel ? PH.input.diveLabel(p.ctrl === 'p2' ? 1 : 0, G.mode === 't5') : G.mode === 't5' ? 'J / Space' : p.ctrl === 'p2' ? 'Num2 / .' : 'K') })) };
+      prompts: players.map((p) => { const slot = inputSlot(p); return { id: p.id, text: (slot === 1 ? 'P2 ' : 'P1 ') + '扑球！按 ' + (PH.input && PH.input.diveLabel ? PH.input.diveLabel(slot, G.mode === 't5') : G.mode === 't5' ? 'J / Space' : slot === 1 ? 'Num2 / .' : 'K') }; }) };
   }
   function startDive(pl) {
     const b = G.ball, d = Math.hypot(b.x - pl.x, b.y - pl.y);

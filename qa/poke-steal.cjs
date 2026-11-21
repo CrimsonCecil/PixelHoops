@@ -57,6 +57,19 @@ for (const mode of ['1V1', '3V3', '5V5']) {
     assert.equal(gm.pokeCue().prompts.length, 2, 'both human teams receive prompt');
     assert(gm.pokeCue().prompts[0].text.includes(mode === '5V5' ? 'J / Space' : 'K'));
     assert(gm.pokeCue().prompts[1].text.includes(mode === '5V5' ? 'J / Space' : 'Num2 / .'));
+    if (mode !== '5V5') {
+      const binding = fs.readFileSync(path.join(__dirname, '../js/main.js'), 'utf8').split('\n').find((line) => line.includes('GM.localInputSlot ='));
+      assert(binding, 'main provides client-local input ownership');
+      for (const local of [p, d]) {
+        vm.runInContext(`{ const GM = PH.game, G = GM.G, matchConfig = {}, localSlot = ${local.id}; ${binding} }`, f.ctx);
+        const prompts = gm.pokeCue().prompts;
+        assert.equal(prompts.length, 1, 'online client never prompts remote humans');
+        assert.equal(prompts[0].id, local.id);
+        assert.equal(prompts[0].text, 'P1 扑球！按 K', 'host and guest both use device slot zero');
+      }
+      delete gm.localInputSlot;
+      console.log(`PASS ${mode}: online host/guest prompt ownership and local slot-zero key`);
+    }
     const glow = gm.pokeCue().glow;
     G.time += 0.5 / K.stlPokeHz;
     assert.notEqual(gm.pokeCue().glow, glow, 'flash pulses');
