@@ -286,7 +286,7 @@
     }
     for (const p of P) if (p.__head) { R.drawMeter(p, p.__head); }
     ctx.setTransform(1, 0, 0, 1, 0, 0);
-    if (R.drawScreenFx) R.drawScreenFx(Gm);
+    if (R.drawScreenFx) R.drawScreenFx(Gm, { heads: P.map((p) => p.__head), ball: R.proj(wb.x, wb.y, wb.z) });
     if (F.flash > 0) { ctx.globalAlpha = Math.min(0.5, F.flash * 3.2); ctx.fillStyle = F.flashCol; ctx.fillRect(0, 0, W, H); ctx.globalAlpha = 1; }
   }
   // ---------- V3.9e 2K 镜头 ----------
@@ -516,9 +516,10 @@
       for (let i = 0; i < n; i++) { const an = i / n * Math.PI * 2; ctx.fillRect(Math.round(c.x + Math.cos(an) * rad), Math.round(c.y + Math.sin(an) * rad * 0.62), 1, 1); }
     }
     for (const p of P) if (p.__head) R.drawMeter(p, p.__head);
+    const cueView = { heads: P.map((p) => p.__head), ball: R.proj(wb.x, wb.y, wb.z) };
     PJ = null; HV = [0, 1]; K2 = false;
     ctx.setTransform(1, 0, 0, 1, 0, 0);
-    if (R.drawScreenFx) R.drawScreenFx(Gm);
+    if (R.drawScreenFx) R.drawScreenFx(Gm, cueView);
     if (F.flash > 0) { ctx.globalAlpha = Math.min(0.5, F.flash * 3.2); ctx.fillStyle = F.flashCol; ctx.fillRect(0, 0, W, H); ctx.globalAlpha = 1; }
   }
   // 篮板上方的 24 秒计时器（2K / NBA 场馆都装在篮板顶上）

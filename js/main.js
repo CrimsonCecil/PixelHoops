@@ -8,6 +8,7 @@
   const lobby3 = ['curry', 'lebron', 'jokic', 'edwards', 'durant', 'giannis'].map((arch, i) => ({ arch, role: i === 0 ? 'human' : i % 3 === 2 ? 'waiting' : 'cpu' }));
   const rooms = PH.rooms, room = rooms.room;
   let localSlot = -1, roomSlot = -1, matchConfig = null, netFrame = 0;
+  GM.localInputSlot = (p) => matchConfig && G.mode !== 't5' ? (p.id === localSlot ? 0 : null) : p.ctrl === 'cpu' ? null : p.ctrl === 'p2' ? 1 : 0;
   let scale = 2, paused = false, manual = false, screen = 'menu', last = 0, acc = 0, fps = 60, debug = /[?&]debug/.test(location.search);
   const isTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
   if (isTouch) document.getElementById('stage').classList.add('touch');
@@ -421,6 +422,7 @@
     ['hnd', 0.8, ['控球大师', '运球魔术', '变向高手']], ['post', 0.7, ['背打蛮牛', '低位巨兽', '篮下推土机']], ['str', 0.8, ['力量怪兽', '肌肉坦克', '硬核猛男']],
     ['mid', 0.8, ['中投杀手', '中距离王', '急停跳投']], ['dreb', 0.75, ['篮板机器', '篮板怪兽', '卡位专家']], ['flo', 0.75, ['抛投高手', '上篮艺术', '终结大师']]
   ];
+  Object.assign(KING_TAG, { rodman: '篮板狂人', bwallace: '卡位巨闸', rallen: '绝杀射手' });
   function kingTags(ladder) {
     const used = new Set();
     return ladder.map((k) => {

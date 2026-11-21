@@ -341,8 +341,9 @@
       const k = rig(pl, { ...pose, crab: 0 }, false, pl.col && pl.col.body), reach = 0.012 * Hh;
       const base = (side) => {
         const foot = k[side < 0 ? 'kneeL' : 'kneeR'];
-        return [pl.x + fy * side * w + fx * ((foot[0] - pl.x) * fx + (foot[1] - pl.y) * fy),
-          pl.y - fx * side * w + fy * ((foot[0] - pl.x) * fx + (foot[1] - pl.y) * fy), 0];
+        const forward = (foot[0] - pl.x) * fx + (foot[1] - pl.y) * fy - 0.075 * Hh;
+        return [pl.x + fy * side * w + fx * forward,
+          pl.y - fx * side * w + fy * forward, 0];
       };
       let c = pl.crab;
       if (!c || Math.abs(c.width - w) > 0.001 || Math.hypot(pl.x - c.x, pl.y - c.y) > 1) {
@@ -360,8 +361,11 @@
       }
       c.face = pl.face;
       const dx = pl.x - c.x, dy = pl.y - c.y, distance = Math.hypot(dx, dy);
+      const speed = distance / dt;
+      if (c.speed != null && speed < c.speed - 0.01 * dt) c.settling = true;
+      c.speed = speed;
       c.x = pl.x; c.y = pl.y;
-      if (distance < 0.00001) { c[c.side][2] = Math.max(0, c[c.side][2] - 0.6 * dt); c.rest = c[c.side][2] === 0; }
+      if (distance < 0.00001) { c[c.side][2] = Math.max(0, c[c.side][2] - 0.6 * dt); c.rest = c[c.side][2] === 0; c.settling = !c.rest; }
       else {
         if (c.rest) { c.side = dx * fy - dy * fx < 0 ? 'L' : 'R'; c.phase = 0; c.rest = false; }
         const v = distance / dt, lo = tune('stHzMin', 1), hi = Math.max(lo, tune('stHzMax', 2.4));
@@ -373,15 +377,16 @@
           if (c.phase === 0) {
             c.from = c[c.side].slice(); c.to = base(c.side === 'L' ? -1 : 1);
             c.to[0] += dx / distance * step; c.to[1] += dy / distance * step;
+            c.lift = tune('stLift', 0.07) * Math.min(1, v / 0.8);
           }
           const take = Math.min(1 - c.phase, advance); c.phase += take; advance -= take;
           const u = c.phase, blend = u * u * (3 - 2 * u), foot = c[c.side];
           foot[0] = c.from[0] + (c.to[0] - c.from[0]) * blend;
           foot[1] = c.from[1] + (c.to[1] - c.from[1]) * blend;
-          const lift = u >= 1 ? 0 : Math.sin(Math.PI * u) * tune('stLift', 0.07) * Math.min(1, v / 0.8), prevZ = previous[c.side][2];
-          foot[2] = cl(lift, Math.max(0, prevZ - 0.6 * dt), prevZ + 0.6 * dt);
+          const lift = u >= 1 ? 0 : Math.sin(Math.PI * u) * c.lift, prevZ = previous[c.side][2];
+          foot[2] = c.settling ? cl(lift, Math.max(0, prevZ - 0.6 * dt), prevZ + 0.6 * dt) : lift;
           if (u >= 1 && foot[2] > 0) break;
-          if (u >= 1) { foot[2] = 0; c.side = c.side === 'L' ? 'R' : 'L'; c.phase = 0; }
+          if (u >= 1) { foot[2] = 0; c.side = c.side === 'L' ? 'R' : 'L'; c.phase = 0; c.settling = false; }
         }
       }
       for (const side of ['L', 'R']) {
@@ -1369,8 +1374,8 @@
       const hairline = HAIRLINE[st] || 0.3;
       const close = st === 'buzz' || st === 'receding';
       const nape = HAIR_NAPE[st] || 0.74, taper = NAPE_TAPER[st];
-      const hairColor = close ? shade(skin, st === 'buzz' ? 0.53 : 0.44) : hr;
-      const fadeColor = close ? shade(skin, 0.71) : shade(hr, st === 'fade' ? 2.23 : 1.63);
+      const hairColor = close && !C.dyed ? shade(skin, st === 'buzz' ? 0.53 : 0.44) : hr;
+      const fadeColor = close && !C.dyed ? shade(skin, 0.71) : shade(hr, st === 'fade' ? 2.23 : 1.63);
       const braidStart = Math.max(1, Math.round(w / 6)), braidStep = Math.max(2, Math.round(w / 4));
       const rear = Math.max(0, back * 2.25);
       const profileMix = clampR(Math.min((back + 0.75) / 0.45, (0.45 - back) / 0.1), 0, 1);
@@ -1564,6 +1569,9 @@
       const sleeve = C.sleeve === side ? [C.shorts[0], C.trim] : C.skin;
       const upper = (B ? 0.122 : 0.11) * armWidth, elbowTop = Math.round(J['el' + side].y - Math.max(1, Math.round(upper * s)) / 2);
       seg('sh' + side, 'el' + side, upper, sleeve, 0, Math.min(shoulderTop, elbowTop));
+      if (C.tattoos && C.sleeve !== side) {
+        segs[segs.length - 1].tattoos = true;
+      }
       seg('el' + side, 'hand' + side, (B ? 0.106 : 0.095) * armWidth, sleeve);
       if (B || (pl.pose['fl' + side] || 0) > 0.15) seg('hand' + side, 'fg' + side, 0.075 * lw, C.skin);
     }
@@ -1597,6 +1605,13 @@
         continue;
       } else {
         brush(sctx, g.a.x, g.a.y, g.b.x, g.b.y, g.w, g.c[0], g.c[1], g.top, !!B && (g.c === C.jersey || g.c === C.shorts), g.endWidth);
+        if (g.tattoos) {
+          sctx.fillStyle = '#344947';
+          for (const t of [0.25, 0.4, 0.65]) {
+            const x = Math.round(lerpN(g.a.x, g.b.x, t)), y = Math.max(g.top || 0, Math.round(lerpN(g.a.y, g.b.y, t)));
+            sctx.fillRect(x - 1, y, Math.max(1, Math.round(g.w * 0.65)), 1);
+          }
+        }
         if (g === lastJersey) drawJerseyNumber(sctx, C, numberTorso, s);
       }
     }
@@ -1659,6 +1674,13 @@
   function drawBall(b) {
     const p = proj(b.x, b.y, b.z), r = Math.max(2, Math.round(BALL_R * p.s));
     const cx = Math.round(p.x), cy = Math.round(p.y);
+    const cue = PH.game && PH.game.pokeCue && PH.game.pokeCue();
+    if (cue && cue.active) {
+      ctx.save(); ctx.globalAlpha = cue.glow;
+      ctx.strokeStyle = '#ffe58a'; ctx.lineWidth = 2; ctx.shadowColor = '#fff4bc'; ctx.shadowBlur = 12;
+      ctx.beginPath(); ctx.arc(cx, cy, r + 4 + cue.glow * 5, 0, Math.PI * 2); ctx.stroke();
+      ctx.restore();
+    }
     const fl = b.fl > 0 && ((b.fl * 18) | 0) % 2 === 0;
     ellipse(ctx, cx, cy, r + 1, r + 1, fl ? '#fff6c8' : '#15101f');
     ellipse(ctx, cx, cy, r, r, '#b4501e');
@@ -1919,7 +1941,31 @@
     }
     ctx.restore();
   }
-  function drawScreenFx(G) {
+  function pokePromptBox(head, ball, width) {
+    const w = Math.min(W - 8, width + 10), h = 19, r = Math.max(2, BALL_R * ball.s) + 12;
+    const candidates = [[head.x - w / 2, head.y - h - 12], [head.x - w / 2, head.y + 12],
+      [head.x - w / 2, ball.y - r - h - 4], [head.x - w / 2, ball.y + r + 4],
+      [ball.x - r - w - 4, head.y - h / 2], [ball.x + r + 4, head.y - h / 2]];
+    for (const [cx, cy] of candidates) {
+      const x = Math.round(Math.max(4, Math.min(W - w - 4, cx))), y = Math.round(Math.max(4, Math.min(H - h - 4, cy)));
+      if (x + w < ball.x - r || x > ball.x + r || y + h < ball.y - r || y > ball.y + r) return { x, y, w, h };
+    }
+    return null;
+  }
+  function drawScreenFx(G, cueView) {
+    const cue = PH.game && PH.game.pokeCue && PH.game.pokeCue();
+    if (cue && cue.prompts.length) {
+      ctx.save(); ctx.font = "12px 'Fusion Pixel 12px Proportional SC', monospace"; ctx.textBaseline = 'bottom';
+      cue.prompts.forEach((v) => {
+        const pl = G.players[v.id], head = cueView && cueView.heads[v.id] || proj(pl.x, pl.y, pl.z + pl.h);
+        const ball = cueView && cueView.ball || proj(G.ball.x, G.ball.y, G.ball.z);
+        const box = pokePromptBox(head, ball, ctx.measureText(v.text).width);
+        if (!box) return;
+        ctx.fillStyle = '#15101f'; ctx.fillRect(box.x, box.y, box.w, box.h);
+        ctx.fillStyle = '#fff0a0'; ctx.fillText(v.text, box.x + 5, box.y + 15, box.w - 10);
+      });
+      ctx.restore();
+    }
     drawIntroFx(G);
     drawScoreFx(G);
     drawConfetti(G.fx);
@@ -2247,7 +2293,7 @@
       }
     }
     ctx.setTransform(1, 0, 0, 1, 0, 0);
-    if (!RP) drawScreenFx(G);
+    if (!RP) drawScreenFx(G, { heads, ball: proj(b.x, b.y, b.z) });
     if (F.flash > 0) { ctx.globalAlpha = Math.min(0.5, F.flash * 3.2); ctx.fillStyle = F.flashCol; ctx.fillRect(0, 0, W, H); ctx.globalAlpha = 1; }
     if (F.slow > 0) { ctx.fillStyle = '#05070f'; ctx.fillRect(0, 0, W, 14); ctx.fillRect(0, H - 14, W, 14); }
     if (RP) {

@@ -34,7 +34,7 @@ window.PH = window.PH || {};
       lockdown: r('def') * 0.45 + r('lat', r('def')) * 0.3 + r('stl') * 0.25 + 0.01 - 0.1 * Math.max(0, shoot - 0.8),
       threeD: Math.min(r('three'), r('def')) * 0.8 + 0.1 * r('lat', r('def')) + 0.1 * r('three') + (inner ? -0.1 : 0.06) - 0.2 * Math.max(0, r('hnd') - 0.8) - 0.2 * Math.max(0, inside - 0.82),
       stretch: inner && big ? r('three') * 0.65 + r('blk') * 0.1 + r('str') * 0.15 + r('intD') * 0.1 + 0.03 : 0,
-      glass: (r('oreb') * 0.45 + r('dreb') * 0.35 + r('str') * 0.2) + (big ? 0.04 : -0.1) - 0.15 * shoot,
+      glass: (r('oreb') * 0.45 + r('dreb') * 0.35 + r('str') * 0.2) + (big || (inner && r('oreb') >= 0.95 && r('dreb') >= 0.95) ? 0.04 : -0.1) - 0.15 * shoot,
       lob: r('dunk') * 0.35 + r('leap', r('vert')) * 0.25 + r('sdunk') * 0.2 + r('rej', r('vert')) * 0.2 + (big ? 0.1 : -0.15) - 0.3 * r('three') - 0.4 * Math.max(0, r('hnd') - 0.65),
       twoway: fwd ? (r('def') + r('intD')) * 0.22 + (shoot + inside) * 0.22 + r('hnd') * 0.08 + 0.07 : 0
     };
