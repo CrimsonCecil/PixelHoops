@@ -382,3 +382,25 @@ for (const bite of [0, 1]) {
   assert(p.action.postFake && p.post && p.hasBall, 'AI releases its post fake before committing');
 }
 console.log('PASS post fake tunables: commit window, stamina cost and defender bite; CPU early release preserves posting and ball');
+
+{
+  const source = fs.readFileSync(path.join(__dirname, '../js/rooms.js'), 'utf8');
+  const clean = vm.runInNewContext(source.slice(source.indexOf('  function cleanInput('), source.indexOf('  function incoming(')) + '\ncleanInput;');
+  assert.equal(clean(null), null);
+  assert.equal(clean({ rs: 'true', rsPad: 1 }).rs, false);
+  assert.equal(clean({ rsPad: 1 }).rsPad, false);
+  assert.equal(clean({}).rs, false);
+  assert.equal(clean({ dx: Infinity, dy: -2 }).dx, 0);
+  assert.equal(clean({ dy: -2 }).dy, -1);
+  const { p } = fixture();
+  pads[0] = { connected: true, index: 0, axes: [0, 0, 0, 1], buttons: Array.from({ length: 16 }, (_, i) => ({ pressed: i === 6 })) };
+  for (let i = 0; i < holdFrames(); i++) step(p, clean(input.read(0, true, true)));
+  assert.equal(p.action?.v, 'postfade', 'Guest right-stick hold survives host cleanInput and starts a post shot');
+  const a = p.action;
+  for (let i = 0; i < 45; i++) step(p, clean(input.read(0, true, true)));
+  pads[0].axes[3] = 0;
+  step(p, clean(input.read(0, true, true)));
+  assert(a.released && G.ball.state === 'shot', 'Guest stick release fires the post shot');
+  pads.length = 0;
+}
+console.log('PASS guest post stick: cleanInput preserves shared rs/direction and device presence, rejects invalid values, and hold/release produces a post shot');
