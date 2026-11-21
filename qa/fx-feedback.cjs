@@ -221,3 +221,105 @@ function load() {
 
   console.log('PASS: rebound grabs play positive cue SFX for the player/team without firing for opponents (local and online).');
 }
+
+// 5. Voice playback trims long leading silence/room-tone (e.g. mwagner_taunt_2.mp3) while keeping normal 0.1s onset
+{
+  const sr = 24000;
+  const starts = [];
+  const makeBuf = (leadSec, totalSec) => {
+    const data = new Float32Array(Math.floor(sr * totalSec));
+    // Low-level breath/room noise before speech onset (below 0.02 RMS)
+    for (let i = 0; i < Math.floor(sr * leadSec); i++) data[i] = Math.sin(i * 0.1) * 0.006;
+    // Speech energy starting at leadSec
+    for (let i = Math.floor(sr * leadSec); i < data.length; i++) data[i] = Math.sin(i * 0.25) * 0.12;
+    return { sampleRate: sr, duration: totalSec, getChannelData: () => data };
+  };
+  const bufs = {
+    'mwagner_taunt_2.mp3': makeBuf(1.65, 4.2),
+    'normal_clip.mp3': makeBuf(0.12, 2.0)
+  };
+  let decodeIdx = 0;
+  const decodeOrder = ['mwagner_taunt_2.mp3', 'normal_clip.mp3'];
+  const manifest = {
+    voices: {
+      mwagner: {
+        s: 'p/mwagner.mp3',
+        lines: {
+          taunt: [{ f: 'mwagner_taunt_2.mp3', t: '戏精本精上线，你接着防！', d: 3.75, o: 0, n: 10 }],
+          dom: [{ f: 'normal_clip.mp3', t: '正常开头台词', d: 2.0, o: 10, n: 10 }]
+        }
+      }
+    }
+  };
+  let tested = false;
+  const audioCtx = {
+    window: null,
+    console,
+    Math,
+    Date,
+    Promise,
+    ArrayBuffer,
+    Uint8Array,
+    Float32Array,
+    performance: { now: () => 1000 },
+    setTimeout: () => 1,
+    clearTimeout: () => {},
+    localStorage: { getItem: () => null, setItem: () => {} },
+    fetch: () => Promise.resolve({
+      ok: true,
+      json: () => Promise.resolve(manifest),
+      arrayBuffer: () => Promise.resolve(new ArrayBuffer(4096))
+    }),
+    AudioContext: function FakeAC() {
+      this.state = 'running';
+      this.currentTime = 0;
+      this.sampleRate = sr;
+      this.destination = {};
+      this.resume = () => Promise.resolve();
+      this.createGain = () => ({ gain: { value: 1, setValueAtTime() {}, linearRampToValueAtTime() {}, cancelScheduledValues() {} }, connect() {} });
+      this.createBiquadFilter = () => ({ type: '', frequency: { value: 0 }, Q: { value: 0 }, connect() {} });
+      this.createBuffer = () => ({ getChannelData: () => new Float32Array(16) });
+      this.createBufferSource = () => ({ buffer: null, connect() {}, start(when, offset) { starts.push(offset); }, stop() {} });
+      this.decodeAudioData = (_ab, ok) => ok(bufs[decodeOrder[decodeIdx++]]);
+    },
+    PH: {}
+  };
+  audioCtx.window = audioCtx;
+  vm.createContext(audioCtx);
+  vm.runInContext(fs.readFileSync(path.join(__dirname, '../js/audio.js'), 'utf8'), audioCtx, { filename: 'js/audio.js' });
+
+  audioCtx.PH.audio.voWhenReady(() => {
+    try {
+      const it1 = audioCtx.PH.audio.voLine('mwagner', 'taunt', 0);
+      audioCtx.PH.audio.voSay(it1);
+      setImmediate(() => {
+        try {
+          assert.equal(starts.length, 1, 'delayed-onset clip starts playing');
+          assert.ok(starts[0] >= 1.55 && starts[0] <= 1.65, 'trims 1.65s leading silence down to ~1.60s onset (' + starts[0] + 's)');
+          const it2 = audioCtx.PH.audio.voLine('mwagner', 'dom', 0);
+          audioCtx.PH.audio.voSay(it2);
+          setImmediate(() => {
+            try {
+              assert.equal(starts.length, 2, 'normal clip starts playing');
+              assert.equal(starts[1], 0.1, 'normal clip keeps default 0.1s start offset');
+              tested = true;
+              console.log('PASS: voice playback trims long leading silence (' + starts[0].toFixed(2) + 's) while preserving normal 0.1s onset.');
+            } catch (err) {
+              console.error(err);
+              process.exit(1);
+            }
+          });
+        } catch (err) {
+          console.error(err);
+          process.exit(1);
+        }
+      });
+    } catch (err) {
+      console.error(err);
+      process.exit(1);
+    }
+  });
+  process.on('beforeExit', () => {
+    assert.ok(tested, 'async leading-silence trim test must run to completion');
+  });
+}
