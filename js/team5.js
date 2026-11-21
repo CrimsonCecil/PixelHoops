@@ -309,6 +309,12 @@
   const L1D = { l1_stLow: 15, l1_contestRange: 2.7, l1_stlCpu0: 0.6, l1_stlCpuD: 0.35, l1_stealMul: 1, l1_gwSkill: 1.7, l1_gwBadge: 1.45, l1_smKy: 0.5 };
   const TV = {}; for (const d of T5REG) TV[d.k] = d.v; Object.assign(TV, L1D);
   const T5_DISPLAY = {
+    t5_shakeOff: ['电脑无球对抗 震屏顿帧倍数', '越大纯电脑无球对抗的震屏与顿帧越强；0 = 关闭'],
+    t5_camBc: ['5V5 转播镜头', '开：使用侧面转播视角；关：使用 2K 视角'],
+    t5_cam2kZ: ['5V5 2K镜头拉近', '越大 2K 机位越靠近球场；档位，0–10'],
+    t5_cam2kH: ['5V5 2K镜头高度', '越大 2K 机位越高；档位，0–20，10 = 默认取景'],
+    t5_camBcZ: ['5V5 转播镜头拉近', '越大转播机位越靠近球场；档位，0–10'],
+    t5_camBcH: ['5V5 转播镜头高度', '越大转播机位越高；档位，0–10'],
     t5_scr_arW: ['绕挡 外侧绕行距离', '越大越绕远避开掩护人；米'],
     t5_scr_arT: ['绕挡 追加持续时间', '越大停滞结束后继续绕行越久；秒'],
     t5_scr_arV: ['绕挡 移动速度倍数', '越大持球防守者绕挡时移动越快；1 = 正常速度'],

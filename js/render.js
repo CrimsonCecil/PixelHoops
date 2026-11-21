@@ -26,6 +26,23 @@
   // 镜头面板参数登记在调参台，跟调参配置一起存云端、打开时随默认配置套用
   const CAM_K = { zoom: 'camZoom', height: 'camHeight', dist: 'camDist', follow: 'camFollow', push: 'camPush', pin: 'camPin', plow: 'camPlow' };
   const CAM_KS = Object.keys(CAM_K).map((f) => CAM_K[f]);
+  const CAMERA_DISPLAY = {
+    camZoom: ['镜头 焦距倍数', '越大画面中的球员越大、视野越窄；焦距倍数'],
+    camHeight: ['镜头 机位高度', '越大机位越高；米'],
+    camDist: ['镜头 跟随距离', '越大机位离跟随目标越远；米'],
+    camFollow: ['镜头 横向跟随比例', '越大镜头越跟着持球人左右移；0 = 固定中线，1 = 完全跟随'],
+    camPush: ['镜头 禁区推近', '开：持球接近篮下时镜头前推并压低'],
+    camPin: ['镜头 禁区推近力度', '越大攻筐时镜头推得越近；比例'],
+    camPlow: ['镜头 禁区压低力度', '越大攻筐推近时机位降得越低；比例'],
+    t3_camZoom: ['3V3 镜头焦距倍数', '越大画面越放大；焦距倍数，自动取景仍保护篮筐与持球人'],
+    t3_camHeight: ['3V3 镜头高度', '越大机位越高；米'],
+    t3_camDist: ['3V3 镜头距离', '越大机位离跟随目标越远；米，仍受底线限制'],
+    t3_camFollow: ['3V3 横向跟随比例', '越大镜头越跟着目标左右移；0 = 固定中线，1 = 完全跟随'],
+    t3_camSpeed: ['3V3 镜头跟随响应', '越大镜头跟随与取景变化越快；每秒'],
+    t3_camPitch: ['3V3 镜头俯视斜率', '越大镜头越向下俯视；斜率'],
+    l1_ciDur: ['专属技能 插画停留时间', '越大半屏插画从滑入到淡出越久；秒，组队与短插屏乘 0.75'],
+    l1_ciFx: ['专属技能 闪光持续时间', '越大技能金光与边缘光晕持续越久；秒，5V5 乘 0.75'],
+  };
   function camTuned() { const T = PH.TUNE, o = {}; for (const f in CAM_K) o[f] = T && T.has && T.has(CAM_K[f]) ? +T.get(CAM_K[f]) : CAM_DEF[f]; return o; }
   if (PH.TUNE && PH.TUNE.reg && !PH.TUNE.has('camZoom')) {
     PH.TUNE.reg([
@@ -36,7 +53,7 @@
       { k: 'camPush', label: '镜头 禁区推近', v: CAM_DEF.push, mode: 'bool', note: '开：持球接近篮下时镜头前推、机位压低' },
       { k: 'camPin', label: '镜头 推近力度', v: CAM_DEF.pin, min: 0, max: 0.6, step: 0.02, wide: false, note: '比例：禁区推近时往前推多少' },
       { k: 'camPlow', label: '镜头 压低程度', v: CAM_DEF.plow, min: 0, max: 1, step: 0.05, wide: false, note: '比例：禁区推近时机位压低多少' },
-    ]);
+    ].map((d) => ({ ...d, display: CAMERA_DISPLAY[d.k] })));
     PH.TUNE.on((ks) => { if (!ks || ks.some((k) => CAM_KS.indexOf(k) >= 0)) setCam(camTuned()); });
     setCam(camTuned());
   }
@@ -48,7 +65,7 @@
     { k: 't3_camSpeed', f: 'speed', label: '3V3 镜头 跟随速度', v: 4.5, min: 1, max: 10, step: 0.1, wide: false, note: '数值越大，跟随和取景变化越快' },
     { k: 't3_camPitch', f: 'pitch', label: '3V3 镜头 俯视角度', v: 0.54, min: 0.2, max: 1, step: 0.01, wide: false, note: '俯视斜率，越大越往下看' },
   ];
-  if (PH.TUNE && PH.TUNE.reg) PH.TUNE.reg(CAM3);
+  if (PH.TUNE && PH.TUNE.reg) PH.TUNE.reg(CAM3.map((d) => ({ ...d, display: CAMERA_DISPLAY[d.k] })));
   function cam3Tuned() { const o = {}; for (const c of CAM3) o[c.f] = PH.TUNE && PH.TUNE.has(c.k) ? +PH.TUNE.get(c.k) : c.v; return o; }
   // 镜头面板改值：写进调参台（会算作当前配置的未保存改动）；没有调参表时直接改
   function setCamTuned(o, mode) {
@@ -723,7 +740,7 @@
     if (PH.TUNE && PH.TUNE.reg && !(PH.TUNE.has && PH.TUNE.has('l1_ciDur'))) PH.TUNE.reg([
       { k: 'l1_ciDur', g: 'rules', label: '专属半屏插画停留', v: 2.0, min: 0.6, max: 4, step: 0.1, note: '秒：1V1 专属技能半屏插画从滑入到淡出的总时长（5V5 和进球短插屏 ×0.75）；不冻结画面' },
       { k: 'l1_ciFx', g: 'rules', label: '专属全屏特效时长', v: 1.4, min: 0.2, max: 4, step: 0.1, note: '秒：专属技能触发时全屏金色闪光 + 边缘光晕的时长（5V5 ×0.75）；画面中间不遮挡' },
-    ]);
+    ].map((d) => ({ ...d, display: CAMERA_DISPLAY[d.k] })));
     const k5 = (c) => (c && (c.short || c.five) ? 0.75 : 1);
     const pDur = (c) => TG('l1_ciDur', 2.0) * k5(c), fDur = (c) => TG('l1_ciFx', 1.4) * k5(c);
     const dur = (c) => Math.max(pDur(c), fDur(c));
