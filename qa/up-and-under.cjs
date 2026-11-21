@@ -25,7 +25,7 @@ function fixture(mode = '1v1', flipped = false, camera = '2k') {
       Object.assign(other, { x: -6 + other.id, y: -7, stun: 30, hasBall: false });
   }
   const G = gm.G, b = G.ball;
-  Object.assign(G, { phase: 'live', needClear: false, off: mode === '5v5' ? p.tm : 0 });
+  Object.assign(G, { phase: 'live', needClear: false, fb: 'simple', off: mode === '5v5' ? p.tm : 0 });
   Object.assign(p, { x: 0, y: 6.8, z: 0, vz: 0, vx: 0, vy: 0, speed: 0, hasBall: true, action: null, stun: 0, cd: 0 });
   Object.assign(p.r, { hnd: 0.8, post: 0.85, close: 0.85 });
   Object.assign(d, { x: 3, y: 8, off: false, hasBall: false, stun: 30 });
@@ -58,6 +58,7 @@ function fixture(mode = '1v1', flipped = false, camera = '2k') {
 }
 
 const directions = [['uuForward', 0, 1], ['uuBack', 0, -1], ['uuLeft', -1, 0], ['uuRight', 1, 0]];
+const variantNames = { uuForward: '上下步·突篮', uuBack: '上下步·后撤', uuLeft: '上下步·左', uuRight: '上下步·右' };
 for (const [mode, flipped, camera] of [['1v1', false, '2k'], ['5v5', false, '2k'], ['5v5', true, '2k'], ['5v5', true, 'broadcast']]) {
   for (const binding of mode === '1v1' ? ['stick', 'pad', 'B'] : ['stick', 'pad', 'B']) {
     for (const [mv, x, y] of directions) {
@@ -65,6 +66,8 @@ for (const [mode, flipped, camera] of [['1v1', false, '2k'], ['5v5', false, '2k'
       f.fake(); const start = [p.x, p.y], stamina = p.stam;
       f.direction(x, y, binding); step();
       assert.equal(p.action?.mv, mv, `${mode} ${flipped} ${camera} ${binding}`);
+      assert.equal(p.action.name, variantNames[mv]);
+      assert(f.G.floats.some(q => q.pid === p.id && q.text === variantNames[mv]), 'variant name shows in simple feedback');
       assert(p.stam < stamina, 'existing move path charges stamina');
       f.neutral(); step(44);
       const dx = p.x - start[0], dy = p.y - start[1];

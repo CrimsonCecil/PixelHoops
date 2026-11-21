@@ -3650,7 +3650,7 @@
     const count = linked ? prev.count + 1 : 1;
     pl.dribbleCombo = { count: count, shown: count, last: G.time, name: pl.action.name, end: null };
     sfx('squeak');
-    if (kind === 'uu') { float(M.name, pl, '#f6efe0'); return; }
+    if (kind === 'uu') { float(M.name, pl, '#f6efe0', 1); return; }
     if (kind === 'stepback' && skOf(pl, 'luka') && !df.off && dd < 2.4) pl.sk.win = G.time + M.T + 1.0;
     if (kySk) { fireSkill(pl); pl.sk.ky = G.time + M.T + 1.6; }
     // 晃动防守人
