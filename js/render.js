@@ -338,7 +338,7 @@
       if (!pl.stance || pl.anim !== 'def' || pl.z > 0.01) { pl.crab = null; return; }
       if (!(dt > 0)) return;
       const fx = Math.cos(pl.face), fy = Math.sin(pl.face), Hh = 1 + (height(pl) / 1.95 - 1) * 1.55, w = tune('stWidth', 0.42) * Hh;
-      const k = rig(pl, { ...pose, crab: 0 }, false, pl.col && pl.col.body), reach = 0.012 * Hh;
+      const k = rig(pl, { ...pose, crab: 0 }, false, pl.col && pl.col.body), reach = tune('stReach', 0.3) * Hh;
       const base = (side) => {
         const foot = k[side < 0 ? 'kneeL' : 'kneeR'];
         const forward = (foot[0] - pl.x) * fx + (foot[1] - pl.y) * fy - 0.075 * Hh;
@@ -351,33 +351,34 @@
         c = pl.crab = { x: pl.x, y: pl.y, width: w, phase: 0, side: lat < 0 ? 'L' : 'R', L: base(-1), R: base(1) };
         c.from = c[c.side].slice(); c.to = c.from.slice();
       }
-      const oldFace = c.face == null ? pl.face : c.face, ox = Math.cos(oldFace), oy = Math.sin(oldFace);
-      const previous = {};
-      for (const side of ['L', 'R']) {
-        const f = c[side], x = f[0] - c.x, y = f[1] - c.y;
-        previous[side] = [x * oy - y * ox, x * ox + y * oy, f[2]];
-        f[0] = c.x + fy * previous[side][0] + fx * previous[side][1];
-        f[1] = c.y - fx * previous[side][0] + fy * previous[side][1];
-      }
+      const previous = { L: c.L.slice(), R: c.R.slice() };
+      const turned = c.face != null && Math.abs(pl.face - c.face) > 1e-6;
       c.face = pl.face;
+      c.drag = { L: false, R: false };
+      c.velocity = c.velocity || { L: [0, 0], R: [0, 0] };
+      if (turned) for (const side of ['L', 'R']) {
+        const center = base(side === 'L' ? -1 : 1), f = c[side];
+        if (f[2] <= 0.001 && Math.hypot(f[0] - center[0], f[1] - center[1]) > reach + 1e-6) c.next = side;
+      }
       const dx = pl.x - c.x, dy = pl.y - c.y, distance = Math.hypot(dx, dy);
       const speed = distance / dt;
       if (c.speed != null && speed < c.speed - 0.01 * dt) c.settling = true;
       c.speed = speed;
       c.x = pl.x; c.y = pl.y;
-      if (distance < 0.00001) { c[c.side][2] = Math.max(0, c[c.side][2] - 0.6 * dt); c.rest = c[c.side][2] === 0; c.settling = !c.rest; }
+      if (distance < 0.00001 && !c.next && !c.recovering) { c[c.side][2] = Math.max(0, c[c.side][2] - 0.6 * dt); c.rest = c[c.side][2] === 0; c.settling = !c.rest; }
       else {
         if (c.rest) { c.side = dx * fy - dy * fx < 0 ? 'L' : 'R'; c.phase = 0; c.rest = false; }
         const v = distance / dt, lo = tune('stHzMin', 1), hi = Math.max(lo, tune('stHzMax', 2.4));
-        const hz = cl(v / (tune('stStep', 0.42) + 0.12 * v), lo, hi) * Math.min(1, v / 0.35);
+        const hz = distance < 0.00001 ? lo : cl(v / (tune('stStep', 0.42) + 0.12 * v), lo, hi) * Math.min(1, v / 0.35);
         const step = Math.min(v / hz, reach);
         c.hz = hz; c.lead = dx * fy - dy * fx < 0 ? 'L' : 'R';
         let advance = hz * dt;
         while (advance > 0) {
           if (c.phase === 0) {
+            if (c.next) { c.side = c.next; c.next = null; c.recovering = true; c.rest = false; c.settling = false; c.recoveries = (c.recoveries || 0) + 1; }
             c.from = c[c.side].slice(); c.to = base(c.side === 'L' ? -1 : 1);
-            c.to[0] += dx / distance * step; c.to[1] += dy / distance * step;
-            c.lift = tune('stLift', 0.07) * Math.min(1, v / 0.8);
+            if (distance >= 0.00001) { c.to[0] += dx / distance * (v / hz + step); c.to[1] += dy / distance * (v / hz + step); }
+            c.lift = tune('stLift', 0.07) * (c.recovering ? 1 : Math.min(1, v / 0.8));
           }
           const take = Math.min(1 - c.phase, advance); c.phase += take; advance -= take;
           const u = c.phase, blend = u * u * (3 - 2 * u), foot = c[c.side];
@@ -386,15 +387,25 @@
           const lift = u >= 1 ? 0 : Math.sin(Math.PI * u) * c.lift, prevZ = previous[c.side][2];
           foot[2] = c.settling ? cl(lift, Math.max(0, prevZ - 0.6 * dt), prevZ + 0.6 * dt) : lift;
           if (u >= 1 && foot[2] > 0) break;
-          if (u >= 1) { foot[2] = 0; c.side = c.side === 'L' ? 'R' : 'L'; c.phase = 0; c.settling = false; }
+          if (u >= 1) { foot[2] = 0; c.side = c.side === 'L' ? 'R' : 'L'; c.phase = 0; c.settling = false; c.recovering = false; }
         }
       }
       for (const side of ['L', 'R']) {
         const f = c[side], center = base(side === 'L' ? -1 : 1), x = f[0] - center[0], y = f[1] - center[1], d = Math.hypot(x, y);
         if (d > reach) { f[0] = center[0] + x * reach / d; f[1] = center[1] + y * reach / d; }
-        const prev = previous[side], px = pl.x + fy * prev[0] + fx * prev[1], py = pl.y - fx * prev[0] + fy * prev[1];
-        const travel = Math.hypot(f[0] - px, f[1] - py), budget = Math.sqrt(Math.max(0, Math.pow(0.84 * dt, 2) - Math.pow(f[2] - prev[2], 2)));
+        const prev = previous[side], px = prev[0], py = prev[1];
+        const grounded = Math.max(f[2], prev[2]) <= 0.001;
+        c.drag[side] = grounded && Math.hypot(px - center[0], py - center[1]) > reach + 1e-6;
+        const swing = side === c.side && c.phase > 0 && c.phase < 1 && Math.min(f[2], prev[2]) > 0.001 && !c.settling, travel = Math.hypot(f[0] - px, f[1] - py), budget = Math.sqrt(Math.max(0, Math.pow(c.drag[side] ? speed * dt + 0.01 : (swing ? 9 : 0.84) * dt, 2) - Math.pow(f[2] - prev[2], 2)));
         if (travel > budget) { f[0] = px + (f[0] - px) * budget / travel; f[1] = py + (f[1] - py) * budget / travel; }
+        if (c.drag[side]) {
+          const velocity = c.velocity[side], vx = (f[0] - px) / dt, vy = (f[1] - py) / dt, change = Math.hypot(vx - velocity[0], vy - velocity[1]), mix = Math.min(1, 360 * dt / (change || 1));
+          f[0] = px + (velocity[0] + (vx - velocity[0]) * mix) * dt;
+          f[1] = py + (velocity[1] + (vy - velocity[1]) * mix) * dt;
+          const moved = Math.hypot(f[0] - px, f[1] - py);
+          if (moved > budget) { f[0] = px + (f[0] - px) * budget / moved; f[1] = py + (f[1] - py) * budget / moved; }
+        }
+        c.velocity[side] = [(f[0] - px) / dt, (f[1] - py) / dt];
       }
     }
     // 跑动运球：球在最低点往身前推多少（米）
@@ -1227,6 +1238,20 @@
       return [hip, knee, foot, toe];
     }
     const L = leg(-1, P.lA, P.lB, P.lS), R = leg(1, P.rA, P.rB, P.rS);
+    // 两段式 IK：髋固定、脚落点给定，膝盖沿原本的弯曲方向自然弯（整条腿从髋摆动，不是小腿绕膝画圈）
+    function bendKnee(hip, knee, foot, a, b) {
+      const radius = Math.sqrt(Math.max(0, Math.pow((a + b) * 0.999, 2) - Math.pow(foot[2] - hip[2], 2))), horizontal = Math.hypot(foot[0] - hip[0], foot[1] - hip[1]);
+      if (horizontal > radius) {
+        foot[0] = hip[0] + (foot[0] - hip[0]) * radius / horizontal;
+        foot[1] = hip[1] + (foot[1] - hip[1]) * radius / horizontal;
+      }
+      const d = foot.map((v, i) => v - hip[i]), n0 = Math.hypot(...d) || 1e-6, u = d.map((v) => v / n0), L = Math.min(n0, (a + b) * 0.999);
+      const k = knee.map((v, i) => v - hip[i]), kd = k[0] * u[0] + k[1] * u[1] + k[2] * u[2];
+      let w = k.map((v, i) => v - kd * u[i]), wn = Math.hypot(...w);
+      if (wn < 1e-6) { w = [0, 1, 0].map((v, i) => v - u[1] * u[i]); wn = Math.hypot(...w) || 1; }
+      const along = (a * a - b * b + L * L) / (2 * L), up = Math.sqrt(Math.max(0, a * a - along * along));
+      return hip.map((v, i) => v + u[i] * along + w[i] / wn * up);
+    }
     // 卡通弹簧：sq < 1 压扁变宽，> 1 拉长变窄；脚底保持贴地
     const sy = pl.sq || 1, sxk = 1 + (1 - sy) * 0.9;
     const pelZ = (-Math.min(L[2][2], R[2][2]) + 0.06 * Hh) * sy + pl.z + (P.bob || 0) * Hh, bz = GT.bz(pl) / sy;
@@ -1234,7 +1259,7 @@
       for (const [side, leg] of [['L', L], ['R', R]]) {
         const target = [(P['foot' + side + 'X'] || 0) / sxk, P['foot' + side + 'Y'] || 0, ((P['foot' + side + 'Z'] || 0) + pl.z + 0.06 * Hh - pelZ) / sy];
         const foot = leg[2].map((v, i) => lerpN(v, target[i], P.crab));
-        leg[1][2] += (P['foot' + side + 'Z'] || 0) * P.crab / sy;
+        leg[1] = bendKnee(leg[0], leg[1], foot, th, sh);
         leg[2] = foot;
         leg[3] = [leg[2][0], leg[2][1] + 0.2 * Hh, leg[2][2]];
       }
