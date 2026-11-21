@@ -605,6 +605,7 @@ console.log('PASS: a CPU honors an open call according to pass IQ, vetoes a bloc
   assert.equal(G.stats[1].dreb, 1);
   assert.equal(G.off, 0);
   assert(G.needClear);
+  run(1, { 1: api.zeroInp() }); // Release the rebound input before pressing shoot.
   run(1, { 1: { ...api.zeroInp(), a1: true } });
   assert.equal(G.illId, 1, 'Starting a shot inside the arc marks it illegal');
   api.scoreBy(1, 2, 'lay');
