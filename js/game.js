@@ -4184,7 +4184,8 @@
     if (!pl.hasBall || frozen || G.ball.dead || pl.stun > 0) { pl.uuFake = null; pl.uuShot = null; }
     const uf = pl.uuFake;
     const uu = uf || pl.uuShot;
-    if (uu && (uf || G.time <= uu.until)) {
+    const ua = pl.action;
+    if (uu && ua && (ua.type === 'fake' || ua.type === 'move' && ua.kind === 'uu') && (uf || G.time <= uu.until)) {
       const df = nearestDefender(pl);
       if (df && df.z > 0.05) { uu.def = df.id; uu.bitUntil = G.time + K.uuRecover; }
     }

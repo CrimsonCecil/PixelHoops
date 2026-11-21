@@ -146,6 +146,22 @@ assert.equal(bonus(true, true, false, true).uuBonus, 0.08, 'a defender biting du
 assert.equal(bonus(true, true, true).uuBonus, 0, 'a different nearest defender removes the bite bonus');
 console.log('PASS defender-bit probability bonus and normal-contest non-bite case');
 
+{
+  const f = fixture(); f.fake();
+  assert.equal(f.d.z, 0, 'defender stays grounded during the fake');
+  f.direction(0, -1); f.step(); f.neutral(); f.step(15);
+  f.key('KeyJ'); f.step(42);
+  assert.equal(f.p.action.type, 'shot');
+  assert.equal(f.p.action.uu.def, -1, 'no bite recorded during the fake or pivot');
+  Object.assign(f.d, { z: 0.5, vz: 3 });
+  f.step();
+  assert.equal(f.p.action.type, 'shot');
+  assert(f.d.z > 0.05, 'defender jumps to contest the real shot');
+  f.gm._dbg.releaseShot(f.p, 0.7, 'shot');
+  assert.equal(f.G.lastShot.uuBonus, 0, 'a real-shot contest is not a pump-fake bite');
+}
+console.log('PASS defender jumping only at the follow-up shot grants no bite bonus');
+
 for (const chance of [0, 1]) {
   const f = fixture(); f.fake(); f.tune.set('l1_uuCpu', chance);
   Object.assign(f.d, { z: 0.5, vz: 0 }); f.p.ctrl = 'cpu';
