@@ -1243,7 +1243,7 @@
     ['spd', '速度', '最高跑速、终结步幅', '身体'], ['str', '力量', '身体对抗、强起与双手扣、吨位', '身体'], ['vert', '弹跳高度', '盖帽 / 干扰 / 篮板起跳高度、扣篮够筐', '身体'], ['rej', '二次起跳', '落地到下一次起跳的间隔：连续封盖、点拨、补篮 / 补扣', '身体'], ['leap', '起跳距离', '跑动上篮 / 扣篮离筐多远能起跳', '身体'], ['hang', '滞空', '空中调整（拉杆 / 换手）机会、晚到的干扰更难够到', '身体'],
     ['sta', '体力', '冲刺/动作的体力消耗', '身体'], ['hus', '拼抢', '地板球范围与争抢、扑球、防守回追', '身体'], ['dur', '耐久', '5V5 长期疲劳累积速度', '身体'],
   ];
-  // V3.9o 数值为金档（铜 / 银 / 名人堂按档缩放，见 TIER_F）；five: true 的徽章只在 5V5 生效，按能力自动分配（js/b5.js）
+  // V3.9o 数值为金档（铜 / 银 / 名人堂按档缩放，见 TIER_F）；five: true 的团队徽章按能力自动分配（js/b5.js）
   const BADGES = {
     pullup: { name: '持球投', desc: '持球跳投免除普通球员的命中率下降（最多 5 个百分点）' },
     limitless: { name: '无限射程', desc: '9.4 米内三分不因距离衰减（普通球员 7.6 米），7.8 米外三分绿区 +20%' },
@@ -1264,18 +1264,18 @@
     motor: { name: '永动机', desc: '体力消耗 -35%，鱼跃扑球距离 +0.2 米' },
     dream: { name: '梦幻舞步', desc: '背身转身位移更大、更容易转过人，转身贴身时能把防守人撞开' },
     hustle: { name: '拼抢狂人', desc: '鱼跃扑球距离 +0.6 米、扑球手更长、抢地板球更凶，鱼跃体力消耗 -40%' },
-    cs: { name: '接球投篮', five: true, desc: '5V5：接球 0.6 秒内出手命中更高、绿区更宽、出手更快（铜 / 银 / 金 / 名人堂）；战术跑出、掩护后或空位接球再加成' },
-    dimer: { name: '妙传', five: true, desc: '5V5：接到你传球 1.5 秒内的跳投 / 上篮命中更高、绿区更宽' },
-    needle: { name: '穿针引线', five: true, desc: '5V5：传球更难被截（截下概率和防守人够球范围都下降）' },
-    bailout: { name: '空中分球', five: true, desc: '5V5：跳传和突破分球更准、更难被截' },
-    breaker: { name: '长传快攻', five: true, desc: '5V5：抢到防守篮板或抢断后 4 秒内 9 米以上长传：球更快、更准、更难被截；电脑控制时更愿意直接长传找前场空位' },
-    postpm: { name: '低位策应', five: true, desc: '5V5：背打中传出的球更难被截，接球人 1.5 秒内出手命中更高、绿区更宽' },
-    brick: { name: '人墙', five: true, desc: '5V5：掩护撞得更重（更容易挡出重档 / 挡倒），自己被撞得晃动更小' },
-    dodger: { name: '挤过掩护', five: true, desc: '5V5：被掩护撞到时档位更轻、被挡时间更短' },
-    intercept: { name: '截传', five: true, desc: '5V5：截传够球范围更大、截下概率更高' },
-    anchor: { name: '禁区之锚', five: true, desc: '5V5：离筐 3 米内的终结，你在出手人 2.5 米内（协防也算）时干扰更强、更容易盖帽' },
-    chaser: { name: '篮板猎手', five: true, desc: '5V5：投篮篮板抓取范围更大' },
-    boxout: { name: '卡位野兽', five: true, desc: '5V5：对方出手后自动卡位，你贴住的进攻人篮板范围变小' },
+    cs: { name: '接球投篮', five: true, desc: '接球 0.6 秒内出手命中更高、绿区更宽、出手更快（铜 / 银 / 金 / 名人堂）；掩护后或空位接球再加成' },
+    dimer: { name: '妙传', five: true, desc: '接到你传球 1.5 秒内的跳投 / 上篮命中更高、绿区更宽' },
+    needle: { name: '穿针引线', five: true, desc: '传球更难被截（截下概率和防守人够球范围都下降）' },
+    bailout: { name: '空中分球', five: true, desc: '突破分球更准、更难被截；5V5 跳传也生效' },
+    breaker: { name: '长传快攻', five: true, desc: '球权转换后 4 秒内 9 米以上长传：球更快、更准、更难被截；电脑控制时更愿意直接长传找前方空位' },
+    postpm: { name: '低位策应', five: true, desc: '背打中传出的球更难被截，接球人 1.5 秒内出手命中更高、绿区更宽' },
+    brick: { name: '人墙', five: true, desc: '掩护更强，自己被撞得晃动更小；5V5 更容易挡出重档 / 挡倒' },
+    dodger: { name: '挤过掩护', five: true, desc: '被掩护撞到时影响更轻、被挡时间更短' },
+    intercept: { name: '截传', five: true, desc: '截传够球范围更大、截下概率更高' },
+    anchor: { name: '禁区之锚', five: true, desc: '离筐 3 米内的终结，你在出手人 2.5 米内（协防也算）时干扰更强、更容易盖帽' },
+    chaser: { name: '篮板猎手', five: true, desc: '投篮篮板抓取范围更大' },
+    boxout: { name: '卡位野兽', five: true, desc: '对方出手后自动卡位，你贴住的进攻人篮板范围变小' },
   };
   // V3.9o 分档：0 = 没有，1 铜 / 2 银 / 3 金 / 4 名人堂（HOF）。cs 按三分自动分配（只在 5V5）；
   // 1V1 徽章持有名单是手配的，这里只算档位（持有者最低铜档）；其余 5V5 徽章的分配在 js/b5.js
@@ -2999,6 +2999,14 @@
   function catchShot(pl) {
     return teamPlay() && pl.passCatchT != null && G.time - pl.passCatchT >= 0 && G.time - pl.passCatchT <= 0.6 && !pl.catchDribbled;
   }
+  const CSB = { p: [0, 0.02, 0.035, 0.055, 0.075], g: [0, 0.08, 0.15, 0.25, 0.36], t: [0, 0.02, 0.035, 0.05, 0.065] };
+  function csBadge(pl, a, k, open, play, xg) {
+    if (!k) return;
+    const xp = open ? (play ? 0.006 : 0.012) + 0.004 * k : 0;
+    a.t += CSB.t[k];
+    a.V = Object.assign({}, a.V, { p: (a.V.p || 1) * (1 + CSB.p[k] + xp), g: (a.V.g || 1) * (1 + CSB.g[k] + (open ? xg : 0)) });
+    a.csB = k;
+  }
   function startShot(pl, inp, btn, cancelVariant, postAt = inp.rsHold && pl.rsGesture ? pl.rsGesture.t : G.time) {
     const follow = postFollow(pl, postAt) ? pl.postMove : null;
     const d = distHoop(pl), q = inDir(pl, inp), df = OP(pl), postSide = follow ? follow.side : null;
@@ -3041,11 +3049,21 @@
         moveDefense(pl, kind === 'Front' ? 'postdrop' : 'postspin', a.stride.dx, a.stride.dy, { PS, MT: T });
       }
     }
-    if (G.mode === 't3' && a.catchShot && G.time - pl.passCatchT <= 0.5 && !V.hook) {
-      const q = pl.passQuality - 0.65, ready = pl.passQuality >= 0.55 && contestOf(pl, df) < 0.35;
-      a.t += Math.max(0, (ready ? 0.04 + 0.04 * clamp((pl.r.three - 0.6) / 0.35, 0, 1) : 0) + 0.06 * q);
-      const p = ready ? 1.03 + 0.04 * clamp((pl.r.three - 0.7) / 0.25, 0, 1) : 0.96;
-      a.V = Object.assign({}, V, { p: V.p * p * (1 + 0.15 * q), g: V.g * (ready ? 1.08 : 1) * (1 + q) });
+    if (G.mode === 't3' && a.catchShot && !V.hook) {
+      if (G.time - pl.passCatchT <= 0.5) {
+        const q = pl.passQuality - 0.65, ready = pl.passQuality >= 0.55 && contestOf(pl, df) < 0.35;
+        a.t += Math.max(0, (ready ? 0.04 + 0.04 * clamp((pl.r.three - 0.6) / 0.35, 0, 1) : 0) + 0.06 * q);
+        const p = ready ? 1.03 + 0.04 * clamp((pl.r.three - 0.7) / 0.25, 0, 1) : 0.96;
+        a.V = Object.assign({}, V, { p: V.p * p * (1 + 0.15 * q), g: V.g * (ready ? 1.08 : 1) * (1 + q) });
+      }
+      const B = PH.B5, k = B && (B.off || B.dis.cs) ? 0 : BADGE_TIER.cs(pl.r);
+      const defenders = G.players.filter((p) => p.tm !== pl.tm);
+      const open = defenders.every((p) => Math.hypot(p.x - pl.x, p.y - pl.y) > 1.8) || PH.T3?.T.pick?.s === pl || defenders.some((p) => p.opp === pl && p.screenSlow3 > G.time);
+      csBadge(pl, a, k, open, false, PH.T5 && PH.T5.TV ? PH.T5.TV.t5_csb_xg : 0.04);
+      if (k && !G.bpops.some((x) => x.pid === pl.id && x.key === 'cs' && G.time - x.t0 < 2.5)) {
+        G.bpops.push({ pid: pl.id, key: 'cs', name: BADGES.cs.name, tier: k, t0: G.time });
+        if (G.bpops.length > 6) G.bpops.shift(); sfx('badge');
+      }
     }
     // 勾手：侧身对着篮筐，用离篮筐远的那只手出手；默认往禁区中路转身，推左右可以自己选方向
     if (V.hook) { const hd = hoopDir(pl), sx = Math.sign(hd.y * pl.x) || 1; a.hs = Math.abs(q.lat) > 0.35 && q.l > 0.35 ? (q.lat > 0 ? 1 : -1) : sx; a.hand = -a.hs; }
@@ -5250,7 +5268,7 @@
         const o = OP(p);
         if (p.z > 0.05) rg *= 1 + K.rbJmp * jumpQ(p);
         if (o.box && !o.off && Math.hypot(o.x - p.x, o.y - p.y) < K.rbBoxR && Math.hypot(o.x - b.x, o.y - b.y) < d) rg *= K.rbBox;
-        if (G.mode === 't5' && G.h5 && G.h5.rebK) rg *= G.h5.rebK(p);   // V3.9o 5V5 篮板猎手 / 卡位野兽（js/b5.js）
+        if (teamPlay() && G.h5 && G.h5.rebK) rg *= G.h5.rebK(p);
         // 防"吸球"：没起跳时手够不到头顶上方远处的球——球越高，能抓的水平范围越小（手臂是举直的，不是伸长的）
         const hz = b.z - p.z - p.h * 0.95;
         if (hz > 0) rg *= lerp(1, air ? K.rbHiA : K.rbHiG, clamp(hz / (reach - p.z - p.h * 0.95), 0, 1));
@@ -6418,6 +6436,7 @@
   }
   const T5API = { begin: t5begin, end: t5end, step: t5step, trackReplay, replayTick, makePlayer: makePlayer, aiInput: aiInput, zeroInp: zeroInp, newStats: newStats, contestOf: contestOf, contestInfo: contestInfo,
     passProfiles: PASS, passHeight, startFinish, alleyFinish, alleyWindow, looseBall, rnd,
+    CSB: CSB, csBadge: csBadge,
     distHoop: distHoop, isThree: isThree, finPlan: finPlan, OP: OP, TM: TM, pickup: pickup, float: float, led: led, sfx: sfx, vo: vo, vic: vic, burst: burst, part: part, hasB: hasB, powOf: powOf,
     knock: knock, bpop: bpop, tkAdd: tkAdd, fxReset: fxReset, rebBall: rebBall, hustle: hustle, HOOP: HOOP, cold: cold, scoreBy: scoreBy, banner: banner, passIntercept: passIntercept, interceptionStyle: interceptionStyle, localizeInterception: localizeInterception, checkBall: checkStart, checkStep: checkStep };
   // V4.0 区域可视化（调参台打开时 render.js 画）：单位米。lay / float / dunk / euro 以篮筐地面投影为圆心，表示“从这个圈内开始收球能做出该终结”（= 起跳上限 + 两步步幅）；
