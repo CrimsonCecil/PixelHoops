@@ -26,7 +26,7 @@
   function check(team, message) {
     const off = teams(team), def = teams(1 - team);
     const h = off.find((p) => p.ctrl !== 'cpu') || off[0];
-    T.pass = null; T.request = null; G.phase = 'check'; G.phaseT = 0.9; G.off = team;
+    T.pass = null; T.request = null; T.passQueue = null; G.phase = 'check'; G.phaseT = 0.9; G.off = team;
     G.shotClock = T.clock; G.needClear = false; G.illId = -1;
     const spots = [[0, 4.65], [-6.8, 9.0], [6.8, 9.0]];
     const order = [h, ...off.filter((p) => p !== h)];
@@ -52,9 +52,10 @@
     const tm = p.tm;
     G.score[tm] += pts;
     G.stats[p.id].pts = (G.stats[p.id].pts || 0) + pts;
-    G.phase = 'dead'; G.phaseT = 1.0; T.next = 1 - tm;
+    const beat = T.replay && G.vopt.replay && G.hlQ ? GM.replayFlow.makeBeat + 0.05 : 1;
+    G.phase = 'dead'; G.phaseT = beat; T.next = 1 - tm;
     if (G.score[tm] >= G.target) G.winner = tm;
-    A.banner(pts === 3 ? '三分命中' : '两分命中', p.arch.name + ' · ' + GM.TEAMS[tm].name + ' +' + pts, p.team.css, 1.0);
+    A.banner(pts === 3 ? '三分命中' : '两分命中', p.arch.name + ' · ' + GM.TEAMS[tm].name + ' +' + pts, p.team.css, beat);
   }
   function gotBall(p) {
     T.acquired = G.time; T.pass = null;
@@ -122,7 +123,10 @@
     if (u > 0.12) {
       const d = nearest(teams(1 - P.from.tm), b);
       if (!d.stun && dist(d, b) < 0.22 + d.tendency.read * 0.35) {
-        G.stats[d.id].stl++; G.stats[P.from.id].tov++; A.pickup(d); A.float('抢断传球', d, '#7dff8a', 1); return;
+        const local = G.players.find(p => p.ring && p.ctrl !== 'cpu');
+        G.stats[d.id].stl++; G.stats[P.from.id].tov++;
+        A.passIntercept(d, local ? local.tm : null);
+        A.pickup(d, 'intercept'); A.float('抢断传球', d, '#7dff8a', 1); return;
       }
     }
     if (u === 1) A.pickup(P.to);
@@ -175,13 +179,21 @@
     if (G.replay) { A.replayTick(dt); return; }
     T.inputs = inputs || {};
     const h = holder();
+    for (const p of G.players) {
+      const inp = T.inputs[p.id], pass = !!(inp?.pass && p.ctrl !== 'cpu');
+      if (pass && !T.prev[p.id] && p === h && (G.phase === 'check' || G.phase === 'live')) {
+        T.passQueue = { p, inp, until: G.time + 1 };
+      }
+      if (p === h || G.phase !== 'live') T.prev[p.id] = pass;
+    }
+    const queued = T.passQueue;
+    if (queued && (queued.p !== h || queued.until <= G.time || send(h, target(h, queued.inp).p))) T.passQueue = null;
     if (G.phase === 'live') {
       matchups();
       for (const p of G.players) {
         const inp = T.inputs[p.id], pass = !!(inp && inp.pass && p.ctrl !== 'cpu');
         if (pass && !T.prev[p.id] && h && p.tm === h.tm) {
-          if (p === h) send(p, target(p, inp).p);
-          else if (h.ctrl === 'cpu') T.request = { p, until: G.time + 0.7 };
+          if (h.ctrl === 'cpu') T.request = { p, until: G.time + 0.7 };
         }
         T.prev[p.id] = pass;
       }

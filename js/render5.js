@@ -26,7 +26,7 @@
   }
   function halfW() { const d0 = (0 - cam.y) * cam.fy + (0 - cam.z) * cam.fz; return (W / 2) * d0 / cam.F; }
   let camX = 0;
-  function reset() { init(); if (!saved) saved = { cv: Object.assign({}, R.CAMV), oy: cam.oy }; camX = 0; applyCam(0); }
+  function reset() { RPL.reset(); init(); if (!saved) saved = { cv: Object.assign({}, R.CAMV), oy: cam.oy }; camX = 0; applyCam(0); }
 
   function palette(T) {
     const key = T.tm[0].ab;
@@ -276,7 +276,7 @@
       else if (e.k === 'rimB') drawRim(e.s, 'back');
       else drawRim(e.s, 'front');
     }
-    for (const q of F.parts) { const pp = R.proj(d * q.y, -d * q.x, q.z); if (pp.d < 1) continue; ctx.fillStyle = q.col; ctx.fillRect(Math.round(pp.x), Math.round(pp.y), q.s || 1, q.s || 1); }
+    for (const q of F.parts) { const pp = R.proj(d * q.y, -d * q.x, q.z); if (pp.d < 1) continue; const sz = R.particleSize(q, pp.s), offset = q.interceptTeam != null ? sz / 2 : 0; ctx.fillStyle = q.col; ctx.fillRect(Math.round(pp.x - offset), Math.round(pp.y - offset), sz, sz); }
     if (F.rings) for (const r of F.rings) {
       if (r.t < 0) continue; const u = r.t / r.T, c = R.proj(d * r.y, -d * r.x, r.z); if (c.d < 1) continue;
       const rad = (0.25 + r.R * (1 - (1 - u) * (1 - u))) * c.s * 0.5, n = Math.max(16, Math.round(rad * 0.9)); ctx.fillStyle = r.col;
@@ -505,7 +505,7 @@
       else drawRim(e.s, 'front');
     }
     if (ghost) drawGhost(ghost, T, cs, sn);
-    for (const q of F.parts) { const pp = R.proj(U(q.x, q.y), V(q.x, q.y), q.z); if (pp.d < 1.2) continue; ctx.fillStyle = q.col; ctx.fillRect(Math.round(pp.x), Math.round(pp.y), q.s || 1, q.s || 1); }
+    for (const q of F.parts) { const pp = R.proj(U(q.x, q.y), V(q.x, q.y), q.z); if (pp.d < 1.2) continue; const sz = R.particleSize(q, pp.s), offset = q.interceptTeam != null ? sz / 2 : 0; ctx.fillStyle = q.col; ctx.fillRect(Math.round(pp.x - offset), Math.round(pp.y - offset), sz, sz); }
     if (F.rings) for (const r of F.rings) {
       if (r.t < 0) continue; const u = r.t / r.T, c = R.proj(U(r.x, r.y), V(r.x, r.y), r.z); if (c.d < 1.2) continue;
       const rad = (0.25 + r.R * (1 - (1 - u) * (1 - u))) * c.s * 0.5, n = Math.max(16, Math.round(rad * 0.9)); ctx.fillStyle = r.col;
@@ -698,7 +698,7 @@
   }
   // ---------- V4.4 5V5 即时回放（顶翻）：team5 没有回放，这里自己录帧 + 播放 ----------
   // 录：包住 PH.T5.tick，每个逻辑帧后录一份画面快照（位置 / 姿势 / 倒地字段 / 球 / 粒子），保留 6 秒
-  // 触发：game.js 接触帧写 G.thruMk；这次进攻进入死球 / 发球阶段、接触后 ≥1s 时播放（活球里不打断比赛，5s 内没死球就作废）
+  // 触发：game.js 接触帧写 G.thruMk；死球 / 发球时播放，进球后先留一拍（活球里不打断比赛，5s 内没死球就作废）
   // 播放：暂停 team5 tick；接触前后 0.35s 慢放 ×0.25（0.8s 内 ×0.5，其余 ×0.8）；镜头对准接触点、推近；上下黑边 + REPLAY 标；A/B/X/Y 跳过
   const RPL = (function () {
     // 只在真的在画 5V5 时播（rT = 最近一次 render 的比赛时间）；无画面的批量模拟（t5sim 等）不进回放
@@ -718,20 +718,24 @@
         const dir = T5.dir[mk.off]; S.mk = Object.assign({}, mk, { x: dir * mk.y, y: -dir * mk.x });
       }
       if (S.mk && Gm.time - S.mk.t > 5) S.mk = null;
-      if (S.mk && Gm.time - S.mk.t > 1.0 && S.rT != null && Math.abs(Gm.time - S.rT) < 0.5 && (T5.phase === 'dead' || T5.phase === 'inb') && !(PH.game.G.vopt && PH.game.G.vopt.replay === false)) start();
+      if (S.mk && PH.game.replayFlow.ready() && Gm.time - S.mk.t > 1.0 && S.rT != null && Math.abs(Gm.time - S.rT) < 0.5 && (T5.phase === 'dead' || T5.phase === 'inb') && Gm.vopt.replay !== false) start();
     }
     function start() {
       const mk = S.mk; S.mk = null; const fr = S.buf.filter((f) => f.t >= mk.t - 1.4 && f.t <= mk.t + 1.3); if (fr.length < 40) return;
-      Object.assign(S, { on: true, fr, q: mk, rt: fr[0].t, t1: fr[fr.length - 1].t, i: 0, age: 0, view: null, cam: { x: mk.x, y: mk.y, w: 0 }, prev: null });
+      Object.assign(S, { on: true, fr, q: mk, rt: fr[0].t, t1: fr[fr.length - 1].t, i: 0, age: 0, wipeIn: 0, wipeOut: 0, view: null, cam: { x: mk.x, y: mk.y, w: 0 }, prev: null });
       S.log = (S.log || []).concat([{ t: G5().time, k: mk.k }]);
       try { PH.game.sfx && PH.game.sfx('swoosh'); } catch (e) {}
     }
-    function stop() { S.on = false; S.view = null; S.buf.length = 0; PH.T5.T.camSnap = true; }
+    function stop() { S.on = false; S.view = null; S.fr = null; S.buf.length = 0; }
+    function reset() { stop(); S.mk = S.seen = S.rT = null; }
     function tick(dt) {
-      dt = Math.min(dt, 0.05); S.age += dt;
+      dt = Math.min(dt, 0.05);
       const R = PH.input.read5 ? PH.input.read5() : {}; PH.input.endTick();
       const any = !!(R.A || R.B || R.X || R.Y), edge = any && !S.prev; S.prev = any;
-      if ((edge && S.age > 0.5) || S.rt >= S.t1) { stop(); return; }
+      const wasReplay = !!S.view, phase = PH.game.replayFlow.advance(S, dt, (edge && S.age > 0.5) || S.rt >= S.t1);
+      if (wasReplay && !S.view) PH.T5.T.camSnap = true;
+      if (phase === 'done') stop();
+      if (phase !== 'play') return;
       const e = S.rt - S.q.t, ae = Math.abs(e);
       S.rt += dt * (ae < 0.35 ? 0.25 : ae < 0.8 ? 0.5 : 0.8);
       while (S.i < S.fr.length - 1 && S.fr[S.i + 1].t <= S.rt) S.i++;
@@ -757,7 +761,7 @@
       ctx.font = FONT; ctx.textBaseline = 'top'; text('REPLAY' + (slow ? ' ×0.25' : ''), x + 13, y, '#ffffff');
       const s = S.q.k === 'fall' ? '顶翻' : '顶退'; text(s, W - 8 - Math.ceil(ctx.measureText(s).width), y, '#ffb02a');
     }
-    return Object.assign(S, { rec, tick, swap, hud, start, stop, S });
+    return Object.assign(S, { rec, tick, swap, hud, start, stop, reset, S });
   })();
   if (PH.T5 && PH.T5.tick && !PH.T5.tick.__rpl) {
     const t0 = PH.T5.tick, tk = function (dt) { if (RPL.on) { RPL.tick(dt); return; } t0.call(this, dt); try { RPL.rec(); } catch (e) { RPL.buf.length = 0; } };

@@ -23,6 +23,37 @@ html, body { height: 100%; background: var(--bg); overflow: hidden; color: var(-
 body { display: flex; align-items: center; justify-content: center; }
 #stage { position: relative; width: 960px; height: 540px; overflow: hidden; background: #070a16; }
 #game { position: absolute; inset: 0; width: 100%; height: 100%; image-rendering: pixelated; image-rendering: crisp-edges; display: block; }
+#replay-wipe {
+  --cover: 0;
+  --edge: calc((98.2 * var(--cover) - 32) * 1%);
+  --wipe-ink: #0c1022;
+  --wipe-trim: #d6af57;
+  position: absolute; inset: 0; z-index: 16; pointer-events: none;
+  display: grid; place-items: center; overflow: hidden;
+  background: rgb(12 16 34 / clamp(0, calc((var(--cover) - .99) * 100), 1));
+}
+#replay-wipe::before, #replay-wipe::after { content: ""; position: absolute; inset: 0; }
+#replay-wipe::before {
+  background: #171c36; clip-path: polygon(0 0, var(--edge) 0, calc(var(--edge) - 32%) 100%, 0 100%);
+}
+#replay-wipe::after {
+  background: var(--wipe-ink); clip-path: polygon(calc(132% - var(--edge)) 0, 100% 0, 100% 100%, calc(100% - var(--edge)) 100%);
+}
+.wipe-brand {
+  position: relative; z-index: 1; text-align: center; line-height: 1;
+  padding: calc(var(--u) * 4) calc(var(--u) * 8);
+  background: var(--wipe-ink); border-block: 2px solid var(--wipe-trim);
+  opacity: clamp(0, calc((var(--cover) - .76) * 5), 1);
+}
+.wipe-brand strong {
+  display: block; font-size: clamp(22px, 6vw, var(--fs-xl)); font-weight: normal;
+  color: var(--gold); letter-spacing: .06em; text-shadow: 3px 3px #a8481c;
+}
+.wipe-brand span { display: block; margin-top: calc(var(--u) * 2); font-size: var(--fs-sm); color: var(--text); letter-spacing: .22em; }
+@media (prefers-reduced-motion: reduce) {
+  #replay-wipe { background: rgb(12 16 34 / var(--cover)); }
+  #replay-wipe::before, #replay-wipe::after { content: none; }
+}
 .hidden { display: none !important; }
 button { font-family: var(--font); font-size: var(--fs-sm); color: var(--text); background: var(--panel-2); border: calc(var(--u) * 1) solid var(--ink); box-shadow: inset 0 calc(var(--u) * -1) 0 #141a38, inset 0 calc(var(--u) * 1) 0 #3a4688; padding: calc(var(--u) * 2.5) calc(var(--u) * 5); cursor: pointer; line-height: 1.2; min-height: 30px; }
 button:hover { background: #2c3668; }

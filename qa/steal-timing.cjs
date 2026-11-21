@@ -29,7 +29,7 @@ function fixture(source) {
         "T: K.stlT, done: false }; pl.animT",
         "T: K.stlT, done: false, qaMove: pl.qaReachMove }; if (pl.qaReachMove) { reachAudit.started++; pl.qaReachMove = null; } pl.animT"
       );
-      code = code.replace('function updateAction(pl, inp, dt) {', `function updateAction(pl, inp, dt) {
+      code = code.replace('function updateAction(pl, inp, dt, shootPress) {', `function updateAction(pl, inp, dt, shootPress) {
         const df = OP(pl), a = pl.action;
         const judge = a.type === 'steal' && !a.done && a.t + dt >= K.stlHitT;
         const inRange = judge && df.hasBall && Math.hypot(df.x - pl.x, df.y - pl.y) < K.stlR;
@@ -52,11 +52,11 @@ function fixture(source) {
           if (!inRange && df.action === a.qaMove && stealRead(pl, df).timed) reachAudit.rangeOnly++;
           if (timed && df.action === a.qaMove) reachAudit.scheduledTimedInRange++;
         }
-        updateActionOriginal(pl, inp, dt);
+        updateActionOriginal(pl, inp, dt, shootPress);
         if (timed && G.stats[pl.id].stl > before) reachAudit.timedHits++;
         if (judge && a.qaMove && G.stats[pl.id].stl > before) reachAudit.scheduledHits++;
       }
-      function updateActionOriginal(pl, inp, dt) {`);
+      function updateActionOriginal(pl, inp, dt, shootPress) {`);
     }
     vm.runInContext(code, ctx, { filename: name + '.js' });
   }
@@ -67,12 +67,12 @@ function fixture(source) {
   return gm;
 }
 
-function sample(gm, { kind = 'cross', mv, u = 0.5, side = 1, hand = 1, mode = '2p', chin = false, type = 'move', range = 1.05, fb = 'detail' } = {}) {
+function sample(gm, { kind = 'cross', mv, u = 0.5, side = 1, hand = 1, mode = '2p', chin = false, type = 'move', range = 1.05, fb = 'detail', post = false, lateral = 0.8, forward = 0.6, face = Math.PI / 2 } = {}) {
   const { G, K, t5 } = gm, [p, d] = G.players;
   G.mode = mode;
   Object.assign(G, { phase: 'live', needClear: false, off: 0, fb, floats: [] });
-  Object.assign(p, { x: 0, y: 5, face: Math.PI / 2, hand, handX: 0.33 * hand, hasBall: true, action: type ? { type, kind, mv, h0: hand, h1: hand, t: u, T: 1 } : null, chinT: chin ? G.time + 1 : 0, post: false, z: 0, opp: d });
-  Object.assign(d, { x: side * hand * range * 0.8, y: 5 + range * 0.6, face: -Math.PI / 2, hasBall: false, ctrl: 'p2', action: { type: 'steal', t: K.stlHitT, T: K.stlT }, opp: p });
+  Object.assign(p, { x: 0, y: 5, face, hand, handX: 0.33 * hand, hasBall: true, action: type ? { type, kind, mv, h0: hand, h1: hand, t: u, T: 1 } : null, chinT: chin ? G.time + 1 : 0, post, z: 0, opp: d });
+  Object.assign(d, { x: side * hand * range * lateral, y: 5 + range * forward, face: -Math.PI / 2, hasBall: false, ctrl: 'p2', action: { type: 'steal', t: K.stlHitT, T: K.stlT }, opp: p });
   Object.assign(G.ball, { state: 'held', holder: 0, dead: false, x: p.x, y: p.y, z: 0.8 });
   const before = G.stats[1].stl;
   gm._qa.updateAction(d, t5.zeroInp(), 0);
@@ -80,10 +80,19 @@ function sample(gm, { kind = 'cross', mv, u = 0.5, side = 1, hand = 1, mode = '2
 }
 
 function rates(gm, label) {
+  gm.G.players[0].r.hnd = 0.5;
+  gm.G.players[1].r.stl = 0.5;
   const cases = {
     'cross in-window': {}, 'cross out-of-window': { u: 0.05 },
     'ball-side': { type: null }, 'across-body': { type: null, side: -1 },
     'safe behind': { kind: 'behind' },
+    'neutral': { type: null, lateral: 0, forward: 1 },
+    'behind': { type: null, lateral: 0, forward: -1 },
+    'fake in-window': { type: 'fake' },
+    'fake out-of-window': { type: 'fake', u: 0.05 },
+    'ordinary post': { type: null, post: true, face: -Math.PI / 2, forward: 0, lateral: -1 },
+    'post away-side': { type: null, post: true, face: -Math.PI / 2, forward: -1, lateral: 0 },
+    'post hoop-side': { type: null, post: true, face: -Math.PI / 2, forward: 1, lateral: 0 },
   };
   const result = {};
   for (const [name, opts] of Object.entries(cases)) {
@@ -212,8 +221,15 @@ if (process.env.STEAL_BASELINE) {
 const gm = fixture();
 const r = rates(gm, 'after');
 assert(r['cross in-window'] > r['cross out-of-window'] + 0.2);
-assert(r['ball-side'] > r['across-body'] + 0.1);
-assert(r['across-body'] >= 0.04 && r['across-body'] <= 0.06, 'reckless reaches retain a low real chance');
+assert(r['ball-side'] >= 0.08 && r['ball-side'] <= 0.12, 'average ball-side dribbling stays in the normal band');
+assert(r['across-body'] < 0.01 && r.behind < 0.01, 'unreasonable reaches almost never succeed');
+assert(Math.abs(r['cross out-of-window'] - r['ball-side']) < 0.02);
+assert(r.neutral > r['ball-side'] * 0.35 && r.neutral < r['ball-side'] * 0.65);
+assert(r['fake in-window'] > r['fake out-of-window'] + 0.15);
+assert(r['ordinary post'] >= 0.04 && r['ordinary post'] <= 0.06);
+assert(r['post away-side'] >= 0.25 && r['post away-side'] <= 0.35);
+assert(r['post away-side'] > r['ball-side'] + 0.15 && r['post away-side'] > r['ordinary post'] + 0.2);
+assert(r['post hoop-side'] < 0.01);
 assert.equal(r['safe behind'], 0);
 for (const hand of [-1, 1]) {
   gm.seed(7); const right = Array.from({ length: 100 }, () => sample(gm, { hand, mode: '2p' }).hit);
@@ -280,6 +296,8 @@ for (const type of ['layup', 'dunk']) assert(!sample(gm, { type }).hit, 'finishe
   ai.t5.aiInput(d, 0);
   assert.equal(d.ai.stealPlan, null, 'possession/action changes discard pending reactions');
 }
-const steals = possessions(fixture(), 'after');
-assert(steals >= 1.6 * 13 && steals <= 40, 'CPU steals should be at least 1.6x the 13/3000 baseline, without overshooting');
+const simulation = fixture();
+const steals = possessions(simulation, 'after');
+assert(steals >= 6 && steals <= 38, 'CPU steals remain possible without exceeding the old elevated rate');
+assert(simulation.reachAudit.judged > 0, 'possession audit instruments the shared judgment');
 console.log('PASS steal timing, geometry, recovery, exclusions and shared 5V5 judgement');
