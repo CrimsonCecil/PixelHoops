@@ -4060,7 +4060,7 @@
       pl.postFakeCount = (pl.postFakeCount || 0) + 1;
       const side = shot.fakeSide, n = pl.postFakeN = (pl.postFakeN || 0) + 1;
       pl.postFakeSide = side;
-      pl.action = { type: 'fake', postFake: true, fakeId: (side > 0 ? 'left' : 'right') + (n % 2 ? 'Shoulder' : 'High'), side, t: 0, T: K.poFakeT / bk(pl, 'dream', 1.2), jf: false };
+      pl.action = { type: 'fake', postFake: true, canBite, fakeId: (side > 0 ? 'left' : 'right') + (n % 2 ? 'Shoulder' : 'High'), side, t: 0, T: K.poFakeT / bk(pl, 'dream', 1.2), jf: false };
       if (shot.stride) pl.vx = pl.vy = 0;
       pl.animT = 0; pl.post = true; pl.postFaceLock = false;
       pl.postMove = shot.postFollow && G.time - shot.postFollow.t < K.poFollow ? shot.postFollow : null;
@@ -6511,6 +6511,7 @@
         ai.willJump = pl.dummy ? true : oa.type === 'shot' ? rnd() < K.aiJmpS + 0.15 * G.diff : relPos(pl, opp) > -0.3 || skOf(pl, 'lebron') || rnd() < 0.15;
       }
       if (oa.type !== 'fake' && !(pl.dummy && gap > 1.6)) go(opp.x + hx * 0.6, opp.y + hy * 0.6, 1);
+      if (oa.postFake && oa.canBite === false) { ai.jumpAt = -1; ai.willJump = false; }
       if (ai.jumpAt > 0 && G.time >= ai.jumpAt) {
         ai.jumpAt = -1;
         if (!(opt && opt.noJump) && ai.willJump && dd < K.aiJmpD && (oa.type !== 'fake' || rnd() < D.bite * (oa.jf ? 0.85 : 1) * (oa.postFake ? 1 : lerp(K.uuBiteLow, K.uuBiteHigh, uuQuality(opp)) * bk(opp, 'fakes', K.bgFakesBite))) && !(oa.released)) { o.a1 = true; if (oa.type === 'fake') bpop(opp, 'fakes'); } // 起跳假投诱导略弱

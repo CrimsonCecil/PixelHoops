@@ -7,7 +7,7 @@ const ctx = vm.createContext({ console, performance: { now: () => 0 }, setTimeou
 ctx.window = ctx;
 for (const name of ['tune', 'ptype', 'render', 'roster', 'measurements', 'r5', 'game', 'b5', 'team5', 'team3']) {
   let source = fs.readFileSync(path.join(__dirname, '../js', name + '.js'), 'utf8');
-  if (name === 'game') source = source.replace('PH.game = {', 'PH.postFakeQA = { updatePlayer, pumpFake }; PH.game = {');
+  if (name === 'game') source = source.replace('PH.game = {', 'PH.postFakeQA = { updatePlayer, pumpFake, aiInputCore }; PH.game = {');
   vm.runInContext(source, ctx, { filename: name + '.js' });
 }
 const { game: gm, T5: team, TUNE: tune } = ctx.PH;
@@ -96,6 +96,31 @@ console.log('PASS post held releases: J/X and stick still shoot airborne after t
   }
 }
 console.log('PASS capped fake differentiation: later fakes retain the ball without provoking another defensive bite');
+
+for (const mode of ['2p', 't3', 't5']) for (const exhausted of [false, true]) {
+  const p = fixture(mode);
+  const defenders = G.players.filter(d => d !== p && (mode === '2p' || d.tm !== p.tm));
+  for (const d of defenders) Object.assign(d, { off: false, dummy: false, x: p.x + 0.2, y: p.y + 1, opp: p, D: { ...gm.DIFF[1], react: 0.01, bite: 1, steal: 0 } });
+  p.opp = defenders[0]; p.postFakeCount = exhausted ? 1 : 0;
+  tune.set('l1_poFakeBite', 1);
+  tune.set('l1_aiJmpS', 1); tune.set('l1_aiJmpMin', 0);
+  dbg.startShot(p, zero(), 'a1', 'turn');
+  for (const d of defenders) {
+    ctx.PH.postFakeQA.aiInputCore(d, dt);
+    assert(d.ai.willJump && d.ai.jumpAt > G.time && d.ai.seenAct === p.action, 'a genuine shot start schedules a defender jump');
+  }
+  step(p, { post: true });
+  assert(p.hasBall && p.action.postFake);
+  G.time += 0.11;
+  for (const d of defenders) {
+    const input = ctx.PH.postFakeQA.aiInputCore(d, dt);
+    ctx.PH.postFakeQA.updatePlayer(d, input, dt);
+    console.log(`Queued reaction ${mode} exhausted=${exhausted}: jumpInput=${!!input.a1} defenderZ=${d.z.toFixed(6)}`);
+    assert.equal(d.z > 0, !exhausted, 'only an effective fake can make the defender actually leap');
+    assert.equal(!!input.a1, !exhausted, `${mode} exhausted=${exhausted}: pending shot reaction must respect the effective fake cap`);
+  }
+}
+console.log('PASS pending post reactions: genuine shot-start jumps survive effective fakes but never exhausted fakes, including help defenders in 1V1/3V3/5V5');
 
 function flight(v, arc, error = 0) {
   const p = fixture();
