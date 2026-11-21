@@ -142,16 +142,27 @@ for (const [mode, flipped, camera] of [['1v1', false, '2k'], ['5v5', false, '2k'
   for (const recentFake of [false, true]) for (const [mv, x, y] of directions) {
     const f = fixture(mode, flipped, camera); f.p.y = f.ctx.PH.render.HOOP.y - 3.5;
     if (recentFake) f.fake();
-    f.direction(x, y, 'pad', false); f.step(12);
-    assert.notEqual(f.p.action?.type, 'move', 'no move before flick release or hold threshold');
+    f.direction(x, y, 'pad', false); f.step();
+    assert.equal(f.p.action?.type, 'move', 'stick deflection dispatches the move on the first frame');
+    const move = f.p.action;
+    f.step(11);
     f.pads[0].axes[2] = f.pads[0].axes[3] = 0; f.step();
-    assert.equal(f.p.action?.type, 'move', 'quick flick dispatches a move on release');
+    assert.strictEqual(f.p.action, move, 'quick flick keeps the same move without another release-time input');
+    assert(!f.p.buf);
     if (recentFake) assert.equal(f.p.action.mv, mv);
     const h = fixture(mode, flipped, camera); h.p.y = h.ctx.PH.render.HOOP.y - 3.5;
     if (recentFake) h.fake();
-    h.direction(x, y, 'pad', false); h.step(27);
+    h.direction(x, y, 'pad', false); h.step();
+    const heldMove = h.p.action;
+    assert.equal(heldMove?.type, 'move');
+    h.step(26);
     if (recentFake) assert.equal(h.p.action?.mv, mv, 'right-stick hold selects a directional UU');
-    else assert(['shot', 'layup'].includes(h.p.action?.type), 'right-stick hold selects a shot');
+    else {
+      assert.equal(h.p.action?.type, 'shot', 'holding interrupts the dribble into a shot');
+      assert.notStrictEqual(h.p.action, heldMove);
+      assert(h.p.action.t < 0.04, 'shot meter starts at conversion, not initial deflection');
+      assert.equal(h.p.ib, null); assert.equal(h.p.buf, null);
+    }
     while (h.p.action?.kind === 'uu') h.step();
     assert(['shot', 'layup'].includes(h.p.action?.type));
     if (recentFake) assert.equal(h.p.action.type, mv === 'uuForward' ? 'layup' : 'shot');
@@ -161,10 +172,16 @@ for (const [mode, flipped, camera] of [['1v1', false, '2k'], ['5v5', false, '2k'
       assert(h.p.action.released, 'stick release controls shot-meter timing');
     }
   }
+  const early = fixture(mode, flipped, camera); early.fake();
+  early.direction(-1, 0, 'pad', false); early.step(27);
+  assert(early.p.action.uuHold, 'holding past the threshold arms the immediate UU follow-up');
+  early.pads[0].axes[2] = early.pads[0].axes[3] = 0;
+  early.step(90);
+  assert(!early.p.action && early.p.hasBall, 'neutral during the pivot cancels the automatic follow-up');
   const f = fixture(mode, flipped, camera); f.tune.set('l1_rsHold', 0.35);
   f.direction(-1, 0, 'pad', false); f.step(27);
-  assert(!f.p.action, 'shared hold threshold is tunable');
-  f.pads[0].axes[2] = f.pads[0].axes[3] = 0; f.step(); assert.equal(f.p.action?.type, 'move');
+  assert.equal(f.p.action?.type, 'move', 'longer shared threshold keeps the immediate move running');
+  f.step(18); assert.equal(f.p.action?.type, 'shot', 'the tuned hold threshold converts the move');
   console.log(`PASS ${mode} flipped=${flipped} ${camera}: right-stick flick vs hold, four UU directions, layup/jumper follow-ups, release timing and l1_rsHold`);
 }
 
@@ -232,9 +249,9 @@ for (const [mode, flipped, camera] of [['1v1', false, '2k'], ['3v3', false, '2k'
   const far = fixture();
   Object.assign(far.p, { y: far.ctx.PH.render.HOOP.y - 6.5, speed: 4, vy: 4 });
   far.direction(-1, 0, 'pad', false); far.step();
-  assert(!far.p.action, 'an unreachable lateral finish still waits for flick or hold');
+  assert.equal(far.p.action?.type, 'move', 'an unreachable lateral finish immediately dispatches a dribble move');
 }
-console.log('PASS drive quick flick is an explicit early release; unreachable finishes retain ordinary flick/hold detection');
+console.log('PASS drive quick flick is an explicit early release; unreachable finishes immediately dispatch dribble moves');
 
 for (const [mode, flipped, camera] of [['1v1', false, '2k'], ['5v5', false, '2k'], ['5v5', true, '2k'], ['5v5', true, 'broadcast']]) {
   for (const binding of mode === '1v1' ? ['stick', 'pad', 'B'] : ['stick', 'pad', 'B']) {

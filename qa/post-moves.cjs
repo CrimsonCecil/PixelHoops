@@ -271,9 +271,12 @@ console.log('PASS post button ownership: early release fakes without a stick-dri
 for (const mode of ['2p', 't5']) {
   for (const [x, y, move, shot] of [[1, 0, 'postspin', 'turn'], [0.7, 0.7, 'postdrop', 'postfront'], [0, -1, 'postface', 'postfade'], [1, -0.7, 'postspin', 'postfade1']]) {
     let { p } = fixture(mode);
-    gamepadStep(mode, p, { x, y }, 5);
-    assert.equal(p.action, null, 'A pending post flick must not move immediately');
+    gamepadStep(mode, p, { x, y });
+    assert.equal(p.action?.kind, move, 'A post move starts on the deflection frame');
+    const flickMove = p.action;
+    gamepadStep(mode, p, { x, y }, 4);
     gamepadStep(mode, p);
+    assert.strictEqual(p.action, flickMove, 'Neutral keeps the same post move without replaying the input');
     assert.equal(p.action?.kind, move, `${mode} flick ${x},${y}`);
     ({ p } = fixture(mode));
     gamepadStep(mode, p, { x, y }, holdFrames());
@@ -334,14 +337,15 @@ for (const mode of ['2p', 't5']) {
     if (state === 'cancel') gamepadStep(mode, p, { x: 1, post: false }, 2);
     if (state === 'disconnect') { pads.length = 0; step(p); }
     gamepadStep(mode, p);
-    assert(!p.action || !['move', 'shot'].includes(p.action.type), `${mode} ${state} cancels pending post gesture`);
+    assert(!p.action || !['move', 'shot'].includes(p.action.type), `${mode} ${state} cancels the owned post move before hold conversion`);
   }
   {
     const { p } = fixture(mode); p.post = false; p.opp.off = true;
     gamepadStep(mode, p, { x: 1, post: false });
-    assert.equal(p.action, null, 'PR81 shared non-post stick waits for flick or hold');
+    assert.equal(p.action?.type, 'move', 'Shared non-post stick starts moving on deflection');
+    const move = p.action;
     gamepadStep(mode, p, { post: false });
-    assert.equal(p.action.type, 'move', 'PR81 shared non-post flick triggers its move on release');
+    assert.strictEqual(p.action, move, 'Shared non-post flick leaves the same move running');
     assert(!p.rsGesture);
   }
   {
@@ -361,8 +365,8 @@ console.log('PASS chained post fakes: early stick/button release retains posting
 
 {
   const { p } = fixture(); tune.set('l1_rsHold', 0.4);
-  gamepadStep('2p', p, { x: 1 }, 30); assert.equal(p.action, null);
-  gamepadStep('2p', p); assert.equal(p.action.kind, 'postspin');
+  gamepadStep('2p', p, { x: 1 }, 30); assert.equal(p.action.kind, 'postspin');
+  gamepadStep('2p', p, { x: 1 }, 21); assert.equal(p.action.type, 'shot');
 }
 let cpuFakes = 0;
 for (let seed = 1; seed <= 80; seed++) {

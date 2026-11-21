@@ -156,7 +156,7 @@
     ['uuForward', 'drib', '上下步 突篮距离', 1.5, 0.2, 3, 0.05, '米：随背控、近投和控球缩放'],
     ['uuBack', 'drib', '上下步 后撤距离', 1.15, 0.2, 3, 0.05, '米'],
     ['uuSide', 'drib', '上下步 横移距离', 1.25, 0.2, 3, 0.05, '米'],
-    ['rsHold', 'drib', '右摇杆 长推投篮阈值', 0.2, 0.1, 0.4, 0.01, '秒：此前回中是运球，长推投篮，回中松手出手'],
+    ['rsHold', 'drib', '右摇杆 长推投篮阈值', 0.2, 0.1, 0.4, 0.01, '秒：推杆立即运球，持续长推转投篮；上下步接出手，回中松手定时；突破终结仍按住计时'],
     ['uuReq', 'drib', '上下步 能力门槛', 0.45, 0, 1, 0.01, '背控、近投、控球三者最高值'],
     ['uuCost', 'drib', '上下步 体力系数', 0.3, 0, 1, 0.01, '倍率：基础运球消耗'],
     ['uuBonus', 'shot', '上下步 骗跳命中加成', 0.08, 0, 0.3, 0.01, '概率：最近防守人被假投骗跳或仍在落地恢复'],
@@ -2936,12 +2936,13 @@
   function startShot(pl, inp, btn, cancelVariant, postAt = inp.rsHold && pl.rsGesture ? pl.rsGesture.t : G.time) {
     const follow = postFollow(pl, postAt) ? pl.postMove : null;
     const d = distHoop(pl), q = inDir(pl, inp), df = OP(pl), postSide = follow ? follow.side : null;
+    const postD = inp.rsHold && pl.rsGesture && pl.rsGesture.post ? pl.rsGesture.d : d;
     let v;
     if (cancelVariant) v = cancelVariant;
     else if (pl.uuShot && G.time <= pl.uuShot.until && pl.uuShot.mv === 'uuBack') v = 'stepback';
     else if (pl.post || follow || (backTurn(pl) && d < 6.5)) {
       const away = q.l > 0.35 && q.fwd < -0.35;
-      v = away ? Math.abs(q.lat) > K.poOneLat ? 'postfade1' : 'postfade' : d < 4.8 && sigOf(pl, 'hook') >= 0.5 ? 'hook' : q.l > 0.35 && q.fwd > 0.35 ? 'postfront' : 'turn';
+      v = away ? Math.abs(q.lat) > K.poOneLat ? 'postfade1' : 'postfade' : postD < 4.8 && sigOf(pl, 'hook') >= 0.5 ? 'hook' : q.l > 0.35 && q.fwd > 0.35 ? 'postfront' : 'turn';
       if (follow && !away) {
         if (follow.kind === 'postdrop' && d < 3.8) v = 'drophook';
         else if (follow.kind === 'postshim' && follow.bite) v = 'shimshot';
@@ -4323,13 +4324,23 @@
     if (pl.action && pl.action.postButton || raw.a1 && !rs.postShot) rs.postButton = true;
     if (rs.postButton) return Object.assign({}, raw, { a3: !!(raw.dribble || raw.hesi), dx: 0, dy: 0, rsHold: false, rsFlick: false });
     if (!pl.hasBall || G.phase !== 'live' || G.ball.dead || pl.stun > 0 || rs.postPad && !inp.rsPad || !inp.post && !rs.postShot) rs.postCancelled = true;
-    if (rs.postCancelled) return Object.assign({}, inp, { a1: false, a3: !!(inp.dribble || inp.hesi), dx: 0, dy: 0, rsHold: false, rsFlick: false });
+    if (!rs.postShot && pl.stam <= ST.act) rs.postCancelled = true;
+    if (rs.postCancelled) {
+      if (pl.action === rs.move) { pl.action = null; pl.postMove = null; }
+      return Object.assign({}, inp, { a1: false, a3: !!(inp.dribble || inp.hesi), dx: 0, dy: 0, rsHold: false, rsFlick: false });
+    }
     if (inp.rsHold) rs.postShot = true;
-    if (inp.rsFlick && pl.stam <= ST.act) return Object.assign({}, inp, { a3: false });
     return inp;
   }
   function rightStickInput(pl, inp) {
-    if (!pl.hasBall || G.phase !== 'live' || G.ball.dead || pl.stun > 0 || inp.hesi || inp.dribble || pl.action && pl.action.hesiHold) pl.rsGesture = null;
+    if (!pl.hasBall || G.phase !== 'live' || G.ball.dead || pl.stun > 0 || inp.hesi || inp.dribble || pl.action && pl.action.hesiHold) {
+      const rs = pl.rsGesture;
+      if (rs && pl.action === rs.move && (!pl.hasBall || G.phase !== 'live' || G.ball.dead || pl.stun > 0)) {
+        pl.action = null; pl.buf = pl.ib = null;
+        if (isPostMove(rs.move.kind)) pl.postMove = null;
+      }
+      pl.rsGesture = null;
+    }
     else if (pl.ctrl !== 'cpu' && (inp.rs || pl.rsGesture)) {
       const held = !!inp.rs;
       let rs = pl.rsGesture;
@@ -4340,7 +4351,8 @@
           const q = inDir(pl, inp, true);
           const finish = P && P.fv > 2 && (inp.sprint && P.dunk || (P.inside || P.back) &&
             (P.lay || P.flo && q.fwd < -0.75 && P.d > 1.4 && canLay(pl, 'floater')));
-          rs = pl.rsGesture = { t: G.time, x: inp.dx, y: inp.dy, shot: false, finish: !!finish };
+          rs = pl.rsGesture = { t: G.time, x: inp.dx, y: inp.dy, d: distHoop(pl), shot: false, finish: !!finish, follow: pl.postMove };
+          inp.a3 = inp.rsFlick = true;
         }
         rs.x = inp.dx; rs.y = inp.dy;
         const press = !rs.finish && !rs.shot && G.time - rs.t >= K.rsHold;
@@ -4349,7 +4361,6 @@
         inp.rsHold = rs.shot;
         if (rs.shot) { inp.a1 = true; inp.shootPress = inp.shootPress || press; inp.mx = rs.x; inp.my = rs.y; }
       } else if (rs) {
-        if (!rs.shot && !rs.finish) { inp.a3 = inp.rsFlick = true; inp.dx = rs.x; inp.dy = rs.y; }
         pl.rsGesture = null;
       }
     }
@@ -4388,6 +4399,23 @@
         const variant = Math.abs(q.fwd) >= Math.abs(q.lat) ? q.fwd > 0 ? 'uuForward' : 'uuBack' : q.lat > 0 ? 'uuLeft' : 'uuRight';
         startMove(pl, inp, variant); pl.action.uuHold = !!uuShoot; pl.ib = null; pr.a1 = pr.a2 = pr.a3 = false;
       }
+    }
+    const rs = pl.rsGesture;
+    if (rs && inp.rsHold && inp.shootPress && rs.move && (!pl.action || pl.action === rs.move) &&
+        pl.hasBall && !frozen && !G.ball.dead && pl.stun <= 0) {
+      const a = rs.move;
+      if (a.kind === 'uu' && pl.action === a) a.uuHold = true;
+      else {
+        if (rs.post) { pl.post = true; pl.postMove = rs.follow; }
+        const si = a.kind === 'uu' ? Object.assign({}, inp, { mx: a.dx, my: a.dy }) : inp;
+        const variant = rs.post || a.kind === 'uu' && a.mv === 'uuForward' ? null : a.kind === 'stepback' || a.mv === 'uuBack' ? 'stepback' : 'pullup';
+        tryStart(pl, si, { a1: true }, variant);
+        if (pl.action !== a) {
+          pl.buf = pl.ib = null; pl.cd = 0; pl.mvEndT = pl.lastMoveT = G.time;
+          pl.vx = pl.vy = pl.vz = pl.z = pl.speed = 0;
+        }
+      }
+      pr.a1 = false;
     }
     const shootPress = G.phase === 'live' && !G.ball.dead && pl.stun <= 0 && (G.mode === 't5' ? inp.shootPress : pr.a1);
     pl.prev.a1 = src.a1; pl.prev.a2 = src.a2; pl.prev.a3 = src.a3; pl.prev.any = raw.a1 || raw.a2;
@@ -4472,6 +4500,7 @@
       const a = pl.action;
       if (ibTap && a && a.type === 'shot' && (a.btn || 'a1') === ibTap && ibHd != null) a.vh = ibHd;
     }
+    if (rs && pl.action !== moveAtStart && pl.action && pl.action.type === 'move') rs.move = pl.action;
     if (pl.finQ) {
       const Q = pl.finQ; Q.t -= dt;
       if (pl.action || !pl.hasBall || frozen || pl.stun > 0 || Q.t <= 0 || G.phase !== 'live') pl.finQ = null;
