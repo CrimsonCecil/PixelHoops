@@ -226,8 +226,9 @@ assert(r['across-body'] < 0.01 && r.behind < 0.01, 'unreasonable reaches almost 
 assert(Math.abs(r['cross out-of-window'] - r['ball-side']) < 0.02);
 assert(r.neutral > r['ball-side'] * 0.35 && r.neutral < r['ball-side'] * 0.65);
 assert(r['fake in-window'] > r['fake out-of-window'] + 0.15);
-assert(r['ordinary post'] < r['ball-side'] * 0.6);
-assert(r['post away-side'] > r['ordinary post'] + 0.05);
+assert(r['ordinary post'] >= 0.04 && r['ordinary post'] <= 0.06);
+assert(r['post away-side'] >= 0.25 && r['post away-side'] <= 0.35);
+assert(r['post away-side'] > r['ball-side'] + 0.15 && r['post away-side'] > r['ordinary post'] + 0.2);
 assert(r['post hoop-side'] < 0.01);
 assert.equal(r['safe behind'], 0);
 for (const hand of [-1, 1]) {
@@ -297,6 +298,6 @@ for (const type of ['layup', 'dunk']) assert(!sample(gm, { type }).hit, 'finishe
 }
 const simulation = fixture();
 const steals = possessions(simulation, 'after');
-assert(steals > 0 && steals <= 40, 'CPU steals remain possible without an elevated everyday rate');
+assert(steals >= 6 && steals <= 38, 'CPU steals remain possible without exceeding the old elevated rate');
 assert(simulation.reachAudit.judged > 0, 'possession audit instruments the shared judgment');
 console.log('PASS steal timing, geometry, recovery, exclusions and shared 5V5 judgement');

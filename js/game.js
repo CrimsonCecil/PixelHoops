@@ -373,6 +373,8 @@
     ['stlGoodT', 'def', '抢断 好时机落空减罚', 0.04, 0, 0.5, 0.01, '秒：好时机球侧伸手落空减少的收手时间'],
     ['stlAiWindow', 'def', '抢断 电脑时机偏好', 8, 0, 16, 0.1, '倍率增量：困难电脑预判露球窗口，中等减半，简单随机'],
     ['stlAiBad', 'def', '抢断 电脑坏角度抑制', 0.75, 0, 1, 0.05, '比例：困难电脑减少非窗口和隔身伸手，中等减半'],
+    ['stlAiPosFloor', 'def', '抢断 电脑位置频率下限', 0.65, 0, 1, 0.05, '比例：坏位置保留的伸手频率，不改变成功率'],
+    ['stlAiRate', 'def', '抢断 电脑伸手频率倍率', 1.5, 0, 10, 0.1, '倍率：随机伸手频率，不改变成功率或读招反应'],
     ['stlAiReact', 'def', '抢断 电脑读招伸手', 1, 0, 1, 0.01, '概率：每次可读运球招式安排一次伸手，乘难度、抢断能力和角度；简单不预判'],
     ['stlShot', 'def', '抢断 投篮加成', 0.08, 0, 0.5, 0.01, '概率：持球人脚在地上做投篮动作时加成'],
     ['stlLowSt', 'def', '抢断 对手低体力加成', 0.08, 0, 0.3, 0.01, '概率：持球人体力低于“疲劳线”时加成'],
@@ -3550,9 +3552,10 @@
     const across = Math.max(0, -side), ballSide = Math.max(0, side);
     const poor = Math.max(0, -front) * (1 - ballSide);
     const risk = clamp((across + poor + (moving && !timed ? 1 : 0) + clamp(dd / K.stlR, 0, 1)) / 3 - (timed ? ballSide * 0.4 : 0), 0, 1);
-    const h = hoopDir(df), away = Math.max(0, -(dx * h.x + dy * h.y) / dd);
-    const pf = clamp(K.stlPosNeutral + side * K.stlPosSide, 0, 1)
-      * (df.post ? away : Math.pow(1 + Math.min(0, front), K.stlPosBack));
+    const h = hoopDir(df), hoopSide = (dx * h.x + dy * h.y) / dd, away = Math.max(0, -hoopSide);
+    const lateral = clamp(K.stlPosNeutral + side * K.stlPosSide, 0, 1);
+    const pf = df.post ? Math.max(lateral, away) * Math.pow(1 - Math.max(0, hoopSide), K.stlPosBack)
+      : lateral * Math.pow(1 + Math.min(0, front), K.stlPosBack);
     return { timed, safe, moving, pf, away, risk, ballSide, across, windowStart, windowEnd };
   }
 
@@ -3708,10 +3711,10 @@
           if (read.moving) ch += read.safe ? -K.stlSafe : read.timed ? K.stlTimed + (da.mv === 'tbb' ? K.stlTbb : K.stlMove) : 0;
           if (da && da.type === 'fake' && read.timed) ch += K.stlTimed;
           if (da && da.type === 'shot' && df.z <= 0) ch += K.stlShot;
-          if (df.post) ch += K.stlTimed * read.away;
           if (df.stam < ST.low) ch += K.stlLowSt;
           ch *= read.pf;
           if (df.post) ch *= K.stlPost;
+          if (df.post) ch += K.stlTimed * read.away * read.pf;
           if (df.chinT > G.time) ch *= K.stlChin;
           if (pl.ctrl === 'cpu') ch *= K.stlCpu0 + K.stlCpuD * G.diff;
           if (da && (da.type === 'dunk' || da.type === 'layup')) ch = 0;
@@ -5173,7 +5176,7 @@
     } else { ai.jumpAt = -1; if (!oa) ai.seenAct = null; }
     const sr = stealRead(pl, opp, K.stlHitT), awareness = clamp(G.diff / 2, 0, 1);
     const seek = 1 + awareness * (sr.timed ? K.stlAiWindow : -K.stlAiBad * (sr.moving ? 1 : sr.across));
-    const angle = (1 + awareness * (sr.ballSide - sr.across * K.stlAiBad)) * sr.pf;
+    const angle = (1 + awareness * (sr.ballSide - sr.across * K.stlAiBad)) * lerp(K.stlAiPosFloor, 1, sr.pf);
     const ready = D.steal > 0 && dd < K.aiStlD && ai.stealCd <= 0 && !pl.action && pl.stun <= 0 && pl.cd <= 0 && pl.z <= 0;
     if (ai.stealPlan && (ai.stealPlan.move !== oa || oa.t + K.stlHitT > sr.windowEnd)) ai.stealPlan = null;
     if (ready && awareness > 0 && sr.moving && !sr.safe && ai.stealSeen !== oa && oa.t + K.stlHitT <= sr.windowEnd) {
@@ -5182,7 +5185,7 @@
     }
     if (ready && ai.stealPlan && oa.t >= ai.stealPlan.at) {
       o.a2 = true; ai.stealPlan = null; ai.stealCd = rr(K.aiStlCd0, K.aiStlCd1);
-    } else if (!ai.stealPlan && ready && (!oa || oa.type === 'move') && rnd() < D.steal * dt * 1.6 * seek * angle * (pl.dummy ? 1 : DM.gamble) * (0.6 + 0.8 * pl.r.stl)) { o.a2 = true; ai.stealCd = rr(K.aiStlCd0, K.aiStlCd1); }
+    } else if (!ai.stealPlan && ready && (!oa || oa.type === 'move') && rnd() < D.steal * dt * 1.6 * K.stlAiRate * seek * angle * (pl.dummy ? 1 : DM.gamble) * (0.6 + 0.8 * pl.r.stl)) { o.a2 = true; ai.stealCd = rr(K.aiStlCd0, K.aiStlCd1); }
     return o;
   }
 
