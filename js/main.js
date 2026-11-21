@@ -560,7 +560,7 @@
     $('pause').classList.toggle('inmenu', screen === 'menu');
     $('pause').querySelector('.panel').classList.toggle('wide-sub', v === 'rules');
     // 5V5 的显示设置只有球员信息（入场动画/投篮反馈/回放/特写/热区是 1V1/3V3 的）
-    for (const id of ['btn-intro', 'btn-fb', 'btn-replay', 'btn-close', 'btn-hz']) show(id, screen !== 'play5');
+    for (const id of ['btn-intro', 'btn-fb', 'btn-replay', 'btn-close', 'btn-hz', 'btn-stamina']) show(id, screen !== 'play5');
     $('set-title').textContent = v === 'rules' ? '比赛规则' : v === 'sound' ? '声音' : v === 'disp' ? '显示' : v === 'cam5' ? '镜头' : '设置'; setLabels(); if (v === 'cam5') cam5Labels(); clearPf();
   }
   function setLabels() {
@@ -572,6 +572,7 @@
     $('btn-replay').textContent = '精彩回放 ' + (G.vopt.replay ? '开' : '关');
     $('btn-close').textContent = '特写镜头 ' + (G.vopt.close ? '开' : '关');
     $('btn-hz').textContent = '热区显示 ' + (G.vopt.hz !== false ? '开' : '关');
+    $('btn-stamina').textContent = '体力条 ' + (G.vopt.stamina !== false ? '开' : '关');
     $('btn-vo').textContent = '球员配音 ' + (PH.audio.voOn ? '开' : '关');
   }
   function togglePanel(on) { if (screen !== 'play' || G.mode !== 'train') return; panelOpen = on == null ? !panelOpen : on; show('train', panelOpen); stage.classList.toggle('panel', panelOpen); camShift(); if (panelOpen) buildPanel(); }
@@ -824,6 +825,7 @@
   $('btn-replay').addEventListener('click', () => { G.vopt.replay = !G.vopt.replay; saveV(); });
   $('btn-close').addEventListener('click', () => { G.vopt.close = !G.vopt.close; saveV(); });
   $('btn-hz').addEventListener('click', () => { G.vopt.hz = G.vopt.hz === false; saveV(); });
+  $('btn-stamina').addEventListener('click', () => { G.vopt.stamina = G.vopt.stamina === false; saveV(); });
   $('btn-vo').addEventListener('click', () => { PH.audio.setVo(!PH.audio.voOn); saveV(); });
   function skipReplay() { if (screen === 'play' && !paused && G.replay && G.replay.age >= REPLAY_MIN) G.replay.skip = true; }
   canvas.addEventListener('pointerdown', skipReplay);
