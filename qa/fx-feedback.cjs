@@ -34,10 +34,11 @@ function load() {
   Gm.newGame({ mode: 'cpu', arch0: 'lebron', arch1: 'curry' });
   Gm.introStart();
   const t0 = G.intro.t0;
-  let maxConfetti = 0, sawLed = false, sawHighCheer = false, firstVoAt = null;
+  let maxConfetti = 0, sawLed = false, sawHighCheer = false, firstVoAt = null, secondVoAt = null;
   for (let i = 0; i < 60 * 9 && G.intro; i++) {
     Gm.introTick(1 / 60);
     if (firstVoAt == null && voiced.length > 0) firstVoAt = G.time - t0;
+    if (secondVoAt == null && voiced.length > 1) secondVoAt = G.time - t0;
     maxConfetti = Math.max(maxConfetti, G.fx.confetti.length);
     if (G.fx.led && /NOW ENTERING/.test(G.fx.led.text)) sawLed = true;
     if (G.fx.cheer >= 2.2) sawHighCheer = true;
@@ -47,11 +48,12 @@ function load() {
   assert.ok(sawHighCheer, 'entrance keeps crowd visual cheering');
   assert.ok(maxConfetti >= 40, 'entrance spawns abundant confetti (' + maxConfetti + ')');
   assert.ok(firstVoAt != null && firstVoAt <= 0.5, 'first entrance voice fires early as the player starts walking in (' + firstVoAt + 's)');
+  assert.ok(secondVoAt != null && secondVoAt <= 3.85, 'second entrance voice fires immediately when second player starts walking in (' + secondVoAt + 's)');
   assert.ok(voiced.some((v) => v.startsWith('lebron:taunt')), 'LeBron plays voice pack during walk-in');
   assert.ok(voiced.some((v) => v.startsWith('curry:taunt')), 'Curry plays voice pack during walk-in');
   Gm.introEnd();
   assert.equal(G.fx.confetti.length, 0, 'introEnd clears leftover entrance confetti');
-  console.log('PASS: entrance walk-in fires first voice early (' + firstVoAt.toFixed(2) + 's) and keeps visuals without noisy intro SFX.');
+  console.log('PASS: entrance walk-in fires voices early (' + firstVoAt.toFixed(2) + 's / ' + secondVoAt.toFixed(2) + 's) and keeps visuals without noisy intro SFX.');
 }
 
 // 1b. Delayed vo/manifest.json load still plays voiced intro dialogue line once ready
