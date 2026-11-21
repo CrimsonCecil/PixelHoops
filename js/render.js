@@ -281,6 +281,8 @@
   // ---------- V3.9m 步态 / 运球 / 呼吸（1V1、5V5 共用；game.js 的 updatePlayer / poseTarget / 球位挂钩调用） ----------
   // 速度按该球员自己的极速归一（kW≈0.35 走、≈0.9 慢跑、≥1.15 冲刺），步频、步幅、前倾、起伏、摆臂都随 kW 连续变化
   const GT = (function () {
+    const tune = (k, d) => PH.game && PH.game.K ? PH.game.K[k] : d;
+    const height = (pl) => pl.col && pl.col.body ? pl.col.body.height * pl.h / pl.col.body.baseHeight : pl.h || 1.95;
     const cl = (v, a, b) => (v < a ? a : v > b ? b : v), ss = (a, b, v) => { const t = cl((v - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
     const vref = (pl) => 4.2 + 1.7 * ((pl.r && pl.r.spd) != null ? pl.r.spd : 0.5);
     const kW = (pl) => cl((pl.speed || 0) / vref(pl), 0, 1.35);
@@ -302,12 +304,40 @@
     const br = (pl) => brS(pl) * brAmp(pl);
     // 步频（runPh 每秒弧度，一个周期两步）：走 ≈1Hz，冲刺 ≈2.3Hz；比原来的 2.7×速度 更像人：快了主要靠步幅
     function cad(pl) { const v = pl.speed || 0; return v < 0.05 ? 0 : 4.2 * Math.min(1, v / 0.8) + 1.35 * v; }
-    // 运球相位速率：原地/走路慢而高（≈1.8 次/秒），冲刺时锁到步频（每一步拍一下，弹地对上落脚）
+    // 运球相位速率：身高缩放频率，冲刺跟随同比缩放的步频，避免锁相抵消身高差
     function drib(pl) {
-      const s = spW(pl), base = 5.4 + 0.35 * (pl.speed || 0);
+      const s = spW(pl), scale = Math.pow(2 / height(pl), tune('drHeight', 1.8)), base = (5.4 + 0.35 * (pl.speed || 0)) * scale;
       if (s < 0.02 || !(pl.speed > 0.9)) return base;
-      let d = ((pl.runPh || 0) - Math.PI / 2) - (pl.drib || 0); d = d - Math.round(d / Math.PI) * Math.PI;
-      return base + (cad(pl) - base) * s + 5 * s * d;
+      let d = ((pl.runPh || 0) * scale - Math.PI / 2) - (pl.drib || 0); d = d - Math.round(d / Math.PI) * Math.PI;
+      return base + (cad(pl) * scale - base) * s + 5 * s * d;
+    }
+    function crab(pl, dt) {
+      if (!pl.stance || pl.anim !== 'def' || pl.z > 0.01) { pl.crab = null; return; }
+      const fx = Math.cos(pl.face), fy = Math.sin(pl.face), w = tune('stWidth', 0.42) * (1 + (height(pl) / 1.95 - 1) * 1.55);
+      const base = (side) => [pl.x + fy * side * w, pl.y - fx * side * w, 0];
+      let c = pl.crab;
+      if (!c || Math.abs(c.width - w) > 0.001 || Math.hypot(pl.x - c.x, pl.y - c.y) > 1) {
+        const lat = pl.vx * fy - pl.vy * fx;
+        c = pl.crab = { x: pl.x, y: pl.y, width: w, phase: 0, side: lat < 0 ? 'L' : 'R', L: base(-1), R: base(1) };
+        c.from = c[c.side].slice(); c.to = c.from.slice();
+      }
+      const dx = pl.x - c.x, dy = pl.y - c.y, distance = Math.hypot(dx, dy), step = tune('stStep', 0.42);
+      c.x = pl.x; c.y = pl.y;
+      if (distance < 0.00001) { c[c.side][2] = Math.max(0, c[c.side][2] - dt); c.rest = true; return; }
+      if (c.rest) { c.side = dx * fy - dy * fx < 0 ? 'L' : 'R'; c.phase = 0; c.rest = false; }
+      let advance = distance / step;
+      while (advance > 0) {
+        if (c.phase === 0) {
+          c.from = c[c.side].slice(); c.to = base(c.side === 'L' ? -1 : 1);
+          c.to[0] += dx / distance * step * 1.2; c.to[1] += dy / distance * step * 1.2;
+        }
+        const take = Math.min(1 - c.phase, advance); c.phase += take; advance -= take;
+        const u = c.phase, blend = u * u * (3 - 2 * u), foot = c[c.side];
+        foot[0] = c.from[0] + (c.to[0] - c.from[0]) * blend;
+        foot[1] = c.from[1] + (c.to[1] - c.from[1]) * blend;
+        foot[2] = Math.sin(Math.PI * u) * tune('stLift', 0.12);
+        if (u >= 1) { foot[2] = 0; c.side = c.side === 'L' ? 'R' : 'L'; c.phase = 0; }
+      }
     }
     // 跑动运球：球在最低点往身前推多少（米）
     function ballFwd(pl) { if (pl.post) return 0; const u = Math.abs(Math.sin(pl.drib || 0)); return (0.08 * cl(kW(pl), 0, 1) + 0.3 * spW(pl)) * (1 - u); }
@@ -327,6 +357,16 @@
     }
     // poseTarget 末尾：运球手形（普通高而慢 / 冲刺低而前推）+ 呼吸叠加
     function post(pl, T, an, a) {
+      T.crab = pl.crab && an === 'def' ? 1 : 0;
+      if (T.crab) {
+        const fx = Math.cos(pl.face), fy = Math.sin(pl.face);
+        for (const side of ['L', 'R']) {
+          const f = pl.crab[side], dx = f[0] - pl.x, dy = f[1] - pl.y;
+          T['foot' + side + 'X'] = dx * fy - dy * fx;
+          T['foot' + side + 'Y'] = dx * fx + dy * fy;
+          T['foot' + side + 'Z'] = f[2];
+        }
+      }
       if (T.bob == null) T.bob = 0;
       if (pl.pose && pl.pose.bob == null) pl.pose.bob = 0;
       if (T.yaw == null) T.yaw = 0;   // V3.9p 上身/整体视觉转向（rig 用，不改逻辑朝向）
@@ -343,10 +383,8 @@
         // 非运球手：走/慢跑时护球半抬，冲刺时跟着摆但幅度减半
         const o = R ? 'aL' : 'aR', s = Math.sin(pl.runPh || 0) * (R ? -1 : 1);
         if (an === 'run') { T[o + 'p'] = 0.35 * (1 - sp) + sp * 0.55 * s * (0.6 + 0.4 * k) + 0.2 * sp; T[o + 'e'] = 0.7 + 0.5 * sp; T[o + 'q'] = 0.3 - 0.12 * sp; }
-        // 普通运球身体略低（膝更弯）；冲刺运球靠前倾，不再额外下蹲
-        const lo = (1 - sp) * (0.06 + 0.04 * (1 - k));
-        // 冲刺运球把 poseTarget 里持球通用的下蹲（膝 +0.26~0.47、前倾 +0.09~0.16）大部分抵掉，避免趴着跑
-        T.lA += lo * 0.6 - 0.12 * sp; T.rA += lo * 0.6 - 0.12 * sp; T.lB += lo * 1.3 - 0.3 * sp; T.rB += lo * 1.3 - 0.3 * sp; T.lean += lo * 0.3 - 0.06 * sp;
+        const lo = 0.06 + tune('drCrouch', 0.32) * cl(kW(pl) / 1.35, 0, 1);
+        T.lA += lo * 0.6; T.rA += lo * 0.6; T.lB += lo * 1.3; T.rB += lo * 1.3; T.lean += lo * 0.3;
         T.bob *= 1 - 0.35 * sp;
       }
       if (gnd && (an === 'idle' || an === 'run' || an === 'def' || an === 'post')) {
@@ -368,7 +406,7 @@
     const G0 = () => (PH.game && PH.game.G) || { time: 0 };
     // 胸口起伏（rig 里用，世界米）：呼吸吸气时胸、肩、头上提
     const bz = (pl) => (pl.brPh == null ? 0 : (0.5 + 0.5 * brS(pl)) * (0.004 + 0.02 * (pl.exr || 0) + 0.014 * fat(pl)));
-    return { tick, cad, drib, ballFwd, run, post, br, brS, bz, kW, spW };
+    return { tick, cad, drib, crab, ballFwd, run, post, br, brS, bz, kW, spW };
   })();
   PH.gait = GT;
 
@@ -1118,6 +1156,19 @@
     // 卡通弹簧：sq < 1 压扁变宽，> 1 拉长变窄；脚底保持贴地
     const sy = pl.sq || 1, sxk = 1 + (1 - sy) * 0.9;
     const pelZ = (-Math.min(L[2][2], R[2][2]) + 0.06 * Hh) * sy + pl.z + (P.bob || 0) * Hh, bz = GT.bz(pl) / sy;
+    if (P.crab > 0.001) {
+      for (const [side, leg] of [['L', L], ['R', R]]) {
+        const target = [(P['foot' + side + 'X'] || 0) / sxk, P['foot' + side + 'Y'] || 0, ((P['foot' + side + 'Z'] || 0) + pl.z + 0.06 * Hh - pelZ) / sy];
+        const foot = leg[2].map((v, i) => lerpN(v, target[i], P.crab));
+        const axis = foot.map((v, i) => v - leg[0][i]), len = Math.hypot(...axis), d = Math.min(th + sh - 0.001, len);
+        const unit = axis.map(v => v / (len || 1)), bend = [side === 'L' ? -0.7 : 0.7, 1, 0];
+        const dot = bend.reduce((s, v, i) => s + v * unit[i], 0), normal = bend.map((v, i) => v - dot * unit[i]), n = Math.hypot(...normal);
+        const along = d / 2, out = Math.sqrt(Math.max(0, th * th - along * along));
+        leg[1] = leg[0].map((v, i) => v + unit[i] * along + normal[i] / n * out);
+        leg[2] = leg[0].map((v, i) => v + unit[i] * d);
+        leg[3] = [leg[2][0], leg[2][1] + 0.2 * Hh, leg[2][2]];
+      }
+    }
     const sl = Math.sin(P.lean), cl = Math.cos(P.lean);
     const ti = Math.sin(P.tilt || 0), tc = Math.cos(P.tilt || 0);
     const chest = [ti * to, sl * to, cl * tc * to + bz];

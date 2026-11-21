@@ -614,6 +614,12 @@
     ['bdStam', 'stam', '身体顶住 体力消耗', 5, 0, 20, 0.1, '点/秒：顶得越深越用力越多，× 吨位比'],
     ['bdWBall', 'ct', '身体碰撞 持球人吃亏', 0.12, 0, 0.5, 0.01, '比例：位移分配时持球人多让出的份额'],
     ['bdStPow', 'ct', '防守站姿 力量加成', 0.25, 0, 0.6, 0.01, '比例：站姿者接触力量 × (1 + 加成)，用于卡位、顶回与冲撞；大吨位差仍占优，不影响背打'],
+    ['stDepth', 'def', '防守马步 下蹲深度', 1, 0.6, 1.2, 0.01, '倍率：只影响主动防守姿态的屈髋和屈膝'],
+    ['stWidth', 'def', '防守马步 双脚宽度', 0.42, 0.3, 0.5, 0.01, '米：单脚离身体中线的距离，随身高缩放'],
+    ['stStep', 'def', '螃蟹步 每步距离', 0.42, 0.2, 0.6, 0.01, '米：身体移动此距离后换脚，支撑脚保持落地点'],
+    ['stLift', 'def', '螃蟹步 抬脚高度', 0.12, 0, 0.2, 0.01, '米：迈步脚的最高离地高度'],
+    ['drCrouch', 'drib', '跑动运球 速度下蹲', 0.32, 0, 0.5, 0.01, '弧度：速度越快膝盖越弯，冲刺最深；保留跑步摆腿'],
+    ['drHeight', 'drib', '运球频率 身高差异', 1.8, 0, 3, 0.05, '指数：按实际模型身高缩放拍球频率，越矮越快；0 为无差异'],
     ['bdWBox', 'ct', '身体碰撞 卡位加成', 0.15, 0, 0.5, 0.01, '比例'],
     ['bdVn', 'ct', '冲撞 触发相对速度', 2.2, 0.5, 6, 0.05, '米/秒：两人对冲速度超过这个才算一次冲撞'],
     ['bdCd', 'ct', '冲撞 冷却', 0.45, 0, 2, 0.05, '秒'],
@@ -2705,7 +2711,7 @@
     const foc0 = { x: fa.x, y: fa.y, u: G.mode === 't3' ? 0.08 : 0.3, mode: 'walk', snap: true };
     if (PH.audio && PH.audio.voPreload) PH.audio.voPreload([fa.arch.key, fb.arch.key]);
     G.intro = { t0: t0, duo: [fa.id, fb.id], walk: walk, spots: spots, lines: lines, li: -1, lt: 0, ld: 0, tT: t0 + 2 * IWA + 0.15, cam: foc0, foc: foc0, banner: G.banner, phaseT: G.phaseT,
-      sig: [], confettiT: 0 };
+      sig: [], confettiT: 0, usedVo: new Set() };
     G.cz = null; G.cutin = null; G.phase = 'intro';
   }
   const introSig = (pl) => { const I = G.intro; if (!I) return null; for (const S of I.sig) if (S.id === pl.id && G.time >= S.t0 && G.time < S.t0 + S.T) return S; return null; };
@@ -2729,7 +2735,7 @@
     }
     updateBall(dt);
     if (I.li < 0) for (const S of I.walk) {
-      if (S.vo && !S.voDone && now >= (S.voAt != null ? S.voAt : S.t0)) { S.voDone = true; const p = plById(S.id); if (G.mode !== 'demo' && PH.audio && PH.audio.vo) { const speak = () => { if (!G.intro || G.intro.li >= 0) return true; const it = PH.audio.vo(p.arch.key, 'taunt', 'pri'); if (it && it.d && p.id === G.intro.duo[1]) G.intro.tT = Math.max(G.intro.tT, G.time + it.d + 0.2); return it; }; if (!speak() && PH.audio.voWhenReady) PH.audio.voWhenReady(speak); } }
+      if (S.vo && !S.voDone && now >= (S.voAt != null ? S.voAt : S.t0)) { S.voDone = true; const p = plById(S.id); if (G.mode !== 'demo' && PH.audio && PH.audio.vo) { const speak = () => { if (!G.intro || G.intro.li >= 0) return true; const it = PH.audio.vo(p.arch.key, 'taunt', 'pri'); if (it && it.f && G.intro.usedVo) G.intro.usedVo.add(it.f); if (it && it.d && p.id === G.intro.duo[1]) G.intro.tT = Math.max(G.intro.tT, G.time + it.d + 0.2); return it; }; if (!speak() && PH.audio.voWhenReady) PH.audio.voWhenReady(speak); } }
       if (S.ty === 'chalk' && !S.fx && now >= S.t0 + 0.42) { S.fx = true; const p = plById(S.id); burst(p.x, p.y, p.h + 0.45, 70, ['#ffffff', '#f4f1e8', '#e2ded2', '#fffbe9'], 2.3, 1.7, 1.1, 2); spawnConfetti(28, [p.team.css, '#ffd24a', '#ffffff'], 'burst'); }
       else if (S.sig && !S.fx && now >= S.t0 + 0.35) { S.fx = true; const p = plById(S.id); spawnConfetti(26, [p.team.css, '#ffd24a', '#ffffff', '#ff8a2a'], 'burst'); flash('#ffffff', 0.08); G.fx.cheer = Math.max(G.fx.cheer, 2.6); }
     }
@@ -2766,8 +2772,9 @@
     if (L.v) {
       const sayVo = () => {
         if (!G.intro || G.intro.lines[G.intro.li] !== L) return false;
-        const it = PH.audio && PH.audio.voLine ? PH.audio.voLine(p.arch.key, L.v, L.i) : null;
+        const it = PH.audio && PH.audio.voLine ? PH.audio.voLine(p.arch.key, L.v, L.i, G.intro.usedVo) : null;
         if (!it) return false;
+        if (it.f && G.intro.usedVo) G.intro.usedVo.add(it.f);
         L.t = it.t; L.d = it.d;
         G.intro.ld = Math.max(clamp(0.8 + L.t.length * 0.1, 1.9, 4.5), (L.d || 0) + 0.55);
         if (G.mode !== 'demo') {
@@ -4692,10 +4699,11 @@
     else if (G.phase === 'dead' && G.lastScorer === pl.id && G.phaseT < 1.3 && G.mode !== 'train') an = 'win';
     else if (pl.post) an = 'post';
     else if (pl.box) an = 'box';
-    else if (!pl.hasBall && opp.hasBall && (pl.stance || Math.hypot(opp.x - pl.x, opp.y - pl.y) < 3.2) && pl.speed < 5.4) an = 'def';
+    else if (!pl.hasBall && opp.hasBall && (pl.stance || Math.hypot(opp.x - pl.x, opp.y - pl.y) < 3.2 && pl.speed < 5.4)) an = 'def';
     else if (pl.speed > 0.9) an = 'run';
     else an = 'idle';
     if (an !== pl.anim) { pl.anim = an; if (!a) pl.animT = 0; }
+    if (PH.gait && PH.gait.crab) PH.gait.crab(pl, dt);
     pl.animT += dt; pl.runPh += (PH.gait ? PH.gait.cad(pl) : pl.speed * 2.7) * dt;
     pl.gasp = Math.max(0, (pl.gasp || 0) - dt);
     if (pl.stam < 35 && G.phase !== 'over') {
@@ -4717,8 +4725,9 @@
     if (a && a.type === 'block') { pl.armS = null; T.reachL = T.reachR = P.reachL = P.reachR = 1; }
     // 肩部转角按最短路径插值（风车扣篮手臂转一整圈后，不会再倒着从最下面绕回去）
     for (const n in T) {
-      if (postBlend) { let delta = T[n] - (P[n] || 0); if (n === 'aLp' || n === 'aRp') delta = Math.atan2(Math.sin(delta), Math.cos(delta)); P[n] = (P[n] || 0) + clamp(delta * kq, -2 * dt / blendT, 2 * dt / blendT); }
-      else { if ((n === 'aLp' || n === 'aRp') && Math.abs(T[n] - P[n]) > Math.PI) P[n] += Math.round((T[n] - P[n]) / (2 * Math.PI)) * 2 * Math.PI; P[n] = lerp(P[n], T[n], kq); }
+      if (n.startsWith('foot')) P[n] = T[n];
+      else if (postBlend) { let delta = T[n] - (P[n] || 0); if (n === 'aLp' || n === 'aRp') delta = Math.atan2(Math.sin(delta), Math.cos(delta)); P[n] = (P[n] || 0) + clamp(delta * kq, -2 * dt / blendT, 2 * dt / blendT); }
+      else { if ((n === 'aLp' || n === 'aRp') && Math.abs(T[n] - P[n]) > Math.PI) P[n] += Math.round((T[n] - P[n]) / (2 * Math.PI)) * 2 * Math.PI; P[n] = lerp(P[n] || 0, T[n], kq); }
     }
     dunkIK(pl);
     squash(pl, a, dt);
@@ -4814,6 +4823,7 @@
       const s = Math.sin(ph * 1.4) * Math.min(1, pl.speed / 2);
       const deep = pl.stance ? 1 : 0.75;
       set({ lean: 0.3 * deep, lA: 0.48 * deep, lB: 0.9 * deep, rA: 0.48 * deep, rB: 0.9 * deep, lS: 0.36 + 0.14 * s, rS: 0.36 - 0.14 * s, aLp: 0.55, aLq: 1.05, aLe: 0.55, aRp: 0.55, aRq: 1.05, aRe: 0.55 });
+      if (pl.stance) set({ lean: 0.12, lA: 0.8 * K.stDepth, rA: 0.8 * K.stDepth, lB: 1.6 * K.stDepth, rB: 1.6 * K.stDepth, lS: 0.6, rS: 0.6 });
       if (pl.stance) set({ aRp: 2.5, aRq: 0.25, aRe: 0.25, aLp: 0.7, aLq: 1.1 });
       if (pl.rx === 'press') set({ lean: 0.42, aLp: 2.3, aLq: 0.35, aLe: 0.3 }); else if (pl.rx === 'sag') set({ lean: 0.08, lB: 0.6, rB: 0.6 });
     } else if (an === 'box') {
@@ -6390,7 +6400,7 @@
   }
   // V4.0 注册到调参台（ST / GW_TYPE / BLK_K / BLK_T / LSV 这些对象保持同一引用，值随调参刷新）
   if (TU) {
-    TU.reg(TDEF.map((d) => ({ k: 'l1_' + d[0], g: d[1], label: d[2], v: d[3], min: d[4], max: d[5], step: d[6], note: d[7], mode: d[8] || 'num', tmp: !!d[9], ...(/^(alley|selfAlley)/.test(d[0]) ? { cat: 'fin', sub: '上篮', gm: 'both' } : {}) })));
+    TU.reg(TDEF.map((d) => ({ k: 'l1_' + d[0], g: d[1], label: d[2], v: d[3], min: d[4], max: d[5], step: d[6], note: d[7], mode: d[8] || 'num', tmp: !!d[9], ...(/^(alley|selfAlley)/.test(d[0]) ? { cat: 'fin', sub: '上篮', gm: 'both' } : {}), ...(/^(stDepth|stWidth|stStep|stLift|drCrouch|drHeight)$/.test(d[0]) ? { cat: 'pace', sub: '特效', gm: 'both' } : {}) })));
     TU.reg(RDEF.map((d) => ({ k: 'l1_' + d[0], g: 'rules', label: d[1], v: CFG_DEF[d[0]], min: d[2], max: d[3], step: d[4], note: d[5], mode: d[6] || 'num' })));
     for (const d of RDEF) if (d[0] !== 'shotClock') Object.defineProperty(CFG, d[0], { enumerable: true, configurable: true, get: () => TU.get('l1_' + d[0]), set: (v) => { TU.set('l1_' + d[0], v); } });
     // 进攻时间是“本场”设置（比赛开始界面 / 5V5 会临时改），所以 CFG.shotClock 仍是普通字段，调参改动时同步过去

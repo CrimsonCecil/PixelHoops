@@ -466,6 +466,9 @@
     $('lk-list').querySelectorAll('canvas').forEach((cv) => portrait(cv, GM.ARCH[cv.getAttribute('data-k')], GM.TEAMS[1]));
   }
   const KING_LIVES = 3;
+  const KING_AT = [AT_CLOSE, ['mid', '中投'], ['three', '三分'], ['fade', '后仰'], ['lay', '上篮'], ['flo', '抛投'], ['dunk', '扣篮'], ['post', '背打'], ['hnd', '控球'], ['spd', '速度'], ['str', '力量'], ['def', '外防'], ['intD', '内防'], ['stl', '抢断'], ['blk', '盖帽'], ['dreb', '篮板']];
+  function kingTop(a) { return KING_AT.filter(([k]) => Number.isFinite(a[k])).map(([k, n]) => [n, A99(a[k])]).sort((x, y) => y[1] - x[1]).slice(0, 6).map(([n, v]) => '<span>' + n + '<i class="' + vcl(v) + '">' + v + '</i></span>').join(''); }
+  function kingTopHid() { return '<span>??<i>??</i></span>'.repeat(6); }
   function kingLives(left, brk, cls) { let h = '<span class="klives' + (cls ? ' ' + cls : '') + '" data-testid="king-lives" data-left="' + left + '">'; for (let i = 0; i < KING_LIVES; i++) h += '<i class="' + (i >= left ? 'x' : '') + (i === brk ? ' brk' : '') + '"></i>'; return h + '</span>'; }
   function kingNew() { kingLadderView(); KR = { arch: opts.arch0, ladder: kingLadder.slice(), tags: kingTags(kingLadder), target: opts.ktarget, open: opts.kreveal === 'show', stage: 0, lives: KING_LIVES, res: [], retry: 0, from: -1, last: null, done: false }; kingVS(); }
   function kingShow() {
@@ -480,8 +483,8 @@
     const track = '<div class="kl"><div class="kl-bar"><i style="width:' + pct(adv ? s - 1 : s) + '"></i></div>' + KR.ladder.map((x, i) => '<div class="kn' + (i < s ? ' done' : i === s ? ' cur' : '') + (adv && i === s - 1 ? ' fresh' : '') + '"><canvas width="32" height="32" data-k="' + x + '"></canvas><span>' + (!KR.open && (i > s || i === s && !KR.retry) ? '???' : GM.ARCH[x].name) + '</span><small>' + (!KR.open && (i > s || i === s && !KR.retry) ? KR.tags[i] : GM.ARCH[x].ovr) + '</small>' + (i < s ? '<b class="kstamp">已击败</b>' : '') + '</div>').join('') + '</div>';
     const head = boss ? '最终关 · 王座之战' : '第 ' + (s + 1) + ' / 5 关 · ' + KING_STAGE[s];
     $('king-panel').innerHTML = '<div class="kv-top"><b>斗牛之王</b>' + kingLives(KR.lives, -1, 'lg') + '<span data-testid="king-stage">' + head + '</span></div>' + track +
-      '<div class="kvs"><div class="kp me"><canvas width="64" height="64" class="kf0"></canvas><b>' + me.name + '</b><small>' + me.ovr + ' · ' + me.pos + '</small></div>' +
-      '<div class="kx">VS</div><div class="kp op' + (known ? '' : ' rv') + '"><span class="kop-f"><canvas width="64" height="64" class="kf1"></canvas></span><b data-testid="king-opp">' + (known ? op.name : '???') + '</b><small>' + (known ? op.ovr + ' · ' + op.pos : '??') + '</small><span class="kai ktag">' + KR.tags[s] + '</span></div></div>' +
+      '<div class="kvs"><div class="kp me"><canvas width="64" height="64" class="kf0"></canvas><b>' + me.name + '</b><small>' + me.ovr + ' · ' + me.pos + '</small><div class="kat" data-testid="king-me-attrs">' + kingTop(me) + '</div></div>' +
+      '<div class="kx">VS</div><div class="kp op' + (known ? '' : ' rv') + '"><span class="kop-f"><canvas width="64" height="64" class="kf1"></canvas></span><b data-testid="king-opp">' + (known ? op.name : '???') + '</b><small>' + (known ? op.ovr + ' · ' + op.pos : '??') + '</small><span class="kai ktag">' + KR.tags[s] + '</span><div class="kat' + (known ? '' : ' hid') + '" data-testid="king-opp-attrs">' + (known ? kingTop(op) : kingTopHid()) + '</div></div></div>' +
       '<p class="kq">' + (KR.retry ? '再战第 ' + (s + 1) + ' 关' : boss ? '击败他，你就是新的斗牛之王' : adv ? '赢了 ' + GM.ARCH[KR.ladder[s - 1]].name + '，下一位更强' : '五关连胜才能称王 · 先到 ' + KR.target + ' 分') + '</p>' +
       '<div class="actions"><button class="primary" id="kv-go" data-testid="king-go">' + (boss ? '挑战王座' : '开始第 ' + (s + 1) + ' 关') + '</button><button id="kv-menu" data-testid="king-menu">放弃闯关</button></div>';
     $('king').className = 'overlay kvs-on' + (boss ? ' boss' : '');
@@ -490,7 +493,7 @@
     kingFace('.kf0', KR.arch, 0); kingFace('.kf1', k, 1);
     $('king-panel').querySelectorAll('.kn canvas').forEach((cv) => portrait(cv, GM.ARCH[cv.getAttribute('data-k')], GM.TEAMS[1]));
     if (adv) setTimeout(() => { const b = $('king-panel').querySelector('.kl-bar i'); if (b) b.style.width = pct(s); }, 350);
-    if (!known) { const run = KR; setTimeout(() => { const c = $('king-panel').querySelector('.kp.op'); if (KR !== run || screen !== 'king' || !c) return; c.querySelector('b').textContent = op.name; c.querySelector('small').textContent = op.ovr + ' · ' + op.pos; c.classList.add('shown'); const n = $('king-panel').querySelector('.kn.cur'); if (n) { n.children[1].textContent = op.name; n.children[2].textContent = op.ovr; } PH.audio.play('combo'); }, 1150); }
+    if (!known) { const run = KR; setTimeout(() => { const c = $('king-panel').querySelector('.kp.op'); if (KR !== run || screen !== 'king' || !c) return; c.querySelector('b').textContent = op.name; c.querySelector('small').textContent = op.ovr + ' · ' + op.pos; const at = c.querySelector('.kat'); at.innerHTML = kingTop(op); at.classList.remove('hid'); c.classList.add('shown'); const n = $('king-panel').querySelector('.kn.cur'); if (n) { n.children[1].textContent = op.name; n.children[2].textContent = op.ovr; } PH.audio.play('combo'); }, 1150); }
     $('kv-go').addEventListener('click', kingPlay); $('kv-menu').addEventListener('click', toMenu);
     PH.audio.play(boss ? 'horn' : adv ? 'badge' : 'ui');
   }

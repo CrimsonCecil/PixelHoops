@@ -305,3 +305,46 @@ function runIntro(Gm, G) {
   assert.equal(G.intro.li, 1, 'line advances once playback duration finishes');
   console.log('PASS: all 9 TALK rivalries resolve in vo/manifest.json and intro waits for async voSay start without early cancellation.');
 }
+{
+  // Verify walk-in + dialogue never repeat a voice clip across all 9 rivalries and small voice packs (jwells: 2 taunts)
+  const manifest = JSON.parse(fs.readFileSync(path.join(__dirname, '../vo/manifest.json'), 'utf8')).voices;
+  const audioCtx = vm.createContext({
+    window: null, PH: {}, performance: { now: () => 0 }, setTimeout: () => {}, clearTimeout: () => {},
+    fetch: () => Promise.resolve({ ok: true, json: () => Promise.resolve({ voices: manifest }) })
+  });
+  audioCtx.window = audioCtx;
+  vm.runInContext(fs.readFileSync(path.join(__dirname, '../js/audio.js'), 'utf8'), audioCtx, { filename: 'audio.js' });
+  const checkDedupe = () => {
+    const { ctx, Gm, G } = load();
+    // Wire real audio.js voLine (skip-aware) and simulate walk-in always colliding with the first dialogue taunt
+    const playedClips = [];
+    ctx.PH.audio.vo = (k, ev) => {
+      const first = manifest[k].lines[ev][0];
+      playedClips.push(first.f);
+      return first;
+    };
+    ctx.PH.audio.voLine = (k, ev, i, skip) => audioCtx.PH.audio.voLine(k, ev, i, skip);
+    ctx.PH.audio.voSay = (it) => { playedClips.push(it.f); };
+
+    // Test every rivalry pair (walk-in + 4 dialogue lines = 6 clips, all unique)
+    for (const pair of Object.keys(Gm.TALK)) {
+      const [a, b] = pair.split('|');
+      playedClips.length = 0;
+      Gm.newGame({ mode: 'cpu', arch0: a, arch1: b });
+      Gm.introStart();
+      runIntro(Gm, G);
+      assert.equal(new Set(playedClips).size, playedClips.length, `${pair}: no repeated clips (${playedClips.join(', ')})`);
+      assert.equal(playedClips.length, 2 + Gm.TALK[pair].length, `${pair}: walk-in + all dialogue lines played`);
+    }
+
+    // Test smallest voice pack (jwells has only 2 taunts) vs maxey
+    playedClips.length = 0;
+    Gm.newGame({ mode: 'cpu', arch0: 'jwells', arch1: 'maxey' });
+    Gm.introStart();
+    runIntro(Gm, G);
+    assert.equal(new Set(playedClips).size, playedClips.length, `jwells vs maxey: no repeated clips (${playedClips.join(', ')})`);
+    assert.equal(playedClips.length, 5, 'generic matchup plays 2 walk-in + 3 dialogue unique clips');
+    console.log('PASS: walk-in + intro dialogue never repeat a voice clip across all 9 rivalries and small voice packs.');
+  };
+  audioCtx.PH.audio.voWhenReady(checkDedupe);
+}
