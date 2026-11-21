@@ -1440,6 +1440,12 @@
         px(cx, h * 0.58, w * 0.09, h * (fs.soft ? 0.06 : 0.1), nose);
         if (!fs.soft) px(cx - w * 0.09, h * 0.68, w * 0.18, 1, dark);
       }
+      if (C.mask) {
+        const frame = '#dfeced';
+        px(w * 0.08, h * 0.36, w * 0.84, 1, frame);
+        px(w * 0.08, h * 0.36, 1, h * 0.32, frame); px(w * 0.84, h * 0.36, 1, h * 0.32, frame);
+        px(w * 0.08, h * 0.68, w * 0.84, 1, frame); px(cx, h * 0.48, 1, h * 0.2, frame);
+      }
       const bd = C.beard === true ? 'full' : C.beard;
       if (bd === 'full' || bd === 'boxed' || bd === 'long') {
         const close = bd === 'full' && C.beardFit === 'close';
