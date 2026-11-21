@@ -4276,7 +4276,8 @@
   function benTick(p, dt) {
     const k = p.sk;
     if (benSealed(p) && p.action && p.action.reb) return;
-    const o = skOf(p, 'bwallace') && p.box && G.phase === 'live' && !G.ball.dead && rebBall() && G.players.find(q => benBehind(p, q));
+    const current = G.players.find(q => q.id === k.benTarget && benBehind(p, q));
+    const o = skOf(p, 'bwallace') && p.box && G.phase === 'live' && !G.ball.dead && rebBall() && (current || G.players.find(q => benBehind(p, q)));
     k.benT = o ? (k.benTarget === o.id ? k.benT || 0 : 0) + dt : 0;
     k.benTarget = o ? o.id : null;
   }

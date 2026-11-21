@@ -79,6 +79,28 @@ function seal(p, o) {
   qa.skTick(p, K.benTime / 2); assert.equal(p.sk.hint, 'half');
   qa.skTick(p, K.benTime / 2 + 0.001); assert(qa.benSealed(p, o)); assert.equal(p.sk.hint, 'ready');
 }
+{
+  ctx.PH.T3.start({ slots: ['bwallace', 'curry', 'jokic', 'caruso', 'durant', 'giannis'].map(arch => ({ arch, role: 'cpu' })), replay: false });
+  G.phase = 'live';
+  const p = G.players[0], earlier = G.players[3], original = G.players[4];
+  for (const q of G.players) Object.assign(q, { off: q !== p, hasBall: false });
+  Object.assign(p, { x: 0, y: 8, box: true, action: null, stun: 0 });
+  Object.assign(G.ball, { state: 'loose', wasShot: true, dead: false, x: 0, y: 9 });
+  Object.assign(original, { off: false, x: 0, y: 7.2 });
+  qa.skTick(p, K.benTime + 0.01);
+  assert(qa.benSealed(p, original));
+  const charge = p.sk.benT;
+  Object.assign(earlier, { off: false, x: 0.2, y: 7.2 });
+  qa.skTick(p, 1 / 120);
+  assert.equal(p.sk.benTarget, original.id, 'earlier-listed rear opponent must not replace valid pinned target');
+  assert(p.sk.benT >= charge); assert(qa.benSealed(p, original));
+  original.x = 3;
+  qa.skTick(p, 1 / 120);
+  assert.equal(p.sk.benTarget, earlier.id); near(p.sk.benT, 1 / 120);
+  assert(!qa.benSealed(p), 'replacement target must build its own charge');
+  ctx.PH.T3.stop();
+}
+console.log('PASS Wallace 3V3 retains valid pinned target when earlier-listed opponent enters cone; switches and recharges only after original leaves');
 for (const mode of ['2p', 't3', 't5']) {
   const { p, o, b } = fixture('bwallace', mode); const base = qa.ctPow(p); seal(p, o);
   near(qa.ctPow(p) / base, K.benPower);
