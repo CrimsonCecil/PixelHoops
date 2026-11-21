@@ -132,6 +132,22 @@ for (const [label, profile] of [['default', {}], ['C1', C1.data]]) {
 
 for (const [label, profile] of [['default', {}], ['C1', C1.data]]) {
   for (const cpu of [false, true]) {
+    for (const eligible of [false, true]) {
+      const f = fixture(profile, cpu), { p, gm, ctx } = f;
+      ctx.PH.TUNE.set('l1_sdV', 4);
+      Object.assign(p, { y: ctx.PH.render.HOOP.y - 1.2, vy: 3, speed: 3 });
+      Object.assign(p.r, { sdunk: eligible ? 0.99 : 0, str: eligible ? 0.99 : 0 });
+      p.postMove = { kind: 'postspin', t: gm.G.time, side: 1 };
+      const plan = gm._dbg.finPlan(p);
+      assert(plan.inside && plan.fv > 2.6 && plan.fv <= gm.K.sdV && (plan.lay || plan.dunk));
+      f.fire();
+      assert.equal(p.action?.type, eligible ? 'dunk' : 'layup', `${label} tuned standing-dunk admission`);
+      if (eligible) {
+        assert.equal(p.action.stand, true, `${label} tuned standing-dunk priority before stale postspin`);
+        assert.equal(p.action.stick, 'stand');
+        assert.equal(p.action.wp.length, 1, 'standing gather instead of running steps');
+      }
+    }
     for (const stale of ['none', 'post', 'spin']) {
       for (const dunk of [false, true]) {
         const f = fixture(profile, cpu), { p, gm } = f;
@@ -170,5 +186,6 @@ for (const [label, profile] of [['default', {}], ['C1', C1.data]]) {
     wide.fire();
     assert.equal(wide.p.action?.type, 'layup', 'live layup tuning is not capped by jumper distance or dunk ratings');
   }
+  console.log(`PASS standing-dunk ${label}: tuned sdV=4, human/CPU sprint with stale postspin, stand dunk or low-rating layup`);
   console.log(`PASS sprint-drive-finish ${label}: human/CPU dunk/layup, stale post/spin, non-drive jumpers, rebound guard (no PH.input)`);
 }
