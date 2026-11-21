@@ -10,11 +10,16 @@
   // 镜头参数：zoom 拉近倍数、height 机位高度、dist 与持球人的前后距离、follow 左右跟随
   const CAM_DEF = { zoom: 1.32, height: 5.8, dist: 8.8, follow: 0.7, push: 1, pin: 0.26, plow: 0.3 };
   const CAMV = Object.assign({}, CAM_DEF);
+  let follow3 = null;
+  let offsetX3 = 0, offsetY3 = 0;
+  function setPitch(dy, dz) {
+    const L = Math.hypot(dy, dz);
+    cam.fy = dy / L; cam.fz = dz / L; cam.uy = -cam.fz; cam.uz = cam.fy;
+  }
   function setCam(o) {
     Object.assign(CAMV, o || {});
     cam.F = 400 * CAMV.zoom; cam.z = CAMV.height;
-    const dy = CAMV.dist + 2.4, dz = 1.0 - cam.z, L = Math.hypot(dy, dz);
-    cam.fy = dy / L; cam.fz = dz / L; cam.uy = -cam.fz; cam.uz = cam.fy;
+    setPitch(CAMV.dist + 2.4, 1 - cam.z);
   }
   setCam();
 
@@ -23,7 +28,8 @@
     const zc = Math.max(0.5, dy * cam.fy + dz * cam.fz);
     const yc = dy * cam.uy + dz * cam.uz;
     const s = cam.F / zc;
-    return { x: W / 2 + dx * s, y: H / 2 + cam.oy - yc * s, s: s, d: zc };
+    const endOn = (offsetX3 || offsetY3) && PH.game.G.mode === 't3';
+    return { x: W / 2 + dx * s + (endOn ? offsetX3 : 0), y: H / 2 + cam.oy - yc * s + (endOn ? offsetY3 : 0), s: s, d: zc };
   }
 
   // ---------- 颜色 ----------
@@ -46,6 +52,7 @@
   const LINE = LV.map((k) => packHex('#f6efe0', k));
   // V3.9：5V5 的 2K 镜头复用这套渲染，可临时换油漆区颜色和广告牌文字；setTheme(null) 还原 1V1 默认
   const WORDS_DEF = ['PIXEL HOOPS', '1 ON 1', '像素斗牛', 'HALF COURT'];
+  const WORDS_3 = WORDS_DEF.map((word) => word === '1 ON 1' ? '3 ON 3' : word);
   let WORDS = WORDS_DEF, themeKey = '';
   function setTheme(th) {
     const key = th ? th.paint + '|' + th.k1 + th.k2 + '|' + th.words.join(',') : '';
@@ -57,7 +64,7 @@
   const APR = [packHex('#1a2342'), packHex('#1e294c')];
   const BAYER = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5];
 
-  let cv, ctx, fcv, fctx, fimg, fbuf, back, backB, spr, sctx, sil, silx;
+  let cv, ctx, fcv, fctx, fimg, fbuf, back, backB, back3, spr, sctx, sil, silx;
   let rowY = new Float32Array(H + 1), rowS = new Float32Array(H + 1);
 
   function bufs() {
@@ -79,7 +86,7 @@
   }
 
   // ---------- 看台背景 ----------
-  function buildBackdrop(up) {
+  function buildBackdrop(up, words = WORDS, startX = 14) {
     const back = document.createElement('canvas'); back.width = BW; back.height = 170;
     const b = back.getContext('2d');
     b.fillStyle = '#070a16'; b.fillRect(0, 0, BW, 170);
@@ -113,9 +120,8 @@
     b.fillStyle = '#12183a'; b.fillRect(0, 146, BW, 20);
     b.fillStyle = '#2b3a80'; b.fillRect(0, 145, BW, 1); b.fillRect(0, 166, BW, 1);
     b.font = "12px 'Fusion Pixel 12px Proportional SC', monospace"; b.textBaseline = 'top';
-    const words = WORDS;
     const cols = ['#ffd24a', '#5ee0ff', '#ff6b6b', '#7dff8a'];
-    let x = 14, i = 0;
+    let x = startX, i = 0;
     while (x < BW) { b.fillStyle = cols[i % 4]; const w = words[i % words.length]; b.fillText(w, x, 150); x += Math.ceil(b.measureText(w).width) + 34; i++; }
     return back;
   }
@@ -125,7 +131,7 @@
 
   function drawFloor() {
     fbuf.fill(0);
-    const cy = H / 2 + cam.oy, dz = -cam.z;
+    const cy = H / 2 + cam.oy + offsetY3, dz = -cam.z;
     for (let sy = 0; sy <= H; sy++) {
       const t = (cy - (sy + 0.5)) / cam.F;
       const den = t * cam.fy - cam.uy;
@@ -145,7 +151,7 @@
       const lw = Math.max(0.05, 0.6 * inv);
       const prev = sy > 0 && rowY[sy - 1] < 1e8 ? (mir && rowY[sy - 1] < 0 ? -rowY[sy - 1] : rowY[sy - 1]) : wy + inv * 3;
       const lwy = Math.max(0.05, 0.6 * Math.abs(prev - wy));
-      let wx = cam.x + (0.5 - W / 2) * inv;
+      let wx = cam.x + (0.5 - W / 2 - offsetX3) * inv;
       const row = sy * W, by = (sy & 3) * 4;
       const dyr = wy - HOOP.y, dyf = wy - 8.2;
       const yIn = wy > -lwy && wy < 14 + lwy;
@@ -1613,7 +1619,8 @@
   function draw3pt(G) {
     const now = G.time, ping = now - (G.clearPing || -9), ok = now - (G.clearOk || -9);
     let col, a;
-    if (G.needClear && G.phase === 'live' && G.ball.state === 'held' && G.players[G.off] && G.players[G.off].ctrl !== 'cpu') { col = '#ff3b30'; a = 0.7 + 0.3 * Math.sin(now * 7) + (ping < 0.5 ? 0.5 * (1 - ping / 0.5) : 0); }
+    const h = G.players[G.mode === 't3' ? G.ball.holder : G.off];
+    if (G.needClear && G.phase === 'live' && G.ball.state === 'held' && h && (G.mode === 't3' || h.ctrl !== 'cpu')) { col = '#ff3b30'; a = 0.7 + 0.3 * Math.sin(now * 7) + (ping < 0.5 ? 0.5 * (1 - ping / 0.5) : 0); }
     else if (ok < 0.6) { col = '#7dff8a'; a = 1 - ok / 0.6; }
     else return;
     const pts = [];
@@ -1653,17 +1660,69 @@
       ctx.save(); ctx.globalAlpha = fade; ctx.textAlign = 'right'; ctx.textBaseline = 'middle'; ctx.lineJoin = 'round';
       ctx.translate(Math.round(W - 12), Math.round(H * (G.mode === 't5' ? 0.34 : 0.29) + 46 * scale + 19));
       ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0; ctx.shadowOffsetX = ctx.shadowOffsetY = 0;
-      ctx.font = "900 16px 'Microsoft YaHei', 'PingFang SC', 'Noto Sans CJK SC', sans-serif";
+      ctx.font = "900 16px 'Microsoft YaHei', 'PingFang SC', 'Noto Sans CJK SC', 'Fusion Pixel 12px Proportional SC', sans-serif";
       ctx.strokeStyle = '#090d19'; ctx.lineWidth = 4; ctx.strokeText(c.name, 0, 0);
       ctx.fillStyle = '#ffe073'; ctx.fillText(c.name, 0, 0); ctx.restore();
     }
   }
-  function render(G) {
+  function nameFoot(p, t3) {
+    const q = proj(p.x, p.y - (t3 ? 0 : 0.25), 0);
+    return { x: q.x, y: q.y + 0.34 * q.s * (t3 ? 0.62 : 1) };
+  }
+  function camera3(G, dt, hintY) {
+    const b = G.ball, p = b.state === 'held' ? G.players[b.holder] : null;
+    const x = p ? p.x + p.vx * 0.28 : b.x + (b.state === 'pass' ? 0 : b.vx * 0.12);
+    const y = p ? p.y + p.vy * 0.28 + 1.3 : b.state === 'shot' ? b.y * 0.65 + HOOP.y * 0.35 : b.y;
+    const tx = Math.max(-7.5, Math.min(7.5, x)), ty = Math.max(0, Math.min(14, y));
+    const fresh = follow3?.players !== G.players;
+    if (fresh) follow3 = { players: G.players, x: tx, y: ty, zoom: 1 };
+    const k = 1 - Math.exp(-4.5 * dt);
+    follow3.x += (tx - follow3.x) * k; follow3.y += (ty - follow3.y) * k;
+    cam.y = Math.max(-8.8, Math.min(-3.8, follow3.y - 10.8));
+    cam.x = follow3.x * 0.55;
+    cam.z = 8.2; cam.F = 530;
+    setPitch(1, -0.54);
+
+    const rim = proj(HOOP.x, HOOP.y, HOOP.z), board = proj(0, BOARD_Y, 3.95);
+    const q = proj(b.x, b.y, b.z);
+    const feet = p ? proj(p.x, p.y, 0) : q, head = p ? proj(p.x, p.y, p.z + p.h) : q;
+    const local = G.players.find((pl) => pl.ring && !pl.off);
+    const localFeet = local && local !== p ? proj(local.x, local.y, 0) : feet;
+    const localHead = local && local !== p ? proj(local.x, local.y, local.z + local.h) : head;
+    const left = Math.min(rim.x, board.x, q.x, feet.x, head.x, localFeet.x, localHead.x);
+    const right = Math.max(rim.x, board.x, q.x, feet.x, head.x, localFeet.x, localHead.x);
+    const top = Math.min(rim.y, q.y, head.y, localHead.y);
+    const bottom = Math.max(rim.y, q.y, feet.y, localFeet.y);
+    const footLimit = Math.min(H - 30, (hintY ?? H) - 4);
+    const nameAnchor = hintY != null && local ? nameFoot(local, true).y : bottom;
+    const nameLimit = hintY != null && local ? hintY - (STB.h1 + STB.gap + 20) : footLimit;
+    const fit = (span, room) => span > 0 ? room / span : 1;
+    const frameZoom = (pad) => Math.min(1,
+      fit(right - left, W - 84 - 2 * pad),
+      fit(Math.max(rim.x - left, right - rim.x), W * 0.62 - 42 - pad),
+      fit(bottom - top, footLimit - 16 - pad),
+      fit(bottom - board.y, footLimit - 36 - pad),
+      fit(nameAnchor - top, nameLimit - 16 - pad),
+      fit(nameAnchor - board.y, nameLimit - 36 - pad));
+    const targetZoom = frameZoom(6);
+    // Smooth the padded framing; the outer fit still catches a sudden snapshot or pass.
+    const zoom = fresh ? targetZoom : Math.min(frameZoom(0), follow3.zoom + (targetZoom - follow3.zoom) * k);
+    follow3.zoom = zoom;
+    const center = H / 2 + cam.oy;
+    const scaledY = (y) => center + (y - center) * zoom;
+    cam.F *= zoom;
+    offsetX3 = Math.max(42 - W / 2 - (left - W / 2) * zoom,
+      Math.min((W / 2 - rim.x) * zoom, W / 2 - 42 - (right - W / 2) * zoom));
+    offsetY3 = Math.max(36 - scaledY(board.y), 16 - scaledY(top),
+      Math.min(40 - scaledY(board.y), footLimit - scaledY(bottom), nameLimit - scaledY(nameAnchor)));
+  }
+  function render(G, dt = 1 / 60, hintY) {
     // 回放时用录下来的画面快照代替实时状态
     const RP = G.replay && G.replay.view;
     if (RP) G = Object.assign(Object.create(G), RP);
     // 相机
     const b = G.ball, foc = G.focus, F = G.fx;
+    offsetX3 = offsetY3 = 0;
     cam.x = foc.cx + (G.camShift || 0); cam.y = foc.cy; cam.z = CAMV.height; cam.F = 400 * CAMV.zoom;
     // 特写：镜头沿视线朝高光点推近（目标点在画面中位置基本不变、被放大），同时横向对准
     const cz = G.cz;
@@ -1675,12 +1734,14 @@
     // 禁区推近（可关）：持球接近篮下时镜头沿纵向前推、机位压低。只用平滑过的 camK，不读球员实时位置，不做额外取景修正
     const pk = RP || cz || !CAMV.push ? 0 : (G.camK || 0);
     if (pk > 0.001) { const e = pk * pk * (3 - 2 * pk); cam.y += CAMV.pin * 5 * e; cam.z -= (cam.z - 1.2) * CAMV.pin * CAMV.plow * e; }
+    if (G.mode === 't3' && !RP) camera3(G, dt, hintY);
+    else if (follow3) { follow3 = null; setPitch(CAMV.dist + 2.4, 1 - CAMV.height); }
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.fillStyle = '#070a16'; ctx.fillRect(0, 0, W, H);
     if (F.shake > 0.3) { const h = hash((G.time * 60) | 0); ctx.setTransform(1, 0, 0, 1, Math.round(((h & 255) / 255 - 0.5) * F.shake), Math.round((((h >>> 8) & 255) / 255 - 0.5) * F.shake)); }
     const first = drawFloor();
     const bx = Math.round(W / 2 - BW / 2 - cam.x * 14);
-    ctx.drawImage(back, bx, first - 170);
+    ctx.drawImage(G.mode === 't3' ? back3 || (back3 = buildBackdrop(false, WORDS_3, 58)) : back, bx, first - 170);
     drawCrowdFx(G, bx, first - 170);
     ctx.drawImage(fcv, 0, 0);
     draw3pt(G);
@@ -1706,7 +1767,7 @@
     // 脚下体力条（V4.4 30×2 + 刻度 + 阈值 + 残影，见 stamBar）
     for (const p of G.players) {
       if (!p.ring || p.off) continue;
-      const q = proj(p.x, p.y - 0.25, 0), w = STB.w1, x = Math.round(q.x - w / 2), y = Math.min(H - 13 - (STB.h1 + STB.gap), Math.round(q.y + 0.34 * q.s) + 3);   // 靠底线时整组（条 + 名字）上移，不叠
+      const q = nameFoot(p, G.mode === 't3' && !RP), w = STB.w1, x = Math.round(q.x - w / 2), y = Math.min(H - 13 - (STB.h1 + STB.gap), Math.round(q.y) + 3);   // 靠底线时整组（条 + 名字）上移，不叠
       stamBar(ctx, x, y, w, STB.h1, p.stam, 'g' + p.id, G.time);
     }
     // 运球（没在做动作）时球总画在持球人身前，背对镜头时也不会被身体挡住
@@ -1730,7 +1791,7 @@
     { const tags = [];
       for (const p of G.players) {
         if (!(p.ring || curOn(p, G)) || p.off || !p.arch || RP || p.dummy) continue;
-        const q = proj(p.x, p.y - 0.25, 0), hp = heads[p.id]; let y = p.ring ? Math.min(H - 13 - (STB.h1 + STB.gap), Math.round(q.y + 0.34 * q.s) + 3) + STB.h1 + STB.gap : Math.round(q.y + 0.34 * q.s) + 3;   // 有体力条：在条（含下方阈值短刻度）下面
+        const q = nameFoot(p, G.mode === 't3'); let y = p.ring ? Math.min(H - 13 - (STB.h1 + STB.gap), Math.round(q.y) + 3) + STB.h1 + STB.gap : Math.round(q.y) + 3;   // 有体力条：在条（含下方阈值短刻度）下面
         // V4.0 名字一律在脚下（用户：名称都在脚下显示就好，不用担心遮挡），只夹在画面内，不再挪到头顶
         if (y < 2) continue; y = Math.min(H - 13, y);
         for (const o of tags) if (Math.abs(o.y0 - y) < 12 && Math.abs((o.x0 + o.x1) / 2 - q.x) < 40) y = o.y0 > y ? o.y0 - 13 : o.y1 + 1;

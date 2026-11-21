@@ -3,7 +3,11 @@
   const PH = window.PH, GM = PH.game, G = GM.G, R = PH.render, CFG = GM.CFG, TR = G.train;
   const $ = (id) => document.getElementById(id);
   const stage = $('stage'), canvas = $('game');
-  const opts = { mode: 'cpu', diff: 1, target: 21, clock: 24, glen: 0, arch0: GM.ROSTER[(Math.random() * GM.ROSTER.length) | 0], arch1: 'random', fb: 'simple', info: 'show', home: 'LAL', away: 'BOS', qlen: 300, side: 0 };
+  const opts = { format: 'duel', opponent: 'cpu', get mode() { return this.format === 'duel' ? this.opponent : this.format; }, diff: 1, target: 21, clock: 24, glen: 0, arch0: GM.ROSTER[(Math.random() * GM.ROSTER.length) | 0], arch1: 'random', fb: 'simple', info: 'show', home: 'LAL', away: 'BOS', qlen: 300, side: 0 };
+  const lobbyRoles = { human: '你', cpu: '电脑', waiting: '等待玩家' };
+  const lobby3 = ['curry', 'edwards', 'jokic', 'lebron', 'durant', 'giannis'].map((arch, i) => ({ arch, role: i === 0 ? 'human' : i % 3 === 2 ? 'waiting' : 'cpu' }));
+  const rooms = PH.rooms, room = rooms.room;
+  let localSlot = -1, roomSlot = -1, matchConfig = null, netFrame = 0;
   let scale = 2, paused = false, manual = false, screen = 'menu', last = 0, acc = 0, fps = 60, debug = /[?&]debug/.test(location.search);
   const isTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
   if (isTouch) document.getElementById('stage').classList.add('touch');
@@ -67,7 +71,7 @@
   const tg = (v01) => GM.grade(v01)[0];
   // V4.5 选人能力卡徽章：和比赛中同一套六边形图标，按档位配色（铜 / 银 / 金 / 名人堂，不写档位字）
   const badgeHtml = (k, full, t) => { const B = GM.BADGES[k]; return '<div class="bdg tr' + (t || 3) + '">' + bHex(k, t) + (full ? '<div><b>' + B.name + (B.five ? '<sup>5V5</sup>' : '') + '</b><span>' + B.desc + '</span></div>' : '<b>' + B.name + '</b>') + '</div>'; };
-  let pkSide = 0, pkSel = 'curry';
+  let pkSide = 0, pkSel = 'curry', pkSlot = null;
   const listedHeight = (a) => (PH.measurements && PH.measurements[a.key] ? PH.measurements[a.key][0] * 0.0254 : a.h).toFixed(2);
   function pkCard(key) {
     if (key === 'random') return '<button class="pkc rnd" data-pk="random" data-testid="pk-random"><span class="pkf q">?</span><span class="pkn">随机</span><span class="pkp">任意球员</span></button>';
@@ -165,7 +169,7 @@
     $('pk-teams').classList.toggle('hidden', !ks.length);
   }
   function pkFill() {
-    let gh = pkSide ? pkCard('random') : '';
+    let gh = pkSide && pkSlot === null ? pkCard('random') : '';
     if (pkTeam === 'all') { for (const t of Object.keys(GM.TIERS)) { const ks = GM.ROSTER.filter((k) => GM.ARCH[k].tier === t); if (ks.length) gh += '<div class="pk-tier t' + TT[t] + '"><i>' + TT[t] + '</i>' + GM.TIERS[t] + '</div>' + ks.map(pkCard).join(''); } }
     else gh += GM.ROSTER.filter((k) => pkTeam === 'rook' ? GM.ARCH[k].tier === 'rook' : GM.ARCH[k].team === pkTeam).map(pkCard).join('');
     $('pk-grid').innerHTML = gh; $('pk-grid').scrollTop = 0;
@@ -173,17 +177,19 @@
     pkMark();
   }
   $('pk-teams').addEventListener('click', (e) => { const b = e.target.closest('.pkt'); if (!b) return; pkTeam = b.getAttribute('data-tm'); $('pk-teams').querySelectorAll('.pkt').forEach((x) => x.classList.toggle('on', x === b)); pkFill(); PH.audio.play('ui'); });
-  function openPicker(side) {
-    pkSide = side; pkSel = side ? opts.arch1 : opts.arch0;
-    $('pk-title').textContent = side ? (opts.mode === '2p' ? '选择玩家 2 的球员' : opts.mode === 'train' ? '选择训练对手' : '选择对手') : opts.mode === '2p' ? '选择玩家 1 的球员' : '选择你的球员';
+  function openPicker(side, slot = null) {
+    pkSide = side; pkSlot = slot; pkSel = slot === null ? (side ? opts.arch1 : opts.arch0) : lobby3[slot].arch;
+    $('pk-title').textContent = slot === null ? (side ? (opts.mode === '2p' ? '选择玩家 2 的球员' : opts.mode === 'train' ? '选择训练对手' : '选择对手') : opts.mode === '2p' ? '选择玩家 1 的球员' : '选择你的球员') : '选择' + lobbySlotName(slot) + '的球员';
     pkTeams(); pkFill(); pkDetail(pkSel); clearPf(); show('picker', true);
     const cur = $('pk-grid').querySelector('.pkc.on'); if (cur) { cur.classList.add('pf'); cur.scrollIntoView({ block: 'nearest' }); }
     PH.audio.play('ui');
   }
   function closePicker(ok) {
-    if (ok) { if (pkSide) opts.arch1 = pkSel; else opts.arch0 = pkSel; }
+    if (ok) { if (pkSlot !== null) lobby3[pkSlot].arch = pkSel; else if (pkSide) opts.arch1 = pkSel; else opts.arch0 = pkSel; }
+    const id = pkSlot === null ? (pkSide ? 'pick1' : 'pick0') : 'pick3-' + pkSlot;
+    pkSlot = null;
     show('picker', false); clearPf(); refreshMenu(); PH.audio.play('ui');
-    const b = $(pkSide ? 'pick1' : 'pick0'); if (b) b.classList.add('pf');
+    navSet($('menu'), $(id));
   }
   $('pk-grid').addEventListener('click', (e) => { const b = e.target.closest('.pkc'); if (!b) return; const k = b.getAttribute('data-pk'); if (k === pkSel && e.detail >= 2) { closePicker(true); return; } pkSel = k; pkMark(); pkDetail(k); PH.audio.play('ui'); });
   $('pk-grid').addEventListener('mouseover', (e) => { const b = e.target.closest('.pkc'); if (b) pkDetail(b.getAttribute('data-pk')); });
@@ -192,28 +198,141 @@
   $('pk-cancel').addEventListener('click', () => closePicker(false));
   $('pick0').addEventListener('click', () => openPicker(0));
   $('pick1').addEventListener('click', () => openPicker(1));
-  function pickBtn(id, key) {
+  function pickBtn(id, key, side = id === 'pick0' ? 0 : 1) {
     const el = $(id);
     if (key === 'random') { el.className = 'pick'; el.innerHTML = '<span class="pkf q">?</span><span class="pk-n">随机</span><span class="pk-s">任意球员</span><span class="pk-c">更换</span>'; return; }
     const a = GM.ARCH[key];
     el.className = 'pick t' + TT[a.tier]; el.innerHTML = '<canvas class="pkf" width="32" height="32"></canvas><span class="pk-n">' + a.name + ' <small>' + a.ovr + '</small></span><span class="pk-s">' + (a.skill ? '必杀技 · ' + a.skill.name : a.pos + ' · ' + GM.TIERS[a.tier]) + '</span><span class="pk-c">更换</span>';
-    portrait(el.querySelector('canvas'), a, GM.TEAMS[id === 'pick0' ? 0 : 1]);
+    portrait(el.querySelector('canvas'), a, GM.TEAMS[side]);
   }
+  const lobbySlotName = (i) => (i < 3 ? '主队' : '客队') + ' ' + (i % 3 + 1) + ' 号位';
+  function lobbySlotRole(i) {
+    const b = $('role3-' + i), role = lobby3[i].role;
+    const joined = room.links.has(i), label = joined ? '已加入' : lobbyRoles[role];
+    b.disabled = joined;
+    b.dataset.role = role; b.textContent = label;
+    b.setAttribute('aria-label', lobbySlotName(i) + '：' + label + (joined ? '' : '，切换身份'));
+  }
+  function refreshLobby() {
+    lobby3.forEach((slot, i) => {
+      const id = 'pick3-' + i;
+      pickBtn(id, slot.arch, i < 3 ? 0 : 1);
+      $(id).setAttribute('aria-label', lobbySlotName(i) + '：' + GM.ARCH[slot.arch].name + '，更换球员');
+      lobbySlotRole(i);
+    });
+  }
+  lobby3.forEach((slot, i) => {
+    const side = i < 3 ? 0 : 1, team = $(side ? 'lobby3-away' : 'lobby3-home');
+    team.insertAdjacentHTML('beforeend', '<div class="lobby3-slot"><button type="button" id="pick3-' + i + '"></button><button type="button" class="lobby3-role" id="role3-' + i + '"></button></div>');
+    $('pick3-' + i).addEventListener('click', () => openPicker(side, i));
+    $('role3-' + i).addEventListener('click', () => {
+      const roles = Object.keys(lobbyRoles), next = roles[(roles.indexOf(slot.role) + 1) % roles.length];
+      if (next === 'human') {
+        const prev = lobby3.findIndex((s) => s.role === 'human');
+        if (prev >= 0) { lobby3[prev].role = 'cpu'; lobbySlotRole(prev); }
+      }
+      slot.role = next; lobbySlotRole(i); roomStatus(); PH.audio.play('ui');
+    });
+  });
+  function menuStatus(text) {
+    $('menu-status').textContent = text; show('menu-status', !!text);
+  }
+  function roomStatus() {
+    if (room.role === 'host' && room.code) menuStatus('房间号 ' + room.code + ' · 已加入 ' + room.links.size + ' 人');
+    else if (!room.role) menuStatus('');
+  }
+  const NET_STATE = ['time', 'phase', 'phaseT', 'score', 'stats', 'target', 'shotClock', 'glen', 'gclock', 'sd', 'mp', 'needClear', 'off', 'winner',
+    'ball', 'banner', 'floats', 'fx', 'net', 'focus', 'camK', 'cz', 'cutin', 'hero', 'bpops', 'lastShot', 'hzV', 'clearOk', 'clearPing'];
+  const roomAudio = [];
+  function resetRoomAudio() {
+    roomAudio.length = 0;
+    GM.setAudioSink(room.role === 'host' && room.active ? (...event) => {
+      if (room.links.size) roomAudio.push(event);
+    } : null);
+  }
+  function roomSnapshot() {
+    const state = Object.fromEntries(NET_STATE.map((key) => [key, G[key]]));
+    state.players = G.players.map(({ opp, arch, team, ...p }) => ({ ...p, oppId: opp ? opp.id : -1 }));
+    state.audio = roomAudio.splice(0);
+    return JSON.parse(JSON.stringify(state));
+  }
+  function roomState(state) {
+    if (!state || !Array.isArray(state.players) || state.players.length !== G.players.length) return;
+    for (const key of NET_STATE) G[key] = state[key];
+    for (let i = 0; i < G.players.length; i++) {
+      const p = state.players[i];
+      Object.assign(G.players[i], p, { opp: G.players[p.oppId] || null, ring: G.mode === 't3' && i === localSlot });
+    }
+    if (Array.isArray(state.audio)) {
+      for (const event of state.audio) {
+        if (!Array.isArray(event)) continue;
+        const [type, name, voice, mode] = event;
+        if (type === 'play') PH.audio.play(name);
+        else if (type === 'vo') PH.audio.vo(name, voice, mode);
+      }
+    }
+  }
+  function roomAction(join) {
+    const field = $('room-code'), code = field.value.trim().toUpperCase(), mode = opts.mode;
+    if (join && !rooms.valid(code)) { menuStatus('请输入 5 位房间号。'); field.focus(); return; }
+    menuStatus(join ? '正在加入房间…' : '正在建立房间…');
+    roomSlot = -1;
+    rooms.open(join ? code : '', mode, {
+      ready: (id) => { field.value = id; roomStatus(); refreshMenu(); },
+      reserve: (requested, links) => requested !== mode ? -1 : mode === 't3'
+        ? lobby3.findIndex((s, i) => s.role === 'waiting' && !links.has(i)) : links.has(1) ? -1 : 1,
+      change: (left) => {
+        if (screen === 'play' && left != null && G.mode === 't3') G.players[left].ctrl = 'cpu';
+        if (screen === 'play' && left != null && G.mode !== 't3') { toMenu(); menuStatus('对手已断开连接。'); }
+        if (screen === 'menu' && room.role) { roomStatus(); refreshMenu(); }
+      },
+      joined: (slot) => { roomSlot = slot; menuStatus('已加入房间 ' + code + (mode === 't3' ? ' · ' + lobbySlotName(slot) : '') + ' · 等待房主开始。'); refreshMenu(); },
+      start: (config) => {
+        if (!config || config.mode !== mode || (mode === 't3' && (!Array.isArray(config.slots) || config.slots.length !== 6 || !config.slots.every((s) => GM.ARCH[s.arch])))) return;
+        launchRoomMatch(config, roomSlot);
+      },
+      state: roomState,
+      error: (message) => { if (screen === 'play') toMenu(); menuStatus(message); refreshMenu(); }
+    });
+    refreshMenu();
+    PH.audio.play('ui');
+  }
+  $('btn-room-create').addEventListener('click', () => roomAction(false));
+  $('btn-room-join').addEventListener('click', () => roomAction(true));
+  $('room-code').addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') { e.currentTarget.blur(); return; }
+    e.stopPropagation();
+    if (e.key === 'Enter') { e.preventDefault(); roomAction(true); }
+  });
   function refreshMenu() {
     document.querySelectorAll('#menu .seg').forEach((seg) => {
       const k = seg.getAttribute('data-opt');
-      seg.querySelectorAll('button').forEach((b) => b.classList.toggle('on', String(opts[k]) === b.getAttribute('data-v')));
+      seg.querySelectorAll('button').forEach((b) => {
+        const on = String(opts[k]) === b.getAttribute('data-v');
+        b.classList.toggle('on', on); b.setAttribute('aria-pressed', on);
+      });
     });
-    const tr = opts.mode === 'train', t5 = opts.mode === 't5';
-    $('row-diff').classList.toggle('hidden', opts.mode !== 'cpu' && !t5);
-    for (const id of ['row-fb', 'row-p1', 'row-p2']) $(id).classList.toggle('hidden', t5);
+    const tr = opts.mode === 'train', t5 = opts.mode === 't5', t3 = opts.mode === 't3', online = opts.mode === 'online', setup = !t3, guest = room.role === 'guest';
+    show('row-opponent', opts.format === 'duel');
+    show('lobby3', t3); show('menu-rooms', t3 || online);
+    for (const id of ['row-info', 'arch-desc']) show(id, setup);
+    show('btn-start', !guest && (!online || room.role === 'host' && room.links.has(1)));
+    $('row-diff').classList.toggle('hidden', opts.mode !== 'cpu' && !t5 && !t3);
+    for (const id of ['row-fb', 'row-p1', 'row-p2']) show(id, setup && !t5);
     for (const id of ['row-qlen', 'row-teams', 'row-side']) $(id).classList.toggle('hidden', !t5);
-    if (t5) { refresh5(); $('row-target').classList.add('hidden'); $('row-clock').classList.add('hidden'); $('row-glen').classList.add('hidden'); return; }
-    $('row-target').classList.toggle('hidden', tr); $('row-clock').classList.toggle('hidden', tr); $('row-glen').classList.toggle('hidden', tr);
+    for (const id of ['row-target', 'row-clock']) show(id, !tr && !t5);
+    show('row-glen', !tr && !t5 && !t3);
+    if (t5) { refresh5(); return; }
+    if (t3) {
+      refreshLobby();
+      $('btn-start').textContent = '开始';
+      $('menu-foot').textContent = '先到目标分获胜。点击切换身份；无人加入的位置由电脑补齐。';
+      return;
+    }
     $('lab-p1').textContent = opts.mode === '2p' ? '玩家 1' : '你的球员';
     $('lab-p2').textContent = opts.mode === '2p' ? '玩家 2' : tr ? '假人体型' : '对手';
     $('btn-start').textContent = tr ? '进入训练场' : '开始比赛';
-    $('menu-foot').textContent = tr ? '训练场：无比分无时限，可设置假人防守方式，并现场调整球员能力和判定参数。' : '规则：2 分 / 3 分，先到目标分且领先 2 分获胜，失分方球权，抢到对方的球要先带出三分线。';
+    $('menu-foot').textContent = tr ? '训练场：无比分无时限，可设置假人防守方式，并现场调整球员能力和判定参数。' : online ? '建房间并分享房间号；对手加入后，由房主开始比赛。' : '规则：2 分 / 3 分，先到目标分且领先 2 分获胜，失分方球权，抢到对方的球要先带出三分线。';
     const a = GM.ARCH[opts.arch0];
     pickBtn('pick0', opts.arch0); pickBtn('pick1', opts.arch1);
     $('arch-desc').textContent = a.full + '：' + a.desc + (a.skill ? '。必杀技「' + a.skill.name + '」，条件和效果见“更换”。' : '。');
@@ -221,6 +340,7 @@
   document.querySelectorAll('#menu .seg button').forEach((b) => b.addEventListener('click', () => {
     const k = b.parentElement.getAttribute('data-opt'), v = b.getAttribute('data-v');
     opts[k] = k === 'diff' || k === 'target' || k === 'clock' || k === 'glen' || k === 'qlen' || k === 'side' ? +v : v; if (k === 'fb') { cardId = -1; }
+    if (k === 'format' || k === 'opponent') { rooms.close(); menuStatus(''); }
     PH.audio.play('ui'); refreshMenu();
   }));
 
@@ -229,13 +349,46 @@
   function startDemo() { GM.newGame({ mode: 'demo', arch0: 'curry', arch1: 'lebron', target: 11 }); }
   function toMenu() {
     tuneClose();
+    rooms.close(); resetRoomAudio(); syncBackgroundMatch(); PH.T3.stop(); localSlot = -1; matchConfig = null; menuStatus(''); refreshMenu();
     screen = 'menu'; paused = false; clearPf(); camOpen = false; camFromSet = false; show('campanel', false); pcards();
     show('menu', true); show('qvol', false); show('picker', false); show('cutin', false); show('hud', false); show('pause', false); show('over', false); show('help', false); show('touch', false); show('banner', false); show('train', false); show('shotcard', false); stage.classList.remove('panel');
     if (PH.T5) { PH.T5.stop(); PH.render5.restore(); } show('hud5', false); show('over5', false); show('tpicker', false); show('btn-cam', true); show('btn-disp', true); show('btn-box5', false); if (PH.box5 && PH.box5.isOpen()) PH.box5.close();
     startDemo(); camShift();
   }
   let lastArch = null;
+  function launchRoomMatch(config, slot) {
+    tuneClose();
+    PH.audio.ensure(); PH.audio.play('start'); PH.audio.startMusic();
+    localSlot = slot; matchConfig = config; netFrame = 0;
+    resetRoomAudio();
+    if (config.mode === 't3') PH.T3.start({ ...config, local: slot, replay: !room.active });
+    else { CFG.shotClock = config.clock; GM.newGame({ ...config, mode: '2p' }); }
+    PH.audio.voPreload(G.players.map((p) => p.arch.key));
+    screen = 'play'; paused = false; panelOpen = false; overShown = false; PH.input.clearSys(); clearPf(); camShift();
+    syncBackgroundMatch();
+    for (const id of ['menu', 'picker', 'pause', 'over', 'help', 'shotcard', 'trainbar', 'btn-panel', 'train']) show(id, false);
+    show('hud', true); show('scorebar', true); show('touch', isTouch); show('tbpass', config.mode === 't3');
+    show('btn-restart', room.role !== 'guest'); show('btn-again', room.role !== 'guest'); show('btn-cam', config.mode !== 't3');
+    for (let i = 0; i < 2; i++) $('n' + i).textContent = config.mode === 't3' ? (i ? '客队' : '主队') : (i === slot ? '你 · ' : '在线 · ') + G.players[i].arch.name;
+    $('btn-restart').textContent = '重新开始'; $('btn-resume').textContent = '继续比赛';
+    hintKey = ''; cardId = -1; lastClock = ''; lastTB2 = ''; lastS0 = lastS1 = -1; pcards();
+  }
   function startMatch(same) {
+    if (room.role === 'guest') return;
+    if (opts.mode === 't3' || opts.mode === 'online') {
+      const t3 = opts.mode === 't3';
+      if (!t3 && !room.links.has(1)) return;
+      const config = same && !t3 && matchConfig ? matchConfig : { mode: opts.mode, clock: opts.clock, target: opts.target, diff: opts.diff, fb: opts.fb, glen: opts.glen,
+        ...(t3 ? { slots: lobby3.map((s, i) => ({ arch: s.arch, role: room.links.has(i) ? 'remote' : s.role === 'waiting' ? 'cpu' : s.role })) }
+          : { arch0: opts.arch0, arch1: pickArch(opts.arch1, opts.arch0) }) };
+      if (room.role === 'host') {
+        if (!room.code) return;
+        room.active = true;
+        rooms.broadcast({ type: 'start', config });
+      }
+      launchRoomMatch(config, t3 ? config.slots.findIndex((s) => s.role === 'human') : 0);
+      return;
+    }
     tuneClose();
     PH.audio.ensure(); PH.audio.play('start'); PH.audio.startMusic();
     if (opts.mode === 't5') { start5(); return; }
@@ -246,6 +399,7 @@
     GM.newGame({ mode: opts.mode, diff: opts.diff, target: opts.target, arch0: lastArch.a0, arch1: lastArch.a1, fb: opts.fb, glen: opts.glen });
     PH.audio.voPreload(G.players.map((p) => p.arch.key));
     screen = 'play'; paused = false; PH.input.clearSys(); clearPf();
+    show('tbpass', false); show('btn-restart', true); show('btn-again', true);
     show('menu', false); show('picker', false); show('pause', false); show('over', false); show('help', false); show('hud', true); show('touch', isTouch); show('shotcard', false);
     show('scorebar', !tr); show('trainbar', tr); show('btn-panel', tr);
     panelOpen = tr && !narrow(); show('train', panelOpen); stage.classList.toggle('panel', panelOpen); camShift();
@@ -617,11 +771,11 @@
   }
   function pcards() {
     for (let i = 0; i < 2; i++) {
-      const el = $('pc' + i), pl = G.players[i];
+      const me = G.mode === 't3' && G.players[localSlot], pl = G.mode === 't3' ? me && (i ? me.opp : me) : G.players[i], el = $('pc' + i);
       const on = screen === 'play' && opts.info === 'show' && pl && !pl.dummy && !(G.mode === 'train' && i === 1 && TR.dummy === 'none');
       el.classList.toggle('hidden', !on); if (!on) continue;
-      const S = G.stats && G.stats[i];
-      const html = cardHTML(pl, G.off === i, S && G.mode !== 'train' ? { pts: G.score[i], fg: S.fg, fga: S.fga, reb: S.reb, blk: S.blk, stl: S.stl } : null);
+      const S = G.stats && G.stats[pl.id];
+      const html = cardHTML(pl, G.off === (G.mode === 't3' ? pl.tm : i), S && G.mode !== 'train' ? { pts: G.mode === 't3' ? S.pts || 0 : G.score[i], fg: S.fg, fga: S.fga, reb: S.reb, blk: S.blk, stl: S.stl } : null);
       el.classList.toggle('tk', pl.tkOn > 0);
       if (el._h !== html) { el._h = html; el.innerHTML = html; }
     }
@@ -881,9 +1035,12 @@
   function bpops() {
     const L = (G.bpops || []).filter((x) => G.time - x.t0 < 1.8 && G.time >= x.t0), live = new Set();
     for (const x of L) {
+      const pl = G.players[x.pid], t3 = G.mode === 't3';
+      const col = $('bcol' + (t3 ? pl?.tm : x.pid));
+      if (!col) continue;
       const id = x.pid + x.key + x.t0.toFixed(3); live.add(id);
       let el = bEls.get(id);
-      if (!el) { el = document.createElement('div'); el.className = 'bchip'; const b = bTier(x); el.className = 'bchip tr' + b.t; el.innerHTML = bHex(x.key, b.t) + '<span>' + b.n + '</span>'; $('bcol' + x.pid).appendChild(el); bEls.set(id, el); }
+      if (!el) { el = document.createElement('div'); const b = bTier(x); el.className = 'bchip tr' + b.t; el.innerHTML = bHex(x.key, b.t) + '<span>' + (t3 ? '<small>' + pl.arch.name + '</small>' : '') + b.n + '</span>'; col.appendChild(el); bEls.set(id, el); }
       el.classList.toggle('out', G.time - x.t0 > 1.5);
     }
     for (const [id, el] of bEls) if (!live.has(id)) { el.remove(); bEls.delete(id); }
@@ -930,7 +1087,7 @@
     if (frameN % 30 === 0) { const hp = PH.input.pads().length > 0; if (hp !== hasPad) { hasPad = hp; show('padtag', hp); hintKey = ''; } }
     if (screen === 'tips') { drawFloats(); return; }
     if (screen !== 'play') { for (const d of fpool) d.style.display = 'none'; return; }
-    const train = G.mode === 'train';
+    const train = G.mode === 'train', t3 = G.mode === 't3', local = G.players[matchConfig ? localSlot : 0];
     if (frameN % 10 === 0) pcards();
     bpops();
     if (G.score[0] !== lastS0) { lastS0 = G.score[0]; $('s0').textContent = lastS0; }
@@ -939,7 +1096,8 @@
     if (c !== lastClock) { lastClock = c; $('clock').textContent = c; $('clock').classList.toggle('low', CFG.shotClock > 0 && G.shotClock <= 5); }
     { const gl = G.glen > 0 && G.mode !== 'train', gc = Math.ceil(G.gclock || 0), tt = G.sd ? '加时 · 下一球胜' : (gl ? Math.floor(gc / 60) + ':' + String(gc % 60).padStart(2, '0') + ' · ' : '') + (G.mp >= 0 ? '赛点' : '先到 ' + G.target + ' 分');
       if (tt !== lastTB2) { lastTB2 = tt; const el = $('target'); el.textContent = tt; el.classList.toggle('mp', G.mp >= 0 || !!G.sd); el.classList.toggle('low', gl && gc <= 10); } }
-    show('notice', G.needClear && G.phase === 'live' && G.ball.state === 'held' && G.players[G.off].ctrl !== 'cpu');
+    const teamOff = t3 && !!local && local.tm === G.off;
+    show('notice', G.needClear && G.phase === 'live' && G.ball.state === 'held' && (t3 ? teamOff : G.players[G.off].ctrl !== 'cpu'));
     $('notice').classList.toggle('ping', G.time - (G.clearPing || -9) < 0.45);
     if (train && frameN % 12 === 0) {
       const S = TR.stats, t = TR.role === 'def' ? '自由训练 · 练防守 · 电脑得分 <b>' + G.score[1] + '</b>' : '自由训练 · 出手 <b>' + S.n + '</b> 命中 <b>' + S.made + '</b> 命中率 <b>' + (S.n ? Math.round((S.made / S.n) * 100) + '%' : '—') + '</b>';
@@ -947,23 +1105,25 @@
       if (panelOpen && trTab === 'stats') statsDyn();
     }
     // 操作提示
-    const two = G.mode === '2p', off = G.off === 0, post = off && G.players[0].post;
-    const key = (two ? '2' : '1') + (off ? 'o' : 'd') + (post ? 'p' : '') + (hasPad ? 'g' : '') + (train ? 't' : '');
+    const two = G.mode === '2p' && !matchConfig, off = t3 ? teamOff : matchConfig ? !!(local && local.hasBall) : G.off === 0;
+    const offBall = teamOff && !local.hasBall, post = off && !offBall && local.post;
+    const key = (two ? '2' : '1') + (offBall ? 'b' : off ? 'o' : 'd') + (post ? 'p' : '') + (hasPad ? 'g' : '') + (train ? 't' : '') + (t3 ? '3' : '');
     if (key !== hintKey) {
       hintKey = key;
       const kb = hasPad ? { a1: 'X', a2: 'Y', a3: 'A', po: 'LT', sp: 'RT', st: 'LT', d1: 'Y', d2: 'X' } : { a1: 'J', a2: 'K', a3: 'L', po: 'Q', sp: 'Shift', st: '按住 L', d1: 'J', d2: 'K' };
       const O = '<b>' + kb.a1 + '</b> 投篮/突破上篮 <b>' + kb.a2 + '</b> 扣篮/终结 <b>' + kb.a3 + '</b>+方向 运球动作／中立按住 犹豫步 <b>' + kb.po + '</b> 背打 <b>' + kb.sp + '</b> 加速';
+      const B = '<b>' + kb.d1 + '</b> 抢篮板 <b>' + kb.st + '</b> 卡位 <b>' + kb.sp + '</b> 加速';
       const P = '背打中　<b>' + kb.a1 + '</b> 勾手 / 按住后方向后仰 <b>' + kb.a2 + '</b> 转身终结　松开时按左右 转身';
       const D = '<b>' + kb.d1 + '</b> 封盖 <b>' + kb.d2 + '</b> 抢断 <b>' + kb.st + '</b> 举手干扰 <b>' + kb.sp + '</b> 加速';
-      show('hint', train || opts.fb === 'detail');
-      $('hint').innerHTML = two ? '玩家 1：WASD + J K L，Q 背打　玩家 2：方向键 + 小键盘 1 2 3，O 背打' : (post ? P : off ? '进攻　' + O : '防守　' + D) + (train ? '　<b>' + (hasPad ? 'View' : 'Tab') + '</b> 参数 <b>R</b> 重置' : '');
-      if (isTouch) { $('tb1').textContent = off ? '投篮' : '盖帽'; $('tb2').textContent = off ? '终结' : '抢断'; $('tb3').textContent = off ? '运球' : '姿态'; $('tbalt').textContent = '背打'; show('tbalt', off); }
+      show('hint', train || !!(t3 && local) || opts.fb === 'detail');
+      $('hint').innerHTML = two ? '玩家 1：WASD + J K L，Q 背打　玩家 2：方向键 + 小键盘 1 2 3，O 背打' : (post ? P : off ? '进攻　' + (offBall ? B : O) : '防守　' + D) + (t3 && local ? '　<b>' + (hasPad ? 'B' : 'E') + '</b> 传球 / 要球' : '') + (train ? '　<b>' + (hasPad ? 'View' : 'Tab') + '</b> 参数 <b>R</b> 重置' : '');
+      if (isTouch) { $('tb1').textContent = offBall ? '篮板' : off ? '投篮' : '盖帽'; $('tb2').textContent = offBall ? '扑球' : off ? '终结' : '抢断'; $('tb3').textContent = offBall ? '卡位' : off ? '运球' : '姿态'; $('tbalt').textContent = '背打'; show('tbalt', off && !offBall); }
     }
     // 终结提示（脚下）
     for (let i = 0; i < 2; i++) {
-      const pl = G.players[i], d = cues[i], c = pl && pl.cue;
+      const pl = matchConfig ? (i === 0 ? local : null) : G.players[i], d = cues[i], c = pl && pl.cue;
       if (!c) { d.style.display = 'none'; continue; }
-      const kb2 = G.mode === '2p' ? null : hasPad ? { a1: 'X', a2: 'Y' } : { a1: 'J', a2: 'K' };
+      const kb2 = two ? null : hasPad ? { a1: 'X', a2: 'Y' } : { a1: 'J', a2: 'K' };
       const simple = opts.fb !== 'detail' && !train;
       if (simple && c === 'flo') { d.style.display = 'none'; continue; }
       const t = c === 'dunk' ? (simple ? '扣' : '可扣篮') : c === 'lay' ? (simple ? '上篮' : '可上篮') : '抛投距离';
@@ -1052,11 +1212,18 @@
   }
   $('bx-bar').addEventListener('click', (e) => { const b = e.target.closest('button'); if (!b) return; const v = b.getAttribute('data-bv'), o = b.getAttribute('data-bo'); if (v) BX.view = v; if (o) BX[o] = !BX[o]; PH.audio.play('ui'); renderBox(); });
   function showOver() {
-    const w = G.winner, two = G.mode === '2p';
-    $('over-title').textContent = two ? '玩家 ' + (w + 1) + ' 获胜' : w === 0 ? '你赢了' : '电脑获胜';
+    const w = G.winner, t3 = G.mode === 't3', two = G.mode === '2p';
+    $('over-title').textContent = t3 ? (w ? '客队获胜' : '主队获胜') : two && !matchConfig ? '玩家 ' + (w + 1) + ' 获胜' : w === (matchConfig ? localSlot : 0) ? '你赢了' : matchConfig ? '对手获胜' : '电脑获胜';
     $('over-title').style.color = w === 0 ? 'var(--blue)' : 'var(--red)';
     $('over-score').innerHTML = '<span class="b">' + G.score[0] + '</span> : <span class="r">' + G.score[1] + '</span>';
-    BX.view = 'box'; renderBox();
+    show('bx-bar', !t3);
+    if (t3) {
+      $('over-stats').innerHTML = '<thead><tr><th>阵容</th><th>得分</th><th>投篮</th><th>篮板</th><th>抢断</th><th>盖帽</th></tr></thead><tbody>' + G.players.map((p) => {
+        const s = G.stats[p.id];
+        return '<tr><th>' + (p.tm ? '客 · ' : '主 · ') + p.arch.name + '</th><td>' + (s.pts || 0) + '</td><td>' + s.fg + '/' + s.fga + '</td><td>' + s.reb + '</td><td>' + s.stl + '</td><td>' + s.blk + '</td></tr>';
+      }).join('') + '</tbody>';
+      $('bx-note').textContent = '';
+    } else { BX.view = 'box'; renderBox(); }
     clearPf(); show('over', true); show('touch', false);
   }
 
@@ -1170,7 +1337,7 @@
   $('btn-pause5').addEventListener('click', () => setPause(true));
 
   // ---------- 手柄菜单导航 ----------
-  const NAV_SEL = 'button, select, input[type=range]';
+  const NAV_SEL = 'button, select, input[type=range], #room-code';
   const navList = (root) => Array.prototype.filter.call(root.querySelectorAll(NAV_SEL), (b) => b.offsetParent !== null && !b.disabled && !b.hasAttribute('data-nonav'));
   const navPri = (root) => Array.prototype.find.call(root.querySelectorAll('button.primary'), (b) => b.offsetParent !== null);
   const trainPanelOn = () => screen === 'play' && G.mode === 'train' && panelOpen && !paused && !G.replay && !$('train').classList.contains('hidden');
@@ -1214,7 +1381,7 @@
     const root = navRoot(); if (!root) return;
     const list = navList(root); if (!list.length) return;
     let cur = root.querySelector('.pf');
-    if (!cur || cur.offsetParent === null || !cur.matches(NAV_SEL)) { cur = navPri(root) || list[0]; if (!list.includes(cur)) cur = list[0]; navSet(root, cur); return; }
+    if (!cur || cur.offsetParent === null || !cur.matches(NAV_SEL)) { cur = root.id === 'menu' ? root.querySelector('.menu-modes .on') : navPri(root); if (!list.includes(cur)) cur = list[0]; navSet(root, cur); return; }
     if (dx && cur.type === 'range') { navAdjust(cur, dx); return; }
     const r0 = cur.getBoundingClientRect(), cx = r0.left + r0.width / 2, cy = r0.top + r0.height / 2;
     let best = null, bs = 1e9;
@@ -1238,9 +1405,10 @@
   }
   function navClick() {
     const root = navRoot(); if (!root) return false;
-    const list = navList(root), b = root.querySelector('.pf') || navPri(root);
+    const list = navList(root), b = list.find((el) => el.classList.contains('pf')) || navPri(root) || list[0];
     if (!b) { if (list[0]) navSet(root, list[0]); return true; }
     if (b.tagName === 'SELECT') { navAdjust(b, 1); return true; }
+    if (b.id === 'room-code') { b.focus(); return true; }
     if (b.type === 'range') return true;
     const idx = list.indexOf(b); b.click(); navRefocus(root, list, idx, b);
     return true;
@@ -1260,6 +1428,11 @@
     const now = performance.now(), dt = Math.min(60, now - rsT || 16); rsT = now;
     const r = PH.input.rstick(); if (r.y) { const sb = scrollBox(root); if (sb) sb.scrollTop += r.y * dt * 1.1; }
   }
+  document.addEventListener('keydown', (e) => {
+    if (e.code !== 'Enter' || screen !== 'menu' || e.target.id === 'room-code') return;
+    const root = navRoot();
+    if (root && (root.id === 'menu' || root.id === 'picker')) e.preventDefault();
+  });
 
   // ---------- 循环 ----------
   function sysKeys() {
@@ -1273,13 +1446,18 @@
     if (I.sysPressed('F3')) { debug = !debug; }
     const tab = I.sysPressed('Tab') || I.sysPressed('PadBack'), rk = I.sysPressed('KeyR');
     if (screen === 'play' && G.mode === 'train' && !paused && !(TUI && TUI.isOpen())) { if (tab) togglePanel(); if (rk) GM.trainReset(); }
-    const up = I.sysPressed('PadUp'), dn = I.sysPressed('PadDown'), lf = I.sysPressed('PadLeft'), rt = I.sysPressed('PadRight');
+    let up = I.sysPressed('PadUp'), dn = I.sysPressed('PadDown'), lf = I.sysPressed('PadLeft'), rt = I.sysPressed('PadRight');
     const pa = I.sysPressed('PadA'), pb = I.sysPressed('PadB'), ps = I.sysPressed('PadStart');
     const esc = I.sysPressed('Escape') || I.sysPressed('KeyP') || ps;
     const ok = I.sysPressed('Enter');
     const lb = I.sysPressed('PadLB'), rb = I.sysPressed('PadRB'), rl = I.sysPressed('PadRLeft'), rr = I.sysPressed('PadRRight'), px = I.sysPressed('PadX');
     if (screen === 'tips') { if (esc || pb || ok) tipsExit(); I.clearSys(); return; }
     const root = navRoot();
+    if (screen === 'menu' && root && (root.id === 'menu' || root.id === 'picker')) {
+      up = I.sysPressed('ArrowUp') || up; dn = I.sysPressed('ArrowDown') || dn; lf = I.sysPressed('ArrowLeft') || lf; rt = I.sysPressed('ArrowRight') || rt;
+      const focused = document.activeElement;
+      if ((ok || pa || up || dn || lf || rt) && root.contains(focused) && focused.matches(NAV_SEL) && focused.id !== 'room-code' && focused.offsetParent !== null && !root.querySelector('.pf')) navSet(root, focused);
+    }
     if (TUI && TUI.isOpen()) {
       navAct(root, { up: up, dn: dn, lf: lf, rt: rt, lb: lb, rb: rb, rl: rl, rr: rr, px: px });
       if (pa) navClick();
@@ -1289,10 +1467,10 @@
     if (root) navAct(root, { up: up, dn: dn, lf: lf, rt: rt, lb: lb, rb: rb, rl: rl, rr: rr, px: px });
     if (!$('help').classList.contains('hidden')) { if (esc || ok || pb) { show('help', false); clearPf(); } else if (pa) navClick(); }
     else if (!$('tpicker').classList.contains('hidden')) { if (pb || esc) closeTP(false); else if (pa || ok) navClick(); }
-    else if (!$('picker').classList.contains('hidden')) { if (pb || esc) closePicker(false); else if (ok) closePicker(true); else if (pa) { const b = $('picker').querySelector('.pf'); if (b && b.hasAttribute('data-pk')) { if (b.getAttribute('data-pk') === pkSel) closePicker(true); else b.click(); b.classList.add('pf'); } else navClick(); } }
+    else if (!$('picker').classList.contains('hidden')) { if (pb || esc) closePicker(false); else if (pa || ok) { const b = $('picker').querySelector('.pf'); if (b && b.hasAttribute('data-pk') && b.getAttribute('data-pk') === pkSel) closePicker(true); else navClick(); } }
     else if (screen === 'menu' && !$('pause').classList.contains('hidden')) { if (setV !== 'main' && (esc || pb)) setView('main'); else if (esc || pb || ok) menuSet(false); else if (pa) navClick(); }
     else if (screen === 'menu' && !$('qvol').classList.contains('hidden') && (esc || pb)) qvOpen(false);
-    else if (screen === 'menu') { if (ok || ps) startMatch(false); else if (pa) navClick(); }
+    else if (screen === 'menu') { if (ps) startMatch(false); else if (pa || ok) navClick(); }
     else if (screen === 'play5') {
       // 手柄十字键下（只认十字键，不认左摇杆）= 换人页；View = 数据面板；键盘 Tab = 数据面板、B / 4 = 换人页
       const gp0 = PH.input.pads()[0], dd = !!(gp0 && gp0.buttons[13] && gp0.buttons[13].pressed), dD = dd && !d13; d13 = dd;
@@ -1424,15 +1602,42 @@
     }
     for (const [id, e] of fdEls) if (!live.has(id)) { e.remove(); fdEls.delete(id); }
   }
-  function step(n) { for (let i = 0; i < n; i++) { if (screen === 'play5') { if (!paused) tick5(DT); } else GM.tick(DT); } }
+  function tickMatch() {
+    if (screen === 'play5') { if (!paused) tick5(DT); return; }
+    if (!matchConfig) { GM.tick(DT); return; }
+    const p = G.players[localSlot], a = p && p.action, t3 = G.mode === 't3', I = PH.input;
+    const off = !!(p && (p.hasBall || a && ['shot', 'layup', 'dunk', 'fake'].includes(a.type)));
+    const local = !p || paused || (room.active && document.hidden) ? GM.t5.zeroInp() : t3 ? I.read3(off) : I.read(0, off, true);
+    if (room.role === 'guest') { rooms.input(local); I.endTick(); return; }
+    const inputs = rooms.inputs();
+    if (p) inputs[localSlot] = local;
+    if (t3) { PH.T3.tick(DT, inputs); I.endTick(); }
+    else GM.tick(DT, (pl) => inputs[pl.id] || GM.t5.zeroInp());
+    if (room.active && ++netFrame % 3 === 0 && room.links.size) rooms.broadcast({ type: 'state', state: roomSnapshot() });
+  }
+  let bgTimer = null;
+  function syncBackgroundMatch() {
+    clearInterval(bgTimer); bgTimer = null;
+    if (!document.hidden || room.role !== 'host' || !room.active) return;
+    let then = performance.now(), carry = 0;
+    bgTimer = setInterval(() => {
+      const now = performance.now();
+      if (!paused && !manual) {
+        carry += Math.min(0.25, (now - then) / 1000);
+        while (carry >= DT) { tickMatch(); carry -= DT; }
+      }
+      then = now;
+    }, 33);
+  }
+  function step(n) { for (let i = 0; i < n; i++) tickMatch(); }
   function frame(ts) {
     requestAnimationFrame(frame);
     const d = Math.min(0.1, (ts - last) / 1000 || 0); last = ts;
     if (d > 0) fps = fps * 0.95 + (1 / d) * 0.05;
     sysKeys();
     { const nr = navRoot(); PH.input.lock.on = !!nr && (nr.id === 'tune' || nr.id === 'campanel' || nr.id === 'train'); }
-    if (!manual && !paused) { acc += d; let n = 0; while (acc >= DT && n < 5) { if (screen === 'play5') tick5(DT); else GM.tick(DT); acc -= DT; n++; } if (n === 5) acc = 0; }
-    draw();
+    if (!manual && (!paused || room.role === 'guest')) { acc += d; let n = 0; while (acc >= DT && n < 5) { tickMatch(); acc -= DT; n++; } if (n === 5) acc = 0; }
+    draw(d);
   }
   // 分场景音乐：每帧按当前界面 / 比赛状态选曲（audio.js 内部去重，切换时交叉淡入淡出）
   function musicPick() {
@@ -1440,7 +1645,10 @@
     let sc = 'menu', hot = 0;
     if (screen === 'tips') sc = 'calm';
     else if (screen === 'play') {
-      if (G.phase === 'over' && G.mode !== 'train') sc = G.phaseT < 1.4 ? null : (G.mode === '2p' || G.winner === 0 ? 'win' : 'lose');
+      if (G.phase === 'over' && G.mode !== 'train') {
+        const p = G.players[localSlot], side = !matchConfig ? 0 : G.mode === 't3' ? p ? p.tm : G.winner : localSlot;
+        sc = G.phaseT < 1.4 ? null : (!matchConfig && G.mode === '2p' || G.winner === side ? 'win' : 'lose');
+      }
       else { sc = 'p1'; if (G.mode !== 'train') { const d = Math.abs(G.score[0] - G.score[1]); hot = G.sd || G.mp >= 0 || (G.glen > 0 && G.gclock <= 24) || (Math.max(G.score[0], G.score[1]) >= G.target - 2 && d <= 3) ? 1 : 0; } }
     } else if (screen === 'play5') {
       const T = PH.T5.T;
@@ -1453,11 +1661,13 @@
   // 浏览器要求用户操作后才能出声：第一次点击 / 按键时启动音乐（主菜单就有音乐）
   const musKick = () => { if (PH.audio.ensure()) { PH.audio.startMusic(); musicPick(); } };
   window.addEventListener('pointerdown', musKick, true); window.addEventListener('keydown', musKick, true);
-  function draw() {
+  function draw(dt) {
     PH.audio.setPaused((screen === 'play' || screen === 'play5') && paused);
     musicPick();
     if (screen === 'play5') { PH.render5.render(PH.T5.T, manual ? 0.05 : 1 / Math.max(30, fps)); hud5(); cutin(); return; }
-    R.render(G); hud(); cutin();
+    const hint = screen === 'play' && G.mode === 't3' && !G.replay ? $('hint') : null;
+    const hintY = hint?.offsetHeight ? hint.offsetTop / scale : undefined;
+    R.render(G, dt, hintY); hud(); cutin();
     const dbg = $('debug');
     if (debug) { dbg.classList.remove('hidden'); dbg.textContent = 'FPS ' + fps.toFixed(0) + ' · ' + G.phase + ' · 进攻 ' + G.off + ' · 球 ' + G.ball.state; } else dbg.classList.add('hidden');
   }
@@ -1469,7 +1679,7 @@
     if (!c || (G.mode === 'demo' && screen !== 'play5') || (screen !== 'play' && screen !== 'tips' && screen !== 'play5')) { if (!el.classList.contains('hidden')) el.classList.add('hidden'); return; }
     if (c.seq === ciSeq) { if (PH.ci) PH.ci.frame(c, el, screen); return; }   // V3.9o 半屏面板：每帧按游戏时间驱动
     ciSeq = c.seq; const pl = G.players[c.pid];
-    el.style.setProperty('--tc', c.col); el.classList.toggle('right', screen === 'play5' ? pl.tm === 1 : c.pid === 1);
+    el.style.setProperty('--tc', c.col); el.classList.toggle('right', screen === 'play5' || G.mode === 't3' ? pl.tm === 1 : c.pid === 1);
     el.querySelector('.ci-name').textContent = c.full;
     el.querySelector('.ci-skill').textContent = c.skill;
     el.querySelector('.ci-en').textContent = c.en;
@@ -1480,10 +1690,13 @@
     el.querySelectorAll('.ci-band,.ci-lines').forEach((e) => { e.style.animation = 'none'; void e.offsetWidth; e.style.animation = ''; });
     if (PH.ci) PH.ci.frame(c, el, screen);
   }
-  window.advanceTime = function (ms) { manual = true; step(Math.max(1, Math.round(ms / (1000 / 60)))); draw(); };
+  window.advanceTime = function (ms) { manual = true; const n = Math.max(1, Math.round(ms / (1000 / 60))); step(n); draw(n * DT); };
   window.resumeRealtime = function () { manual = false; };
   window.render_game_to_text = function () { const o = JSON.parse(GM.toText()); o.screen = screen; if (screen === 'play5') o.t5 = PH.T5.state(); o.paused = paused; o.panelOpen = panelOpen; o.cfg = CFG; return JSON.stringify(o); };
-  document.addEventListener('visibilitychange', () => { if (document.hidden && (screen === 'play' || screen === 'play5')) setPause(true); });
+  document.addEventListener('visibilitychange', () => {
+    syncBackgroundMatch();
+    if (document.hidden && !room.active && (screen === 'play' || screen === 'play5')) setPause(true);
+  });
   window.addEventListener('gamepadconnected', () => { hasPad = true; show('padtag', true); hintKey = ''; });
 
   function boot() {

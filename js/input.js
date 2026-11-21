@@ -84,6 +84,13 @@
     const l = Math.hypot(o.lx, o.ly); if (l > 1) { o.lx /= l; o.ly /= l; }
     return o;
   }
+
+  function read3(onOffense) {
+    const input = read(0, onOffense, true), gp = lock.on ? null : pads()[0];
+    input.pass = held(['KeyE']) || !!(gp && gp.buttons[1] && gp.buttons[1].pressed) || !!touch.pass;
+    if (gp && gp.buttons[1] && gp.buttons[1].pressed && !(gp.buttons[0] && gp.buttons[0].pressed) && !held(MAPS[0].a3) && !touch.a3 && Math.hypot(input.dx, input.dy) <= 0.6) input.a3 = input.dribble = false;
+    return input;
+  }
   // 每帧轮询手柄的菜单按键（上下左右 / A / B / Menu）
   const navPrev = {}, navRep = {}, REPEAT = { PadUp: 1, PadDown: 1, PadLeft: 1, PadRight: 1 };
   function pollPads() {
@@ -141,5 +148,5 @@
     });
   }
 
-  PH.input = { read: read, read5: read5, endTick: endTick, sysPressed: sysPressed, sysAny: sysAny, clearSys: clearSys, initTouch: initTouch, pollPads: pollPads, rstick: rstick, lock: lock, pads: pads, keys: keys, touch: touch };
+  PH.input = { read: read, read3: read3, read5: read5, endTick: endTick, sysPressed: sysPressed, sysAny: sysAny, clearSys: clearSys, initTouch: initTouch, pollPads: pollPads, rstick: rstick, lock: lock, pads: pads, keys: keys, touch: touch };
 })();
