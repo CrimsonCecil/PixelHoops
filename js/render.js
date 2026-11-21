@@ -11,6 +11,7 @@
   const CAM_DEF = { zoom: 1.32, height: 5.8, dist: 8.8, follow: 0.7, push: 1, pin: 0.26, plow: 0.3 };
   const CAMV = Object.assign({}, CAM_DEF);
   let follow3 = null;
+  let intro1 = null;
   let offsetX3 = 0, offsetY3 = 0;
   function setPitch(dy, dz) {
     const L = Math.hypot(dy, dz);
@@ -1742,6 +1743,37 @@
     offsetY3 = Math.max(36 - scaledY(board.y), 16 - scaledY(top),
       Math.min(40 - scaledY(board.y), footLimit - scaledY(bottom), nameLimit - scaledY(nameAnchor)));
   }
+  function camera1Intro(G, dt) {
+    const fp = G.intro && G.intro.foc;
+    if (!fp) { intro1 = null; return; }
+    const K = PH.game && PH.game.K;
+    cam.F = 400 * CAMV.zoom;
+    const tx = fp.x;
+    let tz, ty, tp;
+    if (fp.mode === 'talk') {
+      tz = K ? K.camInTalkZ : 2.8;
+      const dist = K ? K.camInTalkDist : 11.2;
+      const minY = fp.minY != null ? fp.minY : fp.y - 1.1;
+      ty = minY - dist;
+      tp = (K ? K.camInTalkPitch : -11) * Math.PI / 180;
+    } else {
+      tz = K ? K.camInZ : 1.4;
+      const dist = K ? K.camInDist : 8.2;
+      ty = fp.y - dist;
+      tp = (K ? K.camInPitch : -4) * Math.PI / 180;
+    }
+    const fresh = !intro1 || intro1.intro !== G.intro || fp.snap;
+    if (fresh) { intro1 = { intro: G.intro, x: tx, y: ty, z: tz, p: tp }; fp.snap = false; }
+    else {
+      const k = 1 - Math.exp(-7 * dt);
+      intro1.x += (tx - intro1.x) * k;
+      intro1.y += (ty - intro1.y) * k;
+      intro1.z += (tz - intro1.z) * k;
+      intro1.p += (tp - intro1.p) * k;
+    }
+    cam.x = intro1.x; cam.y = intro1.y; cam.z = intro1.z;
+    setPitch(Math.cos(intro1.p), Math.sin(intro1.p));
+  }
   function particleSize(q, scale) {
     return q.interceptTeam != null ? Math.max(4, Math.min(6, Math.round(q.s * scale / 24))) : q.s || 1;
   }
@@ -1771,8 +1803,12 @@
     // 禁区推近（可关）：持球接近篮下时镜头沿纵向前推、机位压低。只用平滑过的 camK，不读球员实时位置，不做额外取景修正
     const pk = RP || cz || !CAMV.push ? 0 : (G.camK || 0);
     if (pk > 0.001) { const e = pk * pk * (3 - 2 * pk); cam.y += CAMV.pin * 5 * e; cam.z -= (cam.z - 1.2) * CAMV.pin * CAMV.plow * e; }
-    if (G.mode === 't3' && !RP) camera3(G, dt, hintY);
-    else if (follow3) { follow3 = null; setPitch(CAMV.dist + 2.4, 1 - CAMV.height); }
+    if (G.mode === 't3' && !RP) { intro1 = null; camera3(G, dt, hintY); }
+    else {
+      if (follow3) { follow3 = null; setPitch(CAMV.dist + 2.4, 1 - CAMV.height); }
+      if (G.intro && G.intro.foc && !RP) camera1Intro(G, dt);
+      else if (intro1) { intro1 = null; setPitch(CAMV.dist + 2.4, 1 - CAMV.height); }
+    }
     if (replay && (RP || replay.returnT != null)) {
       const { dx, dy, ...pose } = replayCamera(replay, { ...cam, dx: offsetX3, dy: offsetY3 }, G.mode);
       Object.assign(cam, pose);
@@ -1880,7 +1916,7 @@
     }
   }
 
-  PH.render = { init: init, resize: resize, get W() { return W; }, get H() { return H; }, render: render, replayCamera: replayCamera, particleSize: particleSize, setTheme: setTheme, proj: proj, cam: cam, CAMV: CAMV, CAM_DEF: CAM_DEF, setCam: setCam, HOOP: HOOP, BOARD_Y: BOARD_Y, BALL_R: BALL_R, curCol: curCol,
+  PH.render = { init: init, resize: resize, get W() { return W; }, get H() { return H; }, render: render, camera1Intro: camera1Intro, replayCamera: replayCamera, particleSize: particleSize, setTheme: setTheme, proj: proj, cam: cam, CAMV: CAMV, CAM_DEF: CAM_DEF, setCam: setCam, HOOP: HOOP, BOARD_Y: BOARD_Y, BALL_R: BALL_R, curCol: curCol,
     // 5V5 全场模式复用的绘制图元（不影响 1V1）
     drawCombos: drawCombos, drawMeter: (pl, hp) => drawMeter(pl, hp), drawPlayer: drawPlayer, drawHead: drawHead, drawBall: drawBall, shadow: shadow, ellipse: ellipse, ring: ring, brush: brush, getCtx: () => ctx, drawNameTag: curName, BAYER: BAYER };
 })();
