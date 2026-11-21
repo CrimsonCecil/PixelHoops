@@ -12,6 +12,13 @@ for (const name of ['tune', 'ptype', 'render', 'roster', 'r5', 'r2k', 'game']) {
 }
 const { game: gm, TUNE: tune, foulQA: qa } = ctx.PH;
 const { G, _dbg: dbg, t5: t } = gm;
+const audio = [];
+gm.setAudioSink((...event) => {
+  if (event[1] === 'foulWhistle' || (event[0] === 'vo' && event[2].startsWith('foul'))) audio.push(event);
+});
+function heardFoul(event) {
+  assert.deepEqual(audio.splice(0), [['play', 'foulWhistle'], ['vo', 'curry', event, 'pri']]);
+}
 const dt = 1 / 120;
 const set = (key, value) => tune.set('l1_' + key, value);
 const tick = (hold = false) => gm.tick(dt, (p) => ({ ...t.zeroInp(), a1: hold && p.id === G.off }));
@@ -66,6 +73,7 @@ assert.equal(G.stats[1].pf, 1);
 assert.equal(G.stats[0].fga, 1);
 assert.equal(G.ft.total, 1);
 assert.equal(G.score[0], 2);
+heardFoul('foulAndOne');
 const gameClock = G.gclock;
 freeThrow(true);
 assert.equal(G.gclock, gameClock);
@@ -77,6 +85,7 @@ assert.equal(G.off, 1, 'made last free throw gives the other player the check-ba
 jumper(4.65, false);
 assert.equal(G.phase, 'ft');
 assert.equal(G.ft.total, 3);
+heardFoul('foulShot');
 assert.equal(G.stats[0].fga, 0, 'missed fouled shot does not count as a field goal attempt');
 freeThrow(false);
 assert.equal(G.phase, 'ft', 'missed intermediate attempt is dead');
@@ -94,11 +103,13 @@ for (let i = 0; i < 600 && G.ball.state === 'loose'; i++) {
 }
 until(() => G.stats[0].reb + G.stats[1].reb === 1);
 assert.equal(G.ball.state, 'held');
+assert.deepEqual(audio, [], 'free throws do not repeat the foul call');
 
 jumper(7, true, false);
 assert.equal(G.phase, 'dead');
 assert.equal(G.ft, null);
 assert.equal(G.stats[1].pf ?? 0, 0);
+assert.deepEqual(audio, [], 'disabling fouls also disables foul audio');
 
 set('foulInside', 1);
 for (const kind of ['lay', 'dunk']) {
@@ -120,6 +131,7 @@ for (const kind of ['lay', 'dunk']) {
   }
   until(() => G.phase === 'ft');
   assert.equal(G.ft.total, G.lastShot.made ? 1 : 2);
+  heardFoul(G.lastShot.made ? 'foulAndOne' : 'foulShot');
 }
 console.log('PASS shooting fouls: jumper, layup, dunk, and-one, three-shot miss, FT timing and both possession outcomes');
 
@@ -143,6 +155,7 @@ function chargeTrial(i, edge = 0, fouls) {
   assert.equal(G.stats[0].pf, 1);
   assert.equal(G.score[0], 0);
   assert.equal(G.banner.text, '进攻犯规');
+  heardFoul('foulCharge');
   return true;
 }
 const rate = (edge, on) => Array.from({ length: 400 }, (_, i) => chargeTrial(i, edge, on)).filter(Boolean).length / 400;
@@ -161,4 +174,6 @@ gm.seed(7);
 qa.collide(driver, defender);
 assert.equal(G.banner.text, '进攻犯规');
 assert.equal(G.off, 1);
+heardFoul('foulCharge');
+console.log('PASS foul audio: exactly one whistle and one priority reaction per foul, no repeat on free throws or with fouls off');
 console.log(`PASS offensive fouls: ${(even * 100).toFixed(1)}% at even ratings, ${(edge * 100).toFixed(1)}% for dominant attacker, live drive charge, no fouls when disabled`);
