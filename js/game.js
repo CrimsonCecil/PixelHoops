@@ -2673,11 +2673,11 @@
       }
     }
     if (a.thru && kind === 'lay' && !SK) prob = a.thru === 'fall' ? Math.max(prob, K.ctThruLay) : prob * (1 - K.ctThruPen);   // V4.5 顶翻
-    if (LAYC && (!heavyLay || a.farLsv || a.lsv === 'far')) {
+    if (LAYC) {
       const cd = ctDef(pl, df), cc = cd === df ? ci.c : contestOf(pl, cd, 'in');
       const w = clamp((cc - K.ctLayCapStart) / Math.max(0.05, K.ctLayCapSpan), 0, 1);
       const cap = clamp(K.ctLayCap + K.ctLayCapR * (r - 0.7) - K.ctLayCapD * (cd.r.intD - 0.6), K.smMin, 1);
-      prob = Math.min(prob, 1 - w * (1 - cap));
+      prob = Math.min(prob, 1 - w * (1 - cap) - (heavyLay && !green ? K.ctLayLate * Math.min(1, ae) : 0));
     }
     if (kind === 'shot' && !V.hook && !SK) {
       const cs = a.catchShot;

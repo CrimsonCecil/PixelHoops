@@ -5,15 +5,16 @@ const vm = require('node:vm');
 const { execFileSync } = require('node:child_process');
 const root = path.resolve(__dirname, '..');
 
-function load(before = false) {
+function load(before = false, base = process.env.PERFECT_BASE || 'f9bcdcb') {
   const ctx = vm.createContext({ console, performance: { now: () => 0 }, setTimeout() {}, clearTimeout() {} });
   ctx.window = ctx;
   ctx.PH = { input: { endTick() {}, read: () => ({}), read5: () => ({}) } };
   for (const name of ['tune', 'render', 'roster', 'r5', 'game', 'b5', 'team5']) {
     let code = before && name === 'game'
-      ? execFileSync('git', ['show', `${process.env.PERFECT_BASE || 'f9bcdcb'}:js/game.js`], { cwd: root, encoding: 'utf8' })
+      ? execFileSync('git', ['show', `${base}:js/game.js`], { cwd: root, encoding: 'utf8' })
       : fs.readFileSync(path.join(root, 'js', name + '.js'), 'utf8');
     if (name === 'game') code = code.replace('PH.game = {', 'PH.finishQA = { updateBall, updateAction, layUnit }; PH.game = {');
+    if (name === 'game') code = code.replace('function contestInfo(s, d, cls) {', 'function contestInfo(s, d, cls) { if (PH.finishContestQA != null) return { c: PH.finishContestQA, src: "QA" };');
     if (name === 'team5') code = code.replace('PH.T5 = {', 'PH.finishTeamQA = (g) => { G = g; T.tm = [0, 1].map(tm => ({ on: g.players.filter(p => p.tm === tm) })); shotAdj(); }; PH.T5 = {');
     vm.runInContext(code, ctx, { filename: name + '.js' });
   }
@@ -23,6 +24,7 @@ function load(before = false) {
 function shot(ctx, opts = {}) {
   const { mode = '2p', defense = 0.9, block = 0.85, error = 0, rating = 0.75, gap = 0.3, z = 0.9, bump = 0.55, seed = 7, cpu = false, flight = false, thru, alley = false } = opts;
   const gm = ctx.PH.game, { G, _dbg: dbg } = gm;
+  ctx.PH.finishContestQA = opts.rawContest;
   gm.newGame({ mode: '2p', arch0: opts.skill ? 'cade' : 'joe', arch1: 'joe', target: 9999 });
   Object.assign(G, { mode, phase: 'live', needClear: false, tips: null });
   const [p, d] = G.players;
@@ -36,9 +38,11 @@ function shot(ctx, opts = {}) {
   assert(dbg.startFinish(p, gm.t5.zeroInp(), 'lay'));
   const a = p.action;
   if (opts.skill) assert.equal(a.skill, 'cade', 'exercise naturally triggered Cade layup skill');
-  Object.assign(a, { v: 'normal', sty: 'normal', skill: opts.skill ? a.skill : null, hzL: 0, ky: false, bump, thru, inSteps: false, t: 0.34, farLsv: false, lsv: null });
-  a.V = { ...gm._qa.LVR.normal };
+  const variant = opts.variant || 'normal';
+  Object.assign(a, { v: variant, sty: 'normal', skill: opts.skill ? a.skill : null, hzL: 0, ky: false, bump, thru, inSteps: false, t: 0.34, farLsv: false, lsv: null });
+  a.V = { ...gm._qa.LVR[variant] };
   if (mode === 't5') ctx.PH.finishTeamQA(G);
+  if (opts.effectiveContest != null) a.V.c = opts.effectiveContest / (opts.rawContest * (gm.K.smLayC0 - gm.K.smLayCS * p.r.str));
   if (alley) a.alley = { grade: 'green' };
   gm.CFG.blockMul = 0;
   gm.seed(seed);
@@ -88,6 +92,44 @@ for (const mode of ['2p', 't5']) {
   }
 }
 if (!process.env.PERFECT_AUDIT) {
+  const reviewed = load(true, '1a0635e');
+  const regression = { variant: 'floater', defense: 0.6, block: 0.3, rawContest: 1, bump: 0 };
+  const oldLow = shot(reviewed, { ...regression, effectiveContest: 0.499 });
+  const oldHigh = shot(reviewed, { ...regression, effectiveContest: 0.501 });
+  const low = shot(after, { ...regression, effectiveContest: 0.499 });
+  const high = shot(after, { ...regression, effectiveContest: 0.501 });
+  assert(oldHigh.prob > oldLow.prob, 'reproduce reviewed green floater discontinuity');
+  assert(high.prob <= low.prob);
+  console.log(`Green floater 49.9% -> 50.1% contest: reviewed ${(100 * oldLow.prob).toFixed(1)}% -> ${(100 * oldHigh.prob).toFixed(1)}%; fixed ${(100 * low.prob).toFixed(1)}% -> ${(100 * high.prob).toFixed(1)}%`);
+  const contests = [...new Set([
+    ...Array.from({ length: 101 }, (_, i) => i / 100),
+    ...Array.from({ length: 101 }, (_, i) => (450 + i) / 1000),
+    0.4999, 0.5001,
+  ])].sort((a, b) => a - b);
+  for (const mode of ['2p', 't5']) for (const variant of ['normal', 'floater']) {
+    for (const defense of [0.6, 0.9]) for (const block of [0.3, 0.9]) {
+      for (const cpu of [false, true]) for (const error of [0, 0.75]) {
+        for (const sweep of ['raw', 'effective']) {
+          let previous = 1;
+          for (const contest of contests) {
+            const opts = { mode, variant, defense, block, cpu, error, bump: 0,
+              rawContest: sweep === 'raw' ? contest : 1,
+              ...(sweep === 'effective' ? { effectiveContest: contest } : {}) };
+            const now = shot(after, opts);
+            if (sweep === 'effective') assert(Math.abs(now.contest - contest) < 1e-9);
+            assert(now.prob <= previous + 1e-9, `${JSON.stringify(opts)}: ${previous} -> ${now.prob}`);
+            previous = now.prob;
+          }
+        }
+      }
+      for (const cpu of [false, true]) for (const effectiveContest of [0.501, 0.75, 1]) {
+        const opts = { mode, variant, defense, block, cpu, rawContest: 1, bump: 0, effectiveContest };
+        assert(shot(after, opts).prob > shot(after, { ...opts, error: 0.75 }).prob,
+          `perfect timing advantage with both ceilings binding: ${JSON.stringify(opts)}`);
+      }
+    }
+  }
+  console.log('PASS monotonic raw/effective contest sweeps: 0–1 plus dense 0.45–0.55, layups/floaters, green/non-green, low/high intD/block, human/CPU, 1v1/5V5; perfect advantage with both caps binding');
   for (const mode of ['2p', 't5']) {
     const oldSkill = shot(before, { mode, skill: true }), skill = shot(after, { mode, skill: true });
     console.log(`${mode} naturally triggered Cade skill: ${(100 * oldSkill.prob).toFixed(1)}% -> ${(100 * skill.prob).toFixed(1)}%`);
