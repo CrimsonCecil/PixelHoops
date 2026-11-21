@@ -23,6 +23,30 @@
     setPitch(CAMV.dist + 2.4, 1 - cam.z);
   }
   setCam();
+  // 1V1 / 3V3 / 训练的镜头面板参数登记在调参台（节奏与表现 → 镜头），跟调参配置一起存云端、打开时随默认配置套用
+  const CAM_K = { zoom: 'camZoom', height: 'camHeight', dist: 'camDist', follow: 'camFollow', push: 'camPush', pin: 'camPin', plow: 'camPlow' };
+  const CAM_KS = Object.keys(CAM_K).map((f) => CAM_K[f]);
+  function camTuned() { const T = PH.TUNE, o = {}; for (const f in CAM_K) o[f] = T && T.has && T.has(CAM_K[f]) ? +T.get(CAM_K[f]) : CAM_DEF[f]; return o; }
+  if (PH.TUNE && PH.TUNE.reg && !PH.TUNE.has('camZoom')) {
+    PH.TUNE.reg([
+      { k: 'camZoom', label: '镜头 拉近', v: CAM_DEF.zoom, min: 0.8, max: 1.8, step: 0.01, wide: false, note: '倍数：1V1 / 3V3 / 训练镜头焦距（暂停 → 镜头面板“拉近”）' },
+      { k: 'camHeight', label: '镜头 机位高度', v: CAM_DEF.height, min: 3, max: 10, step: 0.1, wide: false, note: '米：机位离地高度（镜头面板“机位高度”）' },
+      { k: 'camDist', label: '镜头 距离', v: CAM_DEF.dist, min: 6, max: 14, step: 0.1, wide: false, note: '米：机位在持球人身后多远（镜头面板“镜头距离”）' },
+      { k: 'camFollow', label: '镜头 左右跟随', v: CAM_DEF.follow, min: 0, max: 1, step: 0.05, wide: false, note: '比例：0 = 机位固定在中线，1 = 完全跟着持球人左右移动' },
+      { k: 'camPush', label: '镜头 禁区推近', v: CAM_DEF.push, mode: 'bool', note: '开：持球接近篮下时镜头前推、机位压低' },
+      { k: 'camPin', label: '镜头 推近力度', v: CAM_DEF.pin, min: 0, max: 0.6, step: 0.02, wide: false, note: '比例：禁区推近时往前推多少' },
+      { k: 'camPlow', label: '镜头 压低程度', v: CAM_DEF.plow, min: 0, max: 1, step: 0.05, wide: false, note: '比例：禁区推近时机位压低多少' },
+    ]);
+    PH.TUNE.on((ks) => { if (!ks || ks.some((k) => CAM_KS.indexOf(k) >= 0)) setCam(camTuned()); });
+    setCam(camTuned());
+  }
+  // 镜头面板改值：写进调参台（会算作当前配置的未保存改动）；没有调参表时直接改
+  function setCamTuned(o) {
+    const T = PH.TUNE, raw = {};
+    for (const f in o || {}) { if (T && CAM_K[f] && T.has(CAM_K[f])) T.set(CAM_K[f], o[f]); else raw[f] = o[f]; }
+    if (Object.keys(raw).length) setCam(raw);
+  }
+  function resetCamTuned() { const T = PH.TUNE; if (T && T.has('camZoom')) { for (const k of CAM_KS) T.reset(k); } else setCam(CAM_DEF); }
 
   function proj(x, y, z) {
     const dx = x - cam.x, dy = y - cam.y, dz = z - cam.z;
@@ -1576,7 +1600,7 @@
 
   const clampR = (v, a, b) => Math.max(a, Math.min(b, v));
   function drawMeter(pl, hp) {
-    const a = pl.action; if (!a || !a.meter) return;
+    const a = pl.action; if (!a || !a.meter || a.alley) return;
     // 投篮条：涨到顶 = 最佳出手点；空中按下拉杆后才换成蓝区。
     const x = Math.round(hp.x + 0.42 * hp.s) + 3, h = Math.round(clampR(hp.s * 0.75, 24, 44)), wd = Math.round(clampR(hp.s * 0.09, 3, 5)), y = Math.round(hp.y - h * 0.55);
     const m = a.meter;
@@ -2053,7 +2077,7 @@
     }
   }
 
-  PH.render = { init: init, resize: resize, get W() { return W; }, get H() { return H; }, render: render, camera1Intro: camera1Intro, replayCamera: replayCamera, particleSize: particleSize, setTheme: setTheme, proj: proj, cam: cam, CAMV: CAMV, CAM_DEF: CAM_DEF, setCam: setCam, HOOP: HOOP, BOARD_Y: BOARD_Y, BALL_R: BALL_R, curCol: curCol,
+  PH.render = { init: init, resize: resize, get W() { return W; }, get H() { return H; }, render: render, camera1Intro: camera1Intro, replayCamera: replayCamera, particleSize: particleSize, setTheme: setTheme, proj: proj, cam: cam, CAMV: CAMV, CAM_DEF: CAM_DEF, setCam: setCam, camTuned: camTuned, setCamTuned: setCamTuned, resetCamTuned: resetCamTuned, HOOP: HOOP, BOARD_Y: BOARD_Y, BALL_R: BALL_R, curCol: curCol,
     // 5V5 全场模式复用的绘制图元（不影响 1V1）
     drawCombos: drawCombos, drawScreenFx: drawScreenFx, drawMeter: (pl, hp) => drawMeter(pl, hp), drawPlayer: drawPlayer, drawHead: drawHead, drawBall: drawBall, shadow: shadow, ellipse: ellipse, ring: ring, brush: brush, getCtx: () => ctx, drawNameTag: curName, BAYER: BAYER };
 })();

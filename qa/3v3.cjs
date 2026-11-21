@@ -545,13 +545,10 @@ console.log('PASS: a CPU honors an open call according to pass IQ, vetoes a bloc
   while (T3.T.pass) run(1);
   const a = receiver.action;
   assert.equal(a?.type, 'layup');
-  run(1);
-  assert(!Number.isFinite(a.tapAt), 'an unpressed finish button must not count as a release');
-  run(1, { 1: { a2: true } });
-  assert(!Number.isFinite(a.tapAt), 'holding the finish button still does not release');
-  run(1);
-  assert(Number.isFinite(a.tapAt), 'the human release is registered after holding the finish button');
-  console.log('PASS: a human can time the layup on a non-dunk alley-oop.');
+  for (let i = 0; i < 240 && !a.released; i++) run(1);
+  assert(a.released, 'a human non-dunk alley releases automatically without receiver input');
+  assert(a.alley && !Number.isFinite(a.tapAt));
+  console.log('PASS: a human non-dunk alley-oop automatically releases the shared layup.');
 }
 
 {

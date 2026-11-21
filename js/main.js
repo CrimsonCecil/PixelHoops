@@ -136,7 +136,6 @@
     const AT = {}; GM.ATTRS.forEach((t) => { AT[t[0]] = t[2]; }); Object.assign(AT, R5TIP);
     const AG = attrGroups(a, a), bl = bList(a, true), have = {}; bl.forEach((x) => { have[x[0]] = x[1]; });
     if (pkTab === 'ov') {
-      h += '<div class="rating-legend" aria-label="属性颜色分档">' + [[95, '金 95+'], [88, '橙 88+'], [80, '紫 80+'], [72, '蓝 72+'], [64, '绿 64+'], [55, '白 55+'], [0, '灰 &lt;55']].map(([v, n]) => '<span class="' + vcl(v) + '">' + n + '</span>').join('') + '</div>';
       h += '<div class="pkov" data-testid="pk-ov">' + AG.map(([g, gs, v]) => '<div class="pko1"><span>' + g + '</span><b class="' + vcl(v) + '">' + v + '</b></div>').join('') + '</div>';
       { const F = GM.SF[a.form] || GM.SF.std, sp = F.sp <= 0.85 ? '极快' : F.sp <= 0.92 ? '快' : F.sp <= 1.04 ? '中等' : F.sp <= 1.15 ? '偏慢' : '慢', hi = F.blk <= 0.85 ? '高' : F.blk >= 1.1 ? '低' : '中'; h += '<p class="pkform">投篮包 <b>' + F.name + '</b>' + (a.lefty ? ' · 左手' : '') + ' · 出手 ' + sp + ' · 出手点 ' + hi + (F.two ? ' · 两段式' : ' · 一段式') + '</p>'; }
       { const K = GM.dunkPkg(a), N = { two: '双手', one: '单手', rimpull: '挂筐', reverse: '背扣', tomahawk: '战斧', poster: '隔扣', cock: '拉弓', windmill: '风车', '360': '360', glide: '滑翔', cradle: '摇篮', pump: '双抽', scissor: '剪刀腿', shaq: '大鲨鱼' }, L = Object.keys(N).filter((k) => K.S[k]).map((k) => N[k]);
@@ -166,6 +165,18 @@
   function pkMark() { $('pk-grid').querySelectorAll('.pkc').forEach((b) => b.classList.toggle('on', b.getAttribute('data-pk') === pkSel)); }
   // V3.2：按球队筛选（全部 = 按档位分组）
   let pkTeam = 'all';
+  const pkPositions = new Set();
+  const PK_POSITIONS = { PG: '控球后卫', SG: '得分后卫', SF: '小前锋', PF: '大前锋', C: '中锋' };
+  function playerPositions(a) {
+    return String(a.pos || '').split(/[\/／、,，\s]+/).flatMap((p) => {
+      if (p === '后卫') return ['PG', 'SG'];
+      if (p === '前锋') return ['SF', 'PF'];
+      return Object.keys(PK_POSITIONS).filter((k) => p === k || p === PK_POSITIONS[k]);
+    });
+  }
+  function pkPositionChips() {
+    $('pk-positions').innerHTML = '<span class="pk-pos-label">位置 · 多选</span>' + Object.entries(PK_POSITIONS).map(([k, n]) => '<button class="pkt' + (pkPositions.has(k) ? ' on' : '') + '" data-pos="' + k + '" aria-pressed="' + pkPositions.has(k) + '" title="' + n + '">' + k + '</button>').join('');
+  }
   function pkTeams() {
     const N = GM.NBA || {}, ks = Object.keys(N).filter((k) => k !== 'LEG').sort((x, y) => N[x].name.localeCompare(N[y].name, 'zh-Hans-u-co-pinyin'));
     const chip = (v, t, col) => '<button class="pkt' + (pkTeam === v ? ' on' : '') + '" data-tm="' + v + '" data-testid="pkt-' + v + '">' + (col ? '<i style="background:' + col + '"></i>' : '') + t + '</button>';
@@ -173,18 +184,27 @@
     $('pk-teams').classList.toggle('hidden', !ks.length);
   }
   function pkFill() {
-    let gh = pkSide && pkSlot === null ? pkCard('random') : '';
-    if (pkTeam === 'all') { for (const t of Object.keys(GM.TIERS)) { const ks = GM.ROSTER.filter((k) => GM.ARCH[k].tier === t); if (ks.length) gh += '<div class="pk-tier t' + TT[t] + '"><i>' + TT[t] + '</i>' + GM.TIERS[t] + '</div>' + ks.map(pkCard).join(''); } }
-    else gh += GM.ROSTER.filter((k) => pkTeam === 'rook' ? GM.ARCH[k].tier === 'rook' : GM.ARCH[k].team === pkTeam).map(pkCard).join('');
+    const roster = GM.ROSTER.filter((k) => !pkPositions.size || playerPositions(GM.ARCH[k]).some((p) => pkPositions.has(p)));
+    let gh = pkSide && pkSlot === null && !pkPositions.size ? pkCard('random') : '';
+    if (pkTeam === 'all') { for (const t of Object.keys(GM.TIERS)) { const ks = roster.filter((k) => GM.ARCH[k].tier === t); if (ks.length) gh += '<div class="pk-tier t' + TT[t] + '"><i>' + TT[t] + '</i>' + GM.TIERS[t] + '</div>' + ks.map(pkCard).join(''); } }
+    else gh += roster.filter((k) => pkTeam === 'rook' ? GM.ARCH[k].tier === 'rook' : GM.ARCH[k].team === pkTeam).map(pkCard).join('');
+    if (!gh) gh = '<p class="tnote">没有符合条件的球员</p>';
     $('pk-grid').innerHTML = gh; $('pk-grid').scrollTop = 0;
     $('pk-grid').querySelectorAll('canvas.pkf').forEach((cv) => portrait(cv, GM.ARCH[cv.parentElement.getAttribute('data-pk')], GM.TEAMS[pkSide]));
     pkMark();
   }
   $('pk-teams').addEventListener('click', (e) => { const b = e.target.closest('.pkt'); if (!b) return; pkTeam = b.getAttribute('data-tm'); $('pk-teams').querySelectorAll('.pkt').forEach((x) => x.classList.toggle('on', x === b)); pkFill(); PH.audio.play('ui'); });
+  $('pk-positions').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-pos]'); if (!b) return;
+    const p = b.getAttribute('data-pos');
+    if (pkPositions.has(p)) pkPositions.delete(p); else pkPositions.add(p);
+    b.classList.toggle('on', pkPositions.has(p)); b.setAttribute('aria-pressed', pkPositions.has(p));
+    pkFill(); PH.audio.play('ui');
+  });
   function openPicker(side, slot = null) {
     pkSide = side; pkSlot = slot; pkSel = slot === null ? (side ? opts.arch1 : opts.arch0) : lobby3[slot].arch;
     $('pk-title').textContent = slot === null ? (side ? (opts.mode === '2p' ? '选择玩家 2 的球员' : opts.mode === 'train' ? '选择训练对手' : '选择对手') : opts.mode === '2p' ? '选择玩家 1 的球员' : '选择你的球员') : '选择' + lobbySlotName(slot) + '的球员';
-    pkTeams(); pkFill(); pkDetail(pkSel); clearPf(); show('picker', true);
+    pkTeams(); pkPositionChips(); pkFill(); pkDetail(pkSel); clearPf(); show('picker', true);
     const cur = $('pk-grid').querySelector('.pkc.on'); if (cur) { cur.classList.add('pf'); cur.scrollIntoView({ block: 'nearest' }); }
     PH.audio.play('ui');
   }
@@ -673,7 +693,7 @@
         row('犹豫步', '按住双臂向两侧展开，单手托球假突，松手按左摇杆方向接招', kb(G2('R3'), K('H'))) +
         row('运球接急停', '高控球或脚踝终结者/运球如丝可随时接干拔，后撤步大师仅限后撤步；其他球员等动作做完', kb(X, K('J'))) +
         row('传球', '左摇杆指向谁就传给谁；不指方向传给面前最合适的人；按住 = 长传', kb(A, K('K'))) +
-        row('击地传球', '', kb(B, K('L'))) + row('高吊传球 / 空中接力', '按一下高吊，快速按两下 = 空中接力', kb(Y, K('I'))) +
+        row('击地传球', '', kb(B, K('L'))) + row('高吊传球 / 空中接力', '按一下高吊，快速按两下 = 空中接力；接球自动终结，能力与防守干扰决定效果', kb(Y, K('I'))) +
         row('背打 / 护球', '按住', kb(G2('LT'), K('Q'))) + row('叫挡拆', '叫最近的内线来掩护；再按一次 = 顺下', kb(G2('LB'), K('R'))) +
         row('图标传球', '按住 RB，队友头顶出现 A / B / X / Y / LT，再按对应键传给他（键盘显示 K / L / J / I / Q）', kb(G2('RB') + '+图标', K('E') + '+图标')) +
         row('接球即投 / 即传 / 即招式', '传球飞来时提前按：X 接球即投 / A 接球即传 / 右摇杆 接球即招式（键盘 J / K / 方向键）', kb(X + A + G2('右摇杆'), K('J') + K('K') + K('↑') + K('←') + K('↓') + K('→'))) +
@@ -758,6 +778,7 @@
     return '<div class="klist">' +
       head('通用') + row('移动', '', D.move) + row('加速', '消耗体力', D.sprint) + row('暂停', '', D.pause) + row('音乐开关', '', D.music) +
       head('进攻（持球时）') + row('投篮 / 上篮', '按住蓄力，条往上涨，涨到顶（绿区）松手最准；过了顶条会往下掉，越掉越偏晚。朝篮筐突破中按出三步上篮', D.a1) + row('假动作', '轻点一下投篮键', D.a1) + row('扣篮 / 上篮（终结键）', '冲向篮筐时，提示“可扣篮”就扣，够不着自动改上篮', D.a2) +
+      row('自抛空接', '向筐跑动时自抛或打板，接球自动终结；单按 Y 仍为普通扣篮 / 终结', pad ? K('双击 Y', 'y') : tab === 'k1' ? K('V') : K('小键盘 4')) +
       row('运球过人/终结', 'B（玩家 1：L；玩家 2：小键盘 3 / /）+方向：左右变向，前转身，后后撤步；突破近筐时终结', pad ? D.a3r : D.a3) +
       (pad ? row('专业摇杆（Pro Stick）', '推杆立即运球，快拨只做动作；持续长推转投篮，回中松手出手。假投后推杆立即上下步，长推接后续投篮；突破终结按住计时', K('右摇杆', 'g')) : '') +
       row('上下步', '假投后推方向再按投篮：朝筐突篮、背筐后撤、左右侧跨；按住接投篮，松开定时出手；跨步中提前松开不自动投篮', D.move + '+' + D.a1) +
@@ -857,7 +878,7 @@
     const S = tipsSave; if (!S) return; tipsSave = null; GM.tipsStop();
     for (const k of Object.keys(G)) if (!(k in S.G)) delete G[k];
     Object.assign(G, S.G); Object.assign(G.train, S.train); G.tips = null;
-    screen = S.screen; paused = S.paused; R.setCam(S.cam);
+    screen = S.screen; paused = S.paused; R.setCam(R.camTuned ? R.camTuned() : S.cam);
     TIPS_VIS.forEach((k, i) => show(k, S.vis[i])); stage.classList.toggle('panel', S.panel); camShift();
     show('tipsbar', false); if (S.from === 'picker') { pkDetail(S.pkShown || pkSel); } else { show('help', true); renderHelp(); $('help-body').scrollTop = S.sc; } clearPf();
   }
@@ -983,12 +1004,13 @@
   }
   function toggleInfo() { opts.info = opts.info === 'show' ? 'hide' : 'show'; pcards(); refreshMenu(); camBody(); }
   // ---------- 镜头面板 ----------
-  const CAMS = [['zoom', '拉近', 0.8, 1.8, 0.05], ['height', '机位高度', 3, 10, 0.1], ['dist', '镜头距离', 6, 14, 0.1], ['follow', '左右跟随', 0, 1, 0.05], ['pin', '推近力度', 0, 0.6, 0.02], ['plow', '压低程度', 0, 1, 0.05]];
+  const CAMS = [['zoom', '拉近', 0.8, 1.8, 0.01], ['height', '机位高度', 3, 10, 0.1], ['dist', '镜头距离', 6, 14, 0.1], ['follow', '左右跟随', 0, 1, 0.05], ['pin', '推近力度', 0, 0.6, 0.02], ['plow', '压低程度', 0, 1, 0.05]];
   let camOpen = false, camWasPaused = false;
   function camBody() {
     if (!camOpen) return;
     $('cam-body').innerHTML = CAMS.map((c) => '<label class="crow"><span>' + c[1] + '</span><input type="range" data-cam="' + c[0] + '" min="' + c[2] + '" max="' + c[3] + '" step="' + c[4] + '" value="' + R.CAMV[c[0]] + '" data-testid="cam-' + c[0] + '"><b>' + (+R.CAMV[c[0]]).toFixed(2) + '</b></label>').join('').replace('<label class="crow"><span>推近力度', '<button class="cam-push" data-testid="cam-push">禁区推近 ' + (R.CAMV.push ? '开' : '关') + '</button><label class="crow"><span>推近力度');
     $('cam-info').textContent = '球员信息 ' + (opts.info === 'show' ? '显示' : '隐藏');
+    camCloud();
   }
   function toggleCam(on) {
     if (screen !== 'play') return;
@@ -998,8 +1020,44 @@
     else if (G.mode !== 'train') paused = camWasPaused;
   }
   $('btn-cam').addEventListener('click', () => { if (screen === 'play5') { setView('cam5'); return; } show('pause', false); camFromSet = true; toggleCam(true); });
-  // 5V5 镜头设置（参考 2K：2K 镜头 / 转播 + 远近 0~10 + 高度 0~10（2K 镜头 0~20）；两种镜头各记一套，只存在内存里）
-  function cam5Labels() { const C = PH.T5.CAMS; $('c5-preset').textContent = '镜头 ' + (C.preset === '2k' ? '2K 镜头' : '转播'); $('c5-z').textContent = '远近 ' + C.zoom; $('c5-h').textContent = '高度 ' + C.height; }
+  // 5V5 镜头设置（参考 2K：2K 镜头 / 转播 + 远近 0~10 + 高度 0~10（2K 镜头 0~20）；两种镜头各记一套，登记在调参台 t5_cam*）
+  function cam5Labels() { const C = PH.T5.CAMS; $('c5-preset').textContent = '镜头 ' + (C.preset === '2k' ? '2K 镜头' : '转播'); $('c5-z').textContent = '远近 ' + C.zoom; $('c5-h').textContent = '高度 ' + C.height; camCloud(); }
+  // 镜头参数存云端：镜头值都是调参台参数，“保存到云端”就是保存当前调参配置（官方默认时新建一份并设为默认），打开游戏时默认配置自动套用
+  let camDefPend = '';
+  function camCloudState() {
+    const CS = PH.CS; if (!CS) return { t: '保存到云端', h: '云端存储未加载', dis: true };
+    const S = CS.S, cur = CS.cur(), dirty = CS.dirty(), off = S.ready && !S.online;
+    const pend = !!camDefPend && camDefPend === cur.id && S.def !== cur.id;
+    const t = S.busy ? '保存中…' : off ? '云端离线' : !S.ready ? '连接云端…' : S.status === 'error' ? '保存失败，点击重试' : dirty || pend ? '保存到云端' : cur.id === 'official' ? '保存到云端' : '已保存到云端';
+    const h = S.status === 'error' && S.err ? S.err : cur.id === 'official' ? '会新建配置「我的配置」并设为默认，下次打开自动套用' :
+      '存进调参配置「' + cur.name + '」' + (S.def === cur.id ? '（默认配置，下次打开自动套用）' : '（不是默认配置：到调参台设为默认，打开时才会套用）') + (dirty && tuneOtherDirty() ? '；调参台里其它未保存改动也会一起保存' : '');
+    return { t: t, h: h, dis: off || !S.ready || S.busy || !(dirty || pend) };
+  }
+  function tuneOtherDirty() {
+    const T = PH.TUNE, CS = PH.CS; if (!T || !CS) return false;
+    const o = T.over(), p = CS.cur().data || {};
+    for (const k of new Set(Object.keys(o).concat(Object.keys(p)))) if (!/^(cam(Zoom|Height|Dist|Follow|Push|Pin|Plow)|t5_cam)/.test(k) && !(k in o && k in p && Math.abs(o[k] - p[k]) < 1e-9)) return true;
+    return false;
+  }
+  function camCloud() {
+    const st = camCloudState();
+    for (const [b, h] of [['cam-save', 'cam-cs'], ['c5-save', 'c5-cs']]) { const be = $(b), he = $(h); if (be) { be.textContent = st.t; be.disabled = st.dis; } if (he) he.textContent = st.h; }
+  }
+  async function camSave() {
+    const CS = PH.CS; if (!CS || CS.S.busy) return;
+    if (CS.cur().id === 'official') { if (await CS.saveAs('我的配置')) { camDefPend = CS.cur().id; await CS.setDefault(); } }
+    else {
+      const ok = CS.dirty() ? await CS.save() : true;
+      if (ok && camDefPend === CS.cur().id && CS.S.def !== camDefPend) await CS.setDefault();
+    }
+    if (CS.S.def === camDefPend) camDefPend = '';
+    camCloud();
+  }
+  $('cam-save').addEventListener('click', () => camSave());
+  $('c5-save').addEventListener('click', () => camSave());
+  if (PH.CS) PH.CS.on(() => camCloud());
+  camCloud();
+  if (PH.TUNE) PH.TUNE.on(() => camCloud());
   $('c5-preset').addEventListener('click', () => { PH.T5.setCam({ preset: PH.T5.CAMS.preset === '2k' ? 'broadcast' : '2k' }); cam5Labels(); });
   $('c5-zm').addEventListener('click', () => { PH.T5.setCam({ zoom: PH.T5.CAMS.zoom - 1 }); cam5Labels(); });
   $('c5-zp').addEventListener('click', () => { PH.T5.setCam({ zoom: PH.T5.CAMS.zoom + 1 }); cam5Labels(); });
@@ -1008,11 +1066,11 @@
   $('c5-reset').addEventListener('click', () => { PH.T5.resetCam(); cam5Labels(); });
   $('cam-close').addEventListener('click', () => toggleCam(false));
   let camFromSet = false;
-  $('cam-reset').addEventListener('click', () => { R.setCam(R.CAM_DEF); camBody(); });
+  $('cam-reset').addEventListener('click', () => { R.resetCamTuned(); camBody(); });
   $('cam-info').addEventListener('click', () => toggleInfo());
-  $('cam-body').addEventListener('input', (e) => { const k = e.target.getAttribute('data-cam'); if (!k) return; const v = +e.target.value; R.setCam({ [k]: v }); e.target.nextElementSibling.textContent = v.toFixed(2); });
+  $('cam-body').addEventListener('input', (e) => { const k = e.target.getAttribute('data-cam'); if (!k) return; const v = +e.target.value; R.setCamTuned({ [k]: v }); e.target.nextElementSibling.textContent = v.toFixed(2); });
   $('cam-body').addEventListener('change', (e) => { if (e.target.blur) e.target.blur(); });
-  $('cam-body').addEventListener('click', (e) => { if (!e.target.closest || !e.target.closest('.cam-push')) return; R.setCam({ push: R.CAMV.push ? 0 : 1 }); camBody(); });
+  $('cam-body').addEventListener('click', (e) => { if (!e.target.closest || !e.target.closest('.cam-push')) return; R.setCamTuned({ push: R.CAMV.push ? 0 : 1 }); camBody(); });
   function toggleMusic() { PH.audio.setMusic(!PH.audio.musicOn); setLabels(); }
   $('btn-music').addEventListener('click', () => toggleMusic());
   document.addEventListener('click', (e) => { if (e.target.tagName === 'BUTTON') e.target.blur(); });
@@ -1281,15 +1339,17 @@
     if (key !== hintKey) {
       hintKey = key;
       const kb = hasPad ? { a1: 'X', a2: 'Y', a3: 'B', po: 'LT', sp: 'RT', st: 'LT', d1: 'Y', d2: 'X' } : { a1: 'J', a2: 'K', a3: 'L', po: 'Q', sp: 'Shift', st: '按住 L', d1: 'J', d2: 'K' };
-      const O = '<b>' + kb.a1 + '</b> 投篮/突破上篮 <b>' + kb.a2 + '</b> 扣篮/终结 <b>' + kb.a3 + '</b>+方向 运球动作（运球过人/终结） <b>' + (hasPad ? '右摇杆按下 (R3)' : 'H') + '</b> 按住犹豫步 <b>' + kb.po + '</b> 背打 <b>' + kb.sp + '</b> 加速';
+      const O = '<b>' + kb.a1 + '</b> 投篮/突破上篮 <b>' + kb.a2 + '</b> 扣篮/终结 <b>' + kb.a3 + '</b>+方向 运球动作（运球过人/终结） <b>' + (hasPad ? '右摇杆按下 (R3)' : 'H') + '</b> 按住犹豫步 <b>' + kb.po + '</b> 背打 <b>' + kb.sp + '</b> 加速' + (t3 ? '' : '　<b>' + (hasPad ? '双击 Y' : 'V') + '</b> 向筐跑动自抛空接，接球自动终结');
       const B = '<b>' + kb.d1 + '</b> 抢篮板 <b>' + kb.st + '</b> 卡位 <b>' + kb.sp + '</b> 加速';
       const P = '背打中　<b>' + kb.a1 + '</b> 勾手 / 按住后方向后仰 <b>' + kb.a2 + '</b> 转身终结　松开时按左右 转身';
       const D = '<b>' + kb.d1 + '</b> 封盖 <b>' + kb.d2 + '</b> 抢断 <b>' + kb.st + '</b> 举手干扰 <b>' + kb.sp + '</b> 加速';
       show('hint', train || !!(t3 && local) || opts.fb === 'detail');
       const passing = t3 && local && off ? offBall ? '　<b>' + (hasPad ? 'A' : 'E') + '</b> 要球' : hasPad
-        ? '　<b>A</b> 胸传　<b>RT+A</b> 过顶　<b>LB+A</b> 击地　<b>LT+A</b> 高吊　<b>LB+LT+A</b> 空接'
+        ? '　<b>A</b> 胸传　<b>RT+A</b> 过顶　<b>LB+A</b> 击地　<b>LT+A</b> 高吊　<b>双击 Y / LB+LT+A</b> 空接'
         : '　<b>E</b> 胸传　<b>Shift+E</b> 过顶　<b>Z</b> 击地　<b>X</b> 高吊　<b>V</b> 空接' : '';
-      $('hint').innerHTML = two ? '玩家 1：WASD + J K L，H 犹豫步，Q 背打　玩家 2：方向键 + 小键盘 1 2 3，小键盘 5 犹豫步，O 背打' : (post ? P : off ? '进攻　' + (offBall ? B : O) : '防守　' + D) + passing + (offBall ? '　<b>' + (hasPad ? 'R3' : 'F') + '</b> 掩护' : '') + (train ? '　<b>' + (hasPad ? 'View' : 'Tab') + '</b> 参数 <b>R</b> 重置' : '');
+      const alleyHelp = t3 ? '　空接接球自动终结' : '';
+      $('hint').innerHTML = two ? '玩家 1：WASD + J K L，H 犹豫步，Q 背打，V 自抛空接　玩家 2：方向键 + 小键盘 1 2 3，小键盘 5 犹豫步，O 背打，Num4 自抛空接；手柄双击 Y 自抛空接，接球自动终结' : (post ? P : off ? '进攻　' + (offBall ? B : O) : '防守　' + D) + passing + (offBall ? '　<b>' + (hasPad ? 'R3' : 'F') + '</b> 掩护' : '') + (train ? '　<b>' + (hasPad ? 'View' : 'Tab') + '</b> 参数 <b>R</b> 重置' : '');
+      if (t3) $('hint').innerHTML += alleyHelp;
       if (isTouch) {
         $('tb1').textContent = offBall ? '篮板' : off ? '投篮' : '盖帽'; $('tb2').textContent = offBall ? '扑球' : off ? '终结' : '抢断'; $('tb3').textContent = offBall ? '卡位' : off ? '运球' : '姿态'; $('tbalt').textContent = '背打';
         show('tbalt', off && !offBall); show('tbscreen', offBall);
@@ -1773,7 +1833,7 @@
     H.score = function (pl, pts, kind, name) {
       const T = PH.T5.T, bz = !!(T.endPend && T.bzOn), L = T.lastPass;
       const all = []; for (const t of T.tm) for (const q of t.on) all.push([q, q.rk ? q.rk.st.ast : 0]);
-      const nm = fdShotName(pl, pts, kind, name), oop = kind === 'dunk' && L && L.to === pl && T.time - L.t < 1.1;
+      const nm = fdShotName(pl, pts, kind, name), oop = !/^空接/.test(name || '') && kind === 'dunk' && L && L.to === pl && T.time - L.t < 1.1;
       const r = orig.apply(this, arguments);
       try {
         fdPush('score', pl, ' ' + (bz ? '压哨 · ' : '') + escH(oop ? '空接' + (nm.indexOf('扣') >= 0 ? ' · ' + nm : '暴扣') : nm), '<em>+' + pts + '</em>');

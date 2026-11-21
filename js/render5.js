@@ -762,6 +762,6 @@
     const t0 = PH.T5.tick, tk = function (dt) { if (RPL.on) { RPL.tick(dt); return; } t0.call(this, dt); try { RPL.rec(); } catch (e) { RPL.buf.length = 0; } };
     tk.__rpl = true; PH.T5.tick = tk;
   }
-  function restore() { if (PH.render && PH.render.setTheme) PH.render.setTheme(null); if (saved && PH.render) { PH.render.setCam(saved.cv); if (cam) cam.oy = saved.oy; } saved = null; }
+  function restore() { if (PH.render && PH.render.setTheme) PH.render.setTheme(null); if (saved && PH.render) { PH.render.setCam(PH.render.camTuned ? PH.render.camTuned() : saved.cv); if (cam) cam.oy = saved.oy; } saved = null; }
   PH.render5 = { rpl: RPL, proj: (x, y, z) => (lastProj ? lastProj(x, y, z) : null), render: render, reset: reset, resize: init, restore: restore, CAM5: CAM5, halfW: () => halfW() };
 })();
