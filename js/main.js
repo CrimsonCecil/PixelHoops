@@ -5,7 +5,7 @@
   const stage = $('stage'), canvas = $('game'), replayWipe = $('replay-wipe');
   const opts = { format: 'duel', opponent: 'cpu', get mode() { return this.format === 'duel' ? this.opponent : this.format; }, diff: 1, target: 21, clock: 24, glen: 0, arch0: GM.ROSTER[(Math.random() * GM.ROSTER.length) | 0], arch1: 'random', fb: 'simple', info: 'show', home: 'LAL', away: 'BOS', qlen: 300, side: 0 };
   const lobbyRoles = { human: '你', cpu: '电脑', waiting: '等待玩家' };
-  const lobby3 = ['curry', 'edwards', 'jokic', 'lebron', 'durant', 'giannis'].map((arch, i) => ({ arch, role: i === 0 ? 'human' : i % 3 === 2 ? 'waiting' : 'cpu' }));
+  const lobby3 = ['curry', 'lebron', 'jokic', 'edwards', 'durant', 'giannis'].map((arch, i) => ({ arch, role: i === 0 ? 'human' : i % 3 === 2 ? 'waiting' : 'cpu' }));
   const rooms = PH.rooms, room = rooms.room;
   let localSlot = -1, roomSlot = -1, matchConfig = null, netFrame = 0;
   let scale = 2, paused = false, manual = false, screen = 'menu', last = 0, acc = 0, fps = 60, debug = /[?&]debug/.test(location.search);
@@ -73,10 +73,14 @@
   const badgeHtml = (k, full, t) => { const B = GM.BADGES[k]; return '<div class="bdg tr' + (t || 3) + '">' + bHex(k, t) + (full ? '<div><b>' + B.name + (B.five ? '<sup>5V5</sup>' : '') + '</b><span>' + B.desc + '</span></div>' : '<b>' + B.name + '</b>') + '</div>'; };
   let pkSide = 0, pkSel = 'curry', pkSlot = null;
   const listedHeight = (a) => (PH.measurements && PH.measurements[a.key] ? PH.measurements[a.key][0] * 0.0254 : a.h).toFixed(2);
+  function positionBadge(a, detailed = false) {
+    const group = PH.T3.position(a);
+    return '<span class="pos3" data-position="' + group + '" title="' + a.pos + ' · ' + group + '">' + (detailed ? a.pos : group) + '</span>';
+  }
   function pkCard(key) {
     if (key === 'random') return '<button class="pkc rnd" data-pk="random" data-testid="pk-random"><span class="pkf q">?</span><span class="pkn">随机</span><span class="pkp">任意球员</span></button>';
     const a = GM.ARCH[key];
-    return '<button class="pkc t' + TT[a.tier] + '" data-pk="' + key + '" data-testid="pk-' + key + '"><canvas class="pkf" width="32" height="32"></canvas><span class="pkn">' + a.name + (a.skill ? '<i class="pkst">' + IC.svg('takeover') + '</i>' : '') + '</span><span class="pkp">' + a.pos + '<small class="pkh"> · ' + listedHeight(a) + '</small></span><span class="pko">' + a.ovr + '</span></button>';
+    return '<button class="pkc t' + TT[a.tier] + '" data-pk="' + key + '" data-testid="pk-' + key + '"><canvas class="pkf" width="32" height="32"></canvas><span class="pkn">' + a.name + (a.skill ? '<i class="pkst">' + IC.svg('takeover') + '</i>' : '') + '</span><span class="pkp">' + (pkSlot === null ? a.pos : positionBadge(a, true)) + '<small class="pkh"> · ' + listedHeight(a) + '</small></span><span class="pko">' + a.ovr + '</span></button>';
   }
   const LTIP = { normal: 'lay' };
   let pkShown = '';
@@ -198,11 +202,11 @@
   $('pk-cancel').addEventListener('click', () => closePicker(false));
   $('pick0').addEventListener('click', () => openPicker(0));
   $('pick1').addEventListener('click', () => openPicker(1));
-  function pickBtn(id, key, side = id === 'pick0' ? 0 : 1) {
+  function pickBtn(id, key, side = id === 'pick0' ? 0 : 1, t3 = false) {
     const el = $(id);
     if (key === 'random') { el.className = 'pick'; el.innerHTML = '<span class="pkf q">?</span><span class="pk-n">随机</span><span class="pk-s">任意球员</span><span class="pk-c">更换</span>'; return; }
     const a = GM.ARCH[key];
-    el.className = 'pick t' + TT[a.tier]; el.innerHTML = '<canvas class="pkf" width="32" height="32"></canvas><span class="pk-n">' + a.name + ' <small>' + a.ovr + '</small></span><span class="pk-s">' + (a.skill ? '必杀技 · ' + a.skill.name : a.pos + ' · ' + GM.TIERS[a.tier]) + '</span><span class="pk-c">更换</span>';
+    el.className = 'pick t' + TT[a.tier]; el.innerHTML = '<canvas class="pkf" width="32" height="32"></canvas><span class="pk-n">' + a.name + ' <small>' + a.ovr + '</small></span>' + (t3 ? positionBadge(a) : '<span class="pk-s">' + (a.skill ? '必杀技 · ' + a.skill.name : a.pos + ' · ' + GM.TIERS[a.tier]) + '</span><span class="pk-c">更换</span>');
     portrait(el.querySelector('canvas'), a, GM.TEAMS[side]);
   }
   const lobbySlotName = (i) => (i < 3 ? '主队' : '客队') + ' ' + (i % 3 + 1) + ' 号位';
@@ -216,8 +220,9 @@
   function refreshLobby() {
     lobby3.forEach((slot, i) => {
       const id = 'pick3-' + i;
-      pickBtn(id, slot.arch, i < 3 ? 0 : 1);
-      $(id).setAttribute('aria-label', lobbySlotName(i) + '：' + GM.ARCH[slot.arch].name + '，更换球员');
+      const a = GM.ARCH[slot.arch];
+      pickBtn(id, slot.arch, i < 3 ? 0 : 1, true);
+      $(id).setAttribute('aria-label', lobbySlotName(i) + '：' + a.name + '，' + a.pos + '，更换球员');
       lobbySlotRole(i);
     });
   }
@@ -402,7 +407,8 @@
     GM.newGame({ mode: opts.mode, diff: opts.diff, target: opts.target, arch0: lastArch.a0, arch1: lastArch.a1, fb: opts.fb, glen: opts.glen });
     PH.audio.voPreload(G.players.map((p) => p.arch.key));
     screen = 'play'; paused = false; PH.input.clearSys(); clearPf();
-    show('tbpass', false); show('btn-restart', true); show('btn-again', true);
+    show('tbpass', false); show('tbscreen', false); show('tbbounce', false); show('tblob', false); show('tballey', false);
+    show('btn-restart', true); show('btn-again', true);
     show('menu', false); show('picker', false); show('pause', false); show('over', false); show('help', false); show('hud', true); show('touch', isTouch); show('shotcard', false);
     show('scorebar', !tr); show('trainbar', tr); show('btn-panel', tr);
     panelOpen = tr && !narrow(); show('train', panelOpen); stage.classList.toggle('panel', panelOpen); camShift();
@@ -442,7 +448,7 @@
   const HELP = {
     k1: { move: K('W') + K('A') + K('S') + K('D'), sprint: K('左 Shift'), a1: K('J') + or + K('空格'), a2: K('K'), a3: K('L'), post: K('Q'), pause: K('Esc') + or + K('P'), music: K('M') },
     k2: { move: K('↑') + K('←') + K('↓') + K('→'), sprint: K('小键盘 0') + or + K('右 Shift'), a1: K('小键盘 1') + or + K(','), a2: K('小键盘 2') + or + K('.'), a3: K('小键盘 3') + or + K('/'), post: K('O'), pause: K('Esc'), music: K('M') },
-    pad: { move: K('左摇杆', 'g'), sprint: K('RT', 'g'), a1: K('X', 'x'), a2: K('Y', 'y'), a3: K('A', 'a'), a3r: K('A', 'a') + or + K('拨右摇杆', 'g'), post: K('LT', 'g'), blk: K('Y', 'y'), stl: K('X', 'x'), stance: K('LT', 'g'), pause: K('Menu ≡', 'g'), music: '<span>键盘 M</span>' },
+    pad: { move: K('左摇杆', 'g'), sprint: K('RT', 'g'), a1: K('X', 'x'), a2: K('Y', 'y'), a3: K('B', 'b'), a3r: K('B', 'b') + or + K('拨右摇杆', 'g'), post: K('LT', 'g'), blk: K('Y', 'y'), stl: K('X', 'x'), stance: K('LT', 'g'), pause: K('Menu ≡', 'g'), music: '<span>键盘 M</span>' },
   };
   // 说明行：有演示的动作后面带“演示”按钮
   const TIPN = { 体前变向: 'cross', 胯下运球: 'legs', 背后运球: 'behind', 内外假晃: 'inout', 转身过人: 'spin', 后撤步: 'stepback', 犹豫步: 'hesi', 双重变向: 'dbl', 遛狗过人: 'sham', 拽回后撤: 'snatch', 犹豫爆发: 'hgo',
@@ -599,7 +605,7 @@
         g('主宰（信息卡下方的橙色条）', [['怎么攒', '进球、完美出手、晃倒/晃晕、盖帽、抢断、强干扰逼铁、抢篮板都会涨；被打进、失误、被盖、被晃会掉；不打球时缓慢回落'], ['以弱胜强', '总评越低攒得越快（最多 1.5 倍），球星攒得慢'], ['满了自动进入', '持续 24 秒（参考 2K 的主宰）：全部属性 +5，自己最强那一类再 +20（封顶 99），体力消耗 -30%。左上角信息卡会变橙并列出加成，属性数字旁边的 +N 就是加了多少'], ['五种主宰', '按球员最强的一项自动决定：投篮（绿区 +40%、被干扰影响 -40%）/ 终结（上篮扣篮被盖 -50%、内线被干扰 -30%）/ 内线（每次顶人都能顶开、背打出手被干扰 -50%）/ 运球（晃人成功率 ×1.6、运球动作体力 -60%）/ 防守（盖帽抢断成功率 ×1.4、干扰 +30%）'], ['提前结束', '主宰中被对手得分、失误会缩短时间'], ['攻防都算', '防守端的盖帽、抢断、逼铁同样能攒满']]) +
         g('庆祝与配音', [['进球庆祝', '扣篮、三分、晃倒后得分、关键球一定会庆祝，其它进球随机；镜头拉近，进攻方按自己性格做动作，防守方抱头 / 叉腰 / 摊手'], ['球员配音', '扣篮、三分、晃人、盖帽、抢断、打铁、主宰、获胜都有台词，每人每类多条随机，风格按球员性格；设置里可以关'], ['声音说明', '配音是 AI 合成的不同声线，不是球员本人原声']]) +
         g('属性颜色', [['亮绿 90+', '顶级，带发光'], ['黄绿 80+', '优秀'], ['金黄 70+', '合格'], ['暗橙 60+', '偏弱'], ['暗红 60 以下', '短板']]) +
-        g('比赛规则', [['目标分', '11 / 21 / 33 / 50 分，默认 21；必须领先 2 分才算赢，没拉开就一直打下去'], ['赛点', '某一方这一回合进一个三分就能赢时进入赛点：广告屏打出 MATCH POINT，观众起立，广告带上下沿按该队颜色闪，比分牌下方显示“赛点”'], ['比赛时间', '默认不限；可选 3 / 5 / 10 分钟，只在比赛进行中走表。最后 10 秒每秒读秒，时间到鸣笛：球在空中等它落地（压哨球算），领先方获胜；平分进加时，下一球定胜负'], ['进攻时间', '最后 5 秒每秒滴一声，最后 3 秒更急'], ['三分线外清球', '球权转换后要先把球带出三分线，三分线变红并流动提示，出线时闪一下绿色。没出线也可以投篮、突破，但进了不算，判违例，球权交给对方']]) +
+        g('比赛规则', [['目标分', '11 / 21 / 33 / 50 分，默认 21；必须领先 2 分才算赢，没拉开就一直打下去'], ['赛点', '某一方这一回合进一个三分就能赢时进入赛点：广告屏打出 MATCH POINT，观众起立，广告带上下沿按该队颜色闪，比分牌下方显示“赛点”'], ['比赛时间', '默认不限；可选 3 / 5 / 10 分钟，只在比赛进行中走表。最后 10 秒每秒读秒，时间到鸣笛：球在空中等它落地（压哨球算），领先方获胜；平分进加时，下一球定胜负'], ['进攻时间', '最后 5 秒每秒滴一声，最后 3 秒更急'], ['三分线外清球', '球权转换后要先把球带出三分线，1V1 用红线提示，出线时闪一下绿色；3V3 用文字提示，三分线不变色。没出线也可以投篮、突破，但进了不算，判违例，球权交给对方']]) +
         g('声音（设置 → 声音）', [['音量', '总音量、音乐、音效、语音四个滑条，50 是默认；默认值按离线测出来的响度配平，语音和普通音效差不多响，音乐垫在下面，球员说话时音乐自动压低'], ['动作演示', '选人界面右侧的运球、上篮动作和必杀技都能点，用这名球员本人演示']]) +
         g('精彩回放与特写（设置 → 显示 里可关）', [['特写', '精彩瞬间镜头推近；越精彩推得越近、停得越久'], ['回放', '每个回合里最精彩的一球，等进球画面播完再切入慢放；播满 ' + REPLAY_MIN + ' 秒后，按键盘任意键、手柄任意按钮或点画面跳过'], ['精彩度', '按档位打分，再加分：隔扣、花式扣、钉板、完美时机、晃倒、晃倒后得分、关键球、致胜球、超远三分']]) +
         g('进攻节奏博弈（对电脑）', [['电脑会记你的打法', '电脑会记住你最近几回合靠什么得分（背打转身、背打勾手、突破、三分、后撤步、中投），下回合可能提前针对：防背身转身就退一步等你转、防突破就退后放投、防三分就贴身。它猜中了很难打，猜错了反而更好打，换打法就能反制'], ['看防守反应', '你做完一个动作，电脑会选择：扑上来（压低身体、举手贴近）、后撤（退一步防突破）或者不动'], ['它扑上来', '重心在前、转身慢，这时变向或直接突破最容易过'], ['它后撤', '给出了投篮空间，接着投'], ['常用骗法', '犹豫步 / 内外晃引它后撤再投；后撤步引它扑出来再突破。投射好的人，电脑更愿意扑，防守好的电脑更常选不动']]);
@@ -741,25 +747,28 @@
     const base = pl.rBase || pl.r, raw = is5 && pl.r5 ? pl.r5.raw : null;
     const heat = is5 ? 0 : Math.round(GM.hcMod(pl) * 99);
     const keys = is5 ? (isOff ? PC_OFF_5 : PC_DEF_5) : (isOff ? PC_OFF : PC_DEF);
-    return keys.map(([k, name]) => {
+    const cells = keys.map(([k, name]) => {
       if (k === 'spd') return pcCell(name, pcRating(k, base, null, 0), 0);
       const v = pcRating(k, pl.r, raw, heat);
       const original = base !== pl.r || heat ? pcRating(k, base, raw, 0) : v;
       return pcCell(name, v, v != null && original != null ? v - original : 0);
     }).join('');
+    if (G.mode !== 't3' || !pl.tendency) return cells;
+    const { accuracy, vision, passIQ } = pl.tendency;
+    return cells + [['传球', accuracy], ['视野', vision], ['传球智商', passIQ]].map(([name, v]) => pcCell(name, Math.round(v * 100), 0)).join('');
   }
   function cardHTML(pl, isOff, st, is5 = false) {
     const a = pl.arch, tkOn = pl.tkOn > 0;
     const cells = pcRatings(pl, isOff, is5);
     const TD = tkOn && pl.tkT ? GM.TKD[pl.tkT] : null;
     const tkl = TD ? '<div class="pctki"><div class="tkh"><b>主宰 · ' + TD.n + '</b><span>' + Math.ceil(pl.tkOn) + '秒</span></div><div class="tkg">' + ['全属性 +5', TD.n + '类 +20'].concat(TD.ab, ['体力消耗 -30%']).map((x) => '<i>' + x + '</i>').join('') + '</div></div>' : '';
-    const sl = st && is5 ? '<div class="pcs pcs5">' + [[st.pts, '分'], [st.fg + '/' + st.fga, '投'], [st.reb, '板'], [st.ast, '助'], [st.stl, '断'], [st.blk, '帽'], [st.tov, '误']].map((x) => '<b' + (x[0] === 0 ? ' class="z"' : '') + '>' + x[0] + '</b>' + x[1]).join('') + '</div>' : st ? '<div class="pcs"><b>' + st.pts + '</b>分<b>' + st.fg + '/' + st.fga + '</b>投<b>' + st.reb + '</b>板<b>' + st.blk + '</b>帽<b>' + st.stl + '</b>断</div>' : '';
+    const sl = st && (is5 || G.mode === 't3') ? '<div class="pcs pcs5">' + [[st.pts, '分'], [st.fg + '/' + st.fga, '投'], [st.reb, '板'], [st.ast, '助'], [st.stl, '断'], [st.blk, '帽'], [st.tov, '误']].map((x) => '<b' + (x[0] === 0 ? ' class="z"' : '') + '>' + x[0] + '</b>' + x[1]).join('') + '</div>' : st ? '<div class="pcs"><b>' + st.pts + '</b>分<b>' + st.fg + '/' + st.fga + '</b>投<b>' + st.reb + '</b>板<b>' + st.blk + '</b>帽<b>' + st.stl + '</b>断</div>' : '';
     // V4.5 信息卡徽章行（1V1 / 5V5 同一套）：档位配色的六边形图标，正在触发的徽章高亮
     const bl = bList(pl, is5), hot = new Set((G.bpops || []).filter((x) => G.time - x.t0 < 1.8 && G.time >= x.t0 && G.players[x.pid] === pl).map((x) => x.key));
     const brow = bl.length ? '<div class="pcb" data-testid="pc-badges">' + bl.map((x) => '<span class="tr' + x[1] + (hot.has(x[0]) ? ' hot' : '') + '" title="' + GM.BADGES[x[0]].name + '">' + bHex(x[0], x[1]) + '</span>').join('') + '</div>' : '';
     const name = '<b>' + a.name + '</b>', ovr = '<em class="t' + TT[a.tier] + '">' + a.ovr + '</em>';
     const role = '<u class="' + (isOff ? 'ro' : 'rd') + '">' + (isOff ? '进攻' : '防守') + '</u>';
-    const head = '<span class="pc-id">' + name + ovr + '</span>' + role;
+    const head = '<span class="pc-id">' + name + ovr + (G.mode === 't3' ? positionBadge(a) : '') + '</span>' + role;
     return '<div class="pch">' + head + '</div>' + sl + '<div class="pcg">' + cells + '</div>' + brow + tkl + '<div class="pctk' + (tkOn ? ' on' : '') + '"><span>主宰</span><s><b style="width:' + Math.round(pl.tk) + '%"></b></s></div>';
   }
   function fitBadgePops(cardPrefix, colPrefix) {
@@ -773,12 +782,14 @@
     }
   }
   function pcards() {
+    const t3 = G.mode === 't3', me = t3 && G.players[localSlot];
+    const matchup = me && (G.off === me.tm ? G.players.find((p) => p.tm !== me.tm && p.opp === me) || me.opp : me.opp);
     for (let i = 0; i < 2; i++) {
-      const me = G.mode === 't3' && G.players[localSlot], pl = G.mode === 't3' ? me && (i ? me.opp : me) : G.players[i], el = $('pc' + i);
+      const pl = t3 ? (i ? matchup : me) : G.players[i], el = $('pc' + i);
       const on = screen === 'play' && opts.info === 'show' && pl && !pl.dummy && !(G.mode === 'train' && i === 1 && TR.dummy === 'none');
       el.classList.toggle('hidden', !on); if (!on) continue;
       const S = G.stats && G.stats[pl.id];
-      const html = cardHTML(pl, G.off === (G.mode === 't3' ? pl.tm : i), S && G.mode !== 'train' ? { pts: G.mode === 't3' ? S.pts || 0 : G.score[i], fg: S.fg, fga: S.fga, reb: S.reb, blk: S.blk, stl: S.stl } : null);
+      const html = cardHTML(pl, G.off === (t3 ? pl.tm : i), S && G.mode !== 'train' ? { pts: t3 ? S.pts || 0 : G.score[i], fg: S.fg, fga: S.fga, reb: S.reb, blk: S.blk, stl: S.stl, ast: S.ast, tov: S.tov } : null);
       el.classList.toggle('tk', pl.tkOn > 0);
       if (el._h !== html) { el._h = html; el.innerHTML = html; }
     }
@@ -1113,14 +1124,21 @@
     const key = (two ? '2' : '1') + (offBall ? 'b' : off ? 'o' : 'd') + (post ? 'p' : '') + (hasPad ? 'g' : '') + (train ? 't' : '') + (t3 ? '3' : '');
     if (key !== hintKey) {
       hintKey = key;
-      const kb = hasPad ? { a1: 'X', a2: 'Y', a3: 'A', po: 'LT', sp: 'RT', st: 'LT', d1: 'Y', d2: 'X' } : { a1: 'J', a2: 'K', a3: 'L', po: 'Q', sp: 'Shift', st: '按住 L', d1: 'J', d2: 'K' };
+      const kb = hasPad ? { a1: 'X', a2: 'Y', a3: 'B', po: 'LT', sp: 'RT', st: 'LT', d1: 'Y', d2: 'X' } : { a1: 'J', a2: 'K', a3: 'L', po: 'Q', sp: 'Shift', st: '按住 L', d1: 'J', d2: 'K' };
       const O = '<b>' + kb.a1 + '</b> 投篮/突破上篮 <b>' + kb.a2 + '</b> 扣篮/终结 <b>' + kb.a3 + '</b>+方向 运球动作／中立按住 犹豫步 <b>' + kb.po + '</b> 背打 <b>' + kb.sp + '</b> 加速';
       const B = '<b>' + kb.d1 + '</b> 抢篮板 <b>' + kb.st + '</b> 卡位 <b>' + kb.sp + '</b> 加速';
       const P = '背打中　<b>' + kb.a1 + '</b> 勾手 / 按住后方向后仰 <b>' + kb.a2 + '</b> 转身终结　松开时按左右 转身';
       const D = '<b>' + kb.d1 + '</b> 封盖 <b>' + kb.d2 + '</b> 抢断 <b>' + kb.st + '</b> 举手干扰 <b>' + kb.sp + '</b> 加速';
       show('hint', train || !!(t3 && local) || opts.fb === 'detail');
-      $('hint').innerHTML = two ? '玩家 1：WASD + J K L，Q 背打　玩家 2：方向键 + 小键盘 1 2 3，O 背打' : (post ? P : off ? '进攻　' + (offBall ? B : O) : '防守　' + D) + (t3 && local ? '　<b>' + (hasPad ? 'B' : 'E') + '</b> 传球 / 要球' : '') + (train ? '　<b>' + (hasPad ? 'View' : 'Tab') + '</b> 参数 <b>R</b> 重置' : '');
-      if (isTouch) { $('tb1').textContent = offBall ? '篮板' : off ? '投篮' : '盖帽'; $('tb2').textContent = offBall ? '扑球' : off ? '终结' : '抢断'; $('tb3').textContent = offBall ? '卡位' : off ? '运球' : '姿态'; $('tbalt').textContent = '背打'; show('tbalt', off && !offBall); }
+      const passing = t3 && local && off ? offBall ? '　<b>' + (hasPad ? 'A' : 'E') + '</b> 要球' : hasPad
+        ? '　<b>A</b> 胸传　<b>RT+A</b> 过顶　<b>LB+A</b> 击地　<b>LT+A</b> 高吊　<b>LB+LT+A</b> 空接'
+        : '　<b>E</b> 胸传　<b>Shift+E</b> 过顶　<b>Z</b> 击地　<b>X</b> 高吊　<b>V</b> 空接' : '';
+      $('hint').innerHTML = two ? '玩家 1：WASD + J K L，Q 背打　玩家 2：方向键 + 小键盘 1 2 3，O 背打' : (post ? P : off ? '进攻　' + (offBall ? B : O) : '防守　' + D) + passing + (offBall ? '　<b>' + (hasPad ? 'R3' : 'F') + '</b> 掩护' : '') + (train ? '　<b>' + (hasPad ? 'View' : 'Tab') + '</b> 参数 <b>R</b> 重置' : '');
+      if (isTouch) {
+        $('tb1').textContent = offBall ? '篮板' : off ? '投篮' : '盖帽'; $('tb2').textContent = offBall ? '扑球' : off ? '终结' : '抢断'; $('tb3').textContent = offBall ? '卡位' : off ? '运球' : '姿态'; $('tbalt').textContent = '背打';
+        show('tbalt', off && !offBall); show('tbscreen', offBall);
+        for (const id of ['tbbounce', 'tblob', 'tballey']) show(id, t3 && off && !offBall);
+      }
     }
     // 终结提示（脚下）
     for (let i = 0; i < 2; i++) {
@@ -1314,6 +1332,7 @@
     screen = 'play5'; paused = false; over5Shown = false; h5 = {}; fdReset(); PH.input.clearSys(); clearPf();
     show('menu', false); show('picker', false); show('tpicker', false); show('pause', false); show('over', false); show('over5', false); show('help', false);
     show('hud', false); show('hud5', true); show('touch', isTouch && opts.side >= 0); show('shotcard', false); show('train', false); show('banner', false); show('campanel', false); stage.classList.remove('panel');
+    show('tbscreen', false); show('tbbounce', false); show('tblob', false); show('tballey', false);
     show('btn-cam', true); show('btn-disp', true); show('btn-box5', true); show('box5', false); PH.box5.reset(); b5Pause = false;
     $('btn-restart').textContent = '重新开始'; $('btn-resume').textContent = '继续比赛';
     for (let i = 0; i < 2; i++) { const tm = T5.T.tm[i]; $('h5n' + i).textContent = tm.name; $('h5t' + i).style.setProperty('--tc', tm.col.ui); $('h5t' + i).classList.toggle('me', opts.side === i); }
