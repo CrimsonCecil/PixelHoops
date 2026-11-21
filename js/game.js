@@ -13,7 +13,6 @@
   // 每项：[字段, 组, 中文名, 默认, 最小, 最大, 步长, 说明（单位 / 效果，只在调参台显示）, mode]
   const TU = PH.TUNE || null;
   const TDEF = [
-    ['rsHoldT', 'drib', '右摇杆 投篮长推阈值', 0.22, 0.1, 0.5, 0.01, '秒：短拨运球、长推投篮共用阈值'],
     ['poFakeCommit', 'shot', '背打 假投收球窗口', 0.24, 0, 0.5, 0.01, '秒：起跳前且在窗口内松手保持背打假投'],
     ['poFakeBite', 'def', '背打 假投骗跳', 0.35, 0, 1, 0.01, '概率：梦幻舞步提升骗跳效果'],
     ['poFakeCost', 'stam', '背打 假投消耗', 0, 0, 10, 0.1, '体力：沿用动作固定消耗倍率，默认假投免费'],
@@ -157,6 +156,7 @@
     ['uuForward', 'drib', '上下步 突篮距离', 1.05, 0.2, 2, 0.05, '米：随背控、近投和控球缩放'],
     ['uuBack', 'drib', '上下步 后撤距离', 0.9, 0.2, 2, 0.05, '米'],
     ['uuSide', 'drib', '上下步 横移距离', 0.85, 0.2, 2, 0.05, '米'],
+    ['rsHold', 'drib', '右摇杆 长推投篮阈值', 0.2, 0.1, 0.4, 0.01, '秒：此前回中是运球，长推投篮，回中松手出手'],
     ['uuReq', 'drib', '上下步 能力门槛', 0.45, 0, 1, 0.01, '背控、近投、控球三者最高值'],
     ['uuCost', 'drib', '上下步 体力系数', 0.3, 0, 1, 0.01, '倍率：基础运球消耗'],
     ['uuBonus', 'shot', '上下步 骗跳命中加成', 0.08, 0, 0.3, 0.01, '概率：最近防守人被假投骗跳或仍在落地恢复'],
@@ -2929,7 +2929,7 @@
   function catchShot(pl) {
     return teamPlay() && pl.passCatchT != null && G.time - pl.passCatchT >= 0 && G.time - pl.passCatchT <= 0.6 && !pl.catchDribbled;
   }
-  function startShot(pl, inp, btn, cancelVariant, postAt = G.time) {
+  function startShot(pl, inp, btn, cancelVariant, postAt = inp.rsHold && pl.rsGesture ? pl.rsGesture.t : G.time) {
     const follow = postFollow(pl, postAt) ? pl.postMove : null;
     const d = distHoop(pl), q = inDir(pl, inp), df = OP(pl), postSide = follow ? follow.side : null;
     let v;
@@ -4195,7 +4195,7 @@
       if (pr.a1 || pr.a2) {
         if (G.needClear) { G.clearPing = G.time; G.illId = pl.id; }
         if (cancelVariant) { startShot(pl, inp, 'a1', cancelVariant); return; }
-        if (pr.a1 && postFollow(pl)) { startShot(pl, inp); return; }
+        if (pr.a1 && postFollow(pl, inp.rsHold && pl.rsGesture ? pl.rsGesture.t : G.time)) { startShot(pl, inp); return; }
         if (pr.a1 && pl.uuShot && G.time <= pl.uuShot.until && pl.uuShot.mv === 'uuBack') { startShot(pl, inp); return; }
         const q = inDir(pl, inp), P = finPlan(pl);
         const sdz = sdZone(pl, P), sdBtn = pr.a2 || (pr.a1 && inp.sprint && !(pl.post || (backTurn(pl) && !pr.a2)));
@@ -4294,35 +4294,45 @@
     const a = pl.action; if (!a || !pl.hasBall) return false;
     return a.type === 'move' || (a.type === 'shot' && !a.released) || (a.type === 'layup' && !a.released) || (a.type === 'dunk' && !a.done);
   }
-  function postStickInput(pl, inp, dt) {
-    let s = pl.postStick;
-    if (!inp.rsPad || pl.ctrl === 'cpu' || !pl.hasBall || G.phase !== 'live' || G.ball.dead || pl.stun > 0) { pl.postStick = null; return inp; }
-    const down = Math.hypot(inp.rsX, inp.rsY) > 0.6;
-    const context = inp.post && (pl.post || postFollow(pl) || !pl.postFaceLock);
-    const out = Object.assign({}, inp, { a3: !!(inp.dribble || inp.hesi), dx: 0, dy: 0 });
-    if (!s && down && context && !inp.a1 && !inp.a2 && (!pl.action || pl.action.postFake)) s = pl.postStick = { t: 0, at: G.time, x: inp.rsX, y: inp.rsY };
-    if (!s) return context && down ? out : inp;
-    if (!inp.post && !s.shot) s.cancelled = true;
-    if (!down) {
-      if (!s.shot && !s.cancelled && s.t < K.rsHoldT && !pl.action && pl.cd <= 0 && pl.stam > ST.act) { out.a3 = true; out.dx = s.x; out.dy = s.y; }
-      pl.postStick = null; return out;
+  function postRightStickInput(pl, inp) {
+    const rs = pl.rsGesture || pl.postRS;
+    pl.postRS = pl.rsGesture;
+    if (!rs) return inp;
+    if (rs.post == null) { rs.post = !!inp.post && (pl.post || postFollow(pl, rs.t) || !pl.postFaceLock); rs.postPad = !!inp.rsPad; }
+    if (!rs.post) return inp;
+    if (!pl.hasBall || G.phase !== 'live' || G.ball.dead || pl.stun > 0 || rs.postPad && !inp.rsPad || !inp.post && !rs.postShot) rs.postCancelled = true;
+    if (rs.postCancelled) return Object.assign({}, inp, { a1: false, a3: !!(inp.dribble || inp.hesi), dx: 0, dy: 0, rsHold: false, rsFlick: false });
+    if (inp.rsHold) rs.postShot = true;
+    if (inp.rsFlick && pl.stam <= ST.act) return Object.assign({}, inp, { a3: false });
+    return inp;
+  }
+  function rightStickInput(pl, inp) {
+    if (!pl.hasBall || G.phase !== 'live' || G.ball.dead || pl.stun > 0 || inp.hesi || inp.dribble || pl.action && pl.action.hesiHold) pl.rsGesture = null;
+    else if (pl.ctrl !== 'cpu' && (inp.rs || pl.rsGesture)) {
+      const held = !!inp.rs;
+      let rs = pl.rsGesture;
+      inp = Object.assign({}, inp, { a3: !!(inp.dribble || inp.hesi) });
+      if (held) {
+        if (!rs) rs = pl.rsGesture = { t: G.time, x: inp.dx, y: inp.dy, shot: false };
+        rs.x = inp.dx; rs.y = inp.dy;
+        const press = !rs.shot && G.time - rs.t >= K.rsHold;
+        if (press) rs.shot = true;
+        inp.rsHold = rs.shot;
+        if (rs.shot) { inp.a1 = true; inp.shootPress = inp.shootPress || press; inp.mx = rs.x; inp.my = rs.y; }
+      } else if (rs) {
+        if (!rs.shot) { inp.a3 = inp.rsFlick = true; inp.dx = rs.x; inp.dy = rs.y; }
+        pl.rsGesture = null;
+      }
     }
-    if (s.cancelled) return out;
-    s.t += dt; s.x = inp.rsX; s.y = inp.rsY;
-    if (!s.shot && s.t >= K.rsHoldT && ibReady(pl, 'a1') && pl.cd <= 0 && pl.stam > ST.act) {
-      if (G.needClear) { G.clearPing = G.time; G.illId = pl.id; }
-      startShot(pl, Object.assign({}, out, { mx: s.x, my: s.y }), 'a1', null, s.at);
-      s.shot = pl.action;
-    }
-    if (s.shot && s.shot === pl.action && !s.shot.released) out.a1 = true;
-    return out;
+    return inp;
   }
   function updatePlayer(pl, inp, dt) {
     if (pl.off) { pl.anim = 'idle'; pl.stance = false; return; }
     const frozen = G.phase === 'check' || G.phase === 'over';
+    inp = rightStickInput(pl, inp);
+    inp = postRightStickInput(pl, inp);
     { if (pl.knock) { pl.knockT += dt; if (pl.knockT >= pl.knockD) { pl.knock = null; pl.knockT = 0; pl.knockD = 0; pl.knockUp = 0; } } const s0 = pl.stun; pl.stun = Math.max(0, pl.stun - dt); if (s0 > 0 && pl.stun <= 0) pl.recT = G.time + lerp(K.akRecLo, K.akRecHi, agil(pl)) + K.akRecHv * heavy(pl); }
     pl.cd = Math.max(0, pl.cd - dt); pl.boost = Math.max(0, pl.boost - dt); pl.flash = Math.max(0, pl.flash - dt);
-    inp = postStickInput(pl, inp, dt);
     const IB = ibOn(pl), raw = inp, moveAtStart = pl.action;
     if (pl.action && (pl.action.hesiHold || pl.action.kind === 'uu') && (!pl.hasBall || G.phase !== 'live' || G.ball.dead || pl.stun > 0)) pl.action = null;
     if (frozen || pl.stun > 0) inp = { mx: 0, my: 0, sprint: false, a1: frozen ? false : inp.a1, a2: false, a3: false, post: false, dx: 0, dy: 0 };

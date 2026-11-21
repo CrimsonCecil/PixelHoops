@@ -54,6 +54,7 @@ for (const mode of ['2p', 't5']) {
     const { p } = fixture(mode);
     const inp = mode === 't5' ? adapted(p, x, y, false, expected === 'postshim') : { post: true, a3: true, dx: x, dy: y };
     step(p, inp);
+    if (inp.rs) step(p, adapted(p, 0, 0));
     assert.equal(p.action?.kind, expected, `${mode} move ${x},${y}`);
     assert(p.stam < 100 && Number.isFinite(p.action.sp));
     assert(qa.MKF[expected].length >= 2);
@@ -253,7 +254,7 @@ function gamepadStep(mode, p, options = {}, n = 1) {
     step(p, inp); input.endTick();
   }
 }
-const holdFrames = () => Math.ceil(gm.K.rsHoldT / dt) + 1;
+const holdFrames = () => Math.ceil(gm.K.rsHold / dt) + 2;
 for (const mode of ['2p', 't5']) {
   for (const [x, y, move, shot] of [[1, 0, 'postspin', 'turn'], [0.7, 0.7, 'postdrop', 'postfront'], [0, -1, 'postface', 'postfade'], [1, -0.7, 'postspin', 'postfade1']]) {
     let { p } = fixture(mode);
@@ -325,8 +326,15 @@ for (const mode of ['2p', 't5']) {
   {
     const { p } = fixture(mode); p.post = false; p.opp.off = true;
     gamepadStep(mode, p, { x: 1, post: false });
-    assert.equal(p.action.type, 'move', 'Non-post stick still triggers its move on the initial press');
-    assert(!p.postStick);
+    assert.equal(p.action, null, 'PR81 shared non-post stick waits for flick or hold');
+    gamepadStep(mode, p, { post: false });
+    assert.equal(p.action.type, 'move', 'PR81 shared non-post flick triggers its move on release');
+    assert(!p.rsGesture);
+  }
+  {
+    const { p } = fixture(mode); p.post = false; p.opp.off = true;
+    gamepadStep(mode, p, { x: 1, post: false }, holdFrames());
+    assert.equal(p.action.type, 'shot', 'PR81 shared non-post hold starts a shot');
   }
   {
     const { p } = fixture(mode); p.post = false;
@@ -335,11 +343,11 @@ for (const mode of ['2p', 't5']) {
   }
 }
 pads.length = 0;
-console.log('PASS post stick: real gamepad flick/hold, directional shots, held meter and release, hook and expiring follow-ups in 1V1/5V5; movement+shoot and non-post stick unchanged');
+console.log('PASS post stick: shared PR81 flick/hold, directional shots, held meter and release, hook and expiring follow-ups in 1V1/5V5; movement+shoot preserved and shared non-post gestures');
 console.log('PASS chained post fakes: early stick/button release retains posting and ball, alternating ids/poses, free stamina, real-shot follow-up and invalid-state cancellation');
 
 {
-  const { p } = fixture(); tune.set('l1_rsHoldT', 0.4);
+  const { p } = fixture(); tune.set('l1_rsHold', 0.4);
   gamepadStep('2p', p, { x: 1 }, 30); assert.equal(p.action, null);
   gamepadStep('2p', p); assert.equal(p.action.kind, 'postspin');
 }
@@ -352,7 +360,7 @@ for (let seed = 1; seed <= 80; seed++) {
   if (out.a1 && p.ai.fakeNext) cpuFakes++;
 }
 assert(cpuFakes > 0 && cpuFakes < 80);
-console.log(`PASS live l1_rsHoldT threshold and seeded post AI fakes=${cpuFakes}/80`);
+console.log(`PASS live l1_rsHold threshold and seeded post AI fakes=${cpuFakes}/80`);
 
 for (const bite of [0, 1]) {
   const { p, d } = fixture();
