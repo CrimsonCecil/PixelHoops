@@ -1251,7 +1251,7 @@
     if (L.id === cardId) return;
     cardId = L.id;
     const res = L.blocked ? '被盖帽' : L.made ? '命中' : '未进', pc = Math.round(L.prob * 100);
-    let h = '<div class="sc-h" style="color:' + G.players[L.who].team.css + '"><span>' + who(L.who) + ' · ' + PH.shortMoveText(L.name) + '</span><em>' + L.pts + ' 分</em></div><div class="sc-res">' + res + '</div>';
+    let h = '<div class="sc-h" style="color:' + G.players[L.who].team.css + '"><span>' + who(L.who) + ' · ' + L.name + '</span><em>' + L.pts + ' 分</em></div><div class="sc-res">' + res + '</div>';
     if (L.e != null) {
       const gw = Math.min(1, L.gw || 0.1);
       h += '<div class="sc-track"><i style="left:' + (50 - gw * 50) + '%;width:' + gw * 100 + '%"></i><u style="left:' + ((L.e + 1) * 50) + '%"></u></div><div class="sc-ends"><span>早</span><span>绿区</span><span>晚</span></div>';
@@ -1335,8 +1335,8 @@
       if (inSb(y)) y = sb.y1 + 2 + ph;
       placed.push({ x: p.x, y: y, w: pw, h: ph }); p.y = y;
       d.style.display = 'block';
-      if (f.shot) { d.className = 'sfb'; d.style.display = 'flex'; d.innerHTML = '<b style="color:' + f.color + '">' + PH.shortMoveText(f.text) + '</b><span style="color:' + f.subColor + '">' + PH.shortMoveText(f.sub) + '</span>'; d.style.color = ''; }
-      else { d.className = ''; d.textContent = PH.shortMoveText(f.text); d.style.color = f.color; }
+      if (f.shot) { d.className = 'sfb'; d.style.display = 'flex'; d.innerHTML = '<b style="color:' + f.color + '">' + f.text + '</b><span style="color:' + f.subColor + '">' + f.sub + '</span>'; d.style.color = ''; }
+      else { d.className = ''; d.textContent = f.text; d.style.color = f.color; }
       d.style.left = Math.max(40, Math.min(R.W - 40, p.x)) * scale + 'px'; d.style.top = Math.max(26, p.y) * scale + 'px';
       d.style.opacity = f.t > 1 ? String(Math.max(0, 1 - (f.t - 1) / 0.3)) : '1';
     }
@@ -1409,11 +1409,11 @@
     }
     drawFloats();
     const b = G.banner, be = $('banner');
-    if (b) { if (be.classList.contains('hidden') || be.firstElementChild.textContent !== PH.shortMoveText(b.text)) { be.classList.remove('hidden'); be.style.animation = 'none'; void be.offsetWidth; be.style.animation = ''; } be.firstElementChild.textContent = PH.shortMoveText(b.text); be.firstElementChild.style.color = b.color; be.lastElementChild.textContent = b.sub; be.style.borderLeftColor = b.color; be.classList.toggle('top', !!b.top); }
+    if (b) { if (be.classList.contains('hidden') || be.firstElementChild.textContent !== b.text) { be.classList.remove('hidden'); be.style.animation = 'none'; void be.offsetWidth; be.style.animation = ''; } be.firstElementChild.textContent = b.text; be.firstElementChild.style.color = b.color; be.lastElementChild.textContent = b.sub; be.style.borderLeftColor = b.color; be.classList.toggle('top', !!b.top); }
     else be.classList.add('hidden');
     const hr = G.hero, he = $('hero');
     if (hr && G.time - hr.t0 < hr.T && G.time >= hr.t0) {
-      if (he.classList.contains('hidden') || he.dataset.k !== String(hr.t0)) { he.dataset.k = String(hr.t0); he.classList.remove('hidden'); he.style.animation = 'none'; void he.offsetWidth; he.style.animation = ''; he.querySelector('b').textContent = PH.shortMoveText(hr.text); he.querySelector('span').textContent = hr.sub.replace(/( · )(.+)$/, (_, sep, name) => sep + PH.shortMoveText(name)); he.style.setProperty('--hc', hr.col); he.classList.toggle('lite', !!hr.lite); }
+      if (he.classList.contains('hidden') || he.dataset.k !== String(hr.t0)) { he.dataset.k = String(hr.t0); he.classList.remove('hidden'); he.style.animation = 'none'; void he.offsetWidth; he.style.animation = ''; he.querySelector('b').textContent = hr.text; he.querySelector('span').textContent = hr.sub; he.style.setProperty('--hc', hr.col); he.classList.toggle('lite', !!hr.lite); }
       he.classList.toggle('out', G.time - hr.t0 > hr.T - 0.4);
     } else if (!he.classList.contains('hidden')) he.classList.add('hidden');
     shotCard();
@@ -1927,10 +1927,10 @@
     H.score = function (pl, pts, kind, name) {
       const T = PH.T5.T, bz = !!(T.endPend && T.bzOn), L = T.lastPass;
       const all = []; for (const t of T.tm) for (const q of t.on) all.push([q, q.rk ? q.rk.st.ast : 0]);
-      const nm = PH.shortMoveText(name || (pts === 3 ? '三分' : kind === 'dunk' ? '暴扣' : '中投')), oop = !/^空接/.test(name || '') && kind === 'dunk' && L && L.to === pl && T.time - L.t < 1.1;
+      const nm = fdShotName(pl, pts, kind, name), oop = !/^空接/.test(name || '') && kind === 'dunk' && L && L.to === pl && T.time - L.t < 1.1;
       const r = orig.apply(this, arguments);
       try {
-        fdPush('score', pl, ' ' + (bz ? '压哨 · ' : '') + escH(oop ? '空扣' : nm), '<em>+' + pts + '</em>');
+        fdPush('score', pl, ' ' + (bz ? '压哨 · ' : '') + escH(oop ? '空接' + (nm.indexOf('扣') >= 0 ? ' · ' + nm : '暴扣') : nm), '<em>+' + pts + '</em>');
         const a = all.find((x) => x[0].rk && x[0].rk.st.ast > x[1]);
         if (a && a[0] !== pl) { FD.last['ast:' + a[0].id] = -99; fdPush('ast', a[0], ' 助攻 <b>' + pnm(pl) + '</b>'); }
       } catch (e) { /* 播报失败不影响比赛 */ }
@@ -2097,8 +2097,8 @@
     ciSeq = c.seq; const pl = G.players[c.pid];
     el.style.setProperty('--tc', c.col); el.classList.toggle('right', screen === 'play5' || G.mode === 't3' ? pl.tm === 1 : c.pid === 1);
     el.querySelector('.ci-name').textContent = c.full;
-    el.querySelector('.ci-skill').textContent = PH.shortMoveText(c.skill);
-    el.querySelector('.ci-en').textContent = '';
+    el.querySelector('.ci-skill').textContent = c.skill;
+    el.querySelector('.ci-en').textContent = c.en;
     const PF = portrait($('ci-face'), pl.arch, pl.team);
     { const ec = $('ci-eyes'), x = ec.getContext('2d'), k = 4, y0 = (PF.eyeY - 3.2) * k; x.imageSmoothingEnabled = false; x.clearRect(0, 0, 160, 72); x.drawImage($('ci-face'), 4 * k, y0, 24 * k, 7.2 * k, 0, 0, 160, 48);
       x.fillStyle = 'rgba(0,0,0,0)'; }
