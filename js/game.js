@@ -14,7 +14,6 @@
   const TU = PH.TUNE || null;
   const TDEF = [
     ['manuContest', 'lay', '妖刀 提前封堵干扰倍率', 0.65, 0.3, 1, 0.05, '倍率：第二步落地前已举手或起跳的防守人'],
-    ['manuSteal', 'def', '妖刀 收球护球抢断倍率', 0.55, 0.1, 1, 0.05, '倍率：欧洲步收球期间的伸手抢断'],
     ['manuCpu', 'ai', '妖刀 电脑欧洲步偏好', 0.75, 0, 1, 0.05, '概率：可上篮时优先左手欧洲步'],
     ['aiCommit', 'drib', '答案 重心横移门槛', 0.65, 0.1, 3, 0.05, '米/秒：防守人往试探侧横移才有启动优势'],
     ['aiProbeRange', 'drib', '答案 试探有效距离', 2.6, 1, 4, 0.1, '米：防守人退开不触发'],
@@ -1384,7 +1383,7 @@
     ginobili: A({ key: 'ginobili', tier: 'star', name: '基诺比利', full: '马努·基诺比利', pos: '得分后卫', num: 20, desc: '马刺妖刀，左手欧洲步与灵巧终结', h: 1.98, bw: 0.86, wing: 1,
       three: 0.84, mid: 0.82, lay: 0.97, dunk: 0.72, spd: 0.89, acc: 0.95, hnd: 0.9, str: 0.52, def: 0.76, blk: 0.3, stl: 0.85, vert: 0.78, sta: 0.9,
       badges: ['acrobat', 'fakes'], skin: '#e8bf98', hair: '#30251f', style: 'receding', beard: 'stubble',
-      skill: { id: 'ginobili', name: '左手错拍欧洲步', en: 'MANU EURO', cond: '欧洲步右侧带球后跨回左手终结', eff: '提前举手或起跳的防守人干扰降低，收球护球；等待第二步仍正常干扰与封盖' } }),
+      skill: { id: 'ginobili', name: '左手错拍欧洲步', en: 'MANU EURO', cond: '欧洲步右侧带球后跨回左手终结', eff: '提前举手或起跳的防守人干扰降低；等待第二步仍正常干扰与封盖' } }),
     iverson: A({ key: 'iverson', tier: 'star', name: '艾弗森', full: '阿伦·艾弗森', pos: '控球后卫', num: 3, desc: '76人答案，闪电第一步与致命变向', h: 1.83, bw: 0.65, wing: 1,
       three: 0.76, mid: 0.86, lay: 0.98, dunk: 0.55, spd: 0.99, acc: 0.99, hnd: 0.99, str: 0.3, def: 0.62, blk: 0.18, stl: 0.96, vert: 0.9, sta: 0.98,
       badges: ['ankle', 'tight', 'pullup'], skin: '#805034', hair: '#120c08', style: 'braids', beard: 'goatee', band: '#f4f0e0',
@@ -4308,8 +4307,7 @@
     const dx = pl.x - df.x, dy = pl.y - df.y, dd = Math.hypot(dx, dy) || 1;
     const fx = Math.cos(df.face), fy = Math.sin(df.face);
     const front = (dx * fx + dy * fy) / dd;
-    const carry = a && a.sigMove === 'ginobili' && a.inSteps ? (a.si === 0 ? 1 : a.wp[a.si] ? 1 - 2 * sm(clamp(a.st / a.wp[a.si].T, 0, 1)) : -1) : null;
-    const ballX = carry != null ? carry : moving ? a.kind === 'hesi' ? a.h0 : movePath(a, clamp((a.t + ahead) / a.T, 0, 1))[0] : df.handX;
+    const ballX = moving ? a.kind === 'hesi' ? a.h0 : movePath(a, clamp((a.t + ahead) / a.T, 0, 1))[0] : df.handX;
     const side = (dx * fy - dy * fx) / dd * Math.sign(ballX);
     const across = Math.max(0, -side), ballSide = Math.max(0, side);
     const poor = Math.max(0, -front) * (1 - ballSide);
@@ -4523,8 +4521,7 @@
           if (df.post) ch += K.stlTimed * read.away * read.pf;
           if (df.chinT > G.time) ch *= K.stlChin;
           if (pl.ctrl === 'cpu') ch *= K.stlCpu0 + K.stlCpuD * G.diff;
-          if (da && da.sigMove === 'ginobili' && da.inSteps) ch *= K.manuSteal;
-          else if (da && (da.type === 'dunk' || da.type === 'layup')) ch = 0;
+          if (da && (da.type === 'dunk' || da.type === 'layup')) ch = 0;
           else if (gsk(pl, 'steal') && !(df.chinT > G.time)) { ch = 99; fireSkill(pl); }   // V3.9o 追梦掏球：必定掏下（护球 chin 中除外）
           const chance = ch * CFG.stealMul * (tkIs(pl, 'def') ? K.stlTk : 1);
           if (rnd() < (ch === 99 ? chance : clamp(chance, 0, K.stlMax))) {

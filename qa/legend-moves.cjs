@@ -13,7 +13,8 @@ for (const name of ['tune', 'render', 'roster', 'r5', 'game', 'b5', 'team5']) {
 const gm = ctx.PH.game, Q = ctx.PH.legendQA, H = ctx.PH.render.HOOP, K = gm.K;
 const plain = (x) => JSON.parse(JSON.stringify(x));
 const close = (a, b, msg) => assert(Math.abs(a - b) < 1e-8, `${msg}: ${a} != ${b}`);
-for (const key of ['manuContest', 'manuSteal', 'manuCpu', 'aiCommit', 'aiProbeRange', 'aiBurst', 'aiChain', 'vcRunway', 'vcSpeed', 'vcSetRadius', 'vcSetSpeed']) {
+assert.equal(ctx.PH.TUNE.meta('l1_manuSteal'), undefined, 'no special Manu steal tunable');
+for (const key of ['manuContest', 'manuCpu', 'aiCommit', 'aiProbeRange', 'aiBurst', 'aiChain', 'vcRunway', 'vcSpeed', 'vcSetRadius', 'vcSetSpeed']) {
   const meta = ctx.PH.TUNE.meta('l1_' + key);
   assert(meta && meta.wide === false && meta.min <= K[key] && meta.max >= K[key], `${key} exposed with bounded slider`);
 }
@@ -88,21 +89,20 @@ assert.equal(euro('ginobili', true).a.sigMove, undefined, 'cooldown ordinary eur
   close(gm.contestInfo(p, d, 'in').c, raisedAgain, 'lowered then late-raised hands contest normally');
 }
 {
-  const saved = K.manuSteal, counts = [];
-  for (const multiplier of [1, saved]) {
-    let stolen = 0;
+  for (const key of ['ginobili', 'lebron', 'carter']) {
     for (let i = 1; i <= 256; i++) {
-      const { p, d } = euro();
+      const { p, d, a } = key === 'carter' ? dunk() : euro(key);
+      a.inSteps = i % 2 === 0;
+      p.handX = 0.33;
       Object.assign(d, { x: p.x + 0.4, y: p.y + 0.3, face: Math.atan2(-0.3, -0.4), ctrl: 'p2' });
-      K.manuSteal = multiplier; Q.startSteal(d); gm.seed(i * 100003);
+      Q.startSteal(d); gm.seed(i * 100003);
+      const steal = d.action;
       Q.updateAction(d, {}, K.stlHitT + 0.001, false);
-      stolen += +!p.hasBall;
+      assert(steal.done, 'reach-in attempt resolved');
+      assert(p.hasBall && p.action === a && !steal.poked, `${key} retains ordinary layup/dunk reach-in immunity during carry and flight`);
     }
-    counts.push(stolen);
   }
-  K.manuSteal = saved;
-  assert(counts[1] > 0 && counts[1] < counts[0], 'carry protection reduces normal reach-in rolls without immunity');
-  console.log(`PASS Manu carry steal rolls unprotected=${counts[0]}/256 protected=${counts[1]}/256 (not immune)`);
+  console.log('PASS Manu and ordinary layups/dunks retain identical reach-in immunity during carry and flight (768 seeded attempts)');
 }
 function answer(key, velocity, hand = 1, distance = 1.5, expired = false, seed = 7) {
   const { p, d } = setup(key, 6);
