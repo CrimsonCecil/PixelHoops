@@ -90,13 +90,33 @@ for (const mode of ['2p', 't5']) for (const cpu of [false, true]) {
       if (a.lsv !== 'far') continue;
       count++; assert.equal(a.wp.length, 2);
       assert(a.wp.every(w => w.T >= f.gm.K.stepT && Math.hypot(w.x - w.fx, w.y - w.fy) > 0.1));
-      assert(a.tk <= f.gm.K.lvFarTk * f.gm.K.layK + 1e-9);
+      assert(a.tk <= f.gm.K.lvFarTk + 1e-9);
       min = Math.min(min, a.tk); max = Math.max(max, a.tk);
     }
   }
 }
 assert(count > 100);
-console.log(`PASS distance gates and two moving gather steps: ${count} far layups; takeoff ${min.toFixed(3)}–${max.toFixed(3)}m (cap ${(after.PH.game.K.lvFarTk * after.PH.game.K.layK).toFixed(3)}m)`);
+console.log(`PASS distance gates and two moving gather steps: ${count} far layups; takeoff ${min.toFixed(3)}–${max.toFixed(3)}m (cap ${after.PH.game.K.lvFarTk.toFixed(3)}m)`);
+{
+  const K = after.PH.game.K, original = K.layK;
+  let count = 0, max = 0;
+  try {
+    K.layK = 1.44;
+    for (const distance of [2.6, 3, 3.4, 4]) {
+      const f = setup(after, distance);
+      for (let i = 1; i <= 200; i++) {
+        const a = action(after, f, i * 100003);
+        if (distance > K.lvFarTk + f.P.L * (1 + K.step2Max)) assert.notEqual(a.lsv, 'far');
+        if (a.lsv !== 'far') continue;
+        count++; max = Math.max(max, a.tk);
+        assert.equal(a.wp.length, 2);
+        assert(a.tk <= K.lvFarTk + 1e-9, 'C1 layK cannot expand the absolute takeoff cap');
+      }
+    }
+  } finally { K.layK = original; }
+  assert(count > 0);
+  console.log(`PASS C1 layK=1.44: ${count} far layups; max takeoff ${max.toFixed(3)}m (absolute cap ${K.lvFarTk.toFixed(3)}m)`);
+}
 function rate(ctx, rating, contested, mode, cpu, error) {
   const f = setup(ctx, 3.4, rating, mode, cpu);
   let made = 0, prob = 0, n = 0;

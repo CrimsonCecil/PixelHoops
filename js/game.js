@@ -94,7 +94,7 @@
     ['sdFly', 'lay', '站扣 空中时间', 0.48, 0.3, 0.8, 0.01, '秒：起跳到扣进'],
     ['lvReachB', 'lay', '侧身上篮 被盖率', 0.8, 0.2, 1.5, 0.01, '倍率'], ['lvReachP', 'lay', '侧身上篮 命中', 0.97, 0.5, 1.2, 0.01, '倍率'], ['lvReachC', 'lay', '侧身上篮 受干扰', 0.92, 0.3, 1.5, 0.01, '倍率'],
     ['lvFarB', 'lay', '远端手上篮 被盖率', 0.78, 0.2, 1.5, 0.01, '倍率'], ['lvFarP', 'lay', '远端手上篮 命中', 0.76, 0.5, 1.2, 0.01, '倍率：最终命中乘此值，再加终结能力修正；绿区同样生效'], ['lvFarC', 'lay', '远端手上篮 受干扰', 1.2, 0.3, 1.5, 0.01, '倍率：大于1时更怕干扰'],
-    ['lvFarTk', 'lay', '远端手上篮 起跳上限', 1.9, 1, 3, 0.05, '米：目标起跳距离上限，再乘上篮距离总系数；两步够不到则改侧身上篮'],
+    ['lvFarTk', 'lay', '远端手上篮 起跳上限', 1.7, 1, 3, 0.05, '米：目标起跳绝对距离上限，不乘上篮距离总系数；两步够不到则改侧身上篮'],
     ['lvFarMin', 'lay', '远端手上篮 最近启动', 2.6, 2, 4, 0.05, '米：更近时改侧身上篮，留出两步收球空间'],
     ['lvFarMax', 'lay', '远端手上篮 最远启动', 4, 2, 6, 0.05, '米：更远时改侧身上篮，不影响普通上篮启动'],
     ['lvFarLay', 'lay', '远端手上篮 终结修正', 0.7, 0, 2, 0.05, '倍率/能力：命中倍率加此值×(上篮能力−0.75)，结果限制在0.25到1'],
@@ -3136,7 +3136,7 @@
     // 起跳点：上篮离筐约 1.5~2.1 米（跑得越快越远），扣篮按扣篮距离；离得近就少走步，不碎步
     // V3.6：最后一步离筐更远（跑扣 / 滑翔），离筐已经很近就收球直接起，不再硬走步
     let tgt = a.type === 'dunk' ? clamp(Math.max(Math.min(P.reach, K.dkTgt + K.dkTgtRun * P.run), P.tko), K.dkTgtMin, P.reach) : clamp(P.tko, K.layTgtA + 0.7 * P.run + 0.3 * pl.r.lay, K.layTgtB + 0.9 * pl.r.lay + 0.6 * P.run) * K.layK + (a.sty === 'glide' ? K.layGlide * K.layK : 0);
-    if (far) tgt = Math.min(tgt, K.lvFarTk * K.layK);
+    if (far) tgt = Math.min(tgt, K.lvFarTk);
     const need = d0 - tgt;
     if (!far && kind !== 'euro' && need < K.step0) {
       // 已经在起跳点：收球直接起跳（跳步，不算走步）
@@ -3217,7 +3217,7 @@
     else if (a.hand === side) lsv = front > 0.3 || blocking ? 'far' : 'reach';
     else if (baseline || (ang > 0.9 && rnd() < K.sRevAng)) lsv = 'rev';
     else lsv = 'far';
-    if (lsv === 'far' && (P.d < K.lvFarMin || P.d > K.lvFarMax || P.d > K.lvFarTk * K.layK + P.L * (1 + K.step2Max))) lsv = 'reach';
+    if (lsv === 'far' && (P.d < K.lvFarMin || P.d > K.lvFarMax || P.d > K.lvFarTk + P.L * (1 + K.step2Max))) lsv = 'reach';
     a.side = side; a.lsv = lsv; a.farLsv = lsv === 'far'; a.hand = side;
     if (a.v !== 'reverse') { const M = LSV[lsv]; a.V = Object.assign({}, a.V, { name: M.name, blk: a.V.blk * M.blk, p: a.V.p * (lsv === 'far' ? 1 : M.p), c: a.V.c * M.c }); }
   }
