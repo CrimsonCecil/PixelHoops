@@ -2003,9 +2003,9 @@
       const blink = ((L.t * 9) | 0) & 1;
       ctx.fillStyle = blink ? '#ffffff' : L.col; ctx.fillRect(0, y0, W, 1); ctx.fillRect(0, y0 + 19, W, 1);
       ctx.font = "12px 'Fusion Pixel 12px Proportional SC', monospace"; ctx.textBaseline = 'top';
-      const tw = Math.ceil(ctx.measureText(L.text).width) + 40, off = (L.t * 70) % tw;
+      const tw = Math.ceil(ctx.measureText(PH.shortMoveText(L.text)).width) + 40, off = (L.t * 70) % tw;
       ctx.fillStyle = blink && L.t < 0.8 ? '#ffffff' : L.col;
-      for (let x = -off; x < W; x += tw) ctx.fillText(L.text, Math.round(x), y0 + 4);
+      for (let x = -off; x < W; x += tw) ctx.fillText(PH.shortMoveText(L.text), Math.round(x), y0 + 4);
     } else if (MP) {
       // 赛点 / 加时：广告带上下沿用该队颜色呼吸闪
       const y0 = by + 146; ctx.globalAlpha = 0.55 + 0.45 * Math.sin(t * 6); ctx.fillStyle = mpc; ctx.fillRect(0, y0, W, 2); ctx.fillRect(0, y0 + 18, W, 2); ctx.globalAlpha = 1;
@@ -2059,8 +2059,8 @@
       ctx.translate(Math.round(W - 12), Math.round(H * (G.mode === 't5' ? 0.34 : 0.29) + 46 * scale + 19));
       ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0; ctx.shadowOffsetX = ctx.shadowOffsetY = 0;
       ctx.font = "900 16px 'Microsoft YaHei', 'PingFang SC', 'Noto Sans CJK SC', 'Fusion Pixel 12px Proportional SC', sans-serif";
-      ctx.strokeStyle = '#090d19'; ctx.lineWidth = 4; ctx.strokeText(c.name, 0, 0);
-      ctx.fillStyle = '#ffe073'; ctx.fillText(c.name, 0, 0); ctx.restore();
+      ctx.strokeStyle = '#090d19'; ctx.lineWidth = 4; ctx.strokeText(PH.shortMoveText(c.name), 0, 0);
+      ctx.fillStyle = '#ffe073'; ctx.fillText(PH.shortMoveText(c.name), 0, 0); ctx.restore();
     }
   }
   function nameFoot(p, t3) {
