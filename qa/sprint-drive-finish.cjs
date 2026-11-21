@@ -5,6 +5,7 @@ const vm = require('node:vm');
 const { execFileSync } = require('node:child_process');
 const root = path.resolve(__dirname, '..');
 const C1 = require('./far-layup-c1.json');
+const liveC1 = require('./sprint-drive-c1.json');
 const before = process.argv.includes('--before');
 
 function fixture(profile, cpu = false, replay = false, ref = before ? process.argv[process.argv.indexOf('--before') + 1] || 'main' : null) {
@@ -69,6 +70,50 @@ function replayMatrix(matrixOnly) {
     }
   }
 }
+
+function adapterRegression() {
+  for (const [label, profile] of [['default', {}], ['C1 fixture', C1.data], ['live C1', liveC1.data]]) {
+    for (const lowStamina of [false, true]) {
+      const { ctx, gm, p } = fixture(profile, false, true);
+      const pad = { connected: true, index: 0, axes: [0, 0, 0, 0], buttons: Array.from({ length: 16 }, () => ({ pressed: false })) };
+      ctx.navigator = { getGamepads: () => [pad] };
+      ctx.addEventListener = () => {};
+      vm.runInContext(fs.readFileSync(path.join(root, 'js/input.js'), 'utf8'), ctx);
+      const input = (x, y, ...buttons) => {
+        pad.axes = [x, -y, 0, 0];
+        pad.buttons.forEach((button, i) => { button.pressed = buttons.includes(i); });
+      };
+      const step = () => gm.tick(1 / 60);
+      Object.assign(gm.G, { intro: null, tips: null, needClear: false });
+      Object.assign(p, { x: 4, y: 10, face: Math.PI / 2, vx: 0, vy: 0, speed: 0, stam: 100 });
+      gm.G.players[1].off = true;
+      input(0.518, 0.855, 6); step();
+      input(0.518, 0.855, 6, 1); step();
+      assert.equal(p.action?.kind, 'postspin', 'LT + lateral B creates the follow history through the adapter');
+      for (let i = 0; p.action && i < 90; i++) step();
+      assert.equal(p.action, null);
+      input(-1, 0, 7);
+      for (let i = 0; i < 20; i++) step();
+      assert.equal(p.anim, 'run');
+      assert(p.speed > 7);
+      assert(ctx.PH.driveQA.postFollow(p), 'postspin follow window survives the sprint run');
+      // Restore the recorded geometry, keeping the input-created follow history.
+      Object.assign(p, { x: 2.312, y: 11.883, z: 0, vz: 0, vx: -7.042, vy: 2.366,
+        speed: Math.hypot(7.042, 2.366), face: 2.446, stam: lowStamina ? 7 : 80.725 });
+      Object.assign(gm.G.players[1], { off: false, x: 2.326, y: 10.129, stun: 0 });
+      input(p.vx / p.speed, p.vy / p.speed, 7, 2);
+      const read = ctx.PH.input.read(0, true, true);
+      assert(read.sprint && read.a1 && !read.post);
+      assert(ctx.PH.driveQA.inDir(p, read).fwd > 0.99);
+      step();
+      console.log(`adapter ${label} stamina=${lowStamina ? 7 : 80.725}: ${ctx.PH.driveBranch} ${p.action?.type}/${p.action?.v}`);
+      assert.equal(p.action?.type, lowStamina ? 'layup' : 'dunk', `${label} adapter sprint after postspin must finish`);
+    }
+    console.log(`PASS adapter ${label}: real LT+B postspin → 20 sprint ticks → RT+X, recorded geometry, dunk and low-stamina layup`);
+  }
+}
+if (!process.argv.includes('--matrix')) adapterRegression();
+if (process.argv.includes('--adapter-only')) process.exit(0);
 replayMatrix(process.argv.includes('--matrix'));
 if (process.argv.includes('--matrix')) process.exit(0);
 
