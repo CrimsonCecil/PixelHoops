@@ -288,6 +288,9 @@
     const kW = (pl) => cl((pl.speed || 0) / vref(pl), 0, 1.35);
     // 冲刺权重：速度够快，或按着冲刺键且确实在跑（持球/疲劳降速时也算）
     const spW = (pl) => { const k = kW(pl); return Math.max(ss(0.98, 1.22, k), (pl.sprW || 0) * ss(0.55, 0.85, k)); };
+    const tier = (pl) => height(pl) < tune('drTierS', 1.91) ? 'S' : height(pl) >= tune('drTierT', 2.06) ? 'T' : 'M';
+    const drTune = (pl, key, defaults) => { const t = tier(pl); return tune(key + t, defaults['SMT'.indexOf(t)]); };
+    const sprintDribble = (pl) => pl.anim === 'run' && pl.hasBall && !pl.post;
     const fat = (pl) => cl((40 - (pl.stam == null ? 100 : pl.stam)) / 40, 0, 1);
     // 每帧：冲刺标记平滑、运动负荷（冲刺后累积，停下来慢慢恢复）、呼吸相位按频率积分（换频率不跳）
     function tick(pl, dt, sprint) {
@@ -307,10 +310,16 @@
       const v = pl.speed || 0, lo = tune('gaHzMin', 0.45), hi = Math.max(lo, tune('gaHzMax', 2.8));
       return v < 0.05 ? 0 : Math.PI * (lo + (hi - lo) * Math.pow(cl(v / 7.2, 0, 1), 1.4)) * Math.min(1, v / 0.7) * Math.pow(1.95 / height(pl), tune('gaHeight', 0.8));
     }
-    // 运球相位速率：身高缩放频率，冲刺跟随同比缩放的步频，避免锁相抵消身高差
+    // 普通运球按身高缩放；持球冲刺按整档拍球/步数锁定落脚节拍
     function drib(pl) {
       const s = spW(pl), scale = Math.pow(2 / height(pl), tune('drHeight', 1.8)), base = (5.4 + 0.35 * (pl.speed || 0)) * scale;
       if (s < 0.02 || !(pl.speed > 0.9)) return base;
+      if (sprintDribble(pl)) {
+        const ratio = drTune(pl, 'drStep', [1, 0.5, 0.5]), rate = cad(pl) * ratio;
+        let d = (pl.runPh || 0) * ratio - (pl.drib || 0);
+        d -= Math.round(d / Math.PI) * Math.PI;
+        return base * (1 - s) + s * Math.max(0, rate + 5 * d);
+      }
       let d = ((pl.runPh || 0) * scale - Math.PI / 2) - (pl.drib || 0); d = d - Math.round(d / Math.PI) * Math.PI;
       return base + (cad(pl) * scale - base) * s + 5 * s * d;
     }
@@ -360,7 +369,7 @@
       }
     }
     // 跑动运球：球在最低点往身前推多少（米）
-    function ballFwd(pl) { if (pl.post) return 0; const u = Math.abs(Math.sin(pl.drib || 0)); return (0.08 * cl(kW(pl), 0, 1) + 0.3 * spW(pl)) * (1 - u); }
+    function ballFwd(pl) { if (pl.post) return 0; const u = Math.abs(Math.sin(pl.drib || 0)), push = sprintDribble(pl) ? drTune(pl, 'drPush', [0.35, 0.45, 0.55]) : 0.3; return (0.08 * cl(kW(pl), 0, 1) + push * spW(pl)) * (1 - u); }
     // 跑步姿势：替换 poseTarget 里 an==='run' 那一段
     function run(pl, T) {
       const ph = pl.runPh || 0, s = Math.sin(ph), k = kW(pl), sp = spW(pl);
@@ -376,7 +385,7 @@
       // 上下起伏：每步一次腾空（冲刺明显，走路几乎没有）
       T.bob = (0.006 + 0.022 * k + 0.085 * sp) * (0.5 - 0.5 * Math.cos(2 * ph + 0.4));
     }
-    // poseTarget 末尾：运球手形（普通高而慢 / 冲刺低而前推）+ 呼吸叠加
+    // poseTarget 末尾：运球手形、冲刺重心与呼吸叠加
     function post(pl, T, an, a) {
       T.crab = pl.crab && an === 'def' ? 1 : 0;
       if (T.crab) {
@@ -397,15 +406,25 @@
       const gnd = pl.z <= 0.01 && !pl.stun && !a;
       if (gnd && pl.hasBall && !pl.post && (an === 'run' || an === 'idle')) {
         const u = Math.abs(Math.sin(pl.drib || 0)), sp = an === 'run' ? spW(pl) : 0, k = an === 'run' ? Math.min(1, kW(pl)) : 0;
-        // 普通：肩高一点、肘抬高，顶点高；冲刺：手臂前伸、顶点压到腰下
-        const p = (0.36 + 0.34 * u) * (1 - sp) + (0.78 + 0.16 * u) * sp, e = (0.3 + 0.78 * u) * (1 - sp) + (0.12 + 0.3 * u) * sp;
+        // 普通抬肘护球；冲刺前伸，在腰胯高度接球
+        const p = (0.36 + 0.34 * u) * (1 - sp) + (0.52 + 0.12 * u) * sp, e = (0.3 + 0.78 * u) * (1 - sp) + (0.5 + 0.55 * u) * sp;
         const R = pl.handX > 0;
         if (R) { T.aRp = p; T.aRe = e; T.aRq = 0.22 - 0.06 * sp; } else { T.aLp = p; T.aLe = e; T.aLq = 0.22 - 0.06 * sp; }
         // 非运球手：走/慢跑时护球半抬，冲刺时跟着摆但幅度减半
         const o = R ? 'aL' : 'aR', s = Math.sin(pl.runPh || 0) * (R ? -1 : 1);
-        if (an === 'run') { T[o + 'p'] = 0.35 * (1 - sp) + sp * 0.55 * s * (0.6 + 0.4 * k) + 0.2 * sp; T[o + 'e'] = 0.7 + 0.5 * sp; T[o + 'q'] = 0.3 - 0.12 * sp; }
-        const lo = 0.06 + tune('drCrouch', 0.32) * cl(kW(pl) / 1.35, 0, 1);
+        if (an === 'run') { T[o + 'p'] = 0.35 * (1 - sp) + sp * 0.45 * s * (0.6 + 0.4 * k); T[o + 'e'] = 0.7 * (1 - sp) + Math.PI / 2 * sp; T[o + 'q'] = 0.3 - 0.18 * sp; }
+        const lo = (0.06 + tune('drCrouch', 0.32) * cl(kW(pl) / 1.35, 0, 1)) * (1 - sp + sp * [0.45, 0.38, 0.32]['SMT'.indexOf(tier(pl))]);
+        if (sp > 0) {
+          const wave = Math.sin(pl.runPh || 0), knee = Math.cos((pl.runPh || 0) - 0.15);
+          for (const [side, sign] of [['l', 1], ['r', -1]]) {
+            const w = wave * sign, a = (w > 0 ? 0.62 : 0.38) * w;
+            T[side + 'A'] += (a - T[side + 'A']) * sp;
+            T[side + 'B'] += (0.16 + 1.05 * Math.pow(Math.max(0, knee * sign), 1.2) - T[side + 'B']) * sp;
+          }
+        }
         T.lA += lo * 0.6; T.rA += lo * 0.6; T.lB += lo * 1.3; T.rB += lo * 1.3; T.lean += lo * 0.3;
+        T.lean += (drTune(pl, 'drLean', [0.30, 0.26, 0.22]) - T.lean) * sp;
+        T.tilt += ((R ? 1 : -1) * drTune(pl, 'drRoll', [0.10, 0.08, 0.06]) * (1 + 0.15 * (1 - u)) - T.tilt) * sp;
         T.bob *= 1 - 0.35 * sp;
       }
       if (gnd && (an === 'idle' || an === 'run' || an === 'def' || an === 'post')) {

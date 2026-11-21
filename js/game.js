@@ -657,6 +657,14 @@
     ['stLift', 'def', '螃蟹步 抬脚高度', 0.025, 0, 0.03, 0.005, '米：低抬脚；超过短步触及范围时贴地滑行'],
     ['drCrouch', 'drib', '跑动运球 速度下蹲', 0.32, 0, 0.5, 0.01, '弧度：速度越快膝盖越弯，冲刺最深；保留跑步摆腿'],
     ['drHeight', 'drib', '运球频率 身高差异', 1.8, 0, 3, 0.05, '指数：按实际模型身高缩放拍球频率，越矮越快；0 为无差异'],
+    ['drTierS', 'drib', '冲刺运球 矮个界线', 1.91, 1.7, 2.1, 0.01, '米：模型身高低于此值为矮个，否则按中等或高个整档选择'],
+    ['drTierT', 'drib', '冲刺运球 高个界线', 2.06, 1.9, 2.3, 0.01, '米：模型身高达到此值为高个'],
+    ...[['S', '矮个', 0.30, 0.10, 0.35, 1], ['M', '中等', 0.26, 0.08, 0.45, 0.5], ['T', '高个', 0.22, 0.06, 0.55, 0.5]].flatMap(([s, label, lean, roll, push, step]) => [
+      ['drLean' + s, 'drib', '冲刺运球 前倾（' + label + '）', lean, 0, 0.5, 0.01, '弧度：满速持球跑动的总前倾，不叠加旧下蹲前倾'],
+      ['drRoll' + s, 'drib', '冲刺运球 侧倾（' + label + '）', roll, 0, 0.25, 0.01, '弧度：上身朝运球手轻滚，向下拍球时略微增加'],
+      ['drPush' + s, 'drib', '冲刺运球 前推（' + label + '）', push, 0, 0.8, 0.01, '米：拍球最低点相对手的额外前推距离'],
+      ['drStep' + s, 'drib', '冲刺运球 每步拍球（' + label + '）', step, 0.5, 1, 0.5, '次/步：1 为一步一拍，0.5 为两步一拍，落地节拍锁定脚步'],
+    ]),
     ['bdWBox', 'ct', '身体碰撞 卡位加成', 0.15, 0, 0.5, 0.01, '比例'],
     ['bdVn', 'ct', '冲撞 触发相对速度', 2.2, 0.5, 6, 0.05, '米/秒：两人对冲速度超过这个才算一次冲撞'],
     ['bdCd', 'ct', '冲撞 冷却', 0.45, 0, 2, 0.05, '秒'],
@@ -5128,7 +5136,8 @@
     if (pl.catchAt && G.time - pl.catchAt < 0.28 && (!a || a.kind !== 'hesi')) set({ aLp: 2.6, aLq: 0.25, aLe: 0.2, aRp: 2.6, aRq: 0.25, aRe: 0.2 });
     // V3.5：整体重心压低，持球时随运球节拍一沉一起
     if (pl.z <= 0.01 && !pl.stun && (an === 'idle' || an === 'run' || an === 'def' || an === 'post')) {
-      const u = pl.hasBall && !a ? Math.abs(Math.sin(pl.drib)) : 1, c = (an === 'def' ? 0.16 : pl.hasBall ? 0.2 : 0.1) + (pl.hasBall && !a ? 0.16 * (1 - u) : 0);
+      const u = pl.hasBall && !a ? Math.abs(Math.sin(pl.drib)) : 1, sprint = an === 'run' && pl.hasBall && !pl.post && PH.gait ? PH.gait.spW(pl) : 0;
+      const c = ((an === 'def' ? 0.16 : pl.hasBall ? 0.2 : 0.1) + (pl.hasBall && !a ? 0.16 * (1 - u) : 0)) * (1 - sprint);
       T.lA += c * 0.6; T.rA += c * 0.6; T.lB += c * 1.3; T.rB += c * 1.3; T.lean += c * 0.45;
     }
     if (PH.gait) PH.gait.post(pl, T, an, a);
