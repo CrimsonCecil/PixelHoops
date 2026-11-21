@@ -396,6 +396,7 @@
     resetRoomAudio();
     if (config.mode === 't3') PH.T3.start({ ...config, local: slot, replay: !room.active });
     else { CFG.shotClock = config.clock; GM.newGame({ ...config, mode: '2p' }); }
+    replaySaveReset();
     PH.audio.voPreload(G.players.map((p) => p.arch.key));
     if (opts.intro !== 'off') GM.introStart();
     stage.classList.toggle('intro', !!G.intro);
@@ -562,6 +563,7 @@
     if (!tr) CFG.shotClock = opts.clock;
     if (kg) GM.newGame({ mode: 'cpu', diff: Math.min(2, KING_T[KR.stage]), target: KR.target, arch0: KR.arch, arch1: KR.ladder[KR.stage], fb: opts.fb, glen: 0, cpuD: kingD(KR.stage) });
     else GM.newGame({ mode: opts.mode, diff: opts.diff, target: opts.target, arch0: lastArch.a0, arch1: lastArch.a1, fb: opts.fb, glen: opts.glen });
+    replaySaveReset();
     PH.audio.voPreload(G.players.map((p) => p.arch.key));
     if (opts.intro !== 'off') GM.introStart();
     stage.classList.toggle('intro', !!G.intro);
@@ -1547,6 +1549,7 @@
   let over5Shown = false, h5 = {};
   function start5() {
     T5.start({ home: opts.home, away: opts.away, qlen: opts.qlen, diff: opts.diff, human: opts.side });
+    replaySaveReset();
     screen = 'play5'; paused = false; over5Shown = false; h5 = {}; fdReset(); PH.input.clearSys(); clearPf();
     show('menu', false); show('picker', false); show('tpicker', false); show('pause', false); show('over', false); show('over5', false); show('help', false);
     show('hud', false); show('hud5', true); show('touch', isTouch && opts.side >= 0); show('shotcard', false); show('train', false); show('banner', false); show('campanel', false); stage.classList.remove('panel');
@@ -1723,7 +1726,13 @@
     if (root && ((screen === 'menu' && (root.id === 'menu' || root.id === 'picker' || root.id === 'pause')) || root.id === 'tune')) e.preventDefault();
   });
 
-  let replaySaving = false, replaySaveTape = null, replaySaveFrom = null;
+  let replaySaving = false, replaySaveTape = null, replaySaveFrom = null, replaySaveGeneration = 0;
+  function replaySaveReset() {
+    replaySaveGeneration++; replaySaving = false; replaySaveTape = null; replaySaveFrom = null;
+    show('replay-name', false); $('replay-input').value = '';
+    for (const status of document.querySelectorAll('.replay-status')) status.textContent = '';
+    replaySaveState();
+  }
   function replaySaveState() {
     const tape = PH.TAPE.current(), empty = !tape || !tape.frames.length;
     for (const b of document.querySelectorAll('.replay-save')) { b.disabled = replaySaving || empty; b.title = empty ? '暂无录像' : ''; }
@@ -1747,11 +1756,11 @@
   $('replay-ok').addEventListener('click', async () => {
     if (replaySaving) return;
     const name = $('replay-input').value.trim(); if (!name) { $('replay-input').focus(); return; }
-    const tape = replaySaveTape, status = replaySaveFrom.parentElement.querySelector('.replay-status');
+    const tape = replaySaveTape, status = replaySaveFrom.parentElement.querySelector('.replay-status'), generation = replaySaveGeneration;
     replaySaving = true; replayNameClose(); replaySaveState(); status.textContent = '保存中…';
-    try { const row = await PH.TAPE.save(name, tape); status.textContent = '已保存：' + row.name; }
-    catch (e) { status.textContent = '保存失败：' + e.message; }
-    finally { replaySaving = false; replaySaveState(); }
+    try { const row = await PH.TAPE.save(name, tape); if (generation === replaySaveGeneration) status.textContent = '已保存：' + row.name; }
+    catch (e) { if (generation === replaySaveGeneration) status.textContent = '保存失败：' + e.message; }
+    finally { if (generation === replaySaveGeneration) { replaySaving = false; replaySaveState(); } }
   });
 
   // ---------- 循环 ----------
