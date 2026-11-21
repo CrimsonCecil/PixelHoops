@@ -540,7 +540,7 @@
         row('犹豫步', '按住双臂向两侧展开，单手托球假突，松手按左摇杆方向接招', kb(G2('R3'), K('H'))) +
         row('运球接急停', '高控球或脚踝终结者/运球如丝可随时接干拔，后撤步大师仅限后撤步；其他球员等动作做完', kb(X, K('J'))) +
         row('传球', '左摇杆指向谁就传给谁；不指方向传给面前最合适的人；按住 = 长传', kb(A, K('K'))) +
-        row('击地传球', '', kb(B, K('L'))) + row('高吊传球 / 空中接力', '按一下高吊，快速按两下 = 空中接力；接球时左来球按 X / J，右来球按 B / L，或右摇杆迎球，按提示时机终结', kb(Y, K('I'))) +
+        row('击地传球', '', kb(B, K('L'))) + row('高吊传球 / 空中接力', '按一下高吊，快速按两下 = 空中接力；接球自动终结，能力与防守干扰决定效果', kb(Y, K('I'))) +
         row('背打 / 护球', '按住', kb(G2('LT'), K('Q'))) + row('叫挡拆', '叫最近的内线来掩护；再按一次 = 顺下', kb(G2('LB'), K('R'))) +
         row('图标传球', '按住 RB，队友头顶出现 A / B / X / Y / LT，再按对应键传给他（键盘显示 K / L / J / I / Q）', kb(G2('RB') + '+图标', K('E') + '+图标')) +
         row('接球即投 / 即传 / 即招式', '传球飞来时提前按：X 接球即投 / A 接球即传 / 右摇杆 接球即招式（键盘 J / K / 方向键）', kb(X + A + G2('右摇杆'), K('J') + K('K') + K('↑') + K('←') + K('↓') + K('→'))) +
@@ -625,6 +625,7 @@
     return '<div class="klist">' +
       head('通用') + row('移动', '', D.move) + row('加速', '消耗体力', D.sprint) + row('暂停', '', D.pause) + row('音乐开关', '', D.music) +
       head('进攻（持球时）') + row('投篮 / 上篮', '按住蓄力，条往上涨，涨到顶（绿区）松手最准；过了顶条会往下掉，越掉越偏晚。朝篮筐突破中按出三步上篮', D.a1) + row('假动作', '轻点一下投篮键', D.a1) + row('扣篮 / 上篮（终结键）', '冲向篮筐时，提示“可扣篮”就扣，够不着自动改上篮', D.a2) +
+      row('自抛空接', '向筐跑动时自抛或打板，接球自动终结；单按 Y 仍为普通扣篮 / 终结', pad ? K('双击 Y', 'y') : tab === 'k1' ? K('V') : K('小键盘 4')) +
       row('运球过人/终结', 'B（玩家 1：L；玩家 2：小键盘 3 / /）+方向：左右变向，前转身，后后撤步；突破近筐时终结', pad ? D.a3r : D.a3) + row('犹豫步', '按住右摇杆按下 (R3) / H（玩家 2：小键盘 5），移动中也可起手；双臂展开单手假突，松开时反侧变向、同侧突破、向后后撤、不推原地收招；运球键回中按住仍可起手', D.hesi) + row('背打', '按住', D.post) +
       head('防守（对方持球时）') + row('起跳封盖 / 抢篮板', '', pad ? D.blk : D.a1) + row('抢断', '', pad ? D.stl : D.a2) + row('飞身扑球（散球时）', '', pad ? D.stl : D.a2) + row('防守姿态 / 举手干扰', '按住', pad ? D.stance : D.a3) +
       (pad ? '<p class="tnote">菜单里用十字键或左摇杆选择，A 确认，B 返回；滑条 / 下拉左右拨动调整，LB / RB 或右摇杆左右切页签，右摇杆上下滚动；调参台里 X 恢复当前参数默认值。单人模式用第一个手柄；本地双人时第二个手柄控制玩家 2。训练场里 View 键开关参数面板。</p>' : tab === 'k1' ? '<p class="tnote">单人模式下方向键也能移动。训练场里 Tab 开关参数面板，R 重置站位。</p>' : '<p class="tnote">玩家 2 只在本地双人模式使用。</p>') + '</div>';
@@ -1097,9 +1098,8 @@
     if (sbE && sbE.offsetParent && screen === 'play') { const cv = stage.getBoundingClientRect(), r = sbE.getBoundingClientRect(); if (r.width) sb = { x0: (r.left - cv.left) / scale, x1: (r.right - cv.left) / scale, y1: (r.bottom - cv.top) / scale }; }
     for (let i = fpool.length - 1; i >= 0; i--) {
       const f = G.floats[i], d = fpool[i];
-      if (!f || f.alleyPrompt && G.ball.state !== 'pass') { d.style.display = 'none'; continue; }
+      if (!f) { d.style.display = 'none'; continue; }
       const p = R.proj(f.x, f.y, f.z + f.t * 0.5), pw = (f.shot ? 44 : f.text.length * 7 + 6) / 2, ph = f.shot ? 26 : 13;
-      if (f.alleyPrompt) p.x += 28;
       let y = p.y;
       const inSb = (yy) => sb && p.x + pw > sb.x0 && p.x - pw < sb.x1 && yy - ph < sb.y1 + 1;
       if (inSb(y)) y = sb.y1 + 2 + ph;
@@ -1109,7 +1109,6 @@
       placed.push({ x: p.x, y: y, w: pw, h: ph }); p.y = y;
       d.style.display = 'block';
       if (f.shot) { d.className = 'sfb'; d.style.display = 'flex'; d.innerHTML = '<b style="color:' + f.color + '">' + f.text + '</b><span style="color:' + f.subColor + '">' + f.sub + '</span>'; d.style.color = ''; }
-      else if (f.alleyPrompt) { d.className = 'cue'; d.style.color = f.color; d.innerHTML = '<b>' + f.text + '</b><span style="display:block;width:32px;height:3px;margin:2px auto 0;background:#292436"><i style="display:block;height:3px;background:currentColor;width:' + Math.round(f.progress * 100) + '%"></i></span>'; }
       else { d.className = ''; d.textContent = f.text; d.style.color = f.color; }
       d.style.left = Math.max(40, Math.min(R.W - 40, p.x)) * scale + 'px'; d.style.top = Math.max(26, p.y) * scale + 'px';
       d.style.opacity = f.t > 1 ? String(Math.max(0, 1 - (f.t - 1) / 0.3)) : '1';
@@ -1145,16 +1144,16 @@
     if (key !== hintKey) {
       hintKey = key;
       const kb = hasPad ? { a1: 'X', a2: 'Y', a3: 'B', po: 'LT', sp: 'RT', st: 'LT', d1: 'Y', d2: 'X' } : { a1: 'J', a2: 'K', a3: 'L', po: 'Q', sp: 'Shift', st: '按住 L', d1: 'J', d2: 'K' };
-      const O = '<b>' + kb.a1 + '</b> 投篮/突破上篮 <b>' + kb.a2 + '</b> 扣篮/终结 <b>' + kb.a3 + '</b>+方向 运球动作（运球过人/终结） <b>' + (hasPad ? '右摇杆按下 (R3)' : 'H') + '</b> 按住犹豫步 <b>' + kb.po + '</b> 背打 <b>' + kb.sp + '</b> 加速' + (t3 ? '' : '　<b>' + (hasPad ? 'A' : 'V') + '</b> 向筐跑动自抛空接；接球按提示 X / B（J / L）或右摇杆迎球');
+      const O = '<b>' + kb.a1 + '</b> 投篮/突破上篮 <b>' + kb.a2 + '</b> 扣篮/终结 <b>' + kb.a3 + '</b>+方向 运球动作（运球过人/终结） <b>' + (hasPad ? '右摇杆按下 (R3)' : 'H') + '</b> 按住犹豫步 <b>' + kb.po + '</b> 背打 <b>' + kb.sp + '</b> 加速' + (t3 ? '' : '　<b>' + (hasPad ? '双击 Y' : 'V') + '</b> 向筐跑动自抛空接，接球自动终结');
       const B = '<b>' + kb.d1 + '</b> 抢篮板 <b>' + kb.st + '</b> 卡位 <b>' + kb.sp + '</b> 加速';
       const P = '背打中　<b>' + kb.a1 + '</b> 勾手 / 按住后方向后仰 <b>' + kb.a2 + '</b> 转身终结　松开时按左右 转身';
       const D = '<b>' + kb.d1 + '</b> 封盖 <b>' + kb.d2 + '</b> 抢断 <b>' + kb.st + '</b> 举手干扰 <b>' + kb.sp + '</b> 加速';
       show('hint', train || !!(t3 && local) || opts.fb === 'detail');
       const passing = t3 && local && off ? offBall ? '　<b>' + (hasPad ? 'A' : 'E') + '</b> 要球' : hasPad
-        ? '　<b>A</b> 胸传　<b>RT+A</b> 过顶　<b>LB+A</b> 击地　<b>LT+A</b> 高吊　<b>LB+LT+A</b> 空接'
+        ? '　<b>A</b> 胸传　<b>RT+A</b> 过顶　<b>LB+A</b> 击地　<b>LT+A</b> 高吊　<b>双击 Y / LB+LT+A</b> 空接'
         : '　<b>E</b> 胸传　<b>Shift+E</b> 过顶　<b>Z</b> 击地　<b>X</b> 高吊　<b>V</b> 空接' : '';
-      const alleyHelp = t3 ? '　空接终结：左来球 <b>' + (hasPad ? 'X' : 'J') + '</b> / 右来球 <b>' + (hasPad ? 'B' : 'L') + '</b>，接球时点按或右摇杆迎球' : '';
-      $('hint').innerHTML = two ? '玩家 1：WASD + J K L，H 犹豫步，Q 背打，V 自抛空接　玩家 2：方向键 + 小键盘 1 2 3，小键盘 5 犹豫步，O 背打，Num4 自抛空接；接球按提示投篮键 / 运球键或右摇杆迎球' : (post ? P : off ? '进攻　' + (offBall ? B : O) : '防守　' + D) + passing + (offBall ? '　<b>' + (hasPad ? 'R3' : 'F') + '</b> 掩护' : '') + (train ? '　<b>' + (hasPad ? 'View' : 'Tab') + '</b> 参数 <b>R</b> 重置' : '');
+      const alleyHelp = t3 ? '　空接接球自动终结' : '';
+      $('hint').innerHTML = two ? '玩家 1：WASD + J K L，H 犹豫步，Q 背打，V 自抛空接　玩家 2：方向键 + 小键盘 1 2 3，小键盘 5 犹豫步，O 背打，Num4 自抛空接；手柄双击 Y 自抛空接，接球自动终结' : (post ? P : off ? '进攻　' + (offBall ? B : O) : '防守　' + D) + passing + (offBall ? '　<b>' + (hasPad ? 'R3' : 'F') + '</b> 掩护' : '') + (train ? '　<b>' + (hasPad ? 'View' : 'Tab') + '</b> 参数 <b>R</b> 重置' : '');
       if (t3) $('hint').innerHTML += alleyHelp;
       if (isTouch) {
         $('tb1').textContent = offBall ? '篮板' : off ? '投篮' : '盖帽'; $('tb2').textContent = offBall ? '扑球' : off ? '终结' : '抢断'; $('tb3').textContent = offBall ? '卡位' : off ? '运球' : '姿态'; $('tbalt').textContent = '背打';

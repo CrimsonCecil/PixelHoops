@@ -290,7 +290,6 @@
     const P = T.pass, b = G.ball;
     if (!P) return;
     P.t += dt;
-    A.alleyInput(P, T.inputs[P.to.id] || A.zeroInp(), P.duration - P.t);
     const u = Math.min(1, P.t / P.duration);
     const { from, to, kind } = P, profile = A.passProfiles[kind];
     const px = b.x, py = b.y;
@@ -312,7 +311,6 @@
       }
     }
     if (u === 1) {
-      if (kind === 'alley' && to.ctrl !== 'cpu' && P.finish?.error == null && P.finish?.wait) return;
       const miss = dist(to, b);
       if (to.off || to.stun > 0.3 || miss > 1.05 + 0.4 * to.r.hnd) {
         T.pass = null;

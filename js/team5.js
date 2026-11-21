@@ -858,10 +858,6 @@
     if (b.state !== 'pass' || !P) return;
     const prevT = P.t;
     P.t += dt; const r = P.to, K = PASS[P.kind] || PASS.chest;
-    if (P.kind === 'alley') {
-      const R = T.R || {}, v = stick(R.rx || 0, R.ry || 0);
-      A5.alleyInput(P, P.to === T.ctl ? { alleyX: R.X, alleyB: R.B, dx: v.x, dy: v.y } : A5.zeroInp(), P.T - P.t);
-    }
     if (prevT < 0) {
       if (P.t > -1e-9) P.t = 0;
       const p = P.from, w = clamp(1 + P.t / P.windup, 0, 1);
@@ -936,7 +932,6 @@
       }
     }
     if (u >= 1) {
-      if (P.kind === 'alley' && r.ctrl !== 'cpu' && P.finish?.error == null && P.finish?.wait) return;
       T.ps = null;
       // 手感 hands：低于中位数的人接快球 / 偏球会脱手（最多约 8%~13%）
       const fum = P.inb ? 0 : Math.max(0, -U(r, 'hands')) * TV.t5_pass_fum0 * (P.rec && P.rec.lane > 1.5 ? 0.5 : 1) * (P.v > 11 ? 1.3 : 1) * (P.er > 0.4 ? 1.3 : 1) + (P.inb ? 0 : TV.t5_pass_fum * clamp((P.er || 0) - 0.35, 0, 1.5) * clamp(0.6 - U(r, 'hands'), 0, 1.1));   // V4.2 偏球漏接
