@@ -2113,7 +2113,7 @@
   // 每次身体接触双方都掉体力：输的一方掉得多，I 为撞击强度（约 0~1.5）
   function bodyCost(p, I, lost, scale = 1) {
     if (!p || p.off || p.dummy || G.mode === 'demo' || (G.mode === 'train' && G.train && G.train.infStam && p.id === 0)) return;
-    p.stam = Math.max(0, p.stam - (2.2 + 4.8 * clamp(I, 0, 1.5)) * (lost ? 1.4 : 0.75) * ST.cost * stamK(p) * (0.35 + 0.65 * clamp(p.stam / 60, 0, 1)) * scale);
+    spendStamina(p, (2.2 + 4.8 * clamp(I, 0, 1.5)) * (lost ? 1.4 : 0.75) * ST.cost * stamK(p) * (0.35 + 0.65 * clamp(p.stam / 60, 0, 1)) * scale);
   }
   const resistCost = (df, hd) => K.bdDefSt * clamp(ctPow(hd) / ctPow(df), 0.75, 2) * (1 + (df.stance ? K.bdStSt : 0));
   // 终结途中路线上有人：按吨位、体力、速度、终结/防守能力判定——顶开 / 被挡（扣篮改上篮）/ 被拦下
@@ -2807,7 +2807,7 @@
   }
   function releaseJumpShot(pl, e) {
     releaseShot(pl, e, 'shot');
-    pl.stam = Math.max(0, pl.stam - K.stShotCost * ST.cost);
+    spendStamina(pl, K.stShotCost * ST.cost);
   }
 
   // 球员配音：按事件随机挑一条，演示模式不播；q=忙时排队
@@ -3275,7 +3275,7 @@
         const side = a.postSide || a.latS, h = q.h;
         a.stride = { kind, T, distance, side, f0: pl.face, dx: kind === 'Spin' ? -h.y * side * 0.75 + h.x * 0.66 : h.x * (kind === 'Back' ? -1 : 1), dy: kind === 'Spin' ? h.x * side * 0.75 + h.y * 0.66 : h.y * (kind === 'Back' ? -1 : 1) };
         a.ideal += T; a.jT += T; pl.vx = pl.vy = 0;
-        pl.stam = Math.max(0, pl.stam - K.poStrideCost * ST.cost * stamK(pl));
+        spendStamina(pl, K.poStrideCost * ST.cost * stamK(pl));
         moveDefense(pl, kind === 'Front' ? 'postdrop' : 'postspin', a.stride.dx, a.stride.dy, { PS, MT: T });
       }
     }
@@ -3419,7 +3419,7 @@
     a.wp.length = 1;
     a.wp.push({ fx: w0.x, fy: w0.y, x: clamp(w0.x + hx * f - hy * os * 0.85, -8.4, 8.4), y: clamp(w0.y + hy * f + hx * os * 0.85, -0.8, 14.6), T: 0.32, z: 0.08, lead: a.hand > 0 ? 'L' : 'R' });
     a.v = 'spin'; a.sty = 'spin'; a.V = LVR.spin; a.tap = false; a.tapAt = null; a.tapV = null; a.spD = os; a.meter.label = a.V.name;
-    pl.stam = Math.max(0, pl.stam - 4 * ST.cost); float(a.V.name, pl, '#f6efe0', 1);
+    spendStamina(pl, 4 * ST.cost); float(a.V.name, pl, '#f6efe0', 1);
   }
   function layJump(pl, a) {
     const v = a.v; let tx, ty; a.inSteps = false; a.t = 0;
@@ -3528,7 +3528,7 @@
     const gwE = greenWidth(pl, ratingOf(pl, a), contestOf(pl, df, 'in') * V.c * (a.ky ? 0.5 : 1), shotKind(a), a) * V.g;
     a.meter = { v: 0, gwE: gwE, done: false, color: '#fff', label: a.V.name };
     layMeter(a);
-    pl.stam = Math.max(0, pl.stam - (v === 'euro' || v === 'hop' ? 8 : 5) * ST.cost);
+    spendStamina(pl, (v === 'euro' || v === 'hop' ? 8 : 5) * ST.cost);
     a.uu = pl.uuShot && G.time <= pl.uuShot.until ? pl.uuShot : null;
     pl.action = a; pl.post = false; pl.animT = 0;
     float(a.V.name, pl, '#f6efe0', 1);
@@ -3614,7 +3614,7 @@
     if (pl.ctrl === 'cpu') { const u = rnd(), dR = dunkR(pl, P.run); const K = dunkPkg(pl.arch); a.aiMode = u < 0.25 ? 'two' : u < 0.25 + (K.cls === 'ath' && dR > 0.85 ? 0.3 : K.cls === 'power' ? 0.15 : 0.08) ? 'flashy' : 'auto'; }
     if (stick === 'stand') a.stand = true;
     a.wp = buildSteps(pl, a, P, a.stand ? 'stand' : v === 'two' && P.d - 0.75 <= Math.max(P.reach, K.dkTgtMin) ? 'power' : v === 'reverse' ? 'reverse' : 'normal', 0);
-    pl.action = a; pl.stam = Math.max(0, pl.stam - 9 * ST.cost); pl.animT = 0; pl.post = false;
+    pl.action = a; spendStamina(pl, 9 * ST.cost); pl.animT = 0; pl.post = false;
     return true;
   }
   // 起跳那一刻定扣篮方式：轻按=自动（看速度/角度/对抗），按住不放=花式，连按两下=双手暴扣；摇杆 / L+方向：前=双手、左右=单手、后=花式
@@ -4029,7 +4029,7 @@
       pl.postMove = shot.postFollow && G.time - shot.postFollow.t < K.poFollow ? shot.postFollow : null;
       pl.uuFake = pl.uuShot = null;
       if (pl.ctrl === 'cpu') pl.ai.postChain = postFakeAllowed(pl) && rnd() < K.aiPoFakeChain * bk(pl, 'dream', 1.4) ? -side : 0;
-      pl.stam = Math.max(0, pl.stam - K.poFakeCost * ST.cost);
+      spendStamina(pl, K.poFakeCost * ST.cost);
       const df = nearestDefender(pl);
       if (df && Math.hypot(df.x - pl.x, df.y - pl.y) < K.aiJmpD && rnd() < K.poFakeBite * (0.5 + pl.r.post) * bk(pl, 'dream', 1.5) * lerp(K.poFakeBiteLow, K.poFakeBiteHigh, postQuality(pl)) * bk(pl, 'fakes', K.bgFakesBite)) {
         df.ai.seenAct = pl.action; df.ai.willJump = true; df.ai.jumpAt = G.time + diffOf(df).react * 0.3;
@@ -4155,7 +4155,7 @@
     } else { pl.uuShot = null; pl.uuFake = null; }
     // 连续过人越往后越累：每多一招、每接上一段都加价；运球如丝 / 脚踝终结者 只让加出来的那部分放缓
     const chainX = (1 + K.cbStep * (pl.combo - 1)) * (1 + K.cbCost * pl.dcn) - 1, chainBg = Math.max(0, Math.min(bk(pl, 'tight', K.bgChainSt), bk(pl, 'ankle', K.bgChainSt)));
-    pl.stam = Math.max(0, pl.stam - CFG.moveCost * M.cost * (CBk ? 1.3 : 1) * (1 + chainX * chainBg) * bk(pl, 'tight', K.bgTightSt) * (tkIs(pl, 'hnd') ? 0.4 : 1) * stamK(pl)); pl.animT = 0; pl.cd = (MT + lerp(0.2, 0.02, clamp((hnd - 0.4) / 0.55, 0, 1))) * (ptIs(pl, 'playmaker') ? 0.9 : 1); pl.boost = kind === 'hesi' ? MT + 0.7 : 0.75;
+    spendStamina(pl, CFG.moveCost * M.cost * (CBk ? 1.3 : 1) * (1 + chainX * chainBg) * bk(pl, 'tight', K.bgTightSt) * (tkIs(pl, 'hnd') ? 0.4 : 1) * stamK(pl)); pl.animT = 0; pl.cd = (MT + lerp(0.2, 0.02, clamp((hnd - 0.4) / 0.55, 0, 1))) * (ptIs(pl, 'playmaker') ? 0.9 : 1); pl.boost = kind === 'hesi' ? MT + 0.7 : 0.75;
     pl.lastMove = kind; pl.lastMv = mvx || kind; pl.lastMoveT = G.time; pl.post = false;
     pl.postMove = isPostMove(kind) ? { kind: kind, t: G.time + MT, bite: false, side: Math.sign(dx * -hy + dy * hx) || openS } : null;
     if (postSig) pl.postMove.signature = true;
@@ -4319,7 +4319,7 @@
     const rimB = !!(GB_ && !vertical && GB_.trig !== 'chase' && oa && (oa.type === 'layup' || oa.type === 'dunk' || oa.type === 'shot') && !oa.released && !oa.done && distHoop(o) < 3.4 && Math.hypot(o.x - pl.x, o.y - pl.y) < 2.4);
     const chase = rimB || !!((skOf(pl, 'lebron') || (GB_ && GB_.trig === 'chase')) && oa && (oa.type === 'layup' || oa.type === 'dunk') && !oa.released && !oa.done && oa.chaseD >= 1.8 && Math.hypot(o.x - pl.x, o.y - pl.y) < 2.8);
     const vz = (K.bkVz0 + K.bkVzJ * pl.r.vert + (chase ? K.bkVzCh : 0)) * (1 - K.bkVzFat * fat(pl)) * (second ? Math.sqrt(K.rodJump) : 1);
-    pl.action = { type: 'block', t: 0, chase: chase, rimB: rimB, reb: reb, zmax: vz * vz / (2 * GP), rel: relPos(pl, o) }; pl.vz = vz; pl.z = 0.01; pl.stam = Math.max(0, pl.stam - K.bkCost * ST.cost); pl.animT = 0; sfx('jump');
+    pl.action = { type: 'block', t: 0, chase: chase, rimB: rimB, reb: reb, zmax: vz * vz / (2 * GP), rel: relPos(pl, o) }; pl.vz = vz; pl.z = 0.01; spendStamina(pl, K.bkCost * ST.cost); pl.animT = 0; sfx('jump');
     if (second) { pl.action.rodSecond = true; pl.action.rodStick = { x: inp?.mx || 0, y: inp?.my || 0 }; pl.sk.rodUntil = -Infinity; pl.cd = 0; }
     if (sealed) pl.action.benTarget = pl.sk.benTarget;
     pl.armS = null; pl.armSv = null; pl.pose.reachL = pl.pose.reachR = 1;
@@ -4335,7 +4335,7 @@
   }
   // 起跳时机：越接近最高点越好（0~1）
   function jumpQ(p) { const a = p.action; return a && a.type === 'block' && a.zmax ? clamp(p.z / a.zmax, 0, 1) : 0; }
-  function startSteal(pl) { pl.sqv = (pl.sqv || 0) - K.stlSqv; pl.action = { type: 'steal', t: 0, T: K.stlT, done: false }; pl.animT = 0; pl.action.swipe = (G.ball.x - pl.x) * Math.sin(pl.face) - (G.ball.y - pl.y) * Math.cos(pl.face) < 0 ? -1 : 1; pl.stam = Math.max(0, pl.stam - K.stlCost * ST.cost); }
+  function startSteal(pl) { pl.sqv = (pl.sqv || 0) - K.stlSqv; pl.action = { type: 'steal', t: 0, T: K.stlT, done: false }; pl.animT = 0; pl.action.swipe = (G.ball.x - pl.x) * Math.sin(pl.face) - (G.ball.y - pl.y) * Math.cos(pl.face) < 0 ? -1 : 1; spendStamina(pl, K.stlCost * ST.cost); }
   // 飞身扑球（参考 2K 的 Hustle / Dive for loose ball）：散球时按抢断键，朝球扑出去。
   // 拼劲（速度/爆发/篮板/抢断）决定扑多远、多快；体重大的人扑得短、起来慢；扑空要趴在地上一会儿
   function hustle(p) { return clamp(0.55 * (K.huSpd * p.r.spd + K.huAcc * p.r.acc + K.huReb * (p.r.oreb + p.r.dreb) / 2 + K.huStl * p.r.stl + K.huVrt * p.r.vert) + 0.45 * ((p.r.hus || 0.85) - 0.1), 0, 1); }
@@ -4360,7 +4360,7 @@
     const R = diveR(pl), go = Math.min(l + 0.3, R), hu = hustle(pl), hv = heavy(pl);
     const air = K.dvAir + 0.07 * clamp(go - 2.4, 0, 4.4), slide = K.dvSlide + 0.03 * clamp(go - 4, 0, 2.8), sp = go / (air + slide * 0.5);
     pl.action = { type: 'dive', t: 0, ux: dx / l, uy: dy / l, sp: sp, air: air, slide: slide, pre: K.dvPre, rec: clamp(K.dvRec0 + K.dvRecHv * hv - K.dvRecHu * hu + K.dvRecFat * fat(pl), K.dvRecMin, K.dvRecMax), got: false };
-    pl.animT = 0; pl.stam = Math.max(0, pl.stam - K.dvCost * ST.cost * bk(pl, 'hustle', K.bgHuCost)); sfx('jump'); bpop(pl, 'hustle');
+    pl.animT = 0; spendStamina(pl, K.dvCost * ST.cost * bk(pl, 'hustle', K.bgHuCost)); sfx('jump'); bpop(pl, 'hustle');
     return true;
   }
   function diveTick(pl, a, dt) {
@@ -4762,6 +4762,7 @@
     if (pl.ctrl === 'cpu' || G.time - (pl.ngT || -9) < 0.7) return; pl.ngT = G.time; pl.gasp = 0.55;
     float(txt, pl, '#ff6b5e', 1); sfx('gasp');
   }
+  function spendStamina(pl, cost) { pl.stam = Math.max(0, pl.stam - cost); }
   function stamK(pl) { return (1.25 - 0.65 * pl.r.sta) * bk(pl, 'motor', K.bgMotorSt); }
 
   // ---------- 输入缓冲（V3.9j）----------
@@ -5035,11 +5036,11 @@
     if (!inp.sprint) { pl.sprWarn = false; if (pl.mtT > 0) pl.mtT = 0; }
     else if (moving && !a && !pl.post && pl.stam <= 3 && !pl.sprWarn) { pl.sprWarn = true; pl.ngT = -9; noGas(pl, '跑不动'); }
     if (PH.gait) PH.gait.tick(pl, dt, sprint); // V3.9m 步态/呼吸状态（render.js）
-    if (sprint) { ms *= K.sprintSp; pl.stam = Math.max(0, pl.stam - CFG.sprintDrain * stamK(pl) * (pl.tkOn > 0 ? 0.7 : 1) * dt); if (hasB(pl, 'motor') && (pl.mtT = (pl.mtT || 0) + dt) > 2) { pl.mtT = -6; bpop(pl, 'motor'); } }   // V3.9o2 永动机：连续冲刺 2 秒弹徽章（之后至少 8 秒不再弹；松开冲刺清零）
+    if (sprint) { ms *= K.sprintSp; spendStamina(pl, CFG.sprintDrain * stamK(pl) * (pl.tkOn > 0 ? 0.7 : 1) * dt); if (hasB(pl, 'motor') && (pl.mtT = (pl.mtT || 0) + dt) > 2) { pl.mtT = -6; bpop(pl, 'motor'); } }   // V3.9o2 永动机：连续冲刺 2 秒弹徽章（之后至少 8 秒不再弹；松开冲刺清零）
     else {
       // 体力恢复：背打移动额外消耗，贴身承压后缓一缓再回；体力越低回得越快
       const low = pl.stam < 30 ? 1 + (30 - pl.stam) / 30 * 0.6 : 1, stuck = pl.speed < 0.7;
-      if (pl.post && moving && !stuck) pl.stam = Math.max(0, pl.stam - 5.5 * ST.cost * stamK(pl) * dt);
+      if (pl.post && moving && !stuck) spendStamina(pl, 5.5 * ST.cost * stamK(pl) * dt);
       else if (!(pl.ctT <= G.time && pl.ctT > G.time - K.bdPbCd * 2)) pl.stam = Math.min(100, pl.stam + (pl.post ? K.stRgPost : moving ? K.stRgMove : K.stRgIdle) * low * CFG.stamRegen * dt);
     }
     if (pl.blkR && pl.blkR.tier === 1) ms *= 0.55;   // V3.9q 轻档被盖：原地晃一下，移动减速
@@ -6583,7 +6584,7 @@
       if (G.phase === 'live' && TM(a) !== TM(c) && !a.dummy && !c.dummy && G.mode !== 'demo') {
         const push = clamp(pen / 0.25, 0.2, 1) * (0.5 + 0.5 * clamp((Math.hypot(a.vx, a.vy) + Math.hypot(c.vx, c.vy)) / 4, 0, 1)) * K.bdStam / 60;
         if (pressing) { hd.ctT = df.ctT = G.time; }
-        for (const [m, o] of [[a, c], [c, a]]) if (!(G.mode === 'train' && G.train && G.train.infStam && m.id === 0)) m.stam = Math.max(0, m.stam - push * (pressing && m === df ? resistCost(df, hd) : clamp(powOf(o) / powOf(m), 0.7, 1.5)) * ST.cost * stamK(m));
+        for (const [m, o] of [[a, c], [c, a]]) if (!(G.mode === 'train' && G.train && G.train.infStam && m.id === 0)) spendStamina(m, push * (pressing && m === df ? resistCost(df, hd) : clamp(powOf(o) / powOf(m), 0.7, 1.5)) * ST.cost * stamK(m));
       }
       // 位移分配看吨位：重的人顶着轻的人走；持球人略吃亏（防守站位合法）
       let wa = clamp(Pc / (Pa + Pc) + (a.hasBall ? K.bdWBall : c.hasBall ? -K.bdWBall : 0) + (c.box ? K.bdWBox : 0) - (a.box ? K.bdWBox : 0), 0.08, 0.92);
