@@ -43,7 +43,7 @@
     [/^(drCrouch|drHeight|drTier[ST]|dr(Lean|Roll|Push|Step)[SMT]|gaHzMin|gaHzMax|gaHeight)$/, 'move', '跑步与运球'],
     [/^bg(Acro[GC]|Bully[GC]|Dead|Lim|Fade|Step[GC]|Clutch|Quick|T\d)/, 'shot', '徽章'], [/^bg(Launch|Poster)/, 'fin', '扣篮'], [/^bgRimD/, 'ct', '封堵对抗'],
     [/^bgBullyP/, 'ct', '身体碰撞'], [/^bgClampC/, 'def', '封盖干扰'], [/^bg(Dream|BullySpin)/, 'drib', '背身转身'], [/^bgStepD/, 'drib', '招式位移'],
-    [/^bg(TightSt|MotorSt|HuCost)/, 'stam', '消耗'], [/^bg(Hu|MotorDive)/, 'reb', '鱼跃扑球'], [/^(hc|hz)/, 'shot', '热区与手感'],
+    [/^bg(TightSt|MotorSt|HuCost)/, 'stam', '消耗'], [/^bgHu/, 'reb', '鱼跃扑球'], [/^(hc|hz)/, 'shot', '热区与手感'],
     [/^dkLowSt$/, 'stam', '疲劳影响'], [/^dk(?!Tgt)/, 'fin', '扣篮'], [/^dif\d/, 'ai', '难度', '1v1'],
     [/^ps(Ch|Si|Po|Sl|Pu)(Su|Open)$/, 'ai', '球员个性', '1v1'], [/^ps(Ch|Si|Po|Sl|Pu)/, 'ai', '球员个性'], [/^aiSty5$/, 'ai', '球员个性', '5v5'], [/^aiPo/, 'ai', '球员个性'],
     [/^aiSu/, 'ai', '进攻决策', '1v1'],

@@ -5,6 +5,8 @@
 window.PH = window.PH || {};
 window.PH.R2K = {
   F: ['spdB', 'agi', 'ocon', 'dcon', 'hus', 'dur', 'perD', 'vert'],
+  // 2KRatings 的 2K27 传奇版本（2KLab 未收录）：[拼抢, 防守稳定性]。后者只用于徽章分档。
+  HUS: { yao: [90, 95], mutombo: [91, 98], tmac: [80, 85], nash: [98, 90], rip: [98, 85], kobe: [85, 97], shaq: [98, 98], ginobili: [98, 98], iverson: [97, 91], carter: [95, 80], rodman: [99, 98], bwallace: [98, 99], rallen: [98, 80] },
   P: {
     ablack: [74, 85, 85, 80, 90, 87, 84, 75],  // Anthony Black
     ace: [79, 84, 90, 60, 80, 89, 68, 79],  // Ace Bailey

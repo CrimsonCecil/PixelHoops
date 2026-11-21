@@ -732,13 +732,16 @@
     ['huReb', 'reb', '拼抢积极性 篮板权重', 0.2, 0, 1, 0.01, '比例：攻防篮板平均'],
     ['huStl', 'reb', '拼抢积极性 抢断权重', 0.15, 0, 1, 0.01, '比例'],
     ['huVrt', 'reb', '拼抢积极性 弹跳权重', 0.1, 0, 1, 0.01, '比例'],
-    ['dvR0', 'reb', '鱼跃扑球 距离基础', 2.1, 0, 5, 0.05, '米：扑球距离 = 1.5 × (基础 + 拼抢 × 系数 − 吨位 / 发福惩罚 + 徽章) + 速度项，再夹在上下限之间'],
+    ['dvRBronze', 'reb', '鱼跃扑球 铜档基础距离', 3.15, 0, 10, 0.05, '米：档位基础 + 拼抢 / 速度加成 − 吨位 / 发福惩罚，再夹在上下限之间'],
+    ['dvRSilver', 'reb', '鱼跃扑球 银档基础距离', 3.65, 0, 10, 0.05, '米：档位基础 + 拼抢 / 速度加成 − 吨位 / 发福惩罚'],
+    ['dvRGold', 'reb', '鱼跃扑球 金档基础距离', 4.90, 0, 10, 0.05, '米：档位基础 + 拼抢 / 速度加成 − 吨位 / 发福惩罚'],
+    ['dvRHof', 'reb', '鱼跃扑球 名人堂基础距离', 5.65, 0, 10, 0.05, '米：档位基础 + 拼抢 / 速度加成 − 吨位 / 发福惩罚'],
     ['dvRH', 'reb', '鱼跃扑球 拼抢系数', 2, 0, 5, 0.05, '米'],
     ['dvRHv', 'reb', '鱼跃扑球 吨位惩罚', 0.7, 0, 3, 0.05, '米'],
     ['dvRFat', 'reb', '鱼跃扑球 发福惩罚', 0.5, 0, 3, 0.05, '米'],
     ['dvRSp', 'reb', '鱼跃扑球 速度系数', 0.4, 0, 2, 0.05, '米：× (速度 − 0.7)'],
     ['dvRMin', 'reb', '鱼跃扑球 最短距离', 2.3, 0.5, 5, 0.05, '米'],
-    ['dvRMax', 'reb', '鱼跃扑球 最长距离', 6.8, 2, 10, 0.1, '米'],
+    ['dvRMax', 'reb', '鱼跃扑球 最长距离', 10, 2, 10, 0.1, '米'],
     ['dvMinD', 'reb', '鱼跃扑球 最近触发距离', 0.9, 0, 3, 0.05, '米：球比这近就直接捡'],
     ['dvMaxZ', 'reb', '鱼跃扑球 球高上限', 1.3, 0.3, 3, 0.05, '米：球高过这个不扑'],
     ['dvAir', 'reb', '鱼跃扑球 腾空时长', 0.3, 0.1, 1, 0.01, '秒：+ 0.07 × 超出 2.4 米的距离'],
@@ -911,11 +914,9 @@
     ['bgChainSt', 'rules', '运球徽章 连续过人体力递增倍率', 0.5, 0, 1, 0.01, '倍率：运球如丝 / 脚踝终结者 让连招多出来的体力消耗 × 这个，两枚取更好的（金档数值；铜 / 银 / 名人堂按徽章档位系数缩放）'],
     ['bgDreamSpin', 'rules', '梦幻舞步 背身转身撞开加成', 0.45, 0, 1, 0.01, '概率（金档数值；铜 / 银 / 名人堂按徽章档位系数缩放）'],
     ['bgBullySpin', 'rules', '推土机 背身转身撞开加成', 0.2, 0, 1, 0.01, '概率（金档数值；铜 / 银 / 名人堂按徽章档位系数缩放）'],
-    ['bgHuDive', 'rules', '拼抢 鱼跃扑球距离加成', 0.6, 0, 1, 0.01, '米：× 1.5（金档数值；铜 / 银 / 名人堂按徽章档位系数缩放）'],
-    ['bgMotorDive', 'rules', '永动机 鱼跃扑球距离加成', 0.2, 0, 1, 0.01, '米：× 1.5（金档数值；铜 / 银 / 名人堂按徽章档位系数缩放）'],
-    ['bgHuCost', 'rules', '拼抢 鱼跃扑球体力倍率', 0.6, 0, 1, 0.01, '倍率（金档数值；铜 / 银 / 名人堂按徽章档位系数缩放）'],
-    ['bgHuReach', 'rules', '拼抢 抢地板球距离加成', 0.15, 0, 1, 0.01, '米（金档数值；铜 / 银 / 名人堂按徽章档位系数缩放）'],
-    ['bgHuWin', 'rules', '拼抢 争地板球胜率加成', 0.2, 0, 1, 0.01, '概率：双方各自加减（金档数值；铜 / 银 / 名人堂按徽章档位系数缩放）'],
+    ['bgHuCost', 'rules', '鱼跃扑球 体力倍率', 0.6, 0, 1, 0.01, '倍率（金档数值；铜 / 银 / 名人堂按徽章档位系数缩放）'],
+    ['bgHuReach', 'rules', '鱼跃扑球 抓球范围加成', 0.15, 0, 1, 0.01, '米（金档数值；铜 / 银 / 名人堂按徽章档位系数缩放）'],
+    ['bgHuWin', 'rules', '鱼跃扑球 争球胜率加成', 0.2, 0, 1, 0.01, '概率：双方各自加减（金档数值；铜 / 银 / 名人堂按徽章档位系数缩放）'],
     ['bgMotorSt', 'rules', '永动机 体力消耗倍率', 0.65, 0, 1, 0.01, '倍率（金档数值；铜 / 银 / 名人堂按徽章档位系数缩放）'],
     ['bgT1', 'shot', '徽章档位系数 铜', 0.7, 0, 2, 0.01, '倍率：徽章效果 = 金档数值按这个缩放（倍率类按 1 + (v − 1) × 系数）'],
     ['bgT2', 'shot', '徽章档位系数 银', 0.85, 0, 2, 0.01, '倍率'],
@@ -1429,10 +1430,10 @@
     rim: { name: '护框者', desc: '篮下 3 米内盖帽率 +35%，内线对抗 +6' },
     pick: { name: '抢断大师', desc: '掏球（抢断持球人）成功率 +50%' },
     clamps: { name: '锁死', desc: '干扰强度 +15%，被晃概率 -40%；5V5 更容易挤过掩护' },
-    motor: { name: '永动机', desc: '体力消耗 -35%，鱼跃扑球距离 +0.2 米' },
+    motor: { name: '永动机', desc: '体力消耗 -35%' },
     dream: { name: '梦幻舞步', desc: '背身转身位移更大、更容易转过人，转身贴身时能把防守人撞开' },
     fakes: { name: '假动作大师', desc: '普通 / 背身假投骗跳概率 +50%，上下步位移 +15%（金档数值）' },
-    hustle: { name: '拼抢狂人', desc: '鱼跃扑球距离 +0.6 米、扑球手更长、抢地板球更凶，鱼跃体力消耗 -40%' },
+    hustle: { name: '鱼跃扑球', desc: '有徽章才能飞身扑散球；档位越高，扑得越远、越容易抢到球。档位由 2K 拼抢和防守稳定性决定' },
     cs: { name: '接球投篮', five: true, desc: '接球 0.6 秒内出手命中更高、绿区更宽、出手更快（铜 / 银 / 金 / 名人堂）；掩护后或空位接球再加成' },
     dimer: { name: '妙传', five: true, desc: '接到你传球 1.5 秒内的跳投 / 上篮命中更高、绿区更宽' },
     needle: { name: '穿针引线', five: true, desc: '传球更难被截（截下概率和防守人够球范围都下降）' },
@@ -1456,7 +1457,12 @@
     clutch: (a) => T3((a.ovr || 80) / 99, 86, 91, 95), fade: (a) => T3(a.fade || 0, 72, 80, 92), stepper: (a) => T3((a.three + a.hnd) / 2, 80, 85, 90),
     ankle: (a) => T3(a.hnd, 87, 91, 95), tight: (a) => T3(a.hnd, 85, 90, 95), acrobat: (a) => T3(a.lay, 84, 88, 93), poster: (a) => T3(a.dunk, 87, 91, 95),
     launch: (a) => T3(a.vert, 84, 89, 94), bully: (a) => T3(a.str, 82, 88, 95), rim: (a) => T3(a.blk, 83, 88, 93), pick: (a) => T3(a.stl, 80, 85, 92),
-    clamps: (a) => T3(a.def, 83, 88, 92), motor: (a) => T3(a.sta, 87, 90, 95), dream: (a) => T3(a.post || 0, 75, 88, 93), hustle: (a) => T3((a.spd + a.sta) / 2, 79, 83, 87),
+    clamps: (a) => T3(a.def, 83, 88, 92), motor: (a) => T3(a.sta, 87, 90, 95), dream: (a) => T3(a.post || 0, 75, 88, 93),
+    hustle: (a) => {
+      const { hus2k: h, dcon2k: d } = a;
+      if (!(h >= 90 && d >= 50)) return 0;
+      return h >= 95 && d >= 95 ? 4 : d >= 85 ? 3 : d >= 75 ? 2 : 1;
+    },
   };
   const TIER_CN = ['', '铜', '银', '金', '名人堂'];
   const A = (o) => o;
@@ -1523,10 +1529,10 @@
       badges: ['dream', 'bully', 'fade'], skin: '#e2b48c', hair: '#2a1c14', style: 'short', beard: 'full' }),
     white: A({ key: 'white', tier: 'mid', name: '怀特', full: '德里克·怀特', pos: '后卫', num: 9, desc: '3D 后卫，外线防守与护框都很强', h: 1.93, bw: 0.92, wing: 1.02,
       three: 0.85, mid: 0.8, lay: 0.82, dunk: 0.5, spd: 0.78, acc: 0.78, hnd: 0.78, str: 0.55, def: 0.9, blk: 0.7, stl: 0.8, vert: 0.7, sta: 0.88,
-      badges: ['clamps', 'pick', 'hustle'], skin: '#f0c8a0', hair: '#5a3a22', style: 'bald', beard: 'full' }),
+      badges: ['clamps', 'pick'], skin: '#f0c8a0', hair: '#5a3a22', style: 'bald', beard: 'full' }),
     bridges: A({ key: 'bridges', tier: 'mid', name: '布里奇斯', full: '米卡尔·布里奇斯', pos: '小前锋', num: 25, desc: '铁人锋线，长臂防守与中距离', h: 1.98, bw: 0.84, wing: 1.16,
       three: 0.8, mid: 0.84, lay: 0.8, dunk: 0.65, spd: 0.78, acc: 0.74, hnd: 0.7, str: 0.6, def: 0.85, blk: 0.55, stl: 0.7, vert: 0.7, sta: 1,
-      badges: ['motor', 'clamps', 'hustle'], skin: '#6b4530', hair: '#120c08', style: 'buzz', beard: 'stubble' }),
+      badges: ['motor', 'clamps'], skin: '#6b4530', hair: '#120c08', style: 'buzz', beard: 'stubble' }),
     herb: A({ key: 'herb', tier: 'mid', name: '琼斯', full: '赫伯特·琼斯', pos: '小前锋', num: 2, desc: '防守尖兵，臂展惊人，抢断和干扰一流', h: 2.03, bw: 0.84, wing: 1.2,
       three: 0.7, mid: 0.65, lay: 0.75, dunk: 0.72, spd: 0.78, acc: 0.76, hnd: 0.62, str: 0.65, def: 0.95, blk: 0.72, stl: 0.9, vert: 0.76, sta: 0.85,
       badges: ['clamps', 'pick'], skin: '#5e3c2a', hair: '#120c08', style: 'short', beard: 'goatee' }),
@@ -1578,7 +1584,7 @@
   for (const p of RXP) {
     const a = Object.assign({}, p);
     a.tier = p.ovr >= 90 ? 'star' : p.ovr >= 79 ? 'mid' : 'avg';
-    a.badges = (p.badges || []).slice(0, 4);
+    a.badges = (p.badges || []).slice(0, 4).filter((b) => b !== 'hustle');
     if (p.skill) a.skill = Object.assign({ id: p.key }, p.skill, { id: p.key }); else delete a.skill;
     delete a.sig; delete a.ext; delete a.hz; delete a.cel; delete a.form; delete a.dpk; delete a.face; delete a.ovr;
     ARCH[p.key] = A(a);
@@ -1657,7 +1663,11 @@
     a.lat = d(0.5 * agi + 0.5 * pd - 0.06 * hv);
     a.ocon = d(row ? q.ocon : 0.45 + 0.5 * clamp((a.ovr - 60) / 37, 0, 1));
     a.dcon = d(row ? q.dcon : 0.35 + 0.6 * a.def);
-    a.hus = d(row ? q.hus : 0.6 + 0.2 * a.sta + 0.15 * a.def);
+    const legend = R2K?.HUS?.[k];
+    a.hus2k = row ? row[R2K.F.indexOf('hus')] : legend?.[0];
+    a.dcon2k = row ? row[R2K.F.indexOf('dcon')] : legend?.[1];
+    a.hus = d(a.hus2k != null ? a.hus2k / 100 : 0.6 + 0.2 * a.sta + 0.15 * a.def);
+    if (BADGE_TIER.hustle(a)) a.badges.push('hustle');
     a.dur = d(row ? q.dur : 0.6 + 0.3 * a.sta);
     a.rej = d(0.45 * vt + 0.3 * agi + 0.25 * a.hus - 0.18 * hv);
     a.leap = d(0.45 * vt + 0.3 * a.dunk + 0.25 * a.spd - 0.2 * hv);
@@ -4701,20 +4711,21 @@
   // 飞身扑球（参考 2K 的 Hustle / Dive for loose ball）：散球时按抢断键，朝球扑出去。
   // 拼劲（速度/爆发/篮板/抢断）决定扑多远、多快；体重大的人扑得短、起来慢；扑空要趴在地上一会儿
   function hustle(p) { return clamp(0.55 * (K.huSpd * p.r.spd + K.huAcc * p.r.acc + K.huReb * (p.r.oreb + p.r.dreb) / 2 + K.huStl * p.r.stl + K.huVrt * p.r.vert) + 0.45 * ((p.r.hus || 0.85) - 0.1), 0, 1); }
-  // 扑球距离：约为旧版 1.5 倍，按速度/加速（拼抢）、体重、体力、徽章浮动
-  function diveR(p) { return clamp(1.5 * (K.dvR0 + K.dvRH * hustle(p) - K.dvRHv * heavy(p) - K.dvRFat * fat(p) + ba(p, 'hustle', K.bgHuDive) + ba(p, 'motor', K.bgMotorDive)) + K.dvRSp * (p.r.spd - 0.7), K.dvRMin, K.dvRMax); }
+  const DIVE_RANGE = ['', 'dvRBronze', 'dvRSilver', 'dvRGold', 'dvRHof'];
+  function diveR(p, tier) { return clamp(K[DIVE_RANGE[tier]] + 1.5 * (K.dvRH * hustle(p) - K.dvRHv * heavy(p) - K.dvRFat * fat(p)) + K.dvRSp * (p.r.spd - 0.7), K.dvRMin, K.dvRMax); }
   const diving = (p) => !!(p.action && p.action.type === 'dive' && p.action.t - p.action.pre < p.action.air + p.action.slide);
   function pokeCue() {
     const b = G.ball, active = !!(b.poke && b.state === 'loose' && !b.dead && G.phase === 'live');
     return { active, gold: active, glow: active ? K.stlPokeFlash * (0.5 + 0.5 * Math.cos(G.time * Math.PI * 2 * K.stlPokeHz)) : 0 };
   }
   function startDive(pl) {
+    const tier = btier(pl, 'hustle'); if (!tier) return false;
     const b = G.ball, d = Math.hypot(b.x - pl.x, b.y - pl.y);
     if (d < K.dvMinD || b.z > K.dvMaxZ) return false;
     if (pl.stam <= ST.act) { noGas(pl, '没体力'); return false; }
     const lead = clamp(0.18 + 0.1 * d, 0.2, 0.45), tx = b.x + b.vx * lead, ty = b.y + b.vy * lead, dx = tx - pl.x, dy = ty - pl.y, l = Math.hypot(dx, dy) || 1;
-    const R = diveR(pl), go = Math.min(l + 0.3, R), hu = hustle(pl), hv = heavy(pl);
-    const air = K.dvAir + 0.07 * clamp(go - 2.4, 0, 4.4), slide = K.dvSlide + 0.03 * clamp(go - 4, 0, 2.8), sp = go / (air + slide * 0.5);
+    const R = diveR(pl, tier), go = Math.min(l + 0.3, R), hu = hustle(pl), hv = heavy(pl);
+    const air = K.dvAir + 0.07 * Math.max(0, go - 2.4), slide = K.dvSlide + 0.03 * Math.max(0, go - 4), sp = go / (air + slide * 0.375);
     pl.action = { type: 'dive', t: 0, ux: dx / l, uy: dy / l, sp: sp, air: air, slide: slide, pre: K.dvPre, rec: clamp(K.dvRec0 + K.dvRecHv * hv - K.dvRecHu * hu + K.dvRecFat * fat(pl), K.dvRecMin, K.dvRecMax), got: false };
     pl.animT = 0; spendStamina(pl, K.dvCost * ST.cost * bk(pl, 'hustle', K.bgHuCost)); sfx('jump'); bpop(pl, 'hustle');
     return true;
@@ -6285,7 +6296,7 @@
   }
   function tipsStart(id, who) {
     const D0 = TIPS[id]; if (!D0) return false;
-    const D = MVX[id] && who && ARCH[who] && slotOf(who, id) ? mvTip(id, slotOf(who, id), who) : who && ARCH[who] && !id.startsWith('sk-') ? Object.assign({}, D0, { a0: who }) : D0;
+    const D = MVX[id] && who && ARCH[who] && slotOf(who, id) ? mvTip(id, slotOf(who, id), who) : who && ARCH[who] && !id.startsWith('sk-') && (id !== 'dive' || BADGE_TIER.hustle(ARCH[who])) ? Object.assign({}, D0, { a0: who }) : D0;
     Object.assign(G.train, { role: D.def ? 'def' : 'off', dummy: D.dm || 'follow', gap: D.gap || 1.4, react: 0.9, bite: 1, infStam: true });
     newGame({ mode: 'train', arch0: D.a0, arch1: D.a1 || 'joe', target: 99 });
     const a = G.players[0], d = G.players[1];
@@ -6831,8 +6842,9 @@
       const d = Math.hypot(b.x - pl.x, b.y - pl.y);
       if (b.wasShot && aiBox(pl, opp, b.x, b.y) && b.z > 1.6) { go(pl.x + (b.x - opp.x) * 0.3, pl.y + (b.y - opp.y) * 0.3, 0.5); o.a3 = true; o.sprint = false; }
       if (d < 1.0 && b.z > pl.h * 1.25 && b.z < pl.h * 1.25 + 1.0 && b.vz < 0 && rnd() < K.aiTipP + G.diff * 0.25) o.a1 = true;
-      // 散球落地滚动、对手也在抢：拼劲足的人会飞身去扑
-      { const od = Math.hypot(b.x - opp.x, b.y - opp.y); if (!o.a1 && !pl.action && b.z < 0.8 && d > 1.2 && d < diveR(pl) + 0.2 && od < d + 1.2 && pl.stam > 25 && rnd() < dt * (K.aiDvP + 2.5 * hustle(pl)) * (0.6 + 0.3 * G.diff)) o.a2 = true; }
+      // 散球落地滚动、对手也在抢：有徽章的人会飞身去扑
+      const tier = btier(pl, 'hustle'), od = Math.hypot(b.x - opp.x, b.y - opp.y);
+      if (tier && !o.a1 && !pl.action && b.z < 0.8 && d > 1.2 && d < diveR(pl, tier) + 0.2 && od < d + 1.2 && pl.stam > 25 && rnd() < dt * (K.aiDvP + 2.5 * hustle(pl)) * (0.6 + 0.3 * G.diff)) o.a2 = true;
       return o;
     }
     if (b.state === 'shot') { if (opt && opt.noLoose) return o; const sx = b.shot ? clamp(b.vx * 0.3, -1, 1) : 0; if (aiBox(pl, opp, HOOP.x, HOOP.y)) { o.a3 = true; go(pl.x + (HOOP.x - opp.x) * 0.25, pl.y + (HOOP.y - opp.y) * 0.25, 0.4); return o; } go(HOOP.x + sx, HOOP.y - 1.7, 0.8); return o; }
