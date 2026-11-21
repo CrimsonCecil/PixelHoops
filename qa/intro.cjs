@@ -321,22 +321,33 @@ function runIntro(Gm, G) {
   // Verify walk-in + dialogue never repeat a voice clip across all 9 rivalries and small voice packs (jwells: 2 taunts)
   const manifest = JSON.parse(fs.readFileSync(path.join(__dirname, '../vo/manifest.json'), 'utf8')).voices;
   const fetched = new Set();
+  const decoded = [], started = [];
   const audioCtx = vm.createContext({
     window: null, PH: {}, performance: { now: () => 0 }, setTimeout: () => {}, clearTimeout: () => {},
+    AudioContext: class {
+      state = 'running';
+      sampleRate = 1;
+      createGain() { return { gain: {}, connect() {} }; }
+      createBuffer() { return { getChannelData: () => new Float32Array(1) }; }
+      createBufferSource() { return { connect() {}, start() { started.push(this.buffer); }, stop() {} }; }
+      decodeAudioData(ab, resolve) { decoded.push(ab); resolve({ duration: 2 }); }
+    },
     fetch: async (url) => {
       if (url === 'vo/manifest.json') return { ok: true, json: async () => ({ voices: manifest }) };
       fetched.add(url);
-      return { ok: fs.existsSync(path.join(__dirname, '..', url)) };
+      const file = path.join(__dirname, '..', url);
+      return { ok: fs.existsSync(file), arrayBuffer: async () => Uint8Array.from(fs.readFileSync(file)).buffer };
     }
   });
   audioCtx.window = audioCtx;
   vm.runInContext(fs.readFileSync(path.join(__dirname, '../js/audio.js'), 'utf8'), audioCtx, { filename: 'audio.js' });
-  const checkDedupe = () => {
+  const checkDedupe = async () => {
     const { ctx, Gm, G } = load();
     // Wire real audio.js voLine (skip-aware) and simulate walk-in always colliding with the first dialogue taunt
     const playedClips = [];
     ctx.PH.audio.vo = (k, ev) => {
-      const first = manifest[k].lines[ev][0];
+      assert.equal(ev, 'walk');
+      const first = manifest[k].lines.taunt[0];
       playedClips.push(first.f);
       return first;
     };
@@ -365,8 +376,16 @@ function runIntro(Gm, G) {
 
     const audio = audioCtx.PH.audio;
     ctx.PH.audio.voPreload = audio.voPreload;
-    // Keep gameplay/walk-in voice pools unchanged; only the dialogue borrows clips.
-    delete ctx.PH.audio.vo;
+    const walkClip = manifest.shaq.lines.dunk[2];
+    ctx.PH.audio.vo = (k, ev, mode) => {
+      assert.equal(ev, 'walk');
+      assert.equal(mode, 'pri');
+      if (k !== 'barkley') return null;
+      assert.equal(G.intro.li, -1, 'Barkley speaks during the walk, before dialogue');
+      const it = audio.vo(k, ev, mode);
+      playedClips.push(it?.f);
+      return it;
+    };
     for (const [key, donor, ids] of [
       ['barkley', 'shaq', ['shaq_make_1.mp3', 'shaq_dom_1.mp3']],
       ['yao', 'sengun', ['sengun_dom_0.mp3', 'sengun_taunt_1.mp3']],
@@ -390,6 +409,14 @@ function runIntro(Gm, G) {
         const expected = side === 0 ? clips : [clips[1]];
         assert.deepEqual(lines.map(l => l.t), expected.map(it => it.t), 'subtitles match the borrowed speech');
         assert.deepEqual(playedClips.filter(f => ids.includes(f)), expected.map(it => it.f));
+        if (key === 'barkley') {
+          assert.equal(playedClips[0], walkClip.f);
+          assert.equal(playedClips.filter(f => f === walkClip.f).length, 1);
+          assert.equal(audio.vo('barkley', 'taunt', 'pri'), null, 'gameplay taunts do not borrow the walk-in line');
+          await new Promise(setImmediate);
+          assert.deepEqual(Buffer.from(decoded[0]), sprite.subarray(walkClip.o * 120, (walkClip.o + walkClip.n) * 120));
+          assert.equal(started.length, side + 1, 'the walk-in clip starts on the audio bus');
+        }
       }
       assert.equal(audio.voLine(key, 'taunt', 0), null);
     }
@@ -410,5 +437,5 @@ function runIntro(Gm, G) {
     assert.equal(clash.at(-1).t, alternate.t, 'alternate clip also gets its matching subtitle');
     console.log('PASS: Barkley, Yao and Mutombo preload and play their mapped intro clips with matching subtitles.');
   };
-  audioCtx.PH.audio.voWhenReady(checkDedupe);
+  audioCtx.PH.audio.voWhenReady(() => checkDedupe().catch(e => { console.error(e); process.exitCode = 1; }));
 }

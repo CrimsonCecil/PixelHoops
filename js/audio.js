@@ -277,6 +277,7 @@
 
   // 球员配音：vo/manifest.json 列出每名球员每类事件的若干条语音，随机选、不连播同一条
   let voM = null, voOn = true, voCur = null, voLast = {}, voBusy = 0;
+  const VO_WALK = { barkley: 'shaq_dunk_2.mp3' };
   const VO_INTRO = {
     barkley: [['shaq_make_1.mp3', 'shaq_make_0.mp3'], ['shaq_dom_1.mp3', 'shaq_block_0.mp3']],
     yao: [['sengun_dom_0.mp3', 'sengun_dom_2.mp3'], ['sengun_taunt_1.mp3', 'sengun_make_0.mp3']],
@@ -311,6 +312,7 @@
     const run = () => { if (!voM) return; for (const k of keys) {
       const V = voM[k]; if (V?.s) voFile(V.s);
       const alias = voM[VO_ALIAS[k]?.key]; if (alias?.s) voFile(alias.s);
+      const walk = voIdx[VO_WALK[k]]; if (walk) voFile(walk.s);
       if (!V?.lines?.intro?.length) for (const f of VO_INTRO[k]?.flat() || []) { if (voIdx[f]) voFile(voIdx[f].s); }
     } };
     if (voM) run(); else voReady.then(run);
@@ -342,7 +344,9 @@
       }
       return null;
     }
-    let L = voLines(key, ev);
+    const walk = ev === 'walk' ? voIdx[VO_WALK[key]] : null;
+    if (ev === 'walk' && !walk) ev = 'taunt';
+    let L = walk ? [walk.it] : voLines(key, ev);
     if (!L || !L.length) L = voLines(key, VO_FB[ev]);
     if (!L || !L.length) return null;
     const now = performance.now(); if (now < voBusy && !pri) return null;

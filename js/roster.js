@@ -39,7 +39,7 @@ window.PH.RX = {
     // 传奇：太阳时期巴克利、火箭时期姚明、掘金时期穆托姆博
     {key: 'barkley', team: 'LEG', kitTeam: 'PHX', name: '巴克利', full: '查尔斯·巴克利', pos: '大前锋', num: 34, desc: '矮壮低位，靠力量抢位后双脚强起', h: 1.9812, bw: 1.25, wing: 1, three: 0.49, mid: 0.83, lay: 0.95, dunk: 0.95, spd: 0.82, acc: 0.84, hnd: 0.78, str: 0.97, def: 0.78, blk: 0.65, stl: 0.79, vert: 0.89, sta: 0.91, ovr: 95, badges: ['bully', 'poster'], skin: '#754932', hair: '#130e0b', style: 'bald', form: 'big', dpk: 'bruiser', face: 'round', sig: [0.32, 0.39, 0.60], ext: [96, 85, 97, 83, 94, 90], hz: {rim: 2}, cel: ['flex', 'chest'],
       intro: ['你站得挺稳。再站稳点。', '我可没说要从你头上过。'],
-      skill: {name: '飞猪碾步', en: 'ROUND MOUND', type: 'post', trig: 'powerDrop', cond: '贴身背打半秒以上，向有空间的一侧前转，篮下接投篮', eff: '双脚强起，略减近筐干扰；仍会被封盖，不撞倒防守人'}},
+      skill: {name: '空中飞猪', en: 'FLYING BULL', type: 'dunk', trig: 'flying', cond: '朝篮筐跑动时按扣篮；或起跳抢到篮筐边的进攻篮板', eff: '路线空旷时可提前起跳滑翔扣篮；够高的进攻篮板可直接补扣，仍受防守影响，不保证命中'}},
     {key: 'yao', team: 'LEG', kitTeam: 'HOU', name: '姚明', full: '姚明', pos: '中锋', num: 11, desc: '高点勾手，低位转向中路终结', h: 2.286, bw: 1.16, wing: 1, three: 0.25, mid: 0.85, lay: 0.88, dunk: 0.84, spd: 0.53, acc: 0.51, hnd: 0.61, str: 0.94, def: 0.84, blk: 0.88, stl: 0.44, vert: 0.55, sta: 0.79, ovr: 92, badges: ['bully'], skin: '#e3b58e', hair: '#221a16', style: 'short', form: 'big', dpk: 'stiff', face: 'square', sig: [0.96, 0.25, 0.74], ext: [96, 92, 96, 89, 79, 87], hz: {rim: 2}, cel: ['point', 'chest'],
       intro: ['你封底线，那我走中路。', '不着急。球出手的地方，你够不到。'],
       skill: {name: '上海勾手', en: 'SHANGHAI HOOK', type: 'post', trig: 'middleHook', cond: '贴身背打半秒以上，从低位向中路前转，接投篮', eff: '用远侧手高勾，略放宽绿区；仍可封盖，不加脚步速度'}},
