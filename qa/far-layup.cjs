@@ -65,6 +65,21 @@ const before = load(true), after = load();
   console.log(`CV-converted far scoop: prob=${prob.toFixed(4)}, far cap=${cap.toFixed(4)}`);
   assert(prob <= cap + 1e-9, 'CV conversion must preserve the originating far-hand penalty');
 }
+{
+  const f = setup(after), Q = after.PH.farQA, tune = after.PH.TUNE;
+  Object.assign(f.p, { anim: 'layup', speed: 0, action: { type: 'layup', v: 'normal', sty: 'high', lsv: 'far', side: 1, hand: 1, ideal: 0.34, t: 0.2 } });
+  const original = tune.get('l1_lvFarKnee'), knees = [];
+  try {
+    for (const value of [0.35, 0.8]) {
+      tune.set('l1_lvFarKnee', value);
+      assert.equal(f.gm.K.lvFarKnee, value, 'slider updates the cached game tunable');
+      const T = Q.poseTarget(f.p);
+      knees.push(Math.max(T.lA, T.rA));
+    }
+  } finally { tune.set('l1_lvFarKnee', original); }
+  console.log(`Airborne knee slider 0.35 -> 0.80: ${knees.map(k => k.toFixed(3)).join(' -> ')}rad`);
+  assert(Math.abs(knees[0] - 0.35) < 1e-9 && Math.abs(knees[1] - 0.8) < 1e-9, 'airborne pose follows the live slider');
+}
 let count = 0, min = Infinity, max = 0;
 for (const mode of ['2p', 't5']) for (const cpu of [false, true]) {
   for (const distance of [2, 2.6, 3, 3.4, 4, 4.1, 5, 6]) {

@@ -868,7 +868,7 @@
       const extend = sm((release / I - (far ? 0.2 : 0.1)) / 0.63);
       const recover = sm((a.t - Math.min(release, I) - 0.04) / 0.22);
       const blend = sm(a.t / 0.08), knee = sm(release / (I * 0.55));
-      const kneeMax = PH.TUNE && PH.TUNE.has('lvFarKnee') ? PH.TUNE.get('lvFarKnee') : 0.6;
+      const kneeMax = PH.game && PH.game.K ? PH.game.K.lvFarKnee : 0.6;
       const reach = far ? { p: 2.26, q: 0.58, e: 0.12 } : { p: 2.6, q: 0.48, e: 0.2 };
       // 球从出手侧髋前托起；另一只手先护在胸前，再向侧下方收回。
       const o = {
