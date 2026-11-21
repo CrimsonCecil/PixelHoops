@@ -149,9 +149,10 @@
     ['pcHnd', 'drib', '急停干拔 控球门槛', 0.88, 0, 1, 0.01, '真实控球达到此值可随时中断运球起跳；脚踝终结者/运球如丝无门槛，后撤步大师仅限后撤步'],
     ['uuWin', 'drib', '上下步 假投衔接窗口', 0.45, 0, 1.5, 0.01, '秒：假投结束后可接方向运球动作'],
     ['uuT', 'drib', '上下步 动作时长', 0.42, 0.2, 0.9, 0.01, '秒'],
-    ['uuForward', 'drib', '上下步 突篮距离', 1.05, 0.2, 2, 0.05, '米：随背控、近投和控球缩放'],
-    ['uuBack', 'drib', '上下步 后撤距离', 0.9, 0.2, 2, 0.05, '米'],
-    ['uuSide', 'drib', '上下步 横移距离', 0.85, 0.2, 2, 0.05, '米'],
+    ['uuForward', 'drib', '上下步 突篮距离', 1.7, 0.2, 3, 0.05, '米：随背控、近投和控球缩放'],
+    ['uuBack', 'drib', '上下步 后撤距离', 1.3, 0.2, 3, 0.05, '米'],
+    ['uuSide', 'drib', '上下步 横移距离', 1.4, 0.2, 3, 0.05, '米'],
+    ['rsHold', 'drib', '右摇杆 长推投篮阈值', 0.2, 0.1, 0.4, 0.01, '秒：此前回中是运球，长推投篮，回中松手出手'],
     ['uuReq', 'drib', '上下步 能力门槛', 0.45, 0, 1, 0.01, '背控、近投、控球三者最高值'],
     ['uuCost', 'drib', '上下步 体力系数', 0.3, 0, 1, 0.01, '倍率：基础运球消耗'],
     ['uuBonus', 'shot', '上下步 骗跳命中加成', 0.08, 0, 0.3, 0.01, '概率：最近防守人被假投骗跳或仍在落地恢复'],
@@ -200,7 +201,7 @@
     ['gwBadge', 'shot', '徽章绿区加成上限', 1.45, 1, 3, 0.05, '倍率：多个徽章叠乘的封顶'],
     ['gwSkill', 'shot', '必杀技绿区倍数', 1.7, 1, 3, 0.05, '倍率：库里 / 东契奇 / 科比 / 欧文必杀技出手'],
     ['fkFrac', 'shot', '假投窗口 比例', 0.4, 0.1, 0.8, 0.01, '比例：投篮条涨到这个比例前松手 = 假投（玩家）'],
-    ['fkMin', 'shot', '假投窗口 最短', 0.17, 0.05, 0.4, 0.01, '秒'],
+    ['fkMin', 'shot', '假投窗口 最短', 0.22, 0.05, 0.4, 0.01, '秒：覆盖普通点按，仍避开投篮绿区'],
     ['fkGap', 'shot', '假投窗口 离绿区', 0.08, 0, 0.3, 0.01, '秒：假投窗口至少比最早绿区早这么多'],
     ['fkFloor', 'shot', '假投窗口 绝对下限', 0.12, 0.03, 0.3, 0.01, '秒'],
     ['fkCpu', 'shot', '电脑假投窗口', 0.17, 0.05, 0.4, 0.01, '秒'],
@@ -1088,10 +1089,10 @@
   // 槽位：S 横向跑动 / Ss 横向原地 / St 横向贴身 / FD 斜前 / F 前（拉开）/ Ft 前（贴身）/ BD 斜后 / B 后 / H 不推方向
   // 新招都是在基础动作（kind）的物理和骨骼上改参数：方向、速度、时长、晃人系数，以及“什么情况下好用”（sit）
   const MVX = {
-    uuForward: { name: '上下步·突篮', kind: 'uu', cost: 1, safe: true },
-    uuBack: { name: '上下步·后撤', kind: 'uu', cost: 1, safe: true },
-    uuLeft: { name: '上下步·左', kind: 'uu', cost: 1, safe: true },
-    uuRight: { name: '上下步·右', kind: 'uu', cost: 1, safe: true },
+    uuForward: { name: '上下步·突篮', kind: 'uu', cost: 1, safe: true, sit: () => 1, how: '假投后接：朝筐方向 + J / X，或朝筐长推右摇杆；骗起防守后跨步上篮，按住接投篮、松开出手；快拨或 B / L + 方向只跨步' },
+    uuBack: { name: '上下步·后撤', kind: 'uu', cost: 1, safe: true, sit: () => 1, how: '假投后接：背筐方向 + J / X，或背筐长推右摇杆；对手扑上来时后撤，按住接后撤跳投、松开出手；快拨或 B / L + 方向只跨步' },
+    uuLeft: { name: '上下步·左', kind: 'uu', cost: 1, safe: true, sit: () => 1, how: '假投后接：篮筐左侧方向 + J / X，或向左长推右摇杆；侧跨绕开封堵，按住接跳投、松开出手；快拨或 B / L + 方向只跨步' },
+    uuRight: { name: '上下步·右', kind: 'uu', cost: 1, safe: true, sit: () => 1, how: '假投后接：篮筐右侧方向 + J / X，或向右长推右摇杆；侧跨绕开封堵，按住接跳投、松开出手；快拨或 B / L + 方向只跨步' },
     killer: { name: '杀手变向', kind: 'cross', T: 0.92, sp: 1.2, bite: 1.15, cost: 1.25, req: { t: '控球 70', f: (r) => r.hnd >= 0.7 }, sit: (c) => (c.dd < 1.6 ? 1.3 : c.dd > 2.1 ? 0.6 : 1), how: '贴身时最狠，离得远就晃不到' },
     legsx: { name: '胯下变向', kind: 'legs', T: 1, sp: 1.45, bite: 1.6, cost: 0.9, req: { t: '控球 65', f: (r) => r.hnd >= 0.65 }, sit: () => 1, how: '跑动中胯下换手横移，稳定好用' },
     btbx: { name: '背后变向突破', kind: 'behind', dir: 'fd', T: 1, sp: 1.12, bite: 1.1, cost: 1.1, safe: true, req: { t: '控球 80', f: (r) => r.hnd >= 0.8 }, sit: (c) => (c.reach ? 1.6 : c.dd < 1.5 ? 1.25 : 0.8), how: '对手伸手或贴身时最好用，背后换手不怕断' },
@@ -3940,7 +3941,7 @@
         const rp = a.vh != null, hT = rp ? a.vh : pl.ctrl === 'cpu' ? a.t : (a.vt || a.t); // 假投判定用玩家实际按住的时长（不含 cs 提前量）
         if (rp && a.vh > 1) { if (a.t >= TI) releaseJumpShot(pl, 0); }
         else if (rp ? a.vt >= a.vh : !btnHeld(pl, a, inp, a.btn || 'a1')) {
-          // 假投窗口（人控球员）：fkT = clamp(0.4 × ideal, 0.17, 最早绿区 − 0.08)，即条涨到约 40% 前松手算假投。起跳前松开 = 原地假投；已离地、fkT 前松开 = 起跳假投：取消出手、快速落地，之后可接运球/传球。
+          // 假投窗口避开最早绿区；起跳前松开 = 原地假投，离地后仍在窗口内 = 快速落地假投。
           // fkT 之后到绿区之间松开仍按偏早出手结算；按住到绿区永远是出手。电脑球员仍是 0.17 秒，不改 AI 节奏；ibuf 缓冲的点按（a.vh）回放按住时长后也走这里
           if (a.fkT == null) a.fkT = pl.ctrl === 'cpu' ? K.fkCpu : Math.max(K.fkFloor, Math.min(a.ideal - (a.meter ? a.meter.gw * a.meter.span : 0) - K.fkGap, Math.max(K.fkMin, K.fkFrac * a.ideal))); // 条涨到约 40% 前松手 = 假投
           if (hT < a.fkT && !a.jumped) { pumpFake(pl, 0.26, false); return; }
@@ -4027,6 +4028,7 @@
       } else if (a.hang && a.t - a.doneT < a.hang) { pl.z = a.hz + (a.ikz || 0); if (a.hx != null) { pl.x = a.hx + (a.ikx || 0); pl.y = a.hy + (a.iky || 0); } pl.vz = 0; pl.vx = pl.vy = 0; }
       else if (pl.z <= 0) pl.action = null;
     } else if (a.type === 'move') {
+      if (a.kind === 'uu' && a.uuHold && !btnHeld(pl, a, inp, 'a1')) a.uuHold = false;
       if (a.kind === 'hesi' && updateHesitation(pl, a, inp)) return;
       const u = clamp(a.t / a.T, 0, 1), kd = a.kind, sp = a.sp;
       let vx, vy;
@@ -4057,7 +4059,14 @@
       if (pl.hasBall && K.mvEdge > 0) { const t5 = G.mode === 't5', XL = (t5 ? 7.62 : 7.5) - K.mvEdge, Y1 = (t5 ? 14.1 : 14) - K.mvEdge, Y0 = t5 ? -Y1 : K.mvEdge;
         if ((pl.x > XL && vx > 0) || (pl.x < -XL && vx < 0)) vx = 0; if ((pl.y > Y1 && vy > 0) || (pl.y < Y0 && vy < 0)) vy = 0; }
       pl.vx = vx; pl.vy = vy;
-      if (a.t >= a.T) { if (kd === 'hesi') blendHeldBall(); pl.action = null; pl.lastMoveT = G.time; pl.mvEndT = G.time; pl.z = 0; pl.vz = 0; }
+      if (a.t >= a.T) {
+        if (kd === 'hesi') blendHeldBall(); pl.action = null; pl.lastMoveT = G.time; pl.mvEndT = G.time; pl.z = 0; pl.vz = 0;
+        if (kd === 'uu' && a.uuHold && btnHeld(pl, a, inp, 'a1')) {
+          const si = Object.assign({}, inp, { mx: a.dx, my: a.dy });
+          if (a.mv === 'uuForward') tryStart(pl, si, { a1: true });
+          else startShot(pl, si, 'a1', a.mv === 'uuBack' ? 'stepback' : 'pullup');
+        }
+      }
     } else if (a.type === 'block') {
       if (pl.z <= 0 && a.t > 0.1) { pl.action = null; pl.cd = a.rbS && pl.hasBall ? a.rcv : K.bkLandCd * rejK(pl); if (a.rbS && pl.hasBall) { pl.recT = G.time + a.rcv; pl.landS = a.rbS; pl.landT = G.time; } }
     } else if (a.type === 'steal') {
@@ -4202,9 +4211,30 @@
     const a = pl.action; if (!a || !pl.hasBall) return false;
     return a.type === 'move' || (a.type === 'shot' && !a.released) || (a.type === 'layup' && !a.released) || (a.type === 'dunk' && !a.done);
   }
+  function rightStickInput(pl, inp) {
+    if (!pl.hasBall || G.phase !== 'live' || G.ball.dead || pl.stun > 0 || inp.hesi || inp.dribble || pl.action && pl.action.hesiHold) pl.rsGesture = null;
+    else if (pl.ctrl !== 'cpu' && (inp.rs || pl.rsGesture)) {
+      const held = !!inp.rs;
+      let rs = pl.rsGesture;
+      inp = Object.assign({}, inp, { a3: !!(inp.dribble || inp.hesi) });
+      if (held) {
+        if (!rs) rs = pl.rsGesture = { t: G.time, x: inp.dx, y: inp.dy, shot: false };
+        rs.x = inp.dx; rs.y = inp.dy;
+        const press = !rs.shot && G.time - rs.t >= K.rsHold;
+        if (press) rs.shot = true;
+        inp.rsHold = rs.shot;
+        if (rs.shot) { inp.a1 = true; inp.shootPress = inp.shootPress || press; inp.mx = rs.x; inp.my = rs.y; }
+      } else if (rs) {
+        if (!rs.shot) { inp.a3 = inp.rsFlick = true; inp.dx = rs.x; inp.dy = rs.y; }
+        pl.rsGesture = null;
+      }
+    }
+    return inp;
+  }
   function updatePlayer(pl, inp, dt) {
     if (pl.off) { pl.anim = 'idle'; pl.stance = false; return; }
     const frozen = G.phase === 'check' || G.phase === 'over';
+    inp = rightStickInput(pl, inp);
     { if (pl.knock) { pl.knockT += dt; if (pl.knockT >= pl.knockD) { pl.knock = null; pl.knockT = 0; pl.knockD = 0; pl.knockUp = 0; } } const s0 = pl.stun; pl.stun = Math.max(0, pl.stun - dt); if (s0 > 0 && pl.stun <= 0) pl.recT = G.time + lerp(K.akRecLo, K.akRecHi, agil(pl)) + K.akRecHv * heavy(pl); }
     pl.cd = Math.max(0, pl.cd - dt); pl.boost = Math.max(0, pl.boost - dt); pl.flash = Math.max(0, pl.flash - dt);
     const IB = ibOn(pl), raw = inp, moveAtStart = pl.action;
@@ -4213,6 +4243,8 @@
     // 开了输入缓冲：边沿按原始按键算（硬直中按的键交给缓冲；一直按住穿过硬直不会在结束时凭空多出一次）
     const src = IB && !frozen ? raw : inp;
     const pr = { a1: src.a1 && !pl.prev.a1, a2: src.a2 && !pl.prev.a2, a3: src.a3 && !pl.prev.a3 };
+    if (pr.a3 && pl.ctrl !== 'cpu' && !frozen && pl.stun <= 0 && pl.hasBall && pl.action &&
+        pl.action.type === 'shot' && !pl.action.released && !btnHeld(pl, pl.action, inp, pl.action.btn || 'a1')) updateAction(pl, inp, 0, false);
     if (!pl.hasBall || frozen || G.ball.dead || pl.stun > 0) { pl.uuFake = null; pl.uuShot = null; }
     const uf = pl.uuFake;
     const uu = uf || pl.uuShot;
@@ -4222,12 +4254,13 @@
       if (df && df.z > 0.05) { uu.def = df.id; uu.bitUntil = G.time + K.uuRecover; }
     }
     if (uf && G.time > uf.until && !(pl.action && pl.action.type === 'fake')) pl.uuFake = null;
-    if (pr.a3 && pl.uuFake && pl.hasBall && G.phase === 'live' && pl.stun <= 0 &&
+    const uuShoot = pr.a1 || G.mode === 't5' && inp.shootPress;
+    if ((pr.a3 || uuShoot) && pl.uuFake && pl.hasBall && G.phase === 'live' && pl.stun <= 0 &&
         (!pl.action || pl.action.type === 'fake') && (pl.z <= 0.05 || pl.vz < 0) && pl.stam > ST.act && canMv(pl, 'uu')) {
-      const q = inDir(pl, inp, true);
+      const q = inDir(pl, inp, !!pr.a3);
       if (q.l > 0.3) {
         const variant = Math.abs(q.fwd) >= Math.abs(q.lat) ? q.fwd > 0 ? 'uuForward' : 'uuBack' : q.lat > 0 ? 'uuLeft' : 'uuRight';
-        startMove(pl, inp, variant); pl.ib = null; pr.a3 = false;
+        startMove(pl, inp, variant); pl.action.uuHold = !!uuShoot; pl.ib = null; pr.a1 = pr.a2 = pr.a3 = false;
       }
     }
     const shootPress = G.phase === 'live' && !G.ball.dead && pl.stun <= 0 && (G.mode === 't5' ? inp.shootPress : pr.a1);
@@ -4962,6 +4995,11 @@
   };
   // 新招的演示：按这个球员运球包里该招所在的槽位自动生成按键序列
   function mvTip(id, slot, a0) {
+    if (MVX[id].kind === 'uu') {
+      const dir = id === 'uuForward' ? 'F' : id === 'uuBack' ? 'B' : id === 'uuLeft' ? 'L' : 'R';
+      return { a0: a0 || 'luka', y: id === 'uuForward' ? HOOP.y - 2.8 : 6.8, dm: 'stand', gap: 1.8, T: 3.2, mk: 1,
+        s0: SEQ([[0.25, 0.4, { a1: true }], TAP(0.55, { d: dir }), [1.05, 3.2, PF()]]) };
+    }
     const T = 2.6, S = {
       S: [1.3, [[0.1, 0.5, { m: 'L', ms: 0.7 }], TAP(0.5, { m: 'R' }), [0.56, T, { m: 'FR', sp: 1 }]]], St: [0.95, [[0.1, 0.4, { m: 'L', ms: 0.7 }], TAP(0.4, { m: 'R' }), [0.46, T, { m: 'FR', sp: 1 }]]],
       Ss: [1.8, [TAP(0.5, { m: 'L' }), [0.56, T, { m: 'FL', sp: 1 }]]], FD: [1.3, [TAP(0.5, { m: 'FL' }), [0.56, T, { m: 'F', sp: 1 }]]],
