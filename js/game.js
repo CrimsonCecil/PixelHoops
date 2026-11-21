@@ -2325,7 +2325,7 @@
     if (df.action && df.action.q > 0.85 && df.action.type === 'block') float('完美时机', df, '#ffe14d', 0);
     const perfect = df.action && df.action.q > 0.85, pin = st !== 'catch' && hp.z > HOOP.z + K.pinZ && distHoop(df) < K.pinD && !!pinPt(df, hp);
     if (df.action && df.action.type === 'block') df.action.pinQ = pin;
-    G.stats[df.id].blk++; tkAdd(df, 16); tkAdd(sh, -8); vo(df, pin || st === 'facial' ? 'pin' : 'block'); vic(sh, 'rejected');
+    G.stats[df.id].blk++; tkAdd(df, 16); tkAdd(sh, -8); vo(df, pin || st === 'facial' ? 'pin' : 'block', 'pri'); vic(sh, 'rejected');
     float(pin ? '钉板大帽' : { swat: '大帽', catch: '抓帽', facial: '呼脸大帽', chase: '追身封盖' }[st], df, st === 'catch' ? '#5ee0ff' : '#ff6b5e', 1);
     const tier = perfect || pin || st === 'facial' || st === 'chase' ? 2 : 1;
     bigPlay('block', df, hp.x, hp.y, hp.z, tier, (pin ? 15 : 0) + (perfect ? 8 : 0) + (st === 'facial' ? 12 : st === 'chase' ? 10 : st === 'catch' ? 6 : 0));
@@ -2525,8 +2525,8 @@
   // 球员配音：按事件随机挑一条，演示模式不播；q=忙时排队
   function vo(pl, ev, q) {
     if (!pl || G.mode === 'demo' || (!audioSink && !PH.audio?.vo)) return;
-    const P = { make: 0.45, miss: 0.3, steal: 0.75, block: 0.85, ankle: 0.9, hurt: 0.7, stop: 0.45 }[ev];
-    if (P != null && rnd() > P) return;
+    const P = { make: 0.75, miss: 0.35, steal: 1, block: 1, ankle: 1, hurt: 0.75, stop: 0.75 }[ev];
+    if (q !== 'q' && P != null && rnd() > P) return;
     audioSink?.('vo', pl.arch.key, ev, q);
     PH.audio?.vo?.(pl.arch.key, ev, q);
   }
@@ -2815,8 +2815,8 @@
     if (b.wasShot && !change) { pl.orebT = G.time; pl.ai.pb = null; G.needClear = false; G.illId = -1; } // 前场篮板不用再出三分线
     if (b.wasShot) {
       G.stats[pl.id].reb++; G.stats[pl.id][change ? 'dreb' : 'oreb']++; tkAdd(pl, change ? 3 : 5);
-      if (!change && !train) { const o = OP(pl), hot = !o.off && Math.hypot(o.x - pl.x, o.y - pl.y) < 1.6; float('进攻篮板', pl, '#7dff8a'); bigPlay('oreb', pl, b.x, b.y, Math.max(0.5, b.z), hot ? 1 : 0); }
-      else reboundPositive(pl);
+      if (!change && !train) { const o = OP(pl), hot = !o.off && Math.hypot(o.x - pl.x, o.y - pl.y) < 1.6; float('进攻篮板', pl, '#7dff8a'); bigPlay('oreb', pl, b.x, b.y, Math.max(0.5, b.z), hot ? 1 : 0); if (G.phase === 'live') { vo(pl, 'dom', 'pri'); vic(o, 'hurt', 0.65); } }
+      else { reboundPositive(pl); if (!train && G.phase === 'live') { vo(pl, 'stop'); vic(OP(pl), 'miss', 0.55); } }
     }
     b.wasShot = false;
     G.shotClock = change ? CFG.shotClock : Math.max(G.shotClock, Math.min(14, CFG.shotClock)); b.lastTouch = pl.id;
@@ -4090,7 +4090,7 @@
             const bx = G.ball.x, by = G.ball.y, ux = (pl.x - df.x) / (dd || 1), uy = (pl.y - df.y) / (dd || 1);
             playLoss(df); df.action = null; df.stun = K.stlStun; df.stunK = 'off'; df.stunT0 = K.stlStun; df.post = false;
             looseBall({ x: bx, y: by, z: 0.6 }, ux * K.stlBallV + rr(-K.stlBallR, K.stlBallR), uy * K.stlBallV + rr(-K.stlBallR, K.stlBallR), K.stlBallZ, pl.id);
-            G.ball.noPick = K.stlNoPick; G.stats[pl.id].stl++; G.stats[df.id].tov++; vo(pl, 'steal'); vic(df, 'stolen'); a.T = K.stlRecT;
+            G.ball.noPick = K.stlNoPick; G.stats[pl.id].stl++; G.stats[df.id].tov++; vo(pl, 'steal', 'pri'); vic(df, 'stolen'); a.T = K.stlRecT;
             float(read.timed ? '时机抢断' : '掏球', pl, '#7dff8a', 1); tkAdd(pl, 14); tkAdd(df, -10); bigPlay('steal', pl, bx, by, 0.7, stTier); bpop(pl, 'pick');
           } else { reachTo(pl, { x: G.ball.x, y: G.ball.y, z: Math.max(0.3, G.ball.z) }, K.stlMissReach, K.stlMissReachT); a.T = Math.max(a.t, stealMissTime(pl, dd, read)); float(read.risk > 0.5 ? '伸手失位' : '抢断落空', pl, '#9aa3c0', read.risk > 0.5 ? 1 : 0); bpop(df, 'tight'); }
         } else { a.T = Math.max(a.t, stealMissTime(pl, dd, read)); float('伸手失位', pl, '#9aa3c0', 1); }
@@ -5949,7 +5949,7 @@
   }
   const T5API = { begin: t5begin, end: t5end, step: t5step, trackReplay, replayTick, makePlayer: makePlayer, aiInput: aiInput, zeroInp: zeroInp, newStats: newStats, contestOf: contestOf, contestInfo: contestInfo,
     passProfiles: PASS, passHeight, startFinish, looseBall, rnd,
-    distHoop: distHoop, isThree: isThree, finPlan: finPlan, OP: OP, TM: TM, pickup: pickup, float: float, led: led, sfx: sfx, vo: vo, burst: burst, part: part, hasB: hasB, powOf: powOf,
+    distHoop: distHoop, isThree: isThree, finPlan: finPlan, OP: OP, TM: TM, pickup: pickup, float: float, led: led, sfx: sfx, vo: vo, vic: vic, burst: burst, part: part, hasB: hasB, powOf: powOf,
     knock: knock, bpop: bpop, tkAdd: tkAdd, fxReset: fxReset, rebBall: rebBall, hustle: hustle, HOOP: HOOP, cold: cold, scoreBy: scoreBy, banner: banner, passIntercept: passIntercept, interceptionStyle: interceptionStyle, localizeInterception: localizeInterception, checkBall: checkStart, checkStep: checkStep };
   // V4.0 区域可视化（调参台打开时 render.js 画）：单位米。lay / float / dunk / euro 以篮筐地面投影为圆心，表示“从这个圈内开始收球能做出该终结”（= 起跳上限 + 两步步幅）；
   // r0 = 最远起跳点圈（起跳距离本身）。contest / block 以防守人（pl 的对手）脚下为圆心；contest 的 ang/arc = 正面干扰扇区（出手人站在这个方向上受正面干扰）

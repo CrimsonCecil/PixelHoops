@@ -911,7 +911,7 @@
         G.stats[P.from.id].tov++; if (r && r.rk) r.rk.st.drop++; T.cnt.intc++; T.cnt.tov++; T.cnt.steals++;
         A5.passIntercept(d, T.hum >= 0 ? T.hum : null);
         T.ps = null; b.state = 'loose'; b.vz = 0; b.vx = b.vy = 0; b.x = d.x; b.y = d.y; b.z = 1;
-        G.stats[d.id].stl++; fltS('抢断', d); A5.vo(d, 'steal');
+        G.stats[d.id].stl++; fltS('抢断', d); A5.vo(d, 'steal', 'pri'); if (A5.vic) A5.vic(P.from, 'stolen');
         if (P.rec) P.rec.res = 'int';
         A5.pickup(d, 'intercept'); return;
       }
