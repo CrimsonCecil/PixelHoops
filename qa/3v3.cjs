@@ -261,27 +261,37 @@ function fixture(options = {}) {
 }
 
 {
-  const { G, T3, api, run } = fixture({ human: 2, replay: true });
+  const { G, Gm, T3, api, run } = fixture({ human: 2, replay: true });
   run(155);
   api.scoreBy(T3.holder().id, 3, 'shot');
   for (let i = 0; i < 150 && !G.replay; i++) run(1);
   assert.equal(G.replay.q.pid, 2);
-  run(25);
-  assert.equal(G.replay.view.players.length, 6);
+  assert(G.time - G.lastMakeAt >= Gm.replayFlow.makeBeat);
+  assert.equal(G.phase, 'dead', 'do not show the next check ball before the replay');
+  const replay = G.replay;
+  assert.equal(replay.view, null, 'show the live court until the wipe covers it');
+  for (let i = 0; i < 30 && !replay.view; i++) run(1);
+  assert.equal(Gm.replayFlow.cover(replay), 1, 'cut to replay behind the closed wipe');
+  assert.equal(replay.view.players.length, 6);
   const main = fs.readFileSync(path.join(__dirname, '../js/main.js'), 'utf8');
   const skip = main.match(/^  const REPLAY_MIN = .*;$|^  function skipReplay\(\).*/gm).join('\n');
   const ctx = vm.createContext({ G, screen: 'play', paused: false });
   vm.runInContext(skip + '\nskipReplay();', ctx);
   assert.equal(G.replay.skip, false);
-  run(37);
+  run(60);
   vm.runInContext('skipReplay()', ctx);
   assert.equal(G.replay.skip, true);
   run(1);
+  assert(replay.view && replay.wipeOut > 0, 'skip starts the exit wipe rather than cutting immediately');
+  for (let i = 0; i < 30 && replay.view; i++) run(1);
+  assert.equal(replay.view, null);
+  assert.equal(Gm.replayFlow.cover(replay), 1, 'cut back to live behind the closed wipe');
+  run(24);
   assert.equal(G.replay, null);
   run(75);
   assert.equal(G.off, 1);
   assert.equal(G.score[0], 3);
-  console.log('PASS: a 3V3 three-pointer replays all six players and can be skipped after one second.');
+  console.log('PASS: a 3V3 three-pointer waits, wipes into the replay, and wipes out when skipped.');
 }
 
 for (const human of [0, -1]) {
