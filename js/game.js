@@ -1610,6 +1610,7 @@
     if (G.mode === 'cpu' || G.mode === 'train') G.aiPlay = {};
     G.players = [makePlayer(0, ARCH[o.arch0] ? o.arch0 : 'dosunmu', c0), makePlayer(1, ARCH[o.arch1] ? o.arch1 : 'joe', c1)]; G.cutin = null; G.intro = null;
     if (G.mode !== 'demo') applyMatchKits(G.players);
+    if (o.cpuD && G.players[1].ctrl === 'cpu') G.players[1].D = o.cpuD; // 斗牛之王：逐关递增的电脑难度
     G.ball = { x: 0, y: 4, z: 1, vx: 0, vy: 0, vz: 0, state: 'held', holder: 0, spin: 0, shot: null, lastTouch: 0, noPick: 0, dead: false, under: false, trail: null };
     G.score = [0, 0]; G.floats = []; G.banner = null; G.net = 0; G.time = 0; G.winner = -1; G.lastShot = null; G.streak = [0, 0]; G.scout = [{}, {}]; G.lastScorer = 0; G.lastMakeAt = -Infinity; G.hz = [{}, {}];
     G.stats = [newStats(), newStats()];
