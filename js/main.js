@@ -1626,6 +1626,7 @@
   const trainPanelOn = () => screen === 'play' && G.mode === 'train' && panelOpen && !paused && !G.replay && !$('train').classList.contains('hidden');
   // 当前能用手柄操作的界面（从上到下优先）：调参台 / 镜头面板 / 说明 / 选队 / 选人 / 设置 / 结算 / 主菜单 / 训练面板
   function navRoot() {
+    if (!$('replay-name').classList.contains('hidden')) return $('replay-name');
     if (TUI && TUI.isOpen()) return $('tune');
     if (camOpen && !$('campanel').classList.contains('hidden')) return $('campanel');
     for (const id of ['help', 'tpicker', 'picker', 'pause', 'over5', 'over', 'king', 'menu']) if (!$(id).classList.contains('hidden')) return $(id);
@@ -1722,11 +1723,52 @@
     if (root && ((screen === 'menu' && (root.id === 'menu' || root.id === 'picker' || root.id === 'pause')) || root.id === 'tune')) e.preventDefault();
   });
 
+  let replaySaving = false, replaySaveTape = null, replaySaveFrom = null;
+  function replaySaveState() {
+    const tape = PH.TAPE.current(), empty = !tape || !tape.frames.length;
+    for (const b of document.querySelectorAll('.replay-save')) { b.disabled = replaySaving || empty; b.title = empty ? '暂无录像' : ''; }
+  }
+  function replayNameClose() { show('replay-name', false); if (replaySaveFrom) replaySaveFrom.focus(); }
+  for (const b of document.querySelectorAll('.replay-save')) b.addEventListener('click', () => {
+    replaySaveTape = PH.TAPE.finish(); if (!replaySaveTape || !replaySaveTape.frames.length || replaySaving) return;
+    replaySaveFrom = b;
+    const m = replaySaveTape.meta, d = new Date(m.date), pad = n => String(n).padStart(2, '0');
+    const mode = { cpu: '1V1', '2p': '1V1', train: '训练', t3: '3V3', t5: '5V5' }[m.mode] || m.mode;
+    const players = m.players.length === 2 ? m.players.join('vs') : m.players[0] + '等';
+    $('replay-input').value = Array.from(mode + ' ' + players + ' ' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) + ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes())).slice(0, 40).join('');
+    show('replay-name', true); $('replay-input').focus(); $('replay-input').select();
+  });
+  $('replay-cancel').addEventListener('click', replayNameClose);
+  $('replay-input').addEventListener('keydown', e => {
+    e.stopPropagation();
+    if (e.key === 'Enter') { e.preventDefault(); $('replay-ok').click(); }
+    if (e.key === 'Escape') { e.preventDefault(); replayNameClose(); }
+  });
+  $('replay-ok').addEventListener('click', async () => {
+    if (replaySaving) return;
+    const name = $('replay-input').value.trim(); if (!name) { $('replay-input').focus(); return; }
+    const tape = replaySaveTape, status = replaySaveFrom.parentElement.querySelector('.replay-status');
+    replaySaving = true; replayNameClose(); replaySaveState(); status.textContent = '保存中…';
+    try { const row = await PH.TAPE.save(name, tape); status.textContent = '已保存：' + row.name; }
+    catch (e) { status.textContent = '保存失败：' + e.message; }
+    finally { replaySaving = false; replaySaveState(); }
+  });
+
   // ---------- 循环 ----------
   function sysKeys() {
     const I = PH.input, replay = screen === 'play' && G.replay && !paused;
     const key = replay && I.sysAny(); // 先读键盘，避免把手柄导航连发当成新按键
     const button = I.pollPads();
+    if (PH.tapeView.open) { PH.tapeView.keys(I); return; }
+    replaySaveState();
+    if (!$('replay-name').classList.contains('hidden')) {
+      if (I.sysPressed('Escape') || I.sysPressed('PadB')) replayNameClose();
+      else if (I.sysPressed('Enter')) $('replay-ok').click();
+      else if (I.sysPressed('PadA')) { if (document.activeElement === $('replay-cancel')) replayNameClose(); else $('replay-ok').click(); }
+      else if (I.sysPressed('PadLeft') || I.sysPressed('PadUp')) $('replay-ok').focus();
+      else if (I.sysPressed('PadRight') || I.sysPressed('PadDown')) $('replay-cancel').focus();
+      I.clearSys(); return;
+    }
     if (replay) { I.clearSys(); if (key || button) skipReplay(); return; }
     if (screen === 'play' && G.intro && !paused) { if (I.sysPressed('Escape') || I.sysPressed('PadStart') || I.sysPressed('PadB')) GM.introEnd(); else if (I.sysAny() || button) GM.introPress(); I.clearSys(); return; }
     if (I.sysPressed('KeyM')) toggleMusic();
@@ -1899,6 +1941,7 @@
     for (const [id, e] of fdEls) if (!live.has(id)) { e.remove(); fdEls.delete(id); }
   }
   function tickMatch() {
+    if (PH.tapeView.open) return;
     if (screen === 'play5') { if (!paused) tick5(DT); return; }
     if (G.intro) { GM.introTick(DT); PH.input.endTick(); roomAudio.length = 0; return; }
     if (!matchConfig) { GM.tick(DT); return; }
@@ -1939,7 +1982,7 @@
   // 分场景音乐：每帧按当前界面 / 比赛状态选曲（audio.js 内部去重，切换时交叉淡入淡出）
   function musicPick() {
     const A = PH.audio; if (!A.scene) return;
-    let sc = 'menu', hot = 0;
+    let sc = PH.tapeView.open ? 'calm' : 'menu', hot = 0;
     if (screen === 'tips') sc = 'calm';
     else if (screen === 'king') sc = KR && KR.done ? 'win' : 'menu';
     else if (screen === 'play') {
@@ -1963,6 +2006,7 @@
   function draw(dt) {
     PH.audio.setPaused((screen === 'play' || screen === 'play5') && paused);
     musicPick();
+    if (PH.tapeView.open) { PH.tapeView.render(dt); return; }
     const r5 = PH.render5.rpl, replay = screen === 'play' ? G.replay : screen === 'play5' && r5.on ? r5 : null;
     const cover = GM.replayFlow.cover(replay);
     if (cover !== lastReplayCover) { replayWipe.style.setProperty('--cover', cover); lastReplayCover = cover; }
@@ -2022,6 +2066,10 @@
   function boot() {
     layout(); R.init(canvas); PH.input.initTouch(document); refreshMenu(); renderHelp(); toMenu();
     requestAnimationFrame(frame);
+    PH.tapeView.enter = () => { screen = 'tape'; paused = true; for (const id of ['menu', 'hud', 'hud5', 'pause', 'over', 'over5', 'touch', 'banner', 'train', 'talk', 'cutin']) show(id, false); };
+    PH.tapeView.leave = toMenu;
+    const query = new URLSearchParams(location.search);
+    if (query.has('replay')) PH.tapeView.load(query.get('replay'), Number(query.get('t')) || 0, false);
   }
   const fontReady = document.fonts && document.fonts.load ? Promise.race([document.fonts.load("12px 'Fusion Pixel 12px Proportional SC'", 'PIXEL 像素斗牛'), new Promise((r) => setTimeout(r, 2500))]) : Promise.resolve();
   fontReady.then(boot, boot);

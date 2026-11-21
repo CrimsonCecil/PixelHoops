@@ -26,6 +26,46 @@ export default {
     const now = () => Date.now() / 1000;
 
     if (req.method === 'OPTIONS') return send(204);
+    if (p === '/api/replays' && req.method === 'GET') {
+      const rows = (await db.prepare('SELECT * FROM replays ORDER BY created DESC').all()).results;
+      return send(200, { replays: rows.map(r => ({ ...r, meta: JSON.parse(r.meta) })) });
+    }
+    if (p.startsWith('/api/replays/')) {
+      const key = p.slice('/api/replays/'.length);
+      if (req.method === 'GET') {
+        let k; try { k = decodeURIComponent(key); } catch { return send(400, { error: 'bad key' }); }
+        const r = await db.prepare('SELECT * FROM replays WHERE id=? OR name=? ORDER BY (id=?) DESC LIMIT 1').bind(k, k, k).first();
+        if (!r) return send(404, { error: 'not found' });
+        const chunks = (await db.prepare('SELECT data FROM replay_chunks WHERE id=? ORDER BY seq').bind(r.id).all()).results;
+        return send(200, { ...r, meta: JSON.parse(r.meta), data: chunks.map(c => c.data).join('') });
+      }
+      if (req.method === 'PUT' || req.method === 'DELETE') {
+        if (!ID_RE.test(key)) return send(400, { error: 'bad id' });
+        if (req.method === 'DELETE') {
+          await db.batch([db.prepare('DELETE FROM replay_chunks WHERE id=?').bind(key), db.prepare('DELETE FROM replays WHERE id=?').bind(key)]);
+          return send(200, { ok: true });
+        }
+        let b;
+        try {
+          const raw = await req.text();
+          if (new TextEncoder().encode(raw).length > 8 * 1024 * 1024) return send(400, { error: 'bad body' });
+          b = JSON.parse(raw);
+        } catch { return send(400, { error: 'bad body' }); }
+        if (!b || typeof b !== 'object' || Array.isArray(b)) return send(400, { error: 'bad body' });
+        if (typeof b.name !== 'string' || !b.name.trim() || Array.from(b.name.trim()).length > 40) return send(400, { error: 'bad name' });
+        if (typeof b.data !== 'string') return send(400, { error: 'bad data' });
+        const name = b.name.trim();
+        if (await db.prepare('SELECT 1 FROM replays WHERE name=? AND id<>?').bind(name, key).first()) return send(409, { error: 'name taken' });
+        const row = { id: key, name, meta: b.meta ?? null, size: new TextEncoder().encode(b.data).length, created: now() };
+        const st = [db.prepare('INSERT INTO replays VALUES (?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET name=excluded.name, meta=excluded.meta, size=excluded.size, created=excluded.created').bind(key, name, JSON.stringify(row.meta), row.size, row.created), db.prepare('DELETE FROM replay_chunks WHERE id=?').bind(key)];
+        for (let n = 0; n < b.data.length; n += 900000) st.push(db.prepare('INSERT INTO replay_chunks VALUES (?,?,?)').bind(key, n / 900000, b.data.slice(n, n + 900000)));
+        try { await db.batch(st); } catch (e) {
+          if (String(e).includes('UNIQUE constraint failed: replays.name')) return send(409, { error: 'name taken' });
+          throw e;
+        }
+        return send(200, row);
+      }
+    }
     if (req.method === 'GET') {
       if (p === '/api/profiles' || p === '/api/export') return send(200, await exportAll(db));
       if (p === '/api/health') return send(200, { ok: true, frozen: false });

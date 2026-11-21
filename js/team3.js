@@ -161,6 +161,7 @@
     G.fb = o.fb || 'simple';
     G.focus = { cx: 0, cy: -10.5 };
     check(0, '开球');
+    if (PH.TAPE) PH.TAPE.start(G);
   }
   function stop() { if (T.on) { clearPick(); T.on = false; T.pass = null; A.end(); } }
   function go(p, tx, ty, sprint) {
@@ -424,7 +425,7 @@
       if (T.pass?.kind === 'alley' && T.pass.to === p) return { ...o, a1: false, a2: false, a3: false, dx: 0, dy: 0 };
       return p.screenSlow3 > G.time ? { ...o, mx: o.mx * p.screenSpeed3 || 0, my: o.my * p.screenSpeed3 || 0, sprint: false } : o;
     }), dt)) return;
-    if (T.replay && G.vopt.replay) A.trackReplay();
+    A.trackReplay();
     if (G.replay) return;
     if (G.phase === 'check' || G.phase === 'dead') {
       G.phaseT -= dt;

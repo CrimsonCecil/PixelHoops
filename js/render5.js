@@ -706,6 +706,7 @@
       const F = Gm.fx, dense = !last || (R0.length & 1);
       R0.push({ t: Gm.time, dir: T5.dir[Gm.off], p: Gm.players.map((p) => { const o = { pose: Object.assign({}, p.pose) }; for (const k of KP) o[k] = p[k]; if (p.armS) o.armS = p.armS.slice(); return o; }), b: (() => { const o = {}; for (const k of KB) o[k] = Gm.ball[k]; return o; })(),
         parts: dense ? F.parts.map((q) => Object.assign({}, q)) : last.parts, rings: F.rings ? F.rings.map((q) => Object.assign({}, q)) : [] });
+      if (PH.TAPE) PH.TAPE.record(Gm, R0[R0.length - 1], { score: T5.tm.map(t => t.score), phase: T5.phase, gclock: T5.gclock, off: T5.off, q: T5.q });
       while (R0.length && R0[0].t < Gm.time - 6) R0.shift();
       const mk = Gm.thruMk;
       if (mk && mk !== S.seen && Gm.time - mk.t < 0.5) {

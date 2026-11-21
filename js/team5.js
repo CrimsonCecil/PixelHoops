@@ -423,6 +423,7 @@
     G.off = 0;
     try { PH.audio.voPreload(P.map((p) => p.key)); } catch (e) { /* 语音可选 */ }
     setupTip();
+    if (PH.TAPE) PH.TAPE.start(G);
     if (PH.render5) PH.render5.reset();
   }
   function stop() { if (T.on) { T.on = false; if (A5) A5.end(); } }
