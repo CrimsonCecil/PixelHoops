@@ -597,6 +597,20 @@ table.bx td.cwin { text-decoration: underline; text-decoration-color: var(--gold
 table.bx .cw { border-left: 1px solid var(--line); }
 table.bx td.cw b { color: var(--text); font-weight: normal; font-size: 14px; }
 .bx-note { font-size: 11px; color: var(--muted); text-align: center; margin-bottom: calc(var(--u) * 3); }
+.b3f { width: 26px; height: 26px; image-rendering: pixelated; flex: none; background: var(--panel-2); border: 1px solid var(--line); }
+table.bx tbody.b3t tr.b3h th { text-align: left; color: var(--tc); font-size: var(--fs-xs); padding-top: 9px; border-bottom: 1px solid var(--tc); }
+table.bx tr.b3h i { display: inline-block; width: 8px; height: 8px; margin-right: 6px; background: var(--tc); }
+table.bx tr.b3h b { color: var(--text); margin-left: 4px; }
+table.bx tr.b3h em, .b3p em { font-style: normal; font-size: 10px; color: #1a1406; background: var(--gold); padding: 0 4px; margin-left: 6px; }
+.b3p { display: flex; align-items: center; gap: 6px; white-space: nowrap; }
+.b3p > span { display: flex; flex-direction: column; line-height: 1.15; }
+.b3p small { margin-left: 0 !important; }
+table.bx tr.b3r.me td.pcol b { color: var(--gold); }
+table.bx tr.b3s td { border-top: 1px solid var(--line); color: var(--muted); }
+table.bx tr.b3s td.pcol { padding-left: 38px; }
+.b3mvp { display: inline-flex; align-items: center; gap: 8px; color: var(--text); font-size: 12px; }
+.b3mvp .b3fm { width: 36px; height: 36px; border-color: var(--gold); }
+.b3mvp small { display: block; color: var(--gold); font-size: 10px; }
 
 .pkhz{display:flex;gap:10px;align-items:flex-start;margin:6px 0 8px}
 .pkhz svg{flex:none;background:#20243a;border:1px solid #3a3f58;image-rendering:pixelated}

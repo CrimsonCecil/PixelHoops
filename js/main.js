@@ -1148,8 +1148,9 @@
   // ---------- 结算面板（参考赛况台：Box / 9-Cat / 11-Cat，可叠加高阶数据与高亮） ----------
   const BX = { view: 'box', adv: false, heat: true };
   const pc = (m, a) => (a > 0 ? m / a : null), fp = (v) => (v == null ? '-' : (v * 100).toFixed(v >= 1 ? 0 : 1) + '%');
-  function bxStat(i) {
-    const x = G.stats[i], pts = G.score[i], poss = Math.max(1, x.fga - x.oreb + x.tov);
+  function bxStat(i) { return statOf(G.stats[i], G.score[i]); }
+  function statOf(x, pts) {
+    const poss = Math.max(1, x.fga - x.oreb + x.tov);
     return Object.assign({}, x, { pts: pts, poss: poss, two: x.fg - x.tp, twoa: x.fga - x.tpa,
       fgp: pc(x.fg, x.fga), tpp: pc(x.tp, x.tpa), inp: pc(x.inm, x.ina), ts: pc(pts, 2 * x.fga), efg: pc(x.fg + 0.5 * x.tp, x.fga), tpar: pc(x.tpa, x.fga), ppp: pts / poss,
       gms: pts + 0.4 * x.fg - 0.7 * x.fga + 0.7 * x.oreb + 0.3 * x.dreb + x.stl + 0.7 * x.blk - x.tov });
@@ -1169,13 +1170,14 @@
     PRF: ['完美', (p) => p.green, null, '完美出手（绿区）', { el: (p) => p.green >= 4 }],
     SK: ['必杀', (p) => p.sk || 0, null, '必杀技发动', {}],
     'FG%': ['FG%', (p) => p.fgp, (p) => fp(p.fgp), '投篮命中率', { el: (p) => p.fga >= 8 && p.fgp >= 0.65, bad: (p) => p.fga >= 6 && p.fgp < 0.35 ? (p.fgp < 0.25 ? 2 : 1) : 0 }],
-    '3P%': ['3P%', (p) => p.tpp, (p) => fp(p.tpp), '三分命中率（1 对 1 没有罚球，用它代替 FT%）', { el: (p) => p.tpa >= 4 && p.tpp >= 0.5, bad: (p) => p.tpa >= 4 && p.tpp < 0.2 ? 1 : 0 }],
+    '3P%': ['3P%', (p) => p.tpp, (p) => fp(p.tpp), '三分命中率（比赛没有罚球，用它代替 FT%）', { el: (p) => p.tpa >= 4 && p.tpp >= 0.5, bad: (p) => p.tpa >= 4 && p.tpp < 0.2 ? 1 : 0 }],
     '3PM': ['3PM', (p) => p.tp, null, '三分命中数', { el: (p) => p.tp >= 5 }],
     OREB: ['OREB', (p) => p.oreb, null, '前场篮板', { el: (p) => p.oreb >= 4 }],
     'TS%': ['TS%', (p) => p.ts, (p) => fp(p.ts), '真实命中率 PTS / (2×FGA)，没有罚球', { el: (p) => p.fga >= 8 && p.ts >= 0.7, bad: (p) => p.fga >= 6 && p.ts < 0.42 ? 1 : 0 }],
     'eFG%': ['eFG%', (p) => p.efg, (p) => fp(p.efg), '有效命中率 (FGM + 0.5×3PM) / FGA', { el: (p) => p.fga >= 8 && p.efg >= 0.68 }],
     '3PAr': ['3PAr', (p) => p.tpar, (p) => fp(p.tpar), '三分出手占比 3PA / FGA', { neutral: true }],
     PPP: ['PPP', (p) => p.ppp, (p) => p.ppp.toFixed(2), '每回合得分 = 得分 / (FGA − OREB + TO)', { el: (p) => p.poss >= 6 && p.ppp >= 1.4 }],
+    'USG%': ['USG%', (p) => p.usg, (p) => fp(p.usg), '球权使用率 (FGA + TO) / 全队 (FGA + TO)', { neutral: true }],
     GmSc: ['GmSc', (p) => p.gms, (p) => p.gms.toFixed(1), 'Hollinger 单场综合表现分（去掉罚球、助攻、犯规项）', { el: (p) => p.gms >= 20 }],
   };
   PH.BXH = { C: C };
@@ -1191,7 +1193,55 @@
     return big ? 'g2' : 'g1';
   }
   function catWin(k, P) { const c = C[k], a = c[1](P[0]), b = c[1](P[1]); if (a == null && b == null) return -1; if (a == null) return 1; if (b == null) return 0; if (Math.abs(a - b) < 1e-9) return -1; return (c[4].low ? a < b : a > b) ? 0 : 1; }
+  // 3V3 结算：仿 NBA 赛况台 / MyLEGEND，两队各一段（头像 + 球员 + 合计），Box / 9-Cat / 11-Cat，可叠加高阶
+  const ADV3 = ['TS%', 'eFG%', '3PAr', 'USG%', 'PPP', 'GmSc'];
+  const Q3 = { FG: (p) => p.fga >= 4, 'FG%': (p) => p.fga >= 4, 'TS%': (p) => p.fga >= 4, 'eFG%': (p) => p.fga >= 4, '3P': (p) => p.tpa >= 3, '3P%': (p) => p.tpa >= 3, IN: (p) => p.ina >= 3, PPP: (p) => p.poss >= 4 };
+  function heat3(k, P, i) {
+    const c = C[k], o = c[4], p = P[i], q = Q3[k] || (() => true);
+    if (o.bad) { const b = o.bad(p); if (b) return 'b' + b; }
+    if (o.el && o.el(p)) return 'g3';
+    const v = c[1](p);
+    if (o.neutral || o.low || v == null || v <= 0 || !q(p)) return '';
+    const rest = P.filter((x, j) => j !== i && q(x)).map(c[1]).filter((w) => w != null);
+    return rest.every((w) => v > w + 1e-9) ? 'g2' : rest.every((w) => v >= w - 1e-9) ? 'g1' : '';
+  }
+  function box3Data() {
+    const use = (x) => x.fga + x.tov, sum = (L) => { const s = {}; for (const p of L) for (const k in G.stats[p.id]) if (typeof G.stats[p.id][k] === 'number') s[k] = (s[k] || 0) + G.stats[p.id][k]; return s; };
+    const tm = [0, 1].map((t) => G.players.filter((p) => p.tm === t));
+    const tot = tm.map((L) => { const r = sum(L); return statOf(r, r.pts || 0); });
+    const P = G.players.map((p) => { const s = statOf(G.stats[p.id], G.stats[p.id].pts || 0), T = tot[p.tm]; s.usg = use(T) ? use(s) / use(T) : null; return s; });
+    tot.forEach((t) => { t.usg = null; });
+    const win = G.winner >= 0 ? G.winner : G.score[0] >= G.score[1] ? 0 : 1;
+    const mvp = tm[win].reduce((b, p) => (!b || P[p.id].gms > P[b.id].gms ? p : b), null);
+    return { tm, tot, P, win, mvp };
+  }
+  function renderBox3() {
+    const view = VIEWS[BX.view] ? BX.view : 'box', cat = view !== 'box', cols = VIEWS[view].concat(BX.adv ? ADV3 : []);
+    const D = box3Data(), P = D.P, n = cols.length + 1 + (cat ? 1 : 0), cw = cat ? VIEWS[view].map((k) => catWin(k, D.tot)) : null;
+    const face = (p, cls) => '<canvas class="' + cls + '" width="32" height="32" data-pid="' + p.id + '"></canvas>';
+    const val = (k, x) => { const c = C[k]; return c[2] ? c[2](x) : c[1](x); };
+    let h = '<thead><tr><th class="pcol">球员</th>' + cols.map((k) => '<th title="' + C[k][3] + '">' + C[k][0] + '</th>').join('') + (cat ? '<th class="cw">胜项</th>' : '') + '</tr></thead>';
+    for (const t of [0, 1]) {
+      const L = D.tm[t].slice().sort((a, b) => P[b.id].pts - P[a.id].pts || P[b.id].gms - P[a.id].gms);
+      h += '<tbody class="b3t" data-testid="b3-team-' + t + '" style="--tc:' + GM.TEAMS[t].css + '"><tr class="b3h"><th class="pcol" colspan="' + n + '"><i></i>' + (t ? '客队' : '主队') + ' <b>' + G.score[t] + '</b>' + (D.win === t ? '<em>胜</em>' : '') + '</th></tr>';
+      for (const p of L) {
+        h += '<tr class="b3r' + (p.id === localSlot ? ' me' : '') + '" data-testid="b3-row-' + p.id + '"><td class="pcol"><span class="b3p">' + face(p, 'b3f') + '<span><b>' + escH(p.arch.name) + (p === D.mvp ? '<em>MVP</em>' : '') + '</b><small>' + escH(p.arch.pos || '') + (p.arch.ovr ? ' · ' + p.arch.ovr : '') + '</small></span></span></td>' +
+          cols.map((k) => '<td class="' + (BX.heat ? heat3(k, P, p.id) : '') + '">' + val(k, P[p.id]) + '</td>').join('') + (cat ? '<td class="cw"></td>' : '') + '</tr>';
+      }
+      const T = D.tot[t];
+      h += '<tr class="b3s"><td class="pcol">合计</td>' + cols.map((k, j) => '<td class="' + (cat && j < cw.length && cw[j] === t ? 'cwin' : '') + '">' + (k === 'USG%' ? '' : val(k, T)) + '</td>').join('');
+      if (cat) { const w = cw.filter((x) => x === t).length, e = cw.filter((x) => x === -1).length; h += '<td class="cw"><b>' + w + '</b><small>-' + (cw.length - w - e) + (e ? '-' + e : '') + '</small></td>'; }
+      h += '</tr></tbody>';
+    }
+    $('over-stats').innerHTML = h;
+    const m = D.mvp, s = m && P[m.id];
+    $('bx-note').innerHTML = m ? '<span class="b3mvp" data-testid="b3-mvp">' + face(m, 'b3f b3fm') + '<span><small>全场最佳</small><b>' + escH(m.arch.name) + '</b> ' + s.pts + ' 分 ' + s.reb + ' 板 ' + s.stl + ' 断 ' + s.blk + ' 帽 · 投篮 ' + s.fg + '/' + s.fga + ' · GmSc ' + s.gms.toFixed(1) + '</span></span>' : '';
+    document.querySelectorAll('#over canvas.b3f').forEach((cv) => { const p = G.players[+cv.getAttribute('data-pid')]; if (p) portrait(cv, p.arch, p.team); });
+    $('bx-bar').querySelectorAll('[data-bv]').forEach((b) => b.classList.toggle('on', b.getAttribute('data-bv') === view));
+    $('bx-bar').querySelectorAll('[data-bo]').forEach((b) => b.classList.toggle('on', !!BX[b.getAttribute('data-bo')]));
+  }
   function renderBox() {
+    if (G.mode === 't3') { renderBox3(); return; }
     const P = [bxStat(0), bxStat(1)], cols = VIEWS[BX.view].concat(BX.adv ? ADVC : []), cat = BX.view !== 'box';
     const nm = [$('n0').textContent, $('n1').textContent], cw = cat ? VIEWS[BX.view].map((k) => catWin(k, P)) : null;
     let h = '<thead><tr><th class="pcol">球员</th>' + cols.map((k) => '<th title="' + C[k][3] + '">' + C[k][0] + '</th>').join('') + (cat ? '<th class="cw">胜项</th>' : '') + '</tr></thead><tbody>';
@@ -1216,14 +1266,7 @@
     $('over-title').textContent = t3 ? (w ? '客队获胜' : '主队获胜') : two && !matchConfig ? '玩家 ' + (w + 1) + ' 获胜' : w === (matchConfig ? localSlot : 0) ? '你赢了' : matchConfig ? '对手获胜' : '电脑获胜';
     $('over-title').style.color = w === 0 ? 'var(--blue)' : 'var(--red)';
     $('over-score').innerHTML = '<span class="b">' + G.score[0] + '</span> : <span class="r">' + G.score[1] + '</span>';
-    show('bx-bar', !t3);
-    if (t3) {
-      $('over-stats').innerHTML = '<thead><tr><th>阵容</th><th>得分</th><th>投篮</th><th>篮板</th><th>抢断</th><th>盖帽</th></tr></thead><tbody>' + G.players.map((p) => {
-        const s = G.stats[p.id];
-        return '<tr><th>' + (p.tm ? '客 · ' : '主 · ') + p.arch.name + '</th><td>' + (s.pts || 0) + '</td><td>' + s.fg + '/' + s.fga + '</td><td>' + s.reb + '</td><td>' + s.stl + '</td><td>' + s.blk + '</td></tr>';
-      }).join('') + '</tbody>';
-      $('bx-note').textContent = '';
-    } else { BX.view = 'box'; renderBox(); }
+    BX.view = 'box'; renderBox();
     clearPf(); show('over', true); show('touch', false);
   }
 
