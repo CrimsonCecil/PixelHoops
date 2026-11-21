@@ -28,35 +28,40 @@ const oldHip = rig(p, old, false, p.col.body).pelvis[2];
 assert(hip < oldHip * 0.76 && hip > oldHip * 0.6, `stance hip ${hip} vs old ${oldHip}`);
 console.log(`PASS stance hip ${(hip / oldHip).toFixed(3)} of old stance, ${(hip / guarding).toFixed(3)} of nearby guarding`);
 
-for (const [label, vx, vy] of [['slow right', 0.5, 0], ['medium right', 1.2, 0], ['medium left', -1.2, 0], ['medium forward', 0, 1.2], ['medium backward', 0, -1.2], ['medium diagonal', 0.84, 0.84]]) {
+for (const [label, vx, vy] of [['slow right', 0.5, 0], ['slow left', -0.5, 0], ['slow forward', 0, 0.5], ['slow backward', 0, -0.5], ['medium right', 1.2, 0], ['medium left', -1.2, 0], ['medium forward', 0, 1.2], ['medium backward', 0, -1.2], ['medium diagonal', 0.84, 0.84], ['max right', 6, 0], ['max left', -6, 0], ['max forward', 0, 6], ['max backward', 0, -6]]) {
   Object.assign(p, { x: 0, y: 6, face: Math.PI / 2, stance: true, anim: 'def', crab: null, vx, vy, speed: Math.hypot(vx, vy) });
   gait.crab(p, 1 / 120);
   pose();
   for (let i = 0; i < 240; i++) { p.x += vx / 120; p.y += vy / 120; gait.crab(p, 1 / 120); pose(); }
-  let prev = pose(), supports = 0, total = 0, lifts = new Set(), lastLift, alternations = 0;
+  let prev = pose(), samples = [], kneeTravel = 0, shinSweep = 0, lifts = new Set();
   for (let i = 0; i < 720; i++) {
     p.x += vx / 120; p.y += vy / 120;
     gait.crab(p, 1 / 120);
     const k = pose();
-    let supportSlip = Infinity;
+    const frame = [];
     for (const side of ['L', 'R']) {
       const foot = k['foot' + side], before = prev['foot' + side];
       assert(foot.every(Number.isFinite), 'finite rig');
       const lift = foot[2] - p.z - 0.06 * (1 + (p.col.body.height / 1.95 - 1) * 1.55);
-      if (lift > 0.025) { lifts.add(side); if (lastLift && lastLift !== side) alternations++; lastLift = side; }
-      if (lift < 0.003) supportSlip = Math.min(supportSlip, Math.hypot(foot[0] - before[0], foot[1] - before[1]));
-      const upper = Math.hypot(...k['knee' + side].map((v, j) => v - k['hip' + side][j]));
-      const lower = Math.hypot(...foot.map((v, j) => v - k['knee' + side][j]));
-      assert(Math.abs(upper - lower) < 1e-8, 'no stretched or inverted legs');
+      if (lift > 0.01) lifts.add(side);
+      assert(lift >= -1e-8 && lift <= 0.031, 'grounded or low lift');
+      if (p.crab[side][2] === 0) assert(Math.abs(lift) < 1e-8, 'flat grounded glide');
+      assert(Math.hypot(...foot.map((v, j) => v - before[j])) <= p.speed / 120 + 0.006, 'no per-frame foot jumps');
+      const knee = k['knee' + side], shin = foot.map((v, j) => v - knee[j]);
+      frame.push({ knee: knee.map((v, j) => v - (j === 0 ? p.x : j === 1 ? p.y : 0)), shin });
     }
-    total++;
-    if (supportSlip < 1e-7) supports++;
+    for (const before of samples) for (let s = 0; s < 2; s++) {
+      kneeTravel = Math.max(kneeTravel, Math.hypot(...frame[s].knee.map((v, j) => v - before[s].knee[j])));
+      const a = frame[s].shin, b = before[s].shin;
+      shinSweep = Math.max(shinSweep, Math.acos(Math.max(-1, Math.min(1, a.reduce((t, v, j) => t + v * b[j], 0) / Math.hypot(...a) / Math.hypot(...b)))) * 180 / Math.PI);
+    }
+    samples.push(frame);
     assert(k.footL[0] < k.footR[0], 'feet never cross');
     prev = k;
   }
-  assert(supports / total > 0.98, `${label}: planted support ${supports}/${total}`);
-  assert(lifts.size === 2 && alternations >= 4, `${label}: alternate foot lifts`);
-  console.log(`PASS ${label} crab steps: ${supports}/${total} planted support frames, ${alternations} lift alternations`);
+  assert(kneeTravel < 0.01 && shinSweep <= 20, `${label}: small knee/shin motion ${kneeTravel}/${shinSweep}`);
+  assert(lifts.size >= 1, 'lead foot lifts');
+  console.log(`PASS ${label}: knee travel ${kneeTravel.toFixed(4)}m, shin sweep ${shinSweep.toFixed(2)}deg; grounded glide, low lifts, no foot jumps`);
 }
 Object.assign(p, { speed: 0, vx: 0, vy: 0 });
 for (let i = 0; i < 60; i++) gait.crab(p, 1 / 60);
@@ -83,10 +88,10 @@ for (let i = 0; i < 90; i++) {
   poseQA.updatePlayer(p, { ...game.t5.zeroInp(), mx: 0.35, a3: true }, 1 / 60);
   assert.equal(p.anim, 'def');
   assert(p.stance && p.crab && p.pose.crab > 0);
-  for (const side of ['L', 'R']) if (p.crab[side][2] > 0.03) liveLifts.add(side);
+  for (const side of ['L', 'R']) if (p.crab[side][2] > 0.01) liveLifts.add(side);
   assert(rig(p).footL.every(Number.isFinite));
 }
-assert.equal(liveLifts.size, 2, 'live input/updatePlayer integrates both stepping feet');
+assert(liveLifts.size >= 1, 'live input/updatePlayer integrates low lead lifts');
 console.log('PASS live defensive input, left lead from rest, and hot width tuning');
 
 Object.assign(p, { hasBall: true, stance: false, anim: 'run', z: 0, action: null, drib: Math.PI / 2, exr: 0, brPh: 0 });
@@ -119,7 +124,10 @@ assert.equal(gait.drib(short), gait.drib(tall));
 TUNE.reset('l1_drHeight');
 const fallback = { h: 1.95, speed: 0 };
 assert(Number.isFinite(gait.drib(fallback)), 'height fallback without measured body');
-for (const name of ['stDepth', 'stWidth', 'stStep', 'stLift', 'stHzMin', 'stHzMax', 'gaHzMin', 'gaHzMax', 'gaHeight', 'drCrouch', 'drHeight']) assert(TUNE.has('l1_' + name));
+for (const name of ['stDepth', 'stWidth', 'stStep', 'stLift', 'stHzMin', 'stHzMax', 'gaHzMin', 'gaHzMax', 'gaHeight', 'drCrouch', 'drHeight']) {
+  const d = TUNE.list().find(d => d.k === 'l1_' + name);
+  assert(d && d.cat === 'move' && ['防守滑步', '跑步与运球'].includes(d.sub), '移动与姿态 classification');
+}
 console.log('PASS tuning registration, height strength zero, unmeasured height fallback');
 
 const legRates = [short, tall].map(q => { q.speed = 7; return gait.cad(q); });
@@ -182,8 +190,7 @@ for (const key of ['mrobinson', 'fvv']) {
     const hz = plants / 20;
     assert(hz <= game.K.stHzMax + 0.05, 'stance cap');
     if (mode === 'slow stance') assert(hz >= 0.95 && hz <= 1.2, 'near-one slow floor');
-    if (speed <= 1.2) assert(plantedFrames > 4800 * 0.98, `${key} ${mode}: fully planted support ${plantedFrames}/4800`);
-    if (mode === 'max sprint stance') assert(leadLifts > 15 && leadPlants > 15 && leadHeight > 0.08 && leadPlantedFrames > 400 && trailDrag > 400, 'max-speed lead lifts/plants, holds when reachable, and grounded trail drag');
+    if (mode === 'max sprint stance') assert(leadLifts > 15 && leadPlants > 15 && leadHeight > 0.015 && leadHeight <= 0.031 && trailDrag > 400, 'max-speed low lead lifts/plants and grounded trail drag');
     frequencies.push({ key, motion: mode, speed: +speed.toFixed(3), plants_per_second: hz });
   }
   const a = game.t5.makePlayer(0, key, 'p1');
@@ -201,4 +208,4 @@ gait.crab(p, 0); gait.crab(p, -1);
 assert.equal(JSON.stringify(p.crab), beforePause, 'non-positive dt leaves feet unchanged');
 TUNE.reset('l1_stHzMax');
 console.table(frequencies);
-console.log('PASS stance floor/cap/gap, hot cap tuning, slow/medium planted support, max-speed lead lift/plant and trail drag');
+console.log('PASS stance floor/cap/gap, hot cap tuning, short shin motion, max-speed low lead lift/plant and grounded glide');

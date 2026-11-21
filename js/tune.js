@@ -21,6 +21,7 @@
   // 所有参数统一按这一套分类；1V1（l1_）和 5V5（t5_）同一个机制用完全相同的小类名，调参台里排在一起。
   // 参数自己带了 cat / sub 就用自己的（t5_ 由 team5.js 标注，T5RE 里统一个别小类名）；没带的按下面 CLS 规则（键名去掉 l1_ 前缀后匹配，先命中先用）。
   const CATS = [
+    { id: 'move', name: '移动与姿态', subs: ['防守滑步', '跑步与运球'] },
     { id: 'shot', name: '投篮', subs: ['出手时机', '绿区', '命中', '干扰', '假投', '徽章', '热区与手感', '主宰'] },
     { id: 'fin', name: '终结', subs: ['上篮', '上篮变体', '扣篮', '站扣', '脚步与起跳', '被封堵变体'] },
     { id: 'ct', name: '对抗', subs: ['封堵对抗', '顶翻', '身体碰撞', '背打', '掩护'] },
@@ -35,6 +36,8 @@
   ];
   const CAT_ID = {}; CATS.forEach((c) => { CAT_ID[c.id] = c; CAT_ID[c.name] = c; });
   const CLS = [
+    [/^(stDepth|stWidth|stStep|stLift|stHzMin|stHzMax)$/, 'move', '防守滑步'],
+    [/^(drCrouch|drHeight|gaHzMin|gaHzMax|gaHeight)$/, 'move', '跑步与运球'],
     [/^bg(Acro[GC]|Bully[GC]|Dead|Lim|Fade|Step[GC]|Clutch|Quick|T\d)/, 'shot', '徽章'], [/^bg(Launch|Poster)/, 'fin', '扣篮'], [/^bgRimD/, 'ct', '封堵对抗'],
     [/^bgBullyP/, 'ct', '身体碰撞'], [/^bgClampC/, 'def', '封盖干扰'], [/^bg(Dream|BullySpin)/, 'drib', '背身转身'], [/^bgStepD/, 'drib', '招式位移'],
     [/^bg(TightSt|MotorSt|HuCost)/, 'stam', '消耗'], [/^bg(Hu|MotorDive)/, 'reb', '鱼跃扑球'], [/^(hc|hz)/, 'shot', '热区与手感'],
