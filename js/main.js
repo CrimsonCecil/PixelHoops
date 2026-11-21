@@ -404,7 +404,7 @@
     syncBackgroundMatch();
     for (const id of ['menu', 'picker', 'pause', 'over', 'help', 'shotcard', 'trainbar', 'btn-panel', 'train']) show(id, false);
     show('hud', true); show('scorebar', true); show('touch', isTouch); show('tbpass', config.mode === 't3');
-    show('btn-restart', room.role !== 'guest'); show('btn-again', room.role !== 'guest'); show('btn-cam', config.mode !== 't3');
+    show('btn-restart', room.role !== 'guest'); show('btn-again', room.role !== 'guest'); show('btn-cam', true);
     for (let i = 0; i < 2; i++) $('n' + i).textContent = config.mode === 't3' ? (i ? '客队' : '主队') : (i === slot ? '你 · ' : '在线 · ') + G.players[i].arch.name;
     $('btn-restart').textContent = '重新开始'; $('btn-resume').textContent = '继续比赛';
     hintKey = ''; cardId = -1; lastClock = ''; lastTB2 = ''; lastS0 = lastS1 = -1; pcards();
@@ -1016,7 +1016,10 @@
   let camOpen = false, camWasPaused = false;
   function camBody() {
     if (!camOpen) return;
-    $('cam-body').innerHTML = CAMS.map((c) => '<label class="crow"><span>' + c[1] + '</span><input type="range" data-cam="' + c[0] + '" min="' + c[2] + '" max="' + c[3] + '" step="' + c[4] + '" value="' + R.CAMV[c[0]] + '" data-testid="cam-' + c[0] + '"><b>' + (+R.CAMV[c[0]]).toFixed(2) + '</b></label>').join('').replace('<label class="crow"><span>推近力度', '<button class="cam-push" data-testid="cam-push">禁区推近 ' + (R.CAMV.push ? '开' : '关') + '</button><label class="crow"><span>推近力度');
+    const t3 = G.mode === 't3', values = t3 ? Object.fromEntries(PH.CAM3.map((c) => [c.f, PH.TUNE.get(c.k)])) : R.CAMV;
+    const cams = t3 ? PH.CAM3.map((c) => [c.f, c.label.replace('3V3 镜头 ', ''), c.min, c.max, c.step]) : CAMS;
+    $('campanel').querySelector('.thead b').textContent = t3 ? '镜头 · 3V3' : '镜头';
+    $('cam-body').innerHTML = cams.map((c) => '<label class="crow"><span>' + c[1] + '</span><input type="range" data-cam="' + c[0] + '" min="' + c[2] + '" max="' + c[3] + '" step="' + c[4] + '" value="' + values[c[0]] + '" data-testid="cam-' + c[0] + '"><b>' + (+values[c[0]]).toFixed(2) + '</b></label>').join('').replace('<label class="crow"><span>推近力度', '<button class="cam-push" data-testid="cam-push">禁区推近 ' + (R.CAMV.push ? '开' : '关') + '</button><label class="crow"><span>推近力度');
     $('cam-info').textContent = '球员信息 ' + (opts.info === 'show' ? '显示' : '隐藏');
     camCloud();
   }
@@ -1044,7 +1047,7 @@
   function tuneOtherDirty() {
     const T = PH.TUNE, CS = PH.CS; if (!T || !CS) return false;
     const o = T.over(), p = CS.cur().data || {};
-    for (const k of new Set(Object.keys(o).concat(Object.keys(p)))) if (!/^(cam(Zoom|Height|Dist|Follow|Push|Pin|Plow)|t5_cam)/.test(k) && !(k in o && k in p && Math.abs(o[k] - p[k]) < 1e-9)) return true;
+    for (const k of new Set(Object.keys(o).concat(Object.keys(p)))) if (!/^(cam(Zoom|Height|Dist|Follow|Push|Pin|Plow)|t[35]_cam)/.test(k) && !(k in o && k in p && Math.abs(o[k] - p[k]) < 1e-9)) return true;
     return false;
   }
   function camCloud() {
@@ -1074,9 +1077,9 @@
   $('c5-reset').addEventListener('click', () => { PH.T5.resetCam(); cam5Labels(); });
   $('cam-close').addEventListener('click', () => toggleCam(false));
   let camFromSet = false;
-  $('cam-reset').addEventListener('click', () => { R.resetCamTuned(); camBody(); });
+  $('cam-reset').addEventListener('click', () => { R.resetCamTuned(G.mode); camBody(); });
   $('cam-info').addEventListener('click', () => toggleInfo());
-  $('cam-body').addEventListener('input', (e) => { const k = e.target.getAttribute('data-cam'); if (!k) return; const v = +e.target.value; R.setCamTuned({ [k]: v }); e.target.nextElementSibling.textContent = v.toFixed(2); });
+  $('cam-body').addEventListener('input', (e) => { const k = e.target.getAttribute('data-cam'); if (!k) return; const v = +e.target.value; R.setCamTuned({ [k]: v }, G.mode); e.target.nextElementSibling.textContent = v.toFixed(2); });
   $('cam-body').addEventListener('change', (e) => { if (e.target.blur) e.target.blur(); });
   $('cam-body').addEventListener('click', (e) => { if (!e.target.closest || !e.target.closest('.cam-push')) return; R.setCamTuned({ push: R.CAMV.push ? 0 : 1 }); camBody(); });
   function toggleMusic() { PH.audio.setMusic(!PH.audio.musicOn); setLabels(); }
