@@ -329,7 +329,8 @@
     show('arch-desc', setup);
     show('btn-start', !guest && (!online || room.role === 'host' && room.links.has(1)));
     $('row-diff').classList.toggle('hidden', opts.mode !== 'cpu' && !t5 && !t3);
-    for (const id of ['row-p1', 'row-p2']) show(id, setup && !t5);
+    const kg = opts.mode === 'king';
+    show('row-p1', setup && !t5); show('row-p2', setup && !t5 && !kg); show('lobbyK', kg);
     for (const id of ['row-teams', 'row-side']) $(id).classList.toggle('hidden', !t5);
     const clkS = opts.clock ? opts.clock + ' 秒进攻' : '不限进攻';
     const lenS = opts.glen ? Math.round(opts.glen / 60) + ' 分钟' : '不限时';
@@ -344,6 +345,7 @@
     $('lab-p2').textContent = opts.mode === '2p' ? '玩家 2' : tr ? '假人体型' : '对手';
     $('btn-start').textContent = tr ? '进入训练场' : '开始比赛';
     $('menu-foot').textContent = tr ? '训练场：无比分无时限，可设置假人防守方式，比赛中按 Tab 开关训练参数面板。' : online ? '建房间并分享房间号，对手加入后由房主开始 · ' + opts.target + ' 分制 · ' + clkS + '。' : '规则：先到 ' + opts.target + ' 分（领先 2 分胜）· ' + clkS + ' · ' + lenS + ' · 失分方球权，抢断需出三分线。';
+    if (kg) { $('btn-start').textContent = '开始闯关'; $('menu-foot').textContent = '斗牛之王：选好你的球员，连赢五位越来越强的对手 · 每关先到 ' + KING_TARGET + ' 分（领先 2 分胜）· ' + clkS + ' · 输了可重打本关。'; kingLadderView(); }
     const a = GM.ARCH[opts.arch0];
     pickBtn('pick0', opts.arch0); pickBtn('pick1', opts.arch1);
     $('arch-desc').textContent = a.full + '：' + a.desc + (a.skill ? '。必杀技「' + a.skill.name + '」，条件和效果见“更换”。' : '。');
@@ -362,7 +364,7 @@
     tuneClose();
     rooms.close(); resetRoomAudio(); syncBackgroundMatch(); PH.T3.stop(); localSlot = -1; matchConfig = null; menuStatus(''); refreshMenu();
     screen = 'menu'; paused = false; clearPf(); camOpen = false; camFromSet = false; show('campanel', false); pcards();
-    show('menu', true); show('qvol', false); show('picker', false); show('cutin', false); show('hud', false); show('pause', false); show('over', false); show('help', false); show('touch', false); show('banner', false); show('train', false); show('shotcard', false); stage.classList.remove('panel');
+    show('menu', true); show('king', false); $('king-fx').innerHTML = ''; KR = null; show('qvol', false); show('picker', false); show('cutin', false); show('hud', false); show('pause', false); show('over', false); show('help', false); show('touch', false); show('banner', false); show('train', false); show('shotcard', false); stage.classList.remove('panel');
     if (PH.T5) { PH.T5.stop(); PH.render5.restore(); } show('hud5', false); show('over5', false); show('tpicker', false); show('btn-cam', true); show('btn-disp', true); show('btn-box5', false); if (PH.box5 && PH.box5.isOpen()) PH.box5.close();
     startDemo(); camShift();
   }
@@ -386,8 +388,130 @@
     $('btn-restart').textContent = '重新开始'; $('btn-resume').textContent = '继续比赛';
     hintKey = ''; cardId = -1; lastClock = ''; lastTB2 = ''; lastS0 = lastS1 = -1; pcards();
   }
-  function startMatch(same) {
+  // ---------- 斗牛之王：按能力梯度连挑五人，电脑难度逐关递增（界面只显示对手特色称号，不显示 AI 等级） ----------
+  const KING_BANDS = [[70, 77], [78, 83], [84, 88], [89, 93], [94, 99]];
+  const KING_STAGE = ['街头新人', '球场常客', '区域霸主', '全明星', '卫冕斗牛之王'];
+  const KING_AI = ['入门', '熟练', '老练', '强硬', '王者'];
+  const KING_TAG = { lebron: '全能之王', jokic: '魔术中锋', sga: '急停收割', curry: '三分之神', kobe: '黑曼巴', luka: '后撤步魔王', giannis: '希腊怪兽', shaq: '篮下巨兽', wemby: '外星巨塔', kyrie: '运球魔术师', tatum: '绿军核心', edwards: '暴力隔扣', cade: '节奏大师', durant: '死神中投', mitchell: '飞天后卫', brunson: '关键先生', embiid: '梦幻舞步', kawhi: '大手锁防', ad: '攻防浓眉', jbrown: '冲击猛兽', booker: '得分机器', mobley: '长臂护框', banchero: '强突前锋', harden: '后撤步大师', flagg: '全能新星', haliburton: '传球大师', kat: '射手中锋', jdub: '强壮侧翼', jjohnson: '转换推进', jmurray: '季后赛杀手', reaves: '冷静杀手', lamelo: '花式传球', zion: '人间压路机', chet: '独角兽', franz: '欧洲步', lillard: '利拉德时刻', morant: '飞天控卫', avdija: '冲击锋线', sabonis: '篮板王', barnes: '全能锋线', jjj: '盖帽王', maxey: '速度之王', butler: '硬汉吉米', amen: '运动怪兽', siakam: '旋转突破', bam: '全能防守', fox: '闪电控卫', markkanen: '芬兰长人', trae: '超远三分', sengun: '背打脚步', herro: '急停三分', castle: '锁防新星', white: '3D后卫', daniels: '抢断机器', mpj: '高点射手', bmiller: '高个射手', giddey: '三双机器', duren: '篮板统治', garland: '灵巧控卫', gobert: '篮下巨闸', tmurphy: '弹射射手', og: '锁防锋线', bane: '侧翼火力', randle: '左手推土机', knueppel: '神射新星', gordon: '空接暴扣', zubac: '篮板护框', klay: '浪花兄弟', robwilliams: '时间之主', istewart: '牛头梗', caruso: '光头防守', sexton: '小黄鼠狼', portis: '疯狂鲍比', smart: '飞身救球', derozan: '中投大师', holiday: '防守大师', drummond: '篮板机器', horford: '老将智慧', clarkson: '火力替补', beal: '老牌得分手', pgeorge: '干拔锋线', bridges: '铁人锋线', kessler: '护框大闸', thybulle: '抢断盖帽', kuminga: '冲筐暴扣', toppin: '扣篮机器', dybantsa: '状元新星' };
+  // 没有专属称号的球员按最突出的能力取一个（≤5 字），同一阶梯内不重复
+  const KING_TRAIT = [
+    ['three', 0.8, ['三分神射', '外线狙击', '神射手']], ['dunk', 0.75, ['暴扣飞人', '空中飞人', '扣篮狂人']], ['blk', 0.7, ['禁区铁闸', '封盖狂人', '护框巨塔']],
+    ['stl', 0.75, ['抢断快手', '偷球大师', '断球专家']], ['def', 0.75, ['锁防专家', '防守悍将', '贴身恶犬']], ['spd', 0.8, ['闪电突破', '速度狂飙', '快攻尖刀']],
+    ['hnd', 0.8, ['控球大师', '运球魔术', '变向高手']], ['post', 0.7, ['背打蛮牛', '低位巨兽', '篮下推土机']], ['str', 0.8, ['力量怪兽', '肌肉坦克', '硬核猛男']],
+    ['mid', 0.8, ['中投杀手', '中距离王', '急停跳投']], ['dreb', 0.75, ['篮板机器', '篮板怪兽', '卡位专家']], ['flo', 0.75, ['抛投高手', '上篮艺术', '终结大师']]
+  ];
+  function kingTags(ladder) {
+    const used = new Set();
+    return ladder.map((k) => {
+      const a = GM.ARCH[k], h = [...k].reduce((n, c) => n + c.charCodeAt(0), 0);
+      let t = KING_TAG[k];
+      if (!t || used.has(t)) {
+        const cand = KING_TRAIT.map(([f, base, L]) => [(a[f] || 0) - base, L]).sort((x, y) => y[0] - x[0]);
+        for (const [, L] of cand) { const c = L.map((_, i) => L[(h + i) % L.length]).find((x) => !used.has(x)); if (c) { t = c; break; } }
+      }
+      used.add(t); return t;
+    });
+  }
+  const KING_T = [0, 0.6, 1.2, 2, 2.6]; // 0 简单 · 1 普通 · 2 困难，超过 2 的部分在困难基础上继续外推
+  const KING_TARGET = 11;
+  let kingLadder = null, KR = null;
+  // 按能力档各抽一人；位置尽量错开：相邻两关不同位置，同一位置（后卫 / 锋线 / 内线）最多两人
+  function kingRoll() {
+    const ov = (k) => GM.ARCH[k].ovr, grp = (k) => PH.T3.position(GM.ARCH[k]), rnd = (a) => a[(Math.random() * a.length) | 0];
+    const pools = KING_BANDS.map(([lo, hi]) => { const p = GM.ROSTER.filter((k) => k !== opts.arch0 && ov(k) >= lo && ov(k) <= hi); return p.length ? p : GM.ROSTER.filter((k) => k !== opts.arch0).sort((a, b) => Math.abs(ov(a) - lo) - Math.abs(ov(b) - lo)).slice(0, 6); });
+    let best = null, bestBad = 1e9;
+    for (let n = 0; n < 200 && bestBad; n++) {
+      const L = [], cnt = {}; let bad = 0;
+      for (const p of pools) {
+        const prev = L.length ? grp(L[L.length - 1]) : null, free = p.filter((k) => !L.includes(k));
+        const ok = free.filter((k) => grp(k) !== prev && (cnt[grp(k)] || 0) < 2);
+        if (!ok.length) bad++;
+        const k = rnd(ok.length ? ok : free.length ? free : p); L.push(k); cnt[grp(k)] = (cnt[grp(k)] || 0) + 1;
+      }
+      if (bad < bestBad) { best = L; bestBad = bad; }
+    }
+    kingLadder = best;
+  }
+  function kingD(s) {
+    const D = GM.DIFF, t = KING_T[s], i = Math.min(1, Math.floor(t)), f = t - i, o = { name: KING_AI[s] };
+    for (const k of ['lag', 'react', 'bite', 'steal', 'timing', 'moveBite', 'shootOpen']) o[k] = D[i][k] + (D[i + 1][k] - D[i][k]) * f;
+    o.react = Math.max(0.07, o.react); o.bite = Math.max(0.06, o.bite); o.moveBite = Math.max(0.08, o.moveBite); o.timing = Math.max(0.05, o.timing);
+    o.steal = Math.min(0.55, o.steal); o.shootOpen = Math.min(1, o.shootOpen);
+    return o;
+  }
+  function kingLadderView() {
+    if (!kingLadder || kingLadder.includes(opts.arch0)) kingRoll();
+    const tg = kingTags(kingLadder);
+    $('lk-list').innerHTML = kingLadder.map((k, i) => '<li class="lk-i s' + i + '" data-testid="king-rung-' + (i + 1) + '"><em>' + (i + 1) + '</em><canvas width="32" height="32" data-k="' + k + '"></canvas><span class="lk-n">???<small class="ktag">' + tg[i] + '</small></span><b class="lk-o">??</b></li>').join('');
+    $('lk-list').querySelectorAll('canvas').forEach((cv) => portrait(cv, GM.ARCH[cv.getAttribute('data-k')], GM.TEAMS[1]));
+  }
+  function kingNew() { kingLadderView(); KR = { arch: opts.arch0, ladder: kingLadder.slice(), tags: kingTags(kingLadder), stage: 0, res: [], retry: 0, from: -1, last: null, done: false }; kingVS(); }
+  function kingShow() {
+    tuneClose(); screen = 'king'; paused = false; clearPf(); stage.classList.remove('intro', 'panel');
+    for (const id of ['menu', 'picker', 'pause', 'over', 'help', 'hud', 'touch', 'shotcard', 'train', 'cutin', 'banner', 'qvol']) show(id, false);
+    show('king', true);
+  }
+  function kingFace(sel, k, side) { const cv = $('king-panel').querySelector(sel); if (cv) portrait(cv, GM.ARCH[k], GM.TEAMS[side]); }
+  function kingVS() {
+    const s = KR.stage, me = GM.ARCH[KR.arch], k = KR.ladder[s], op = GM.ARCH[k], boss = s === 4, adv = KR.from === s - 1 && s > 0;
+    const pct = (n) => (n / 4 * 100) + '%';
+    const track = '<div class="kl"><div class="kl-bar"><i style="width:' + pct(adv ? s - 1 : s) + '"></i></div>' + KR.ladder.map((x, i) => '<div class="kn' + (i < s ? ' done' : i === s ? ' cur' : '') + (adv && i === s - 1 ? ' fresh' : '') + '"><canvas width="32" height="32" data-k="' + x + '"></canvas><span>' + (i > s || i === s && !KR.retry ? '???' : GM.ARCH[x].name) + '</span><small>' + (i > s || i === s && !KR.retry ? KR.tags[i] : GM.ARCH[x].ovr) + '</small>' + (i < s ? '<b class="kstamp">已击败</b>' : '') + '</div>').join('') + '</div>';
+    const head = boss ? '最终关 · 王座之战' : '第 ' + (s + 1) + ' / 5 关 · ' + KING_STAGE[s];
+    $('king-panel').innerHTML = '<div class="kv-top"><b>斗牛之王</b><span data-testid="king-stage">' + head + '</span></div>' + track +
+      '<div class="kvs"><div class="kp me"><canvas width="64" height="64" class="kf0"></canvas><b>' + me.name + '</b><small>' + me.ovr + ' · ' + me.pos + '</small></div>' +
+      '<div class="kx">VS</div><div class="kp op' + (KR.retry ? '' : ' rv') + '"><span class="kop-f"><canvas width="64" height="64" class="kf1"></canvas></span><b data-testid="king-opp">' + (KR.retry ? op.name : '???') + '</b><small>' + (KR.retry ? op.ovr + ' · ' + op.pos : '??') + '</small><span class="kai ktag">' + KR.tags[s] + '</span></div></div>' +
+      '<p class="kq">' + (KR.retry ? '再战第 ' + (s + 1) + ' 关 · 已重试 ' + KR.retry + ' 次' : boss ? '击败他，你就是新的斗牛之王' : adv ? '赢了 ' + GM.ARCH[KR.ladder[s - 1]].name + '，下一位更强' : '五关连胜才能称王 · 先到 ' + KING_TARGET + ' 分') + '</p>' +
+      '<div class="actions"><button class="primary" id="kv-go" data-testid="king-go">' + (boss ? '挑战王座' : '开始第 ' + (s + 1) + ' 关') + '</button><button id="kv-menu" data-testid="king-menu">放弃闯关</button></div>';
+    $('king').className = 'overlay kvs-on' + (boss ? ' boss' : '');
+    $('king-fx').innerHTML = '';
+    kingShow();
+    kingFace('.kf0', KR.arch, 0); kingFace('.kf1', k, 1);
+    $('king-panel').querySelectorAll('.kn canvas').forEach((cv) => portrait(cv, GM.ARCH[cv.getAttribute('data-k')], GM.TEAMS[1]));
+    if (adv) setTimeout(() => { const b = $('king-panel').querySelector('.kl-bar i'); if (b) b.style.width = pct(s); }, 350);
+    if (!KR.retry) { const run = KR; setTimeout(() => { const c = $('king-panel').querySelector('.kp.op'); if (KR !== run || screen !== 'king' || !c) return; c.querySelector('b').textContent = op.name; c.querySelector('small').textContent = op.ovr + ' · ' + op.pos; c.classList.add('shown'); const n = $('king-panel').querySelector('.kn.cur'); if (n) { n.children[1].textContent = op.name; n.children[2].textContent = op.ovr; } PH.audio.play('combo'); }, 1150); }
+    $('kv-go').addEventListener('click', kingPlay); $('kv-menu').addEventListener('click', toMenu);
+    PH.audio.play(boss ? 'horn' : adv ? 'badge' : 'ui');
+  }
+  function kingPlay() { if (!KR || KR.done) return; KR.last = null; show('king', false); startMatch(true, true); }
+  function kingGo(same) {
+    if (!same || !KR || KR.done) return kingNew();
+    if (screen === 'play' && G.phase === 'over' && KR.last) { const w = KR.last.win; if (w) { KR.stage++; KR.from = KR.stage - 1; KR.retry = 0; } else { KR.retry++; KR.from = KR.stage; } KR.last = null; return kingVS(); }
+    kingPlay();
+  }
+  function kingOver() {
+    const s = KR.stage, win = G.winner === 0, sc = G.score.slice();
+    KR.last = { win: win };
+    if (win) KR.res[s] = { k: KR.ladder[s], sc: sc, retry: KR.retry };
+    if (win && s === 4) { setTimeout(kingVictory, 200); return true; }
+    $('over-title').textContent = win ? '第 ' + (s + 1) + ' 关 胜利！' : '挑战失败 · 止步第 ' + (s + 1) + ' 关';
+    $('over-title').style.color = win ? 'var(--gold, #ffd34d)' : 'var(--red)';
+    $('over-king').innerHTML = '<div class="ok-dots">' + KR.ladder.map((x, i) => '<i class="' + (KR.res[i] ? 'w' : i === s ? 'l' : '') + '"></i>').join('') + '</div><span>' + (win ? '已击败 ' + (s + 1) + ' / 5 · 下一关：<b>???</b> · ' + KR.tags[s + 1] : '本关重打，已赢的关卡保留') + '</span>';
+    show('over-king', true);
+    $('btn-again').textContent = win ? '下一关 ▶' : '重打本关';
+    return false;
+  }
+  function kingVictory() {
+    KR.done = true;
+    let n = 1; try { n = (+localStorage.getItem('ph_king_titles') || 0) + 1; localStorage.setItem('ph_king_titles', n); } catch (e) {}
+    const me = GM.ARCH[KR.arch], tot = KR.res.reduce((t, r) => [t[0] + r.sc[0], t[1] + r.sc[1]], [0, 0]), rt = KR.res.reduce((t, r) => t + r.retry, 0);
+    const crown = '<svg class="kw-crown" viewBox="0 0 16 10" shape-rendering="crispEdges"><path fill="#ffd34d" d="M1 3h1v1h1v1h1v-1h1v-1h1v-2h1v-1h2v1h1v2h1v1h1v1h1v-1h1v-1h1v7h-14z"/><path fill="#c88a12" d="M1 8h14v2h-14z"/><path fill="#ff4b5c" d="M7 5h2v2h-2z"/><path fill="#5ad1ff" d="M3 6h1v1h-1zM12 6h1v1h-1z"/></svg>';
+    $('king-panel').innerHTML = '<div class="kw-rays"></div>' + crown + '<canvas width="64" height="64" class="kf0 kw-face"></canvas><h2 class="kw-title" data-testid="king-title">斗牛之王</h2><p class="kw-sub">KING OF THE COURT · ' + me.name + ' 五连胜登顶</p>' +
+      '<ol class="kw-list">' + KR.res.map((r, i) => '<li style="--d:' + (0.9 + i * 0.18) + 's"><em>' + (i + 1) + '</em><canvas width="32" height="32" data-k="' + r.k + '"></canvas><span>' + GM.ARCH[r.k].name + ' <small>' + GM.ARCH[r.k].ovr + '</small></span><b>' + r.sc[0] + ' : ' + r.sc[1] + '</b></li>').join('') + '</ol>' +
+      '<p class="kw-stat">总比分 ' + tot[0] + ' : ' + tot[1] + ' · 重试 ' + rt + ' 次 · 第 ' + n + ' 次称王</p>' +
+      '<div class="actions"><button class="primary" id="kw-again" data-testid="king-again">再闯一次</button><button id="kw-menu" data-testid="king-menu">返回主菜单</button></div>';
+    $('king').className = 'overlay kw-on';
+    const C = ['#ffd34d', '#ff4b5c', '#5ad1ff', '#7dff8a', '#ffffff'];
+    $('king-fx').innerHTML = Array.from({ length: 60 }, (_, i) => '<i style="left:' + ((i * 37) % 100) + '%;background:' + C[i % 5] + ';--d:' + ((i * 0.13) % 2.6).toFixed(2) + 's;--x:' + (((i * 53) % 40) - 20) + 'px"></i>').join('');
+    kingShow();
+    kingFace('.kf0', KR.arch, 0);
+    $('king-panel').querySelectorAll('.kw-list canvas').forEach((cv) => portrait(cv, GM.ARCH[cv.getAttribute('data-k')], GM.TEAMS[1]));
+    $('kw-again').addEventListener('click', () => { kingLadder = null; kingNew(); }); $('kw-menu').addEventListener('click', toMenu);
+    PH.audio.play('horn'); setTimeout(() => PH.audio.play('win'), 500); setTimeout(() => PH.audio.play('cheer'), 1100);
+  }
+  function kingOk() { const b = $('king-panel').querySelector('.actions .primary'); if (b) b.click(); }
+  function startMatch(same, go) {
     if (room.role === 'guest') return;
+    if (opts.mode === 'king' && !go) { tuneClose(); kingGo(same); return; }
     if (opts.mode === 't3' || opts.mode === 'online') {
       const t3 = opts.mode === 't3';
       if (!t3 && !room.links.has(1)) return;
@@ -406,23 +530,25 @@
     PH.audio.ensure(); PH.audio.play('start'); PH.audio.startMusic();
     if (opts.mode === 't5') { start5(); return; }
     if (PH.T5) { PH.T5.stop(); PH.render5.restore(); } show('hud5', false); show('over5', false); show('btn-cam', true); show('btn-disp', true); show('btn-box5', false); if (PH.box5 && PH.box5.isOpen()) PH.box5.close();
-    if (!same || !lastArch || opts.arch1 === 'random') lastArch = { a0: opts.arch0, a1: pickArch(opts.arch1, opts.arch0) };
+    const kg = opts.mode === 'king' && KR;
+    if (!kg && (!same || !lastArch || opts.arch1 === 'random')) lastArch = { a0: opts.arch0, a1: pickArch(opts.arch1, opts.arch0) };
     const tr = opts.mode === 'train';
     if (!tr) CFG.shotClock = opts.clock;
-    GM.newGame({ mode: opts.mode, diff: opts.diff, target: opts.target, arch0: lastArch.a0, arch1: lastArch.a1, fb: opts.fb, glen: opts.glen });
+    if (kg) GM.newGame({ mode: 'cpu', diff: Math.min(2, KING_T[KR.stage]), target: KING_TARGET, arch0: KR.arch, arch1: KR.ladder[KR.stage], fb: opts.fb, glen: 0, cpuD: kingD(KR.stage) });
+    else GM.newGame({ mode: opts.mode, diff: opts.diff, target: opts.target, arch0: lastArch.a0, arch1: lastArch.a1, fb: opts.fb, glen: opts.glen });
     PH.audio.voPreload(G.players.map((p) => p.arch.key));
     if (opts.intro !== 'off') GM.introStart();
     stage.classList.toggle('intro', !!G.intro);
     screen = 'play'; paused = false; PH.input.clearSys(); PH.input.flush(); clearPf();
     show('tbpass', false); show('tbscreen', false); show('tbbounce', false); show('tblob', false); show('tballey', false);
     show('btn-restart', true); show('btn-again', true);
-    show('menu', false); show('picker', false); show('pause', false); show('over', false); show('help', false); show('hud', true); show('touch', isTouch); show('shotcard', false);
+    show('menu', false); show('king', false); show('picker', false); show('pause', false); show('over', false); show('help', false); show('hud', true); show('touch', isTouch); show('shotcard', false);
     show('scorebar', !tr); show('trainbar', tr); show('btn-panel', tr);
     panelOpen = tr && !narrow(); show('train', panelOpen); stage.classList.toggle('panel', panelOpen); camShift();
     if (tr) { trTab = 'dummy'; buildPanel(); }
     const p = G.players;
     $('n0').textContent = (opts.mode === '2p' ? '玩家 1 · ' : '你 · ') + p[0].arch.name;
-    $('n1').textContent = (opts.mode === '2p' ? '玩家 2 · ' : '电脑 · ') + p[1].arch.name;
+    $('n1').textContent = (kg ? '第 ' + (KR.stage + 1) + ' 关 · ' : opts.mode === '2p' ? '玩家 2 · ' : '电脑 · ') + p[1].arch.name;
     $('target').textContent = '先到 ' + G.target + ' 分';
     $('btn-restart').textContent = tr ? '重置训练' : '重新开始'; $('btn-resume').textContent = tr ? '继续训练' : '继续比赛';
     hintKey = ''; cardId = -1; lastClock = ''; lastTB2 = ''; pcards();
@@ -600,7 +726,7 @@
         g('身体对抗（吨位 = 体重 + 身高 + 力量）', [['冲撞', '每次碰撞看吨位、速度、是否站稳防守姿态，再加一点随机：势均力敌双方各退一步；小优势对方轻微踉跄；大优势把人撞开；压倒性优势直接撞倒。吨位大只是赢的概率高，不是每次都赢'], ['背打', '每顶一下都有撞击，吨位占优会把防守人一步步顶退'], ['上篮', '收球途中被更重的人撞到，路线被撞偏、命中下降'], ['扣篮', '吨位压过对手的隔扣会把人扣倒；小个子硬扣大个子更容易扣丢']]) +
         g('身体对抗与体力', [['每次碰撞', '双方都会掉体力，输的一方掉得更多'], ['体力影响', '体力越低越顶不动人；双方体力都很低时，碰撞多半是互相弹开'], ['终结路线有人', '上篮或扣篮途中撞上防守人：按吨位、体力、速度、终结和防守能力判定——顶开继续、扣篮改上篮 / 上篮被挤偏，或直接被挡下']]) +
         g('灵活度（运球动作的快慢和位移）', [['怎么算', '控球、加速、体重、身高一起决定。小个高控球后卫同一个动作做得更快、蹬得更远；笨重中锋动作更慢、位移更短'], ['大概差多少', '库里、欧文这类做变向比奥尼尔快约一倍，位移多出四成左右']]) +
-        g('运球键 + 方向', [['体前变向', '跑动中按左或右：踩住一脚，球从身前低运换手，横向蹬出'], ['胯下运球', '站定时按左或右，快而省体力，适合起手'], ['背后运球', '防守人贴身时按左或右，球绕到背后换手，不会被抢断'], ['内外假晃', '按“前”：肩膀和球先往一侧晃，再拉回来'], ['转身过人', '按“前”且防守人贴在面前：护球转一整圈。往左转出是右手持球顺时针转，往右转出是左手持球逆时针转，收招换到外侧手'], ['后撤步', '按“后”：前脚刹住，向后跳一步双脚落地，球收到胸前，接着按投篮'], ['犹豫步', '按住右摇杆按下 (R3) / H（玩家 2：小键盘 5），移动中也能起手；运球键回中按住仍可起手。刹停抖肩并向两侧展开双臂，单手托球假突；松手时推向持球手的反侧出体前变向，同侧或正前出突破，向后出后撤步，不推方向或不会对应动作则原地收招'], ['连招', '连续做不同的动作，晃人概率逐次提高'], ['灵活度（看控球）', '控球越好：动作越快、越早能接下一个动作、收招停顿越短、晃人越容易。真实控球达到干拔门槛（默认 88%），或有脚踝终结者/运球如丝，任何运球中按投篮都能立即干拔；后撤步大师仅限后撤步。其他球员须等动作完整结束才出手']]) +
+        g('运球键 + 方向', [['体前变向', '跑动中按左或右：踩住一脚，球从身前低运换手，横向蹬出'], ['胯下运球', '站定时按左或右，快而省体力，适合起手'], ['背后运球', '防守人贴身时按左或右，球绕到背后换手，不会被抢断'], ['内外假晃', '按“前”：肩膀和球先往一侧晃，再拉回来'], ['转身过人', '按“前”且防守人贴在面前：护球转一整圈。按持球人面朝方向判断：防守人在右侧时顺时针转、向左转出；在左侧时逆时针转、向右转出，收招换到远离防守人的手。防守人接近正中时先看左摇杆横向，再按持球手决定（右手向左、左手向右）'], ['后撤步', '按“后”：前脚刹住，向后跳一步双脚落地，球收到胸前，接着按投篮'], ['犹豫步', '按住右摇杆按下 (R3) / H（玩家 2：小键盘 5），移动中也能起手；运球键回中按住仍可起手。刹停抖肩并向两侧展开双臂，单手托球假突；松手时推向持球手的反侧出体前变向，同侧或正前出突破，向后出后撤步，不推方向或不会对应动作则原地收招'], ['连招', '连续做不同的动作，晃人概率逐次提高'], ['灵活度（看控球）', '控球越好：动作越快、越早能接下一个动作、收招停顿越短、晃人越容易。真实控球达到干拔门槛（默认 88%），或有脚踝终结者/运球如丝，任何运球中按投篮都能立即干拔；后撤步大师仅限后撤步。其他球员须等动作完整结束才出手']]) +
         g('运球包（参考 2K：每个人同一个方向 + 运球键出的招不一样，选人界面能看到并点开演示）', [['斜前 / 斜后', '有些运球包把斜前、斜后单独设成招牌招；没有的就和横推一样'], ['好不好用', '有的招什么时候都好用，有的只在特定情况下才强：贴身、对手扑上来、对手伸手、对手比你轻']].concat(Object.keys(GM.MVX).map((k) => { const X = GM.MVX[k]; return [X.name, X.how + (X.req ? '（' + X.req.t + '）' : ''), k]; })).concat(Object.keys(GM.DPKG).map((k) => { const P = GM.DPKG[k], who = Object.keys(GM.ARCH).filter((a) => (GM.DPK_OF[a] || 'std') === k).map((a) => GM.ARCH[a].name); return who.length ? [P.name, P.desc + '。' + who.join('、')] : null; }).filter(Boolean))) +
         g('搓招连招（像格斗游戏：0.9 秒内按完方向序列，最后一下同时按运球键；以篮筐为前）', Object.keys(GM.CB).map((k) => { const C = GM.CB[k]; return [C.name, C.seq + ' + 运球键。控球 ' + Math.round(C.req * 99) + ' 以上才能出（主宰·控球类无门槛），不够就出普通动作。晃人概率 ×' + C.bite + '，晃倒/晃晕更久，体力消耗 ×1.3', k]; }).concat([['举例', '右 → 左 → 左斜后 + 运球键 = 拽回后撤（先往右骗，再拉回左边后撤，拉开空间直接投）']])) +
         g('热区（参考 2K，选人详情里有小地图）', [['分区', '半场分 12 区：篮下、禁区、左右底线 / 侧翼中投、罚球线、左右底角 / 侧翼三分、弧顶三分'], ['冷 / 普通 / 热 / 致命', '每人初始热区由属性和招牌位置决定；本场同一区连中 2 球升一级，连铁 2 次降一级'], ['效果', '热区绿区 +18%、能力 +2.5；致命区绿区 +32%、能力 +4.5；冷区绿区 -12%、能力 -2.5。上篮和勾手只吃一半'], ['地板提示', '持球站在热区地板淡橙、致命区淡红、冷区淡蓝；设置里可关']]) +
@@ -1305,6 +1431,8 @@
     $('over-title').textContent = t3 ? (w ? '客队获胜' : '主队获胜') : two && !matchConfig ? '玩家 ' + (w + 1) + ' 获胜' : w === (matchConfig ? localSlot : 0) ? '你赢了' : matchConfig ? '对手获胜' : '电脑获胜';
     $('over-title').style.color = w === 0 ? 'var(--blue)' : 'var(--red)';
     $('over-score').innerHTML = '<span class="b">' + G.score[0] + '</span> : <span class="r">' + G.score[1] + '</span>';
+    show('over-king', false); $('btn-again').textContent = '再来一局';
+    if (opts.mode === 'king' && KR && !matchConfig && kingOver()) return;
     BX.view = 'box'; renderBox();
     clearPf(); show('over', true); show('touch', false);
   }
@@ -1428,10 +1556,10 @@
   function navRoot() {
     if (TUI && TUI.isOpen()) return $('tune');
     if (camOpen && !$('campanel').classList.contains('hidden')) return $('campanel');
-    for (const id of ['help', 'tpicker', 'picker', 'pause', 'over5', 'over', 'menu']) if (!$(id).classList.contains('hidden')) return $(id);
+    for (const id of ['help', 'tpicker', 'picker', 'pause', 'over5', 'over', 'king', 'menu']) if (!$(id).classList.contains('hidden')) return $(id);
     return trainPanelOn() ? $('train') : null;
   }
-  const NAV_SCROLL = { picker: '#pk-detail', help: '#help-body', tune: '#tn-body', train: '#tr-body', over5: '#o5-box', over: '', pause: '', menu: '' };
+  const NAV_SCROLL = { picker: '#pk-detail', help: '#help-body', tune: '#tn-body', train: '#tr-body', over5: '#o5-box', over: '', king: '', pause: '', menu: '' };
   const NAV_TABS = { help: '#help-tabs', tune: '#tn-cats', train: '#tr-tabs', over5: '#o5-tabs' };
   function scrollBox(root) {
     const sel = NAV_SCROLL[root.id]; if (sel) return root.querySelector(sel);
@@ -1566,6 +1694,7 @@
     else if (screen === 'menu' && !$('pause').classList.contains('hidden')) { if (setV !== 'main' && (esc || pb)) setView('main'); else if (esc || pb) menuSet(false); else if (pa || ok) navClick(); }
     else if (screen === 'menu' && !$('qvol').classList.contains('hidden') && (esc || pb)) qvOpen(false);
     else if (screen === 'menu') { if (ps) startMatch(false); else if (pa || ok) navClick(); }
+    else if (screen === 'king') { if (ok || ps) kingOk(); else if (esc || pb) toMenu(); else if (pa) navClick(); }
     else if (screen === 'play5') {
       // 手柄十字键下（只认十字键，不认左摇杆）= 换人页；View = 数据面板；键盘 Tab = 数据面板、B / 4 = 换人页
       const gp0 = PH.input.pads()[0], dd = !!(gp0 && gp0.buttons[13] && gp0.buttons[13].pressed), dD = dd && !d13; d13 = dd;
@@ -1740,6 +1869,7 @@
     const A = PH.audio; if (!A.scene) return;
     let sc = 'menu', hot = 0;
     if (screen === 'tips') sc = 'calm';
+    else if (screen === 'king') sc = KR && KR.done ? 'win' : 'menu';
     else if (screen === 'play') {
       if (G.phase === 'over' && G.mode !== 'train') {
         const p = G.players[localSlot], side = !matchConfig ? 0 : G.mode === 't3' ? p ? p.tm : G.winner : localSlot;

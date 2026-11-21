@@ -28,14 +28,17 @@ function load() {
   };
 }
 
-// 1. Pre-game entrance: visuals and walk-in voice packs stay intact without noisy procedural intro SFX
+// 1. Pre-game entrance: visuals and early walk-in voice packs stay intact without noisy procedural intro SFX
 {
   const { Gm, G, played, voiced } = load();
   Gm.newGame({ mode: 'cpu', arch0: 'lebron', arch1: 'curry' });
   Gm.introStart();
-  let maxConfetti = 0, sawLed = false, sawHighCheer = false;
+  const t0 = G.intro.t0;
+  let maxConfetti = 0, sawLed = false, sawHighCheer = false, firstVoAt = null, secondVoAt = null;
   for (let i = 0; i < 60 * 9 && G.intro; i++) {
     Gm.introTick(1 / 60);
+    if (firstVoAt == null && voiced.length > 0) firstVoAt = G.time - t0;
+    if (secondVoAt == null && voiced.length > 1) secondVoAt = G.time - t0;
     maxConfetti = Math.max(maxConfetti, G.fx.confetti.length);
     if (G.fx.led && /NOW ENTERING/.test(G.fx.led.text)) sawLed = true;
     if (G.fx.cheer >= 2.2) sawHighCheer = true;
@@ -44,27 +47,32 @@ function load() {
   assert.ok(sawLed, 'entrance drives LED ticker');
   assert.ok(sawHighCheer, 'entrance keeps crowd visual cheering');
   assert.ok(maxConfetti >= 40, 'entrance spawns abundant confetti (' + maxConfetti + ')');
+  assert.ok(firstVoAt != null && firstVoAt <= 0.5, 'first entrance voice fires early as the player starts walking in (' + firstVoAt + 's)');
+  assert.ok(secondVoAt != null && secondVoAt <= 3.85, 'second entrance voice fires immediately when second player starts walking in (' + secondVoAt + 's)');
   assert.ok(voiced.some((v) => v.startsWith('lebron:taunt')), 'LeBron plays voice pack during walk-in');
   assert.ok(voiced.some((v) => v.startsWith('curry:taunt')), 'Curry plays voice pack during walk-in');
   Gm.introEnd();
   assert.equal(G.fx.confetti.length, 0, 'introEnd clears leftover entrance confetti');
-  console.log('PASS: entrance walk-in keeps visuals and voice packs without noisy intro SFX.');
+  console.log('PASS: entrance walk-in fires voices early (' + firstVoAt.toFixed(2) + 's / ' + secondVoAt.toFixed(2) + 's) and keeps visuals without noisy intro SFX.');
 }
 
 // 1b. Delayed vo/manifest.json load still plays voiced intro dialogue line once ready
 {
-  const { Gm, G, said, setManifestReady } = load();
+  const { ctx, Gm, G, said, setManifestReady } = load();
   setManifestReady(false);
   Gm.newGame({ mode: 'cpu', arch0: 'maxey', arch1: 'joe' });
   Gm.introStart();
-  Gm.introPress(); Gm.introPress(); // line 0 (template)
-  Gm.introPress(); Gm.introPress(); // line 1 (template)
-  Gm.introPress(); // line 2 (voiced taunt, manifest not loaded yet)
+  Gm.introPress(); // line 0 (voiced dom, manifest not loaded yet)
   assert.equal(said.length, 0, 'nothing played before manifest resolves');
+  assert.ok(G.intro.lines[0].t.includes(Gm.ARCH.joe.name), 'uses template fallback text while waiting for manifest');
   setManifestReady(true);
   assert.equal(said.length, 1, 'voiced intro line plays once manifest resolves');
-  assert.match(G.intro.lines[2].t, /^maxey:taunt:/, 'subtitle updates to resolved voice line');
-  console.log('PASS: delayed vo/manifest.json load still triggers voiced intro dialogue line.');
+  assert.match(G.intro.lines[0].t, /^maxey:dom:/, 'subtitle updates to resolved voice line');
+  // Long voice line (>4.5s) is never truncated by the line duration cap
+  ctx.PH.audio.voLine = (k, ev, i) => ({ f: k + ev + i, t: '长台词测试', d: 4.72 });
+  Gm.introPress(); Gm.introPress(); // advance to line 1
+  assert.ok(G.intro.ld >= 4.72 + 0.5, 'long voice line keeps full duration without truncation (' + G.intro.ld + 's)');
+  console.log('PASS: delayed vo/manifest.json load still triggers voiced intro dialogue line and preserves long voice durations.');
 }
 
 // 1c. Skipping walk-in suppresses pending walk-in voices during dialogue
