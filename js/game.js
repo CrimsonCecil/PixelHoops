@@ -3777,13 +3777,12 @@
     if (cb) mvx = null;
     const hesiBurst = (!cb || cb === 'hgo') && (kind === 'cross' || kind === 'inout') && pl.lastMove === 'hesi' && (moving || G.time - pl.mvEndT <= K.cbWin);
     if (hesiBurst && !df.off && front > 0 && dd < 3) {
-      const dhx = HOOP.x - df.x, dhy = HOOP.y - df.y, dl = Math.hypot(dhx, dhy), fx = dl > 0.01 ? dhx / dl : hx, fy = dl > 0.01 ? dhy / dl : hy;
       const side = Math.abs(q.lat) > 0.1 ? Math.sign(q.lat) : Math.abs((df.x - pl.x) * -hy + (df.y - pl.y) * hx) > 0.15 ? openS : -h0;
-      const ahead = (df.x - pl.x) * fx + (df.y - pl.y) * fy, across = (df.x - pl.x) * -fy + (df.y - pl.y) * fx;
+      const ahead = (df.x - pl.x) * hx + (df.y - pl.y) * hy, across = (df.x - pl.x) * -hy + (df.y - pl.y) * hx;
       const angle = Math.atan2(across, Math.max(0.01, ahead)) + side * Math.asin(Math.min(0.95, (K.bdR + 0.12) / dd));
       const fwd = Math.max(0.2, Math.cos(angle)), lat = side * Math.max(0, Math.sin(angle) * side, Math.abs(q.lat));
       const len = Math.hypot(fwd, lat);
-      dx = (fx * fwd - fy * lat) / len; dy = (fy * fwd + fx * lat) / len;
+      dx = (hx * fwd - hy * lat) / len; dy = (hy * fwd + hx * lat) / len;
     }
     const M = mvEff(kind, mvx, PK), X = mvx ? MVX[mvx] : null, CBk = cb ? CB[cb] : null;
     if (kind === 'uu') { M.T = K.uuT; M.cost = K.uuCost; }

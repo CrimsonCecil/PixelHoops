@@ -389,5 +389,26 @@ for (const absent of [false, true]) {
   if (absent) { assert.equal(p.action.dx, 0); assert.equal(p.action.dy, 1); }
 }
 
+for (const hand of [1, -1]) {
+  const { game, p, d } = fixture(hand);
+  game.G.mode = '2p';
+  Object.assign(p, { x: 0, y: 11.2, face: Math.PI / 2 });
+  Object.assign(d, { x: 0, y: 12.9, dummy: false, ctrl: 'p2', stun: 0 });
+  const step = inp => game.tick(1 / 120, q => q === p ? inp : game.t5.zeroInp());
+  for (let i = 0; i < 24; i++) step({ mx: 0, my: 0, a3: true, hesi: true });
+  const startY = p.y;
+  step({ mx: 0, my: 1 });
+  const a = p.action;
+  assert(a.hesiBurst && a.dy > 0, 'defender beyond the rim cannot reverse a forward release');
+  let prevY = p.y;
+  for (let i = 0; i < 60 && p.action === a; i++) {
+    step({ mx: 0, my: 1 });
+    assert(p.y >= prevY - 1e-9, 'baseline burst always advances toward the hoop');
+    prevY = p.y;
+  }
+  assert(p.y > startY + 0.4);
+}
+
 console.log('Hesitation: sideways one-hand fake, release directions, buffering, move requirements, post-up, possession loss, and 5V5 passed.');
 console.log('PASS hesitation shoulder lanes: forward/diagonal releases, both hands, 1V1/5V5, forward-held recovery, and CPU combo exits');
+console.log('PASS forward hesitation near baseline: defender beyond rim, both hands');
