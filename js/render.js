@@ -1743,38 +1743,36 @@
     offsetY3 = Math.max(36 - scaledY(board.y), 16 - scaledY(top),
       Math.min(40 - scaledY(board.y), footLimit - scaledY(bottom), nameLimit - scaledY(nameAnchor)));
   }
-  function camYFor(ty, tz, cz, sy) {
-    const a = (H / 2 + cam.oy - sy) / cam.F;
-    return ty - (tz - cz) * (a * cam.fz - cam.uz) / (cam.uy - a * cam.fy);
-  }
   function camera1Intro(G, dt) {
     const fp = G.intro && G.intro.foc;
     if (!fp) { intro1 = null; return; }
-    setPitch(CAMV.dist + 2.4, 1 - CAMV.height);
+    const K = PH.game && PH.game.K;
     cam.F = 400 * CAMV.zoom;
     const tx = fp.x;
-    let tz, ty;
+    let tz, ty, tp;
     if (fp.mode === 'talk') {
-      tz = Math.min(CAMV.height, 5.4);
+      tz = K ? K.camInTalkZ : 2.8;
+      const dist = K ? K.camInTalkDist : 11.2;
       const minY = fp.minY != null ? fp.minY : fp.y - 1.1;
-      const maxY = fp.maxY != null ? fp.maxY : fp.y + 1.1;
-      const maxH = fp.maxH || 2.1;
-      ty = camYFor(minY, 0, tz, H * 0.63);
-      cam.x = tx; cam.y = ty; cam.z = tz;
-      if (proj(tx, maxY, maxH).y < H * 0.13) ty = Math.min(ty, camYFor(maxY, maxH, tz, H * 0.13));
+      ty = minY - dist;
+      tp = (K ? K.camInTalkPitch : -11) * Math.PI / 180;
     } else {
-      tz = Math.min(CAMV.height, 4.4);
-      ty = camYFor(fp.y, 1.0, tz, H * 0.54);
+      tz = K ? K.camInZ : 1.4;
+      const dist = K ? K.camInDist : 8.2;
+      ty = fp.y - dist;
+      tp = (K ? K.camInPitch : -4) * Math.PI / 180;
     }
     const fresh = !intro1 || intro1.intro !== G.intro || fp.snap;
-    if (fresh) { intro1 = { intro: G.intro, x: tx, y: ty, z: tz }; fp.snap = false; }
+    if (fresh) { intro1 = { intro: G.intro, x: tx, y: ty, z: tz, p: tp }; fp.snap = false; }
     else {
       const k = 1 - Math.exp(-7 * dt);
       intro1.x += (tx - intro1.x) * k;
       intro1.y += (ty - intro1.y) * k;
       intro1.z += (tz - intro1.z) * k;
+      intro1.p += (tp - intro1.p) * k;
     }
     cam.x = intro1.x; cam.y = intro1.y; cam.z = intro1.z;
+    setPitch(Math.cos(intro1.p), Math.sin(intro1.p));
   }
   function particleSize(q, scale) {
     return q.interceptTeam != null ? Math.max(4, Math.min(6, Math.round(q.s * scale / 24))) : q.s || 1;
@@ -1801,7 +1799,7 @@
     else {
       if (follow3) { follow3 = null; setPitch(CAMV.dist + 2.4, 1 - CAMV.height); }
       if (G.intro && G.intro.foc && !RP) camera1Intro(G, dt);
-      else intro1 = null;
+      else if (intro1) { intro1 = null; setPitch(CAMV.dist + 2.4, 1 - CAMV.height); }
     }
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.fillStyle = '#070a16'; ctx.fillRect(0, 0, W, H);

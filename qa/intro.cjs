@@ -119,7 +119,21 @@ function runIntro(Gm, G) {
     Gm.introTick(1 / 60);
   }
   assert.ok(walkFrames > 100 && talkFrames > 60, 'verified both walk-in and dialogue frames');
-  console.log('PASS: 1V1 intro camera centers walking stars and keeps both players above the dialogue box.');
+  for (const k of ['camInZ', 'camInDist', 'camInPitch', 'camInTalkZ', 'camInTalkDist', 'camInTalkPitch']) {
+    const m = ctx.PH.TUNE.meta('l1_' + k);
+    assert.ok(m, `tune parameter l1_${k} is registered`);
+    assert.equal(m.cat, 'pace', `l1_${k} categorized under pace`);
+    assert.equal(m.sub, '镜头', `l1_${k} categorized under 镜头`);
+  }
+  // Changing exposed intro camera tuning immediately updates camera1Intro
+  Gm.newGame({ mode: 'cpu', arch0: 'edwards', arch1: 'jclark' });
+  Gm.introStart();
+  ctx.PH.TUNE.set('l1_camInZ', 1.1);
+  ctx.PH.TUNE.set('l1_camInPitch', 2);
+  R.camera1Intro(G, 1 / 60);
+  assert.ok(Math.abs(R.cam.z - 1.1) < 1e-6, 'camInZ tune controls walk-in camera height');
+  assert.ok(R.cam.fz > 0, 'positive camInPitch tilts camera upward');
+  console.log('PASS: 1V1 intro camera centers walking stars, uses low-angle defaults, and responds to exposed tuning sliders.');
 }
 {
   const listeners = {};
