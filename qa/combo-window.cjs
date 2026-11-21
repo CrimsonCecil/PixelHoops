@@ -100,3 +100,26 @@ for (const [win, delay, expected] of [[0.05, 10, null], [0.35, 10, 'dbl'], [0.05
   assert.equal(p.action.cb, expected, 'direction sequence obeys the slider');
 }
 console.log('PASS direction sequences obey the slider; fast gestures still trigger special combos');
+
+{
+  const { p, step } = fixture('2p', 0.03);
+  p.r.hnd = 0.7;
+  step({ my: 1, a3: true });
+  for (let i = 0; p.action && i < 180; i++) step();
+  assert.equal(p.action, null, 'the first move ends naturally');
+  for (let i = 0; i < 3; i++) step();
+  const gestureStart = G.time + dt;
+  step({ mx: 1 });
+  step({ mx: -1 });
+  step({ mx: 1, a3: true });
+  assert.equal(p.dribbleCombo.count, 0, 'the previous chain has expired');
+  assert.equal(p.ib?.k, 'a3', 'end-of-move recovery buffers the new dribble');
+  const press = p.ib.t;
+  assert(press - gestureStart < gm.K.cbWin, 'all gesture inputs fall inside the window');
+  for (let i = 0; !p.action && i < 30; i++) step();
+  assert.equal(p.action?.type, 'move');
+  assert(G.time - press > gm.K.cbWin, 'execution waits longer than the combo window');
+  assert.equal(p.action.cb, 'dbl', 'recovery does not invalidate a fast directional gesture');
+  assert.equal(p.combo, 1, 'the gesture does not revive the previous chain');
+}
+console.log('PASS fast direction combos survive recovery without reviving an expired chain');

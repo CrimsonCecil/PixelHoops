@@ -3571,7 +3571,7 @@
         if (!mvx && !canMv(pl, kind)) { if (kind === 'legs' || kind === 'behind' || kind === 'spin') kind = 'cross'; else { kind = 'hesi'; dx = hx; dy = hy; } }
       }
     }
-    const seq = !force && (linked || G.time - inputAt <= K.cbWin) ? dseq(pl, inputAt) : [];
+    const seq = force ? [] : dseq(pl, inputAt);
     const cb = force ? null : comboOf(pl, kind, q, linked, seq);
     if (cb) { const C = CB[cb]; kind = C.base; if (cb === 'sham') { const s2 = latS(seq[seq.length - 2]); dx = hx * 0.8 - hy * s2 * 0.6; dy = hy * 0.8 + hx * s2 * 0.6; pl.hand = s2 > 0 ? -1 : 1; } else if (cb === 'hgo') { dx = hx; dy = hy; } else if (cb === 'dbl') { const ls = q.lat >= 0 ? 1 : -1; pl.hand = ls > 0 ? -1 : 1; } }
     if (cb) mvx = null;
