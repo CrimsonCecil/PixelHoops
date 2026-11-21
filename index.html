@@ -140,6 +140,7 @@ document.write('<link rel="stylesheet" href="style.css?v=' + window.__V__ + '">'
         <button class="primary" id="btn-start" data-testid="btn-start">开始比赛</button>
         <div class="actions menu-actions-sub">
           <button id="btn-help" data-testid="btn-help">操作说明</button>
+          <button id="btn-replays">录像</button>
           <button id="btn-set" data-testid="btn-set" title="设置">设置</button>
         </div>
       </div>
@@ -194,6 +195,8 @@ document.write('<link rel="stylesheet" href="style.css?v=' + window.__V__ + '">'
       <h2 id="set-title">设置</h2>
       <div class="actions col" id="set-main">
         <button class="primary ingame" id="btn-resume" data-testid="btn-resume">继续比赛</button>
+        <button class="ingame replay-save" id="replay-save-pause">保存录像</button>
+        <small class="replay-status" role="status"></small>
         <button class="inmenu" id="btn-rules" data-testid="btn-rules">比赛规则</button>
         <button class="ingame hidden" id="btn-box5" data-testid="btn-box5">数据</button>
         <button class="ingame" id="btn-cam" data-testid="btn-cam">镜头</button>
@@ -259,6 +262,8 @@ document.write('<link rel="stylesheet" href="style.css?v=' + window.__V__ + '">'
       <p class="bx-note" id="bx-note"></p>
       <div class="actions">
         <button class="primary" id="btn-again" data-testid="btn-again">再来一局</button>
+        <button class="replay-save" id="replay-save-over">保存录像</button>
+        <small class="replay-status" role="status"></small>
         <button id="btn-kreroll" class="hidden" data-testid="btn-kreroll">刷新对手</button>
         <button id="btn-menu" data-testid="btn-menu">返回主菜单</button>
       </div>
@@ -282,6 +287,8 @@ document.write('<link rel="stylesheet" href="style.css?v=' + window.__V__ + '">'
       <div class="bx-wrap" id="o5-box"></div>
       <div class="actions">
         <button class="primary" id="o5-again" data-testid="o5-again">再来一局</button>
+        <button class="replay-save" id="replay-save-over5">保存录像</button>
+        <small class="replay-status" role="status"></small>
         <button id="o5-menu" data-testid="o5-menu">返回主菜单</button>
       </div>
     </div>
@@ -289,12 +296,28 @@ document.write('<link rel="stylesheet" href="style.css?v=' + window.__V__ + '">'
 
   <div id="king" class="overlay hidden" data-testid="king"><div id="king-fx" aria-hidden="true"></div><div class="panel kpanel" id="king-panel"></div></div>
 
+  <div id="replay-name" class="overlay hidden" role="dialog" aria-modal="true" aria-labelledby="replay-name-title">
+    <div class="panel">
+      <h2 id="replay-name-title">保存录像</h2>
+      <div class="tn-name"><input id="replay-input" maxlength="40" autocomplete="off" aria-label="录像名字"><button class="primary" id="replay-ok">确定</button><button id="replay-cancel">取消</button></div>
+    </div>
+  </div>
+  <div id="tape-list" class="overlay hidden"><div class="panel wide">
+    <h2>云端录像</h2><p id="tape-list-status" role="status"></p>
+    <div id="tape-rows" style="max-height:55vh;overflow:auto"></div>
+    <div class="actions"><button id="tape-refresh">刷新</button><button id="tape-list-close">返回</button></div>
+  </div></div>
+  <div id="tape-hud" class="hidden" style="position:absolute;left:4%;right:4%;bottom:16px;z-index:30;background:#151b34ed;border:2px solid #596ab0;padding:12px">
+    <b id="tape-title"></b><p id="tape-state"></p>
+    <input id="tape-scrub" aria-label="录像进度" type="range" min="0" max="1" step="0.001" style="width:100%">
+    <div class="actions"><button id="tape-play">播放</button><button id="tape-back">−5秒</button><button id="tape-forward">+5秒</button><button id="tape-prev">上一帧</button><button id="tape-next">下一帧</button><button id="tape-speed">1×</button><button id="tape-exit">返回录像</button></div>
+  </div>
   <div id="debug" class="hidden"></div>
 </div>
 <script>
-['tune', 'cfgstore', 'ptype', 'render', 'input', 'audio', 'icons', 'roster',
+['tune', 'cfgstore', 'tape', 'ptype', 'render', 'input', 'audio', 'icons', 'roster',
  'measurements', 'r5', 'r2k', 'game', 'b5', 'team5', 'team3', 'rooms',
- 'render5', 'box5', 'tuneui', 'main'].forEach(function (name) {
+ 'render5', 'box5', 'tuneui', 'tapeview', 'main'].forEach(function (name) {
   document.write('<script src="js/' + name + '.js?v=' + window.__V__ + '"><\/script>');
 });
 </script>
