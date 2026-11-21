@@ -2,7 +2,7 @@
 (function () {
   const PH = (window.PH = window.PH || {});
   const HOOP = PH.render.HOOP;
-  const GP = 17, GB = 12.5;
+  const GP = 17, GB = 12.5, BALL_FLOOR = 0.13;
     // 可调参数（训练场面板可改，本次打开期间对比赛同样生效）
   const CFG_DEF = { shotClock: 24, shotIdeal: 0.52, greenBase: 0.02, greenRating: 0.07, greenContest: 0.03, greenHeavy: 0.6, lateSlope: 1.2,
     contestRange: 2.7, contestShot: 0.42, contestLay: 0.45, blockMul: 1, stealMul: 1, ankle: 1, stunMul: 1, speedMul: 1, sprintDrain: 12, moveCost: 9.6, stamRegen: 1.68,
@@ -24,6 +24,7 @@
     ['foulChargeSlope', 'rules', '进攻犯规概率下降系数', 0.9, 0, 3, 0.05, '每单位能力优势扣掉的犯规概率'],
     ['foulChargeSkill', 'rules', '进攻犯规终结能力系数', 0.5, 0, 2, 0.05, '终结能力相对于内线防守在优势中所占的权重'],
     ['ftSetup', 'rules', '罚球站位准备时间', 0.6, 0, 2, 0.05, '秒：每次罚球前的准备时间'],
+    ['ftBetween', 'rules', '罚球落地后停顿', 0.7, 0, 2, 0.05, '秒：非最后一罚落地后，交还罚球球权前的停顿'],
     ['ftBase', 'rules', '罚球非完美基础命中率', 0.2, 0, 1, 0.01, '非完美命中率 = 基础 + 能力加成 − 时机惩罚'],
     ['ftRating', 'rules', '罚球能力命中系数', 0.78, 0, 1, 0.01, '乘以罚球能力（没有专属值时用中投和三分平均）'],
     ['ftTiming', 'rules', '罚球时机偏差惩罚', 0.65, 0, 1, 0.01, '越偏离绿区扣得越多'],
@@ -2126,6 +2127,7 @@
   }
   function freeThrowInput(dt, inp) {
     const F = G.ft, pl = G.players[F.id], cpu = pl.ctrl === 'cpu';
+    if (F.between) return;
     const down = !!inp.a1, a = pl.action;
     G.phaseT = Math.max(0, G.phaseT - dt);
     if (!a) {
@@ -2169,8 +2171,12 @@
     } else { G.fx.rim = 1; sfx('rim'); }
     const text = s.made ? '罚球命中' : '罚球不中';
     if (F.index < F.total) {
-      F.index++;
-      beginFreeThrow(text);
+      pl.action = null;
+      if (s.made) looseBall({ x: HOOP.x, y: HOOP.y, z: HOOP.z - 0.1 }, 0, -0.5, -3.2, s.shooter);
+      else looseBall({ x: b.x, y: b.y, z: b.z }, Math.sign(b.x - HOOP.x) * 0.9, -1.3, 1.6, s.shooter);
+      b.dead = true; b.under = s.made;
+      F.between = { text, dropUntil: G.time + 1.5, resumeAt: null };
+      banner(text, '罚球 ' + F.index + '/' + F.total, pl.team.css, 1.2);
       return;
     }
     G.ft = null; pl.action = null;
@@ -2186,6 +2192,18 @@
       G.shotClock = Math.min(14, CFG.shotClock);
     }
     banner(text, nextDead && s.made ? pl.team.name + ' +1' : '', pl.team.css, 1.2);
+  }
+  function stepFreeThrowReturn() {
+    const F = G.ft, wait = F?.between, b = G.ball;
+    if (!wait) return;
+    if (wait.resumeAt == null) {
+      if (!(b.state === 'loose' && b.z <= BALL_FLOOR) && G.time < wait.dropUntil) return;
+      wait.resumeAt = G.time + K.ftBetween;
+    }
+    if (G.time < wait.resumeAt) return;
+    F.between = null;
+    F.index++;
+    beginFreeThrow(wait.text);
   }
   // 赛点：这一回合进一个三分就能赢
   function mpCheck() {
@@ -5955,8 +5973,8 @@
       if (e < P.T + P.hold) { b.x = P.p.x; b.y = P.p.y; b.z = P.p.z; return; }
       b.vx = P.out.vx; b.vy = P.out.vy; b.vz = P.out.vz; b.pin = null; }
     b.x += b.vx * dt; b.y += b.vy * dt; b.z += b.vz * dt; b.vz -= GB * dt;
-    if (b.z < 0.13) {
-      b.z = 0.13;
+    if (b.z < BALL_FLOOR) {
+      b.z = BALL_FLOOR;
       if (b.vz < -1.2) { b.vz = -b.vz * 0.62; sfx('bounce'); } else b.vz = 0;
       b.vx *= 0.86; b.vy *= 0.86; b.under = false;
     }
@@ -7030,6 +7048,7 @@
     // 碰撞
     if (G.phase !== 'ft') collide(ps[0], ps[1]);
     updateBall(dt);
+    if (G.phase === 'ft') stepFreeThrowReturn();
     for (const p of ps) comboTick(p);
     G.net = Math.max(0, G.net - dt * 2.4); if (G.fx.rim > 0) G.fx.rim = Math.max(0, G.fx.rim - dt * 3.2);
     // 规则
