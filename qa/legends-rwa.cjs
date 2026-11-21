@@ -4,6 +4,10 @@ const path = require('node:path');
 const vm = require('node:vm');
 const root = path.resolve(__dirname, '..');
 const manifest = JSON.parse(fs.readFileSync(path.join(root, 'vo/manifest.json')));
+for (const key of ['barkley', 'yao', 'mutombo', 'rodman', 'bwallace', 'rallen']) {
+  assert(manifest.voices[key], `merged legend voice manifest retains ${key}`);
+  assert(fs.existsSync(path.join(root, 'vo', manifest.voices[key].s)), `${key} voice sprite exists`);
+}
 const ctx = vm.createContext({ console, performance: { now: () => 0 }, setTimeout() {}, clearTimeout() {},
   fetch: () => Promise.resolve({ ok: true, json: () => Promise.resolve(manifest) }) });
 ctx.window = ctx;
