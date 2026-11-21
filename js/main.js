@@ -327,7 +327,8 @@
     show('arch-desc', setup);
     show('btn-start', !guest && (!online || room.role === 'host' && room.links.has(1)));
     $('row-diff').classList.toggle('hidden', opts.mode !== 'cpu' && !t5 && !t3);
-    for (const id of ['row-p1', 'row-p2']) show(id, setup && !t5);
+    const kg = opts.mode === 'king';
+    show('row-p1', setup && !t5); show('row-p2', setup && !t5 && !kg); show('lobbyK', kg);
     for (const id of ['row-teams', 'row-side']) $(id).classList.toggle('hidden', !t5);
     const clkS = opts.clock ? opts.clock + ' 秒进攻' : '不限进攻';
     const lenS = opts.glen ? Math.round(opts.glen / 60) + ' 分钟' : '不限时';
@@ -342,6 +343,7 @@
     $('lab-p2').textContent = opts.mode === '2p' ? '玩家 2' : tr ? '假人体型' : '对手';
     $('btn-start').textContent = tr ? '进入训练场' : '开始比赛';
     $('menu-foot').textContent = tr ? '训练场：无比分无时限，可设置假人防守方式，比赛中按 Tab 开关训练参数面板。' : online ? '建房间并分享房间号，对手加入后由房主开始 · ' + opts.target + ' 分制 · ' + clkS + '。' : '规则：先到 ' + opts.target + ' 分（领先 2 分胜）· ' + clkS + ' · ' + lenS + ' · 失分方球权，抢断需出三分线。';
+    if (kg) { $('btn-start').textContent = '开始闯关'; $('menu-foot').textContent = '斗牛之王：选好你的球员，连赢五位越来越强的对手 · 每关先到 ' + KING_TARGET + ' 分（领先 2 分胜）· ' + clkS + ' · 输了可重打本关。'; kingLadderView(); }
     const a = GM.ARCH[opts.arch0];
     pickBtn('pick0', opts.arch0); pickBtn('pick1', opts.arch1);
     $('arch-desc').textContent = a.full + '：' + a.desc + (a.skill ? '。必杀技「' + a.skill.name + '」，条件和效果见“更换”。' : '。');
@@ -360,7 +362,7 @@
     tuneClose();
     rooms.close(); resetRoomAudio(); syncBackgroundMatch(); PH.T3.stop(); localSlot = -1; matchConfig = null; menuStatus(''); refreshMenu();
     screen = 'menu'; paused = false; clearPf(); camOpen = false; camFromSet = false; show('campanel', false); pcards();
-    show('menu', true); show('qvol', false); show('picker', false); show('cutin', false); show('hud', false); show('pause', false); show('over', false); show('help', false); show('touch', false); show('banner', false); show('train', false); show('shotcard', false); stage.classList.remove('panel');
+    show('menu', true); show('king', false); $('king-fx').innerHTML = ''; KR = null; show('qvol', false); show('picker', false); show('cutin', false); show('hud', false); show('pause', false); show('over', false); show('help', false); show('touch', false); show('banner', false); show('train', false); show('shotcard', false); stage.classList.remove('panel');
     if (PH.T5) { PH.T5.stop(); PH.render5.restore(); } show('hud5', false); show('over5', false); show('tpicker', false); show('btn-cam', true); show('btn-disp', true); show('btn-box5', false); if (PH.box5 && PH.box5.isOpen()) PH.box5.close();
     startDemo(); camShift();
   }
@@ -384,8 +386,101 @@
     $('btn-restart').textContent = '重新开始'; $('btn-resume').textContent = '继续比赛';
     hintKey = ''; cardId = -1; lastClock = ''; lastTB2 = ''; lastS0 = lastS1 = -1; pcards();
   }
-  function startMatch(same) {
+  // ---------- 斗牛之王：按能力梯度连挑五人，电脑难度逐关递增 ----------
+  const KING_BANDS = [[70, 77], [78, 83], [84, 88], [89, 93], [94, 99]];
+  const KING_STAGE = ['街头新人', '球场常客', '区域霸主', '全明星', '卫冕斗牛之王'];
+  const KING_AI = ['入门', '熟练', '老练', '强硬', '王者'];
+  const KING_T = [0, 0.6, 1.2, 2, 2.6]; // 0 简单 · 1 普通 · 2 困难，超过 2 的部分在困难基础上继续外推
+  const KING_TARGET = 11;
+  let kingLadder = null, KR = null;
+  function kingRoll() {
+    const used = new Set([opts.arch0]), ov = (k) => GM.ARCH[k].ovr;
+    kingLadder = KING_BANDS.map(([lo, hi]) => {
+      let pool = GM.ROSTER.filter((k) => !used.has(k) && ov(k) >= lo && ov(k) <= hi);
+      if (!pool.length) pool = GM.ROSTER.filter((k) => !used.has(k)).sort((a, b) => Math.abs(ov(a) - lo) - Math.abs(ov(b) - lo)).slice(0, 3);
+      const k = pool[(Math.random() * pool.length) | 0]; used.add(k); return k;
+    });
+  }
+  function kingD(s) {
+    const D = GM.DIFF, t = KING_T[s], i = Math.min(1, Math.floor(t)), f = t - i, o = { name: KING_AI[s] };
+    for (const k of ['lag', 'react', 'bite', 'steal', 'timing', 'moveBite', 'shootOpen']) o[k] = D[i][k] + (D[i + 1][k] - D[i][k]) * f;
+    o.react = Math.max(0.07, o.react); o.bite = Math.max(0.06, o.bite); o.moveBite = Math.max(0.08, o.moveBite); o.timing = Math.max(0.05, o.timing);
+    o.steal = Math.min(0.55, o.steal); o.shootOpen = Math.min(1, o.shootOpen);
+    return o;
+  }
+  const kingPips = (s) => '<i class="kpip">' + [0, 1, 2, 3, 4].map((i) => '<b' + (i <= s ? ' class="on"' : '') + '></b>').join('') + '</i>';
+  function kingLadderView() {
+    if (!kingLadder || kingLadder.includes(opts.arch0)) kingRoll();
+    $('lk-list').innerHTML = kingLadder.map((k, i) => { const a = GM.ARCH[k]; return '<li class="lk-i s' + i + '" data-testid="king-rung-' + (i + 1) + '"><em>' + (i + 1) + '</em><canvas width="32" height="32" data-k="' + k + '"></canvas><span class="lk-n">' + a.name + '<small>' + KING_STAGE[i] + '</small></span><span class="lk-ai">AI ' + KING_AI[i] + kingPips(i) + '</span><b class="lk-o">' + a.ovr + '</b></li>'; }).join('');
+    $('lk-list').querySelectorAll('canvas').forEach((cv) => portrait(cv, GM.ARCH[cv.getAttribute('data-k')], GM.TEAMS[1]));
+  }
+  function kingNew() { kingLadderView(); KR = { arch: opts.arch0, ladder: kingLadder.slice(), stage: 0, res: [], retry: 0, from: -1, last: null, done: false }; kingVS(); }
+  function kingShow() {
+    tuneClose(); screen = 'king'; paused = false; clearPf(); stage.classList.remove('intro', 'panel');
+    for (const id of ['menu', 'picker', 'pause', 'over', 'help', 'hud', 'touch', 'shotcard', 'train', 'cutin', 'banner', 'qvol']) show(id, false);
+    show('king', true);
+  }
+  function kingFace(sel, k, side) { const cv = $('king-panel').querySelector(sel); if (cv) portrait(cv, GM.ARCH[k], GM.TEAMS[side]); }
+  function kingVS() {
+    const s = KR.stage, me = GM.ARCH[KR.arch], k = KR.ladder[s], op = GM.ARCH[k], boss = s === 4, adv = KR.from === s - 1 && s > 0;
+    const pct = (n) => (n / 4 * 100) + '%';
+    const track = '<div class="kl"><div class="kl-bar"><i style="width:' + pct(adv ? s - 1 : s) + '"></i></div>' + KR.ladder.map((x, i) => '<div class="kn' + (i < s ? ' done' : i === s ? ' cur' : '') + (adv && i === s - 1 ? ' fresh' : '') + '"><canvas width="32" height="32" data-k="' + x + '"></canvas><span>' + GM.ARCH[x].name + '</span><small>' + GM.ARCH[x].ovr + '</small>' + (i < s ? '<b class="kstamp">已击败</b>' : '') + '</div>').join('') + '</div>';
+    const head = boss ? '最终关 · 王座之战' : '第 ' + (s + 1) + ' / 5 关 · ' + KING_STAGE[s];
+    $('king-panel').innerHTML = '<div class="kv-top"><b>斗牛之王</b><span data-testid="king-stage">' + head + '</span></div>' + track +
+      '<div class="kvs"><div class="kp me"><canvas width="64" height="64" class="kf0"></canvas><b>' + me.name + '</b><small>' + me.ovr + ' · ' + me.pos + '</small></div>' +
+      '<div class="kx">VS</div><div class="kp op"><canvas width="64" height="64" class="kf1"></canvas><b data-testid="king-opp">' + op.name + '</b><small>' + op.ovr + ' · ' + op.pos + '</small><span class="kai">AI ' + KING_AI[s] + kingPips(s) + '</span></div></div>' +
+      '<p class="kq">' + (KR.retry ? '再战第 ' + (s + 1) + ' 关 · 已重试 ' + KR.retry + ' 次' : boss ? '击败他，你就是新的斗牛之王' : adv ? '赢了 ' + GM.ARCH[KR.ladder[s - 1]].name + '，下一位更强' : '五关连胜才能称王 · 先到 ' + KING_TARGET + ' 分') + '</p>' +
+      '<div class="actions"><button class="primary" id="kv-go" data-testid="king-go">' + (boss ? '挑战王座' : '开始第 ' + (s + 1) + ' 关') + '</button><button id="kv-menu" data-testid="king-menu">放弃闯关</button></div>';
+    $('king').className = 'overlay kvs-on' + (boss ? ' boss' : '');
+    $('king-fx').innerHTML = '';
+    kingShow();
+    kingFace('.kf0', KR.arch, 0); kingFace('.kf1', k, 1);
+    $('king-panel').querySelectorAll('.kn canvas').forEach((cv) => portrait(cv, GM.ARCH[cv.getAttribute('data-k')], GM.TEAMS[1]));
+    if (adv) setTimeout(() => { const b = $('king-panel').querySelector('.kl-bar i'); if (b) b.style.width = pct(s); }, 350);
+    $('kv-go').addEventListener('click', kingPlay); $('kv-menu').addEventListener('click', toMenu);
+    PH.audio.play(boss ? 'horn' : adv ? 'badge' : 'ui');
+  }
+  function kingPlay() { if (!KR || KR.done) return; KR.last = null; show('king', false); startMatch(true, true); }
+  function kingGo(same) {
+    if (!same || !KR || KR.done) return kingNew();
+    if (screen === 'play' && G.phase === 'over' && KR.last) { const w = KR.last.win; if (w) { KR.stage++; KR.from = KR.stage - 1; KR.retry = 0; } else { KR.retry++; KR.from = KR.stage; } KR.last = null; return kingVS(); }
+    kingPlay();
+  }
+  function kingOver() {
+    const s = KR.stage, win = G.winner === 0, sc = G.score.slice();
+    KR.last = { win: win };
+    if (win) KR.res[s] = { k: KR.ladder[s], sc: sc, retry: KR.retry };
+    if (win && s === 4) { setTimeout(kingVictory, 200); return true; }
+    $('over-title').textContent = win ? '第 ' + (s + 1) + ' 关 胜利！' : '挑战失败 · 止步第 ' + (s + 1) + ' 关';
+    $('over-title').style.color = win ? 'var(--gold, #ffd34d)' : 'var(--red)';
+    const nx = win ? GM.ARCH[KR.ladder[s + 1]] : null;
+    $('over-king').innerHTML = '<div class="ok-dots">' + KR.ladder.map((x, i) => '<i class="' + (KR.res[i] ? 'w' : i === s ? 'l' : '') + '"></i>').join('') + '</div><span>' + (win ? '已击败 ' + (s + 1) + ' / 5 · 下一关：<b>' + nx.name + ' ' + nx.ovr + '</b> · AI ' + KING_AI[s + 1] : '本关重打，已赢的关卡保留') + '</span>';
+    show('over-king', true);
+    $('btn-again').textContent = win ? '下一关 ▶' : '重打本关';
+    return false;
+  }
+  function kingVictory() {
+    KR.done = true;
+    let n = 1; try { n = (+localStorage.getItem('ph_king_titles') || 0) + 1; localStorage.setItem('ph_king_titles', n); } catch (e) {}
+    const me = GM.ARCH[KR.arch], tot = KR.res.reduce((t, r) => [t[0] + r.sc[0], t[1] + r.sc[1]], [0, 0]), rt = KR.res.reduce((t, r) => t + r.retry, 0);
+    const crown = '<svg class="kw-crown" viewBox="0 0 16 10" shape-rendering="crispEdges"><path fill="#ffd34d" d="M1 3h1v1h1v1h1v-1h1v-1h1v-2h1v-1h2v1h1v2h1v1h1v1h1v-1h1v-1h1v7h-14z"/><path fill="#c88a12" d="M1 8h14v2h-14z"/><path fill="#ff4b5c" d="M7 5h2v2h-2z"/><path fill="#5ad1ff" d="M3 6h1v1h-1zM12 6h1v1h-1z"/></svg>';
+    $('king-panel').innerHTML = '<div class="kw-rays"></div>' + crown + '<canvas width="64" height="64" class="kf0 kw-face"></canvas><h2 class="kw-title" data-testid="king-title">斗牛之王</h2><p class="kw-sub">KING OF THE COURT · ' + me.name + ' 五连胜登顶</p>' +
+      '<ol class="kw-list">' + KR.res.map((r, i) => '<li style="--d:' + (0.9 + i * 0.18) + 's"><em>' + (i + 1) + '</em><canvas width="32" height="32" data-k="' + r.k + '"></canvas><span>' + GM.ARCH[r.k].name + ' <small>' + GM.ARCH[r.k].ovr + '</small></span><b>' + r.sc[0] + ' : ' + r.sc[1] + '</b></li>').join('') + '</ol>' +
+      '<p class="kw-stat">总比分 ' + tot[0] + ' : ' + tot[1] + ' · 重试 ' + rt + ' 次 · 第 ' + n + ' 次称王</p>' +
+      '<div class="actions"><button class="primary" id="kw-again" data-testid="king-again">再闯一次</button><button id="kw-menu" data-testid="king-menu">返回主菜单</button></div>';
+    $('king').className = 'overlay kw-on';
+    const C = ['#ffd34d', '#ff4b5c', '#5ad1ff', '#7dff8a', '#ffffff'];
+    $('king-fx').innerHTML = Array.from({ length: 60 }, (_, i) => '<i style="left:' + ((i * 37) % 100) + '%;background:' + C[i % 5] + ';--d:' + ((i * 0.13) % 2.6).toFixed(2) + 's;--x:' + (((i * 53) % 40) - 20) + 'px"></i>').join('');
+    kingShow();
+    kingFace('.kf0', KR.arch, 0);
+    $('king-panel').querySelectorAll('.kw-list canvas').forEach((cv) => portrait(cv, GM.ARCH[cv.getAttribute('data-k')], GM.TEAMS[1]));
+    $('kw-again').addEventListener('click', () => { kingLadder = null; kingNew(); }); $('kw-menu').addEventListener('click', toMenu);
+    PH.audio.play('horn'); setTimeout(() => PH.audio.play('win'), 500); setTimeout(() => PH.audio.play('cheer'), 1100);
+  }
+  function kingOk() { const b = $('king-panel').querySelector('.actions .primary'); if (b) b.click(); }
+  function startMatch(same, go) {
     if (room.role === 'guest') return;
+    if (opts.mode === 'king' && !go) { tuneClose(); kingGo(same); return; }
     if (opts.mode === 't3' || opts.mode === 'online') {
       const t3 = opts.mode === 't3';
       if (!t3 && !room.links.has(1)) return;
@@ -404,23 +499,25 @@
     PH.audio.ensure(); PH.audio.play('start'); PH.audio.startMusic();
     if (opts.mode === 't5') { start5(); return; }
     if (PH.T5) { PH.T5.stop(); PH.render5.restore(); } show('hud5', false); show('over5', false); show('btn-cam', true); show('btn-disp', true); show('btn-box5', false); if (PH.box5 && PH.box5.isOpen()) PH.box5.close();
-    if (!same || !lastArch || opts.arch1 === 'random') lastArch = { a0: opts.arch0, a1: pickArch(opts.arch1, opts.arch0) };
+    const kg = opts.mode === 'king' && KR;
+    if (!kg && (!same || !lastArch || opts.arch1 === 'random')) lastArch = { a0: opts.arch0, a1: pickArch(opts.arch1, opts.arch0) };
     const tr = opts.mode === 'train';
     if (!tr) CFG.shotClock = opts.clock;
-    GM.newGame({ mode: opts.mode, diff: opts.diff, target: opts.target, arch0: lastArch.a0, arch1: lastArch.a1, fb: opts.fb, glen: opts.glen });
+    if (kg) GM.newGame({ mode: 'cpu', diff: Math.min(2, KING_T[KR.stage]), target: KING_TARGET, arch0: KR.arch, arch1: KR.ladder[KR.stage], fb: opts.fb, glen: 0, cpuD: kingD(KR.stage) });
+    else GM.newGame({ mode: opts.mode, diff: opts.diff, target: opts.target, arch0: lastArch.a0, arch1: lastArch.a1, fb: opts.fb, glen: opts.glen });
     PH.audio.voPreload(G.players.map((p) => p.arch.key));
     if (opts.intro !== 'off') GM.introStart();
     stage.classList.toggle('intro', !!G.intro);
     screen = 'play'; paused = false; PH.input.clearSys(); PH.input.flush(); clearPf();
     show('tbpass', false); show('tbscreen', false); show('tbbounce', false); show('tblob', false); show('tballey', false);
     show('btn-restart', true); show('btn-again', true);
-    show('menu', false); show('picker', false); show('pause', false); show('over', false); show('help', false); show('hud', true); show('touch', isTouch); show('shotcard', false);
+    show('menu', false); show('king', false); show('picker', false); show('pause', false); show('over', false); show('help', false); show('hud', true); show('touch', isTouch); show('shotcard', false);
     show('scorebar', !tr); show('trainbar', tr); show('btn-panel', tr);
     panelOpen = tr && !narrow(); show('train', panelOpen); stage.classList.toggle('panel', panelOpen); camShift();
     if (tr) { trTab = 'dummy'; buildPanel(); }
     const p = G.players;
     $('n0').textContent = (opts.mode === '2p' ? '玩家 1 · ' : '你 · ') + p[0].arch.name;
-    $('n1').textContent = (opts.mode === '2p' ? '玩家 2 · ' : '电脑 · ') + p[1].arch.name;
+    $('n1').textContent = (kg ? '第 ' + (KR.stage + 1) + ' 关 · ' : opts.mode === '2p' ? '玩家 2 · ' : '电脑 · ') + p[1].arch.name;
     $('target').textContent = '先到 ' + G.target + ' 分';
     $('btn-restart').textContent = tr ? '重置训练' : '重新开始'; $('btn-resume').textContent = tr ? '继续训练' : '继续比赛';
     hintKey = ''; cardId = -1; lastClock = ''; lastTB2 = ''; pcards();
@@ -732,6 +829,7 @@
   $('btn-quit').addEventListener('click', toMenu);
   $('btn-again').addEventListener('click', () => startMatch(true));
   $('btn-menu').addEventListener('click', toMenu);
+  $('lk-reroll').addEventListener('click', () => { kingLadder = null; kingLadderView(); PH.audio.play('ui'); });
   $('btn-panel').addEventListener('click', () => togglePanel());
   $('tr-fold').addEventListener('click', () => togglePanel(false));
   $('tr-exit').addEventListener('click', toMenu);
@@ -1303,6 +1401,8 @@
     $('over-title').textContent = t3 ? (w ? '客队获胜' : '主队获胜') : two && !matchConfig ? '玩家 ' + (w + 1) + ' 获胜' : w === (matchConfig ? localSlot : 0) ? '你赢了' : matchConfig ? '对手获胜' : '电脑获胜';
     $('over-title').style.color = w === 0 ? 'var(--blue)' : 'var(--red)';
     $('over-score').innerHTML = '<span class="b">' + G.score[0] + '</span> : <span class="r">' + G.score[1] + '</span>';
+    show('over-king', false); $('btn-again').textContent = '再来一局';
+    if (opts.mode === 'king' && KR && !matchConfig && kingOver()) return;
     BX.view = 'box'; renderBox();
     clearPf(); show('over', true); show('touch', false);
   }
@@ -1426,10 +1526,10 @@
   function navRoot() {
     if (TUI && TUI.isOpen()) return $('tune');
     if (camOpen && !$('campanel').classList.contains('hidden')) return $('campanel');
-    for (const id of ['help', 'tpicker', 'picker', 'pause', 'over5', 'over', 'menu']) if (!$(id).classList.contains('hidden')) return $(id);
+    for (const id of ['help', 'tpicker', 'picker', 'pause', 'over5', 'over', 'king', 'menu']) if (!$(id).classList.contains('hidden')) return $(id);
     return trainPanelOn() ? $('train') : null;
   }
-  const NAV_SCROLL = { picker: '#pk-detail', help: '#help-body', tune: '#tn-body', train: '#tr-body', over5: '#o5-box', over: '', pause: '', menu: '' };
+  const NAV_SCROLL = { picker: '#pk-detail', help: '#help-body', tune: '#tn-body', train: '#tr-body', over5: '#o5-box', over: '', king: '', pause: '', menu: '' };
   const NAV_TABS = { help: '#help-tabs', tune: '#tn-cats', train: '#tr-tabs', over5: '#o5-tabs' };
   function scrollBox(root) {
     const sel = NAV_SCROLL[root.id]; if (sel) return root.querySelector(sel);
@@ -1564,6 +1664,7 @@
     else if (screen === 'menu' && !$('pause').classList.contains('hidden')) { if (setV !== 'main' && (esc || pb)) setView('main'); else if (esc || pb) menuSet(false); else if (pa || ok) navClick(); }
     else if (screen === 'menu' && !$('qvol').classList.contains('hidden') && (esc || pb)) qvOpen(false);
     else if (screen === 'menu') { if (ps) startMatch(false); else if (pa || ok) navClick(); }
+    else if (screen === 'king') { if (ok || ps) kingOk(); else if (esc || pb) toMenu(); else if (pa) navClick(); }
     else if (screen === 'play5') {
       // 手柄十字键下（只认十字键，不认左摇杆）= 换人页；View = 数据面板；键盘 Tab = 数据面板、B / 4 = 换人页
       const gp0 = PH.input.pads()[0], dd = !!(gp0 && gp0.buttons[13] && gp0.buttons[13].pressed), dD = dd && !d13; d13 = dd;
@@ -1738,6 +1839,7 @@
     const A = PH.audio; if (!A.scene) return;
     let sc = 'menu', hot = 0;
     if (screen === 'tips') sc = 'calm';
+    else if (screen === 'king') sc = KR && KR.done ? 'win' : 'menu';
     else if (screen === 'play') {
       if (G.phase === 'over' && G.mode !== 'train') {
         const p = G.players[localSlot], side = !matchConfig ? 0 : G.mode === 't3' ? p ? p.tm : G.winner : localSlot;

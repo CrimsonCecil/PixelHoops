@@ -105,6 +105,7 @@
         <button data-v="duel" class="on" data-testid="mode-1v1">1V1<small>半场斗牛</small></button>
         <button data-v="t3" data-testid="mode-t3">3V3<small>半场组队</small></button>
         <button data-v="t5" data-testid="mode-t5">5V5<small>全场比赛</small></button>
+        <button data-v="king" data-testid="mode-king">斗牛之王<small>五关闯关</small></button>
         <button data-v="train" data-testid="mode-train">训练<small>自由练习</small></button>
       </div>
       <div class="row" id="row-opponent"><label>对手</label><div class="seg" data-opt="opponent"><button data-v="cpu" class="on" data-testid="mode-cpu">电脑</button><button data-v="2p" data-testid="mode-2p">本地双人</button><button data-v="online" data-testid="mode-online">在线</button></div></div>
@@ -120,6 +121,10 @@
           <div class="lobby3-team" id="lobby3-home"><h3>主队</h3></div>
           <div class="lobby3-team" id="lobby3-away"><h3>客队</h3></div>
         </div>
+      </section>
+      <section id="lobbyK" class="hidden" data-testid="king-ladder">
+        <div class="lk-head"><h2>挑战阶梯</h2><span>能力、电脑难度逐关提升</span><button id="lk-reroll" data-testid="king-reroll">换一批</button></div>
+        <ol id="lk-list"></ol>
       </section>
       <div class="menu-rooms hidden" id="menu-rooms">
         <button id="btn-room-create">建房间</button>
@@ -235,6 +240,7 @@
     <div class="panel wide">
       <h2 id="over-title">比赛结束</h2>
       <p class="final" id="over-score"></p>
+      <div id="over-king" class="hidden" data-testid="over-king"></div>
       <div class="bx-bar" id="bx-bar">
         <div class="bx-seg"><button data-bv="box" class="on" data-testid="bx-box">Box</button><button data-bv="9cat" data-testid="bx-9cat">9-Cat</button><button data-bv="11cat" data-testid="bx-11cat">11-Cat</button></div>
         <div class="bx-opt"><button data-bo="adv" data-testid="bx-adv">高阶</button><button data-bo="heat" class="on" data-testid="bx-heat">高亮</button></div>
@@ -269,6 +275,8 @@
       </div>
     </div>
   </div>
+
+  <div id="king" class="overlay hidden" data-testid="king"><div id="king-fx" aria-hidden="true"></div><div class="panel kpanel" id="king-panel"></div></div>
 
   <div id="debug" class="hidden"></div>
 </div>
