@@ -6677,7 +6677,7 @@
   }
   function slowSkip(dt) {
     const F = G.fx;
-    if (!(F.slow > 0)) { F.slowScale = null; return false; }
+    if (!(F.slow > 0)) { F.slowScale = null; F.slowC = 0; return false; }
     F.slow = Math.max(0, F.slow - dt);
     if (F.slowScale == null) { F.slowC = (F.slowC + 1) % 3; return F.slowC !== 0; }
     F.slowC += clamp(F.slowScale, 0.05, 1);
