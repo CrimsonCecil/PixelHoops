@@ -2461,6 +2461,31 @@
   // 入场走位时的造势动作（上半身），走到位后再做招牌动作
   const IWALK = { lebron: ['raise', 'wave'], curry: ['wave', 'shimmy'], kobe: ['wave', 'point'], shaq: ['raise', 'dance'], giannis: ['chest', 'flex'], luka: ['wave', 'wag'], kyrie: ['point', 'wave'], herb: ['flex', 'chest'] };
   const IWA = 3.8;
+  // 非宿敌对局：按双方最强项套模板开场 + 回呛，最后用语音包里的真实嘲讽收尾
+  const TSTAT = {
+    three: (a) => a.three * 1.04, mid: (a) => (a.mid + (a.fade || 0)) / 2, dunk: (a) => (a.dunk + (a.vert || 0)) / 2,
+    hnd: (a) => a.hnd, def: (a) => (a.def + a.blk + a.stl) / 3 + 0.02, post: (a) => ((a.post || 0) + a.str) / 2 };
+  const TOPEN = {
+    three: ['{o}，今天你只要敢退一步，我就三分砸你头上。', '{o}，你的防守够不到我的出手点。', '三分线外一步我都能进，{o}你防得过来吗？'],
+    mid: ['{o}，中距离是我的地盘，今天给你上一课。', '后仰、急停，{o}你猜我出哪一招？', '{o}，你防守给我留半步，我就能拔起来。'],
+    dunk: ['{o}，护框之前先想想会不会上海报。', '今天这场我要扣到篮筐发抖，{o}你别站在下面。', '{o}，你挡在禁区，我就从你头上飞过去。'],
+    hnd: ['{o}，脚踝绑紧点，今天要摔倒的是你。', '我的运球你跟不上，{o}，准备好被晃吧。', '{o}，换个防守姿势也没用，我照样过你。'],
+    def: ['{o}，今天你每一次出手，我都会在你面前。', '进攻端随你耍，{o}，但你得先过我这一关。', '{o}，今天的得分数字，我会给你锁死。'],
+    post: ['{o}，进了禁区就是我的天下。', '背身一靠，{o}，你就知道什么叫力量。', '{o}，今天篮板和内线我全包了。'] };
+  const TREPLY = {
+    three: ['说完了？{o}，我一记三分就让你闭嘴。', '{o}，等我投进第一个，你就笑不出来了。'],
+    mid: ['{o}，嘴上功夫不错，比分板上见。', '{o}，我一个急停跳投就能回答你。'],
+    dunk: ['{o}，我会把这句话扣回你脸上。', '{o}，今天的高光集锦，主角是我。'],
+    hnd: ['{o}，你连我的影子都摸不到。', '{o}，晃你只需要一个变向。'],
+    def: ['{o}，今天你拿一分都得流汗。', '想得分？{o}，先过了我再说。'],
+    post: ['{o}，你在我面前太小了。', '{o}，篮下不是你该来的地方。'] };
+  const bestStat = (a) => Object.keys(TSTAT).reduce((b, k) => (TSTAT[k](a) > TSTAT[b](a) ? k : b), 'three');
+  function genTalk(fa, fb, h) {
+    const pick = (L, n) => L[n % L.length], o = (p) => p.arch.name || p.arch.full;
+    return [{ id: fa.id, t: pick(TOPEN[bestStat(fa.r || fa.arch)], h).replace('{o}', o(fb)), gen: 1 },
+      { id: fb.id, t: pick(TREPLY[bestStat(fb.r || fb.arch)], h >>> 5).replace('{o}', o(fa)), gen: 1 },
+      { id: fa.id, t: '', v: 'taunt', i: (h >>> 9) % 4 }];
+  }
   const plById = (id) => G.players.find((p) => p.id === id);
   function introStart() {
     if (G.mode === 'demo' || G.mode === 'train' || G.mode === 't5') return;
@@ -2472,7 +2497,7 @@
     if (sc && sc[0][0] === fb.arch.key) { const t = fa; fa = fb; fb = t; }
     let h = 0; for (const c of fa.arch.key + fb.arch.key) h = (h * 31 + c.charCodeAt(0)) >>> 0;
     const lines = sc ? sc.map((L) => ({ id: (L[0] === fa.arch.key ? fa : fb).id, t: L.length === 2 ? L[1] : '', v: L.length > 2 ? L[1] : null, i: L[2] || 0 }))
-      : [{ id: fa.id, t: '', v: 'taunt', i: h % 4 }, { id: fb.id, t: '', v: 'dom', i: (h >>> 3) % 3 }];
+      : genTalk(fa, fb, h);
     const spots = ps.map((p) => ({ p: p, x: p.x, y: p.y, face: p.face }));
     spots.forEach((s, i) => { const sd = TM(s.p) === 0 ? -1 : 1; Object.assign(s.p, { x: sd * 7.1, y: clamp(s.y + 1.4 + (i % 3) * 0.35, 0.5, 12.5), face: sd < 0 ? 0 : Math.PI, vx: 0, vy: 0, speed: 0 }); });
     const t0 = G.time;
