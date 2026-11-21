@@ -5,13 +5,13 @@ const vm = require('node:vm');
 const { execFileSync } = require('node:child_process');
 const root = path.resolve(__dirname, '..');
 
-function load(before = false) {
+function load(before = false, base = '444770d') {
   const ctx = vm.createContext({ console, performance: { now: () => 0 }, setTimeout() {}, clearTimeout() {} });
   ctx.window = ctx;
   ctx.PH = { input: { endTick() {}, read: () => ({}), read5: () => ({}) } };
   for (const name of ['tune', 'ptype', 'render', 'roster', 'measurements', 'r5', 'r2k', 'game', 'b5', 'team5']) {
     let code = before && name === 'game'
-      ? execFileSync('git', ['show', '61e7280:js/game.js'], { cwd: root, encoding: 'utf8' })
+      ? execFileSync('git', ['show', `${base}:js/game.js`], { cwd: root, encoding: 'utf8' })
       : fs.readFileSync(path.join(root, 'js', name + '.js'), 'utf8');
     if (name === 'game') code = code.replace('PH.game = {', 'PH.qualityQA = { finContact, updateAction, thruHit }; PH.game = {');
     if (name === 'team5') code = code.replace('PH.T5 = {', 'PH.qualityTeamQA = (g) => { G = g; T.tm = [0, 1].map(tm => ({ on: g.players.filter(p => p.tm === tm) })); shotAdj(); }; PH.T5 = {');
@@ -64,7 +64,7 @@ function sample(ctx, opts, N = 2000) {
   return { trigger: triggers / N, fall: falls / N, make: triggers ? made / triggers : null, expected: triggers ? prob / triggers : null, joint: made / N };
 }
 
-const before = load(true), after = load();
+const before = load(true), after = load(), legacy = load(true, '61e7280');
 const pct = x => x == null ? 'n/a' : (100 * x).toFixed(1) + '%';
 console.log('N=2000 seeded front contacts at 0.6m; ordinary finishes, blocks disabled; make = sampled makes conditional on through-contact');
 console.log('Attacker Defender Kind | trigger before/after | make before/after | through+make per contact before/after');
@@ -72,8 +72,9 @@ for (const attacker of ['rdunn', 'giannis']) for (const defender of ['pritchard'
   const opts = { attacker, defender, kind }, old = sample(before, opts), now = sample(after, opts);
   console.log(`${attacker} ${defender} ${kind} | ${pct(old.trigger)}/${pct(now.trigger)} | ${pct(old.make)}/${pct(now.make)} | ${pct(old.joint)}/${pct(now.joint)}`);
   if (attacker === 'rdunn' && defender === 'pritchard') {
-    assert(now.trigger > 0 && now.trigger < old.trigger * 0.6);
-    assert(now.make < old.make - 0.1);
+    assert(now.trigger > old.trigger);
+    if (kind === 'dunk') assert(now.trigger >= 0.45 && now.trigger <= 0.55, 'Dunn dunk trigger target is about 50%');
+    assert(Math.abs(now.make - old.make) < 0.06, 'conditional make rate stays roughly unchanged');
   }
   if (attacker === 'giannis') assert.deepEqual(now, old, 'elite quality retains original through-contact behavior');
   if (now.make != null) assert(Math.abs(now.make - now.expected) < 0.1);
@@ -81,7 +82,7 @@ for (const attacker of ['rdunn', 'giannis']) for (const defender of ['pritchard'
 
 for (const kind of ['dunk', 'lay']) {
   const average = { kind, ratings: { dunk: 0.675, lay: 0.675, hnd: 0.675, spd: 0.675, str: 0.675 } };
-  assert(sample(after, average, 600).trigger < sample(before, average, 600).trigger * 0.6, 'average attackers have clearly fewer through finishes');
+  assert(sample(after, average, 600).trigger < sample(legacy, average, 600).trigger * 0.85, 'average attackers remain below pre-quality trigger rates');
   const ordinaryBefore = fixture(before, { kind }), ordinaryAfter = fixture(after, { kind });
   assert.equal(resolve(after, ordinaryAfter, kind).prob, resolve(before, ordinaryBefore, kind).prob, 'ordinary non-through finish odds unchanged');
   for (const rating of ['hnd', 'spd', 'str', kind === 'dunk' ? 'dunk' : 'lay']) {
@@ -93,7 +94,7 @@ for (const kind of ['dunk', 'lay']) {
     const opts = { kind, mode, cpu };
     const old = fixture(before, opts), now = fixture(after, opts);
     for (const [ctx, f] of [[before, old], [after, now]]) ctx.PH.qualityQA.thruHit(f.p, f.d, f.a, thru, 0.5, 0, 1, 0, 1, false);
-    assert(resolve(after, now, kind).prob < resolve(before, old, kind).prob, `${kind}/${thru}/${mode}: quality reduces actual make odds`);
+    assert(Math.abs(resolve(after, now, kind).prob - resolve(before, old, kind).prob) < 0.01, `${kind}/${thru}/${mode}: conditional make odds preserved`);
     assert(now.G.lastShot.prob < 0.85, 'weak through finish cannot become automatic through 5V5 calibration');
   }
   for (const opts of [{ gap: 4 }, { phase: 'dead' }, { skill: 'giannis' }, { off: true }, { released: true }]) {
@@ -133,7 +134,7 @@ for (const opts of [{}, { distance: 3 }, { distance: 3.001 }, { distance: 5 }, {
   const old = jumper(before, opts), now = jumper(after, opts);
   console.log(`${JSON.stringify(opts)} | ${pct(old.prob)}/${pct(now.prob)}`);
   const exempt = now.green && now.contest < 0.2 && (opts.distance || 2.5) <= 3 && !opts.badge;
-  assert.equal(now.prob, exempt ? old.prob + 0.05 : old.prob);
+  assert.equal(now.prob, old.prob);
   if (exempt) assert.equal(now.styleDelta, 0);
 }
-console.log('PASS close green jumpers: 95% -> 100%, distance and contest boundaries, non-green/contested/midrange/long unchanged, pullup badge, shared 5V5 release');
+console.log('PASS close green jumpers: 100% preserved, distance and contest boundaries, non-green/contested/midrange/long unchanged, pullup badge, shared 5V5 release');
