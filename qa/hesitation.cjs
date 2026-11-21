@@ -13,7 +13,7 @@ function fixture(hand = 1, arch0 = 'luka') {
     addEventListener: (name, cb) => { listeners[name] = cb; },
   });
   ctx.window = ctx;
-  for (const name of ['tune', 'render', 'input', 'roster', 'r5', 'game', 'b5', 'team5']) {
+  for (const name of ['tune', 'render', 'input', 'roster', 'r5', 'game', 'b5', 'team5', 'team3']) {
     vm.runInContext(fs.readFileSync(path.join(__dirname, '..', 'js', name + '.js'), 'utf8'), ctx);
   }
   const { game, rig } = ctx.PH;
@@ -28,7 +28,60 @@ function fixture(hand = 1, arch0 = 'luka') {
   Object.assign(b, { state: 'held', holder: 0, dead: false });
   const key = (code, down = true) => listeners[down ? 'keydown' : 'keyup']({ code, preventDefault() {} });
   const step = (n = 1) => { for (let i = 0; i < n; i++) game.tick(1 / 120); };
-  return { game, p, d, b, rig, key, step, pads, team5: ctx.PH.T5 };
+  return { game, p, d, b, rig, key, step, pads, input: ctx.PH.input, team3: ctx.PH.T3, team5: ctx.PH.T5 };
+}
+
+for (const mode of ['1v1', '3v3']) for (const binding of ['KeyH', 'R3']) {
+  for (const [dir, kind] of [['KeyA', 'cross'], ['KeyD', 'inout'], ['KeyS', 'stepback'], [null, null]]) {
+    const f = fixture();
+    const { game, key, pads, input, team3 } = f;
+    let p = f.p, step = f.step;
+    if (mode === '3v3') {
+      const slots = ['luka', 'curry', 'jokic', 'joe', 'durant', 'giannis'].map((arch, i) => ({ arch, role: i === 0 ? 'human' : 'cpu' }));
+      team3.start({ slots, human: 0, local: 0, clock: 0, replay: false });
+      p = game.G.players[0];
+      Object.assign(game.G, { phase: 'live', off: 0, needClear: false });
+      for (const other of game.G.players) if (other !== p) Object.assign(other, { hasBall: false, x: -6 + other.id, y: 1, stun: 3 });
+      Object.assign(p, { x: 0, y: 4.4, hand: 1, hasBall: true, action: null });
+      Object.assign(game.G.ball, { state: 'held', holder: 0, dead: false });
+      step = (n = 1) => { for (let i = 0; i < n; i++) { team3.tick(1 / 120, { 0: input.read3(true) }); input.endTick(); } };
+    }
+    const gp = { index: 0, connected: true, axes: [0, 0, 0, 0], buttons: Array.from({ length: 16 }, () => ({ pressed: false })) };
+    pads.push(gp);
+    const press = (down) => binding === 'R3' ? gp.buttons[11].pressed = down : key(binding, down);
+    key('KeyW'); step(8);
+    press(true); step();
+    assert.equal(p.action.kind, 'hesi', mode + ' ' + binding + ' starts while moving');
+    assert.equal(p.action.hesiHold, 'hesi');
+    const start = [p.x, p.y];
+    step(80);
+    assert.equal(p.action.kind, 'hesi');
+    assert.deepEqual([p.x, p.y], start);
+    key('KeyW', false);
+    if (dir) key(dir);
+    step();
+    press(false); step();
+    if (kind) assert.equal(p.action.kind, kind, mode + ' ' + binding + ' release ' + dir);
+    else { step(80); assert.equal(p.action, null); }
+    assert(p.hasBall);
+  }
+}
+
+{
+  const source = fs.readFileSync(path.join(__dirname, '../js/rooms.js'), 'utf8');
+  const clean = vm.runInNewContext(source.slice(source.indexOf('  function cleanInput('), source.indexOf('  function incoming(')) + '\ncleanInput;');
+  assert.equal(clean({ hesi: true }).hesi, true);
+  assert.equal(clean({}).hesi, false);
+  assert.equal(clean({ hesi: 'true' }).hesi, false);
+  assert.equal(clean(null), null);
+}
+
+{
+  const { input, key } = fixture();
+  key('Numpad5');
+  assert(input.read(1, true, false).hesi);
+  assert(!input.read(0, true, false).hesi);
+  assert(!input.read(1, false, false).hesi);
 }
 
 // While held, moving the stick previews a direction but never moves the handler.

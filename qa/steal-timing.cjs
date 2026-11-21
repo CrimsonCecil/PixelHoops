@@ -119,7 +119,8 @@ function possessions(gm, label) {
     // Measure steals from an on-ball guarding spot, not from the deeper check-ball stance.
     { const [o, d] = G.players; d.x = o.x + 0.7; d.y = o.y + 1.5; }
     let live = false, ended = false, previous = null;
-    for (let i = 0; i < 2400; i++) {
+    // Long possessions with several offensive rebounds are legitimate.
+    for (let i = 0; i < 3600; i++) {
       gm.tick(dt);
       const a = G.players[1].action;
       if (a?.type === 'steal' && a !== previous) attempts++;

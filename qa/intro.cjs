@@ -49,18 +49,25 @@ function runIntro(Gm, G) {
   console.log('PASS: 1V1 LeBron vs Curry intro walks in, does signatures, plays 4 rivalry lines, then hands off to the check.');
 }
 {
-  const { Gm, G } = load();
+  const { Gm, G, said } = load();
   Gm.newGame({ mode: '2p', arch0: 'maxey', arch1: 'joe' });
   Gm.introStart();
   const L = G.intro.lines, maxey = G.players.find((p) => p.arch.key === 'maxey');
   assert.equal(L.length, 3);
   assert.equal(L[0].id, maxey.id);
-  assert.ok(L[0].gen && L[1].gen && L[0].t.includes(Gm.ARCH.joe.name) && L[1].t.includes(Gm.ARCH.maxey.name), 'stat templates name the opponent');
+  assert.ok(L[0].gen && L[1].gen && L[2].gen, 'generic lines are tagged');
+  assert.equal(L[0].v, 'dom', 'generic opening line uses player voice pack (dom)');
+  assert.equal(L[1].v, 'taunt', 'generic reply line uses opponent voice pack (taunt)');
+  assert.equal(L[2].v, 'taunt', 'generic closing line uses player voice pack (taunt)');
+  assert.ok(L[0].fb.includes(Gm.ARCH.joe.name) && L[1].fb.includes(Gm.ARCH.maxey.name), 'stat templates kept as fallback text');
   Gm.introPress(); Gm.introPress();
   assert.equal(G.intro.li, 0, 'first press skips to the dialogue, second completes the typing');
   for (let i = 0; i < 5; i++) Gm.introPress();
   assert.equal(G.intro, null);
-  assert.equal(L[2].t, 'maxey:taunt:' + L[2].i, 'ends on a voiced taunt from the voice pack');
+  assert.equal(L[0].t, 'maxey:dom:' + L[0].i, 'opening line resolves from voice pack');
+  assert.equal(L[1].t, 'joe:taunt:' + L[1].i, 'reply line resolves from voice pack');
+  assert.equal(L[2].t, 'maxey:taunt:' + L[2].i, 'closing line resolves from voice pack');
+  assert.equal(said.length, 3, 'all 3 generic intro lines play the player voice packs continuously');
   assert.equal(G.phase, 'check');
   const keys = Object.keys(Gm.ARCH);
   for (let i = 0; i < keys.length; i++) {
@@ -68,10 +75,10 @@ function runIntro(Gm, G) {
     if (a === b || Gm.TALK[[a, b].sort().join('|')]) continue;
     Gm.newGame({ mode: 'cpu', arch0: a, arch1: b }); Gm.introStart();
     const T = G.intro.lines;
-    assert.ok(T.length === 3 && T[0].t && T[1].t && !/[{}]/.test(T[0].t + T[1].t) && T[2].v === 'taunt', a + ' vs ' + b);
+    assert.ok(T.length === 3 && T[0].v === 'dom' && T[1].v === 'taunt' && T[2].v === 'taunt' && T[0].fb && T[1].fb && !/[{}]/.test(T[0].fb + T[1].fb), a + ' vs ' + b);
     G.intro = null;
   }
-  console.log('PASS: generic matchups open with stat templates naming the opponent and end on a voiced taunt; presses advance and finish the intro.');
+  console.log('PASS: generic matchups voice all 3 intro lines from each player voice pack with template fallbacks; presses advance and finish the intro.');
 }
 {
   const { ctx, Gm, G } = load();

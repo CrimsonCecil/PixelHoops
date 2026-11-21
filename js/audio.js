@@ -65,6 +65,7 @@
     bigsteal: () => { const t = ac.currentTime; noise(0.14, 0.32, 4200, 1.2, t, 900); tone(620, 0.06, 'square', 0.16, t, 1500); tone(1320, 0.09, 'square', 0.12, t + 0.06); tone(1760, 0.12, 'square', 0.1, t + 0.12); noise(0.9, 0.2, 800, 0.6, t + 0.1); },
     bigblock: () => { const t = ac.currentTime; noise(0.07, 0.55, 2000, 0.9, t); tone(72, 0.32, 'sine', 0.65, t, 34); tone(190, 0.12, 'square', 0.22, t, 70); noise(0.2, 0.3, 380, 0.7, t + 0.02); noise(1.4, 0.3, 1100, 0.45, t + 0.08); },
     oreb: () => { const t = ac.currentTime; tone(150, 0.1, 'sine', 0.45, t, 85); noise(0.05, 0.22, 1600, 2, t); tone(523, 0.06, 'square', 0.1, t + 0.05); tone(784, 0.06, 'square', 0.1, t + 0.1); tone(1047, 0.1, 'square', 0.1, t + 0.15); },
+    rebound: () => { const t = ac.currentTime; tone(784, 0.08, 'triangle', 0.18, t); tone(1047, 0.11, 'triangle', 0.2, t + 0.055); tone(1319, 0.16, 'sine', 0.18, t + 0.11); },
     pant: () => { const t = ac.currentTime; noise(0.16, 0.07, 1100, 0.9, t, 500); noise(0.2, 0.06, 900, 0.9, t + 0.24, 450); },
     gasp: () => { const t = ac.currentTime; noise(0.28, 0.16, 1300, 0.8, t, 600); tone(170, 0.2, 'sine', 0.1, t, 120); },
     bounce: () => { tone(150, 0.09, 'sine', 0.35, 0, 60); noise(0.03, 0.08, 900, 1); },
