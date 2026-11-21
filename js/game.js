@@ -705,7 +705,9 @@
     ['smDeepK', 'shot', '超远三分 每米惩罚', 0.2, 0, 0.5, 0.01, '概率/米'],
     ['smDeepGW', 'shot', '超远三分 绿区每米缩减', 0.28, 0, 1, 0.01, '比例/米：超过起算距离后缩小绿区'],
     ['smDeepGWLo', 'shot', '超远三分 绿区倍率下限', 0.25, 0, 1, 0.01, '倍率：相对正常距离绿区'],
-    ['smDeepG', 'shot', '超远三分 完美命中每米惩罚', 0.65, 0, 1, 0.01, '概率/米：超过起算距离后，完美出手也不再必进'],
+    ['smDeepGNear', 'shot', '超远三分 完美命中起始惩罚', 0.2, 0, 1, 0.01, '概率/米：刚超出起算距离时的惩罚，不高于缓冲区外的惩罚'],
+    ['smDeepGRamp', 'shot', '超远三分 完美命中缓冲距离', 0.9, 0, 3, 0.05, '米：超出起算距离后，惩罚从起始值平滑过渡到缓冲区外的值；0 = 不缓冲'],
+    ['smDeepG', 'shot', '超远三分 完美命中每米惩罚', 0.65, 0, 1, 0.01, '概率/米：缓冲区外按这个值计算全部超出距离的惩罚'],
     ['smDeepGLo', 'shot', '超远三分 完美命中下限', 0.35, 0, 1, 0.01, '概率：干扰惩罚前的下限'],
     ['sm20', 'shot', '中投 基础命中', 0.18, 0, 1, 0.01, '概率'],
     ['sm2R', 'shot', '中投 能力系数', 0.34, 0, 1, 0.01, '概率'],
@@ -2574,7 +2576,11 @@
     if (kind === 'lay' && !green && pl.ctrl !== 'cpu') { const raw = base * contestF * stamF * V.p; if (raw > 1) ng = timingF; }
     // 内线终结（上篮/抛投/勾手）绿区很宽，完美出手不能无视干扰：干扰超过 25% 就开始掉，78% 的正面封盖约剩四成
     let prob = green ? (SK ? 1 : kind === 'lay' || V.hook ? Math.max(ng, clamp(1 - K.smGInK * Math.max(0, cE - K.smGIn), K.smGInLo, 1)) : 1 - (1 - CFG.greenHeavy) * 2 * Math.max(0, c - 0.5)) : ng;
-    if (green && three && !SK) prob *= clamp(1 - deep * K.smDeepG, K.smDeepGLo, 1);
+    if (green && deep > 0 && !SK) {
+      const t = K.smDeepGRamp > 0 ? Math.min(1, deep / K.smDeepGRamp) : 1;
+      const rate = lerp(Math.min(K.smDeepGNear, K.smDeepG), K.smDeepG, sm(t));
+      prob *= clamp(1 - deep * rate, K.smDeepGLo, 1);
+    }
     if (SK && !green) prob = Math.max(prob, Math.min(K.smSkMax, base * K.smSkK * timingF));
     if (LAYC && c >= (K.ctOwn > 0 ? 0.12 : 0.2)) { const gk = green ? K.ctGreen : 1; let f = 1 - c * K.ctLayP * ek * gk; if (c >= 0.5) f *= 1 - K.ctHvy * ek * gk; if (a.dbl) f *= 1 - K.ctDbl * ek * gk; prob *= clamp(f, 0.08, 1); }
     if (a.blockEscape) {
