@@ -943,20 +943,26 @@ select.pf, input.pf, .tn-row.pf, .sl.pf, .crow.pf, .mx.pf { outline: calc(var(--
 #lbox i { position: absolute; left: 0; right: 0; height: 9%; background: #000; animation: lbIn 0.45s steps(6) both; }
 #lbox i:first-child { top: 0; transform-origin: top; }
 #lbox i:last-child { bottom: 0; transform-origin: bottom; }
-#intro-skip { position: absolute; right: 14px; top: 3%; transform: translateY(-50%); color: #cfd6ea; font-size: 12px; font-weight: normal; opacity: 0.85; pointer-events: auto; cursor: pointer; letter-spacing: 1px; }
+#intro-skip { position: absolute; right: 14px; top: 3%; transform: translateY(-50%); color: #cfd6ea; font-size: max(14px, calc(var(--u) * 8)); font-weight: normal; opacity: 0.85; pointer-events: auto; cursor: pointer; letter-spacing: 1px; }
 @keyframes lbIn { from { transform: scaleY(0); } }
 #stage.intro #hint, #stage.intro #shotcard, #stage.intro #touch { visibility: hidden; }
-#talk { position: absolute; left: 4%; width: min(62%, 760px); bottom: 11%; z-index: 16; display: flex; align-items: center; gap: 14px; padding: 12px 18px; --tc: #4aa3ff;
-  background: rgba(8, 10, 22, 0.9); border: 3px solid var(--tc); box-shadow: 0 0 0 3px #000, 6px 6px 0 rgba(0, 0, 0, 0.55); cursor: pointer; pointer-events: auto; }
-#talk.pop { animation: tkIn 0.2s steps(4) both; }
-#talk.right { left: auto; right: 4%; flex-direction: row-reverse; text-align: right; }
-#talk canvas { width: 76px; height: 76px; flex: none; image-rendering: pixelated; background: #141a30; border: 2px solid var(--tc); }
-#talk .tk-body { flex: 1; min-width: 0; }
-#talk .tk-name { color: var(--tc); font-weight: bold; font-size: 14px; letter-spacing: 1px; margin-bottom: 6px; text-shadow: 1px 1px 0 #000; }
-#talk .tk-text { color: #fff; font-size: 20px; line-height: 1.4; min-height: 1.4em; text-shadow: 2px 2px 0 #000; }
-#talk .tk-more { position: absolute; right: 12px; bottom: 6px; color: #ffd24a; font-size: 12px; visibility: hidden; animation: tkBlink 0.8s steps(2) infinite; }
-#talk.right .tk-more { right: auto; left: 12px; }
+#talk { position: absolute; left: 0; right: 0; bottom: 0; height: 56%; z-index: 16; --tc: #4aa3ff; cursor: pointer; pointer-events: auto; font-family: var(--font); }
+#talk::before { content: ''; position: absolute; inset: -12% 0 0 0; background: linear-gradient(180deg, transparent, rgba(5, 7, 15, 0.55) 30%, rgba(5, 7, 15, 0.85)); pointer-events: none; }
+#talk .tk-face { position: absolute; bottom: calc(44% - var(--u) * 3); height: 62%; width: auto; aspect-ratio: 1; image-rendering: pixelated; filter: brightness(0.38) saturate(0.6); transform: translateY(4%) scale(0.92); transform-origin: 50% 100%; transition: filter 0.12s steps(3), transform 0.12s steps(3); }
+#talk #talk-fl { left: 3%; }
+#talk #talk-fr { right: 3%; transform: translateY(4%) scale(-0.92, 0.92); }
+#talk.sp-l #talk-fl { filter: drop-shadow(calc(var(--u) * 3) 0 0 var(--tc)) drop-shadow(calc(var(--u) * -3) 0 0 var(--tc)) drop-shadow(0 calc(var(--u) * -3) 0 var(--tc)); transform: none; }
+#talk.sp-r #talk-fr { filter: drop-shadow(calc(var(--u) * 3) 0 0 var(--tc)) drop-shadow(calc(var(--u) * -3) 0 0 var(--tc)) drop-shadow(0 calc(var(--u) * -3) 0 var(--tc)); transform: scaleX(-1); }
+#talk .tk-panel { position: absolute; left: 2.5%; right: 2.5%; bottom: 4%; height: 40%; box-sizing: border-box; padding: calc(var(--u) * 12) calc(var(--u) * 16) calc(var(--u) * 8); background: #0b1024;
+  background-image: repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.035) 0 calc(var(--u) * 2), transparent calc(var(--u) * 2) calc(var(--u) * 4));
+  border: calc(var(--u) * 3) solid #f4f1e8; box-shadow: 0 0 0 calc(var(--u) * 3) var(--ink), inset 0 0 0 calc(var(--u) * 3) var(--tc), inset 0 0 0 calc(var(--u) * 5) var(--ink), calc(var(--u) * 5) calc(var(--u) * 5) 0 calc(var(--u) * 3) rgba(0, 0, 0, 0.5); }
+#talk .tk-name { position: absolute; top: 0; left: 23%; transform: translateY(-62%); padding: calc(var(--u) * 3) calc(var(--u) * 12); background: var(--tc); color: #fff; font-size: max(20px, calc(var(--u) * 13)); line-height: 1.1; letter-spacing: 0.08em;
+  border: calc(var(--u) * 2) solid var(--gold); box-shadow: 0 0 0 calc(var(--u) * 2) var(--ink), calc(var(--u) * 3) calc(var(--u) * 3) 0 calc(var(--u) * 2) rgba(0, 0, 0, 0.5); text-shadow: calc(var(--u) * 1) calc(var(--u) * 1) 0 var(--ink); white-space: nowrap; }
+#talk.sp-r .tk-name { left: auto; right: 23%; }
+#talk .tk-text { color: #fff; font-size: max(24px, calc(var(--u) * 17)); line-height: 1.45; letter-spacing: 0.04em; text-shadow: calc(var(--u) * 1.5) calc(var(--u) * 1.5) 0 var(--ink); }
+#talk .tk-more { position: absolute; right: calc(var(--u) * 12); bottom: calc(var(--u) * 5); color: var(--gold); font-size: max(18px, calc(var(--u) * 11)); visibility: hidden; animation: tkBlink 0.8s steps(2) infinite; }
 #talk.done .tk-more { visibility: visible; }
+#talk.pop .tk-panel { animation: tkIn 0.2s steps(4) both; }
 @keyframes tkIn { from { transform: translateY(14px) scale(0.96); opacity: 0; } }
 @keyframes tkBlink { 50% { opacity: 0; } }
-@media (max-width: 640px) { #talk, #talk.right { left: 2%; right: 2%; width: auto; padding: 8px 10px; gap: 8px; } #talk canvas { width: 54px; height: 54px; } #talk .tk-text { font-size: 15px; } }
+@media (max-width: 640px), (max-height: 420px) { #talk .tk-panel { padding: 14px 12px 8px; } #talk .tk-text { font-size: 18px; } #talk .tk-name { font-size: 15px; } }

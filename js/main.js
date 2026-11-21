@@ -1685,10 +1685,11 @@
     const I = G.intro, on = screen === 'play' && !!I, L = on && I.li >= 0 ? I.lines[I.li] : null;
     stage.classList.toggle('intro', on); show('talk', !!L);
     if (!L) { talkKey = ''; return; }
-    const p = G.players.find((q) => q.id === L.id), key = I.t0 + ':' + I.li, box = $('talk');
+    const p = G.players.find((q) => q.id === L.id), key = I.t0 + ':' + I.li, box = $('talk'), side = (pl) => (pl.tm == null ? pl.id : pl.tm);
     if (talkKey !== key) {
-      talkKey = key; portrait($('talk-face'), p.arch, p.team); $('talk-name').textContent = p.arch.full;
-      box.style.setProperty('--tc', p.team.css); box.classList.toggle('right', (p.tm == null ? p.id : p.tm) === 1);
+      if (!talkKey.startsWith(I.t0 + ':')) for (const id of I.duo) { const q = G.players.find((z) => z.id === id); portrait($(side(q) === 1 ? 'talk-fr' : 'talk-fl'), q.arch, q.team); }
+      talkKey = key; $('talk-name').textContent = p.arch.full;
+      box.style.setProperty('--tc', p.team.css); box.classList.toggle('sp-r', side(p) === 1); box.classList.toggle('sp-l', side(p) !== 1);
       box.classList.remove('pop'); void box.offsetWidth; box.classList.add('pop');
     }
     const n = L.done ? L.t.length : Math.min(L.t.length, Math.floor((G.time - I.lt) * 30));

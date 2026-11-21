@@ -2432,7 +2432,9 @@
     'lebron|luka': [['luka', '老大哥，现在湖人是谁在控球？'], ['lebron', '想接班？先把防守脚步练明白。'], ['luka', 'taunt', 0], ['lebron', 'taunt', 1]],
     'curry|luka': [['luka', '2022 西决输给你，今天我要讨回来。'], ['curry', '4 比 1 那轮系列赛，还想再来一次？'], ['luka', 'taunt', 2], ['curry', 'dom', 0]],
     'kobe|kyrie': [['kyrie', '2012 年就说要跟你单挑，今天兑现！'], ['kobe', 'taunt', 0], ['kyrie', 'taunt', 3]] };
-  const IW = 2.6, IS = 1.9;
+  // 入场走位时的造势动作（上半身），走到位后再做招牌动作
+  const IWALK = { lebron: ['raise', 'wave'], curry: ['wave', 'shimmy'], kobe: ['wave', 'point'], shaq: ['raise', 'dance'], giannis: ['chest', 'flex'], luka: ['wave', 'wag'], kyrie: ['point', 'wave'], herb: ['flex', 'chest'] };
+  const IW = 4.6, IS = 1.7, IG = 1.7;
   const plById = (id) => G.players.find((p) => p.id === id);
   function introStart() {
     if (G.mode === 'demo' || G.mode === 'train' || G.mode === 't5') return;
@@ -2448,13 +2450,21 @@
     const spots = ps.map((p) => ({ p: p, x: p.x, y: p.y, face: p.face }));
     spots.forEach((s, i) => { const sd = TM(s.p) === 0 ? -1 : 1; Object.assign(s.p, { x: sd * 7.1, y: clamp(s.y + 1.4 + (i % 3) * 0.35, 0.5, 12.5), face: sd < 0 ? 0 : Math.PI, vx: 0, vy: 0, speed: 0 }); });
     const t0 = G.time;
-    G.intro = { t0: t0, spots: spots, lines: lines, li: -1, lt: 0, ld: 0, tT: t0 + IW + 2 * IS, cam: null, foc: null, banner: G.banner, phaseT: G.phaseT,
-      sig: [fa, fb].map((p, j) => ({ id: p.id, ty: ISIG[p.arch.key] || (CELS[p.arch.key] || ['flex'])[0], t0: t0 + IW + j * IS, T: 1.7, on: false, fx: false })) };
-    G.banner = null; G.cz = null; G.cutin = null; G.phase = 'intro';
+    const walk = [];
+    for (const p of ps) {
+      const L = p === fa || p === fb ? IWALK[p.arch.key] || ((CELS[p.arch.key] || []).slice(1, 2).concat(['wave'])).slice(0, 2).reverse() : ['wave'];
+      L.forEach((ty, j) => walk.push({ id: p.id, ty: ty, t0: t0 + 0.45 + j * (IG + 0.25) + (p === fa || p === fb ? 0 : 1 + (p.id % 3) * 0.4), T: IG }));
+    }
+    G.intro = { t0: t0, duo: [fa.id, fb.id], walk: walk, spots: spots, lines: lines, li: -1, lt: 0, ld: 0, tT: t0 + IW + 2 * IS, cam: null, foc: null, banner: G.banner, phaseT: G.phaseT,
+      sig: [fa, fb].map((p, j) => ({ id: p.id, ty: ISIG[p.arch.key] || (CELS[p.arch.key] || ['flex'])[0], t0: t0 + IW + j * IS, T: IS - 0.1, on: false, fx: false })) };
+    G.cz = null; G.cutin = null; G.phase = 'intro';
+    banner(fa.arch.full + '  VS  ' + fb.arch.full, G.mode === 't3' ? '3V3 · 球员入场' : '1V1 · 球员入场', '#ffd24a', 2.2);
   }
   const introSig = (pl) => { const I = G.intro; if (!I) return null; for (const S of I.sig) if (S.id === pl.id && G.time >= S.t0 && G.time < S.t0 + S.T) return S; return null; };
+  const introWalk = (pl) => { const I = G.intro; if (!I || !I.walk) return null; for (const S of I.walk) if (S.id === pl.id && G.time >= S.t0 && G.time < S.t0 + S.T) return S; return null; };
   function introFace(pl) {
     const I = G.intro; if (introSig(pl)) return -Math.PI / 2;
+    if (introWalk(pl) && pl.speed > 0.5) { const m = Math.atan2(pl.vy, pl.vx); return Math.atan2(Math.sin(m) - 1.1, Math.cos(m)); }
     if (pl.speed > 1 || G.time < I.t0 + IW) return null;
     const o = OP(pl); if (!o) return null; const a1 = Math.atan2(o.y - pl.y, o.x - pl.x); return Math.atan2(Math.sin(a1) - 0.9, Math.cos(a1));
   }
@@ -2466,7 +2476,7 @@
     const now = G.time;
     for (const s of I.spots) {
       const p = s.p, inp = zeroInp(), dx = s.x - p.x, dy = s.y - p.y, d = Math.hypot(dx, dy);
-      if (d > 0.12) { const k = Math.min(1, d / 0.9) * 0.8; inp.mx = dx / d * k; inp.my = dy / d * k; }
+      if (d > 0.12) { const v = d / Math.max(0.35, I.t0 + IW - 0.35 - now), k = Math.min(1, d / 0.9) * clamp(v / 4.4, 0.22, 0.85); inp.mx = dx / d * k; inp.my = dy / d * k; }
       updatePlayer(p, inp, dt);
     }
     updateBall(dt);
@@ -2477,6 +2487,9 @@
     }
     if (I.li < 0 ? now >= I.tT : now >= I.lt + I.ld) introNext();
     if (!G.intro) return;
+    const A = plById(I.duo[0]), B2 = plById(I.duo[1]), mid = { x: (A.x + B2.x) / 2, y: (A.y + B2.y) / 2 };
+    if (now < I.t0 + IW) I.cam = { x: mid.x * 0.8, y: mid.y, u: clamp(0.2 - (Math.abs(A.x - B2.x) - 3) * 0.06, -0.25, 0.2) };
+    else if (I.li >= 0) I.cam = { x: mid.x, y: mid.y, u: 0.1 };
     const C = I.cam;
     if (G.mode === 't3') I.foc = C;
     else {
@@ -2493,7 +2506,6 @@
     if (L.v) { const it = PH.audio && PH.audio.voLine ? PH.audio.voLine(p.arch.key, L.v, L.i) : null; if (it) { L.t = it.t; L.d = it.d; if (G.mode !== 'demo') PH.audio.voSay(it); } }
     if (!L.t) L.t = L.v === 'dom' ? '别急，看看最后谁笑。' : '今天这场，我拿下了！';
     L.done = false; I.lt = G.time; I.ld = clamp(Math.max(1.0 + L.t.length * 0.12, (L.d || 0) + 0.8), 2.2, 4.8);
-    introCam(p, 0.18);
   }
   // 按键：字没打完先补全，打完了才翻下一句
   function introPress() {
@@ -4178,6 +4190,25 @@
       if (Math.abs(pl.armS[0] - 1) + Math.abs(pl.armS[1] - 1) + Math.abs(pl.armSv[0]) + Math.abs(pl.armSv[1]) < 0.004 && G.time > (pl.armHold || 0)) pl.armS = null;
     }
   }
+  function celPose(ty, e) {
+    const w = Math.sin(e * 10), w2 = Math.sin(e * 22), up = sm(clamp((e - 0.3) / 0.14, 0, 1));
+    return {
+        wave: { lean: -0.04, aLp: 0.3, aLq: 0.2, aLe: 0.4, aRp: 2.75, aRq: 0.35 + 0.3 * w, aRe: 0.35 },
+        raise: { lean: -0.12, aLp: 2.75 + 0.15 * w, aLq: 0.45, aLe: 0.3, aRp: 2.75 - 0.15 * w, aRq: 0.45, aRe: 0.3 },
+        flex: { lean: -0.12, aLp: 1.55, aLq: 1.55, aLe: 1.7 + 0.2 * w, aRp: 1.55, aRq: 1.55, aRe: 1.7 - 0.2 * w, lS: 0.3, rS: 0.3, lB: 0.45, rB: 0.45 },
+        roar: { lean: -0.28 + 0.06 * w, aLp: 0.9, aLq: 1.7, aLe: 0.9, aRp: 0.9, aRq: 1.7, aRe: 0.9, lS: 0.32, rS: 0.32, lB: 0.5, rB: 0.5 },
+        shimmy: { lean: 0.05, aLp: 0.9 + 0.45 * w2, aLq: 0.9, aLe: 1.3, aRp: 0.9 - 0.45 * w2, aRq: 0.9, aRe: 1.3, lB: 0.35 + 0.15 * w2, rB: 0.35 - 0.15 * w2 },
+        night: { lean: -0.08, aLp: 2.55, aLq: 0.15, aLe: 1.9, aRp: 2.55, aRq: 0.15, aRe: 1.9 },
+        toosmall: { lean: -0.05, aLp: 0.35, aLq: 0.9, aLe: 1.6, aRp: 1.1 + 0.35 * Math.abs(w2), aRq: 0.5, aRe: 0.25 },
+        shush: { lean: -0.05, aLp: 0.25, aLq: 0.3, aLe: 0.2, aRp: 2.15, aRq: 0.05, aRe: 2.5 },
+        chest: { lean: -0.1, aLp: 1.0 + 0.25 * Math.max(0, w2), aLq: 0.2, aLe: 2.3, aRp: 1.0 + 0.25 * Math.max(0, -w2), aRq: 0.2, aRe: 2.3 },
+        point: { lean: 0.08, aLp: 0.35, aLq: 0.9, aLe: 1.6, aRp: 1.6, aRq: 0.05, aRe: 0.05 + 0.1 * Math.abs(w) },
+        dance: { lean: 0.05 * w, aLp: 1.8 + 0.8 * w, aLq: 0.9, aLe: 0.6, aRp: 1.8 - 0.8 * w, aRq: 0.9, aRe: 0.6, lA: 0.4 * w, lB: 0.5, rA: -0.4 * w, rB: 0.5 },
+        shrug: { lean: -0.05, aLp: 0.8, aLq: 1.3, aLe: 1.5, aRp: 0.8, aRq: 1.3, aRe: 1.5 },
+        wag: { lean: 0, aLp: 0.3, aLq: 0.4, aLe: 0.3, aRp: 2.3, aRq: 0.25 + 0.35 * w2, aRe: 0.3 },
+        chalk: { lean: lerp(0.06, -0.26, up), aLp: lerp(1.1, 2.85, up), aLq: lerp(0.25, 0.6, up), aLe: lerp(2.1, 0.25, up), aRp: lerp(1.1, 2.85, up), aRq: lerp(0.25, 0.6, up), aRe: lerp(2.1, 0.25, up), lB: 0.35 * (1 - up), rB: 0.35 * (1 - up) },
+        cool: { lean: -0.1, aLp: 1.05, aLq: 0.05, aLe: 2.35, aRp: 1.0, aRq: 0.05, aRe: 2.35 } }[ty] || {};
+  }
   function poseTarget(pl) {
     const T = { tilt: 0, lean: 0.06, lA: 0.12, lB: 0.25, lS: 0.06, rA: 0.12, rB: 0.25, rS: 0.06, aLp: 0.15, aLq: 0.14, aLe: 0.35, aRp: 0.15, aRq: 0.14, aRe: 0.35 };
     const an = pl.anim, t = pl.animT, ph = pl.runPh, k = Math.min(1, pl.speed / 5.5), a = pl.action;
@@ -4299,22 +4330,9 @@
     }
     else if (an === 'win') { const w = Math.sin(G.time * 9); set({ lean: -0.05, aLp: 2.8 + 0.2 * w, aLe: 0.2, aRp: 2.8 - 0.2 * w, aRe: 0.2, aLq: 0.3, aRq: 0.3, lB: 0.3 + 0.2 * w, rB: 0.3 - 0.2 * w }); }
     else if (an === 'cel') {
-      const CC = (G.intro && introSig(pl)) || G.cel, e = G.time - CC.t0, w = Math.sin(e * 10), w2 = Math.sin(e * 22), k = clamp(e / 0.18, 0, 1), ty = CC.ty, up = sm(clamp((e - 0.3) / 0.14, 0, 1));
+      const CC = (G.intro && introSig(pl)) || G.cel, e = G.time - CC.t0, k = clamp(e / 0.18, 0, 1);
       const L0 = { lA: 0.12, lB: 0.25, rA: 0.12, rB: 0.25, lS: 0.18, rS: 0.18 };
-      const P = {
-        flex: { lean: -0.12, aLp: 1.55, aLq: 1.55, aLe: 1.7 + 0.2 * w, aRp: 1.55, aRq: 1.55, aRe: 1.7 - 0.2 * w, lS: 0.3, rS: 0.3, lB: 0.45, rB: 0.45 },
-        roar: { lean: -0.28 + 0.06 * w, aLp: 0.9, aLq: 1.7, aLe: 0.9, aRp: 0.9, aRq: 1.7, aRe: 0.9, lS: 0.32, rS: 0.32, lB: 0.5, rB: 0.5 },
-        shimmy: { lean: 0.05, aLp: 0.9 + 0.45 * w2, aLq: 0.9, aLe: 1.3, aRp: 0.9 - 0.45 * w2, aRq: 0.9, aRe: 1.3, lB: 0.35 + 0.15 * w2, rB: 0.35 - 0.15 * w2 },
-        night: { lean: -0.08, aLp: 2.55, aLq: 0.15, aLe: 1.9, aRp: 2.55, aRq: 0.15, aRe: 1.9 },
-        toosmall: { lean: -0.05, aLp: 0.35, aLq: 0.9, aLe: 1.6, aRp: 1.1 + 0.35 * Math.abs(w2), aRq: 0.5, aRe: 0.25 },
-        shush: { lean: -0.05, aLp: 0.25, aLq: 0.3, aLe: 0.2, aRp: 2.15, aRq: 0.05, aRe: 2.5 },
-        chest: { lean: -0.1, aLp: 1.0 + 0.25 * Math.max(0, w2), aLq: 0.2, aLe: 2.3, aRp: 1.0 + 0.25 * Math.max(0, -w2), aRq: 0.2, aRe: 2.3 },
-        point: { lean: 0.08, aLp: 0.35, aLq: 0.9, aLe: 1.6, aRp: 1.6, aRq: 0.05, aRe: 0.05 + 0.1 * Math.abs(w) },
-        dance: { lean: 0.05 * w, aLp: 1.8 + 0.8 * w, aLq: 0.9, aLe: 0.6, aRp: 1.8 - 0.8 * w, aRq: 0.9, aRe: 0.6, lA: 0.4 * w, lB: 0.5, rA: -0.4 * w, rB: 0.5 },
-        shrug: { lean: -0.05, aLp: 0.8, aLq: 1.3, aLe: 1.5, aRp: 0.8, aRq: 1.3, aRe: 1.5 },
-        wag: { lean: 0, aLp: 0.3, aLq: 0.4, aLe: 0.3, aRp: 2.3, aRq: 0.25 + 0.35 * w2, aRe: 0.3 },
-        chalk: { lean: lerp(0.06, -0.26, up), aLp: lerp(1.1, 2.85, up), aLq: lerp(0.25, 0.6, up), aLe: lerp(2.1, 0.25, up), aRp: lerp(1.1, 2.85, up), aRq: lerp(0.25, 0.6, up), aRe: lerp(2.1, 0.25, up), lB: 0.35 * (1 - up), rB: 0.35 * (1 - up) },
-        cool: { lean: -0.1, aLp: 1.05, aLq: 0.05, aLe: 2.35, aRp: 1.0, aRq: 0.05, aRe: 2.35 } }[ty] || {};
+      const P = celPose(CC.ty, e);
       const o = Object.assign({}, L0, P); if (k < 1) for (const kk in o) o[kk] *= k; set(o);
     }
     else if (an === 'hurt') {
@@ -4354,6 +4372,8 @@
       T.lA += c * 0.6; T.rA += c * 0.6; T.lB += c * 1.3; T.rB += c * 1.3; T.lean += c * 0.45;
     }
     if (PH.gait) PH.gait.post(pl, T, an, a);
+    const IG0 = G.intro && !a && (an === 'run' || an === 'idle') ? introWalk(pl) : null;
+    if (IG0) { const e = G.time - IG0.t0, o = celPose(IG0.ty, e), k = Math.min(1, e / 0.2, (IG0.T - e) / 0.2); for (const n in o) if (n[0] === 'a') T[n] = lerp(T[n], o[n], k); }
     return T;
   }
 
