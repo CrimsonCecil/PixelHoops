@@ -4,6 +4,7 @@ const path = require('node:path');
 const vm = require('node:vm');
 const { execFileSync } = require('node:child_process');
 const root = path.resolve(__dirname, '..');
+const C1 = require('./far-layup-c1.json');
 function load(before = false) {
   const ctx = vm.createContext({ console, performance: { now: () => 0 }, setTimeout() {}, clearTimeout() {} });
   ctx.window = ctx; ctx.PH = { input: { endTick() {}, read: () => ({}) } };
@@ -25,7 +26,7 @@ function setup(ctx, distance = 3.4, rating = 0.9, mode = '2p', cpu = false) {
   Object.assign(d, { x: 0.3, y: p.y + 0.5, off: false, stance: true, action: null });
   Object.assign(d.r, { intD: 0.85, str: 0.6, badges: [] });
   for (const pl of [p, d]) pl.arch = { ...pl.arch, key: 'qa', _bt: {} };
-  if (mode === 't5') { p.tm = 0; d.tm = 1; p.opp = d; }
+  if (mode === 't5' || mode === 't3') { p.tm = 0; d.tm = 1; p.opp = d; }
   gm.CFG.blockMul = 0;
   return { gm, p, d, H, P: gm._dbg.finPlan(p) };
 }
@@ -120,6 +121,42 @@ for (const layK of [0.9, 1.44]) {
   assert(base.every((r, i) => slower[i].duration > r.duration), 'shared gather and step timing remain live');
 }
 console.log('PASS shared footwork: default/C1 layK, step1K, stepT/gathT, normal/hop/euro, human/CPU and shared-team parity; original main honored these keys too');
+{
+  const c = load(), original = load(true);
+  for (const ctx of [c, original]) {
+    ctx.PH.TUNE.load(C1.data, C1);
+    for (const [key, value] of Object.entries(C1.data)) {
+      if (ctx.PH.TUNE.has(key)) assert.equal(ctx.PH.TUNE.get(key), value, `full C1 loads ${key} without slider clamping`);
+      if (key.startsWith('l1_') && key.slice(3) in ctx.PH.game.K)
+        assert.equal(ctx.PH.game.K[key.slice(3)], value, `shared cache receives ${key}`);
+    }
+    assert.equal(ctx.PH.TUNE.has('layK'), false, 'game keys are registered with the l1_ namespace');
+  }
+  const config = Object.fromEntries(Object.entries(C1.data).filter(([key]) => key.startsWith('l1_')).map(([key, value]) => [key.slice(3), value]));
+  const full = footwork(c, config, true);
+  assert.deepEqual(full, footwork(original, config), 'full C1 footwork matches original main');
+  for (const key of ['layK', 'layTgtA', 'step0', 'step1K', 'stepBase', 'stepRun', 'stepMax', 'runV', 'stepT', 'gathT']) {
+    const changed = footwork(c, { ...config, [key]: key === 'stepMax' ? 0.3 : key === 'step1K' ? 4 : key === 'runV' ? 20 : key === 'step0' ? 0 : key === 'layK' ? 0.5 : key === 'layTgtA' ? 1 : key === 'stepT' || key === 'gathT' ? 0.3 : 0.1 });
+    assert.notDeepEqual(changed, full, `full C1 ${key} affects far and normal identically`);
+  }
+  for (const mode of ['2p', 't3', 't5']) for (const distance of [3.4, 5]) {
+    let selected = false;
+    for (let seed = 1; seed <= 200 && !selected; seed++) {
+      const f = setup(c, distance, 0.9, mode);
+      f.gm.seed(seed * 100003);
+      f.gm._dbg.startFinish(f.p, {}, 'lay', 'a1', false);
+      const a = f.p.action;
+      if (!a || a.lsv !== 'far') continue;
+      assert.equal(a.ideal, C1.data.l1_layTi, 'far-hand startFinish receives C1 release timing in every shared mode');
+      assert.equal(a.V.c, ({ ...c.PH.farQA.LVR.normal, ...c.PH.farQA.LSTY[a.sty] }).c * C1.data.l1_lvFarC, 'far-hand contest tuning reaches the selected variant');
+      const normal = { ...a, lsv: '', side: 0 };
+      assert.deepEqual(a.wp, c.PH.farQA.buildSteps(f.p, normal, f.P, a.v, 0));
+      selected = true;
+    }
+    assert(selected, `full C1 actual far-hand selection at ${distance}m in ${mode}`);
+  }
+  console.log(`PASS full cloud C1 ${C1.id}: complete saved profile loads; original/current footwork, ten live footwork keys, actual selection, release timing and contest cache in 2p/t3/t5`);
+}
 {
   let checked = false;
   for (let i = 1; i <= 200 && !checked; i++) {
