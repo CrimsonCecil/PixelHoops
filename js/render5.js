@@ -276,7 +276,7 @@
       else if (e.k === 'rimB') drawRim(e.s, 'back');
       else drawRim(e.s, 'front');
     }
-    for (const q of F.parts) { const pp = R.proj(d * q.y, -d * q.x, q.z); if (pp.d < 1) continue; ctx.fillStyle = q.col; ctx.fillRect(Math.round(pp.x), Math.round(pp.y), q.s || 1, q.s || 1); }
+    for (const q of F.parts) { const pp = R.proj(d * q.y, -d * q.x, q.z); if (pp.d < 1) continue; const sz = R.particleSize(q, pp.s), offset = q.interceptTeam != null ? sz / 2 : 0; ctx.fillStyle = q.col; ctx.fillRect(Math.round(pp.x - offset), Math.round(pp.y - offset), sz, sz); }
     if (F.rings) for (const r of F.rings) {
       if (r.t < 0) continue; const u = r.t / r.T, c = R.proj(d * r.y, -d * r.x, r.z); if (c.d < 1) continue;
       const rad = (0.25 + r.R * (1 - (1 - u) * (1 - u))) * c.s * 0.5, n = Math.max(16, Math.round(rad * 0.9)); ctx.fillStyle = r.col;
@@ -505,7 +505,7 @@
       else drawRim(e.s, 'front');
     }
     if (ghost) drawGhost(ghost, T, cs, sn);
-    for (const q of F.parts) { const pp = R.proj(U(q.x, q.y), V(q.x, q.y), q.z); if (pp.d < 1.2) continue; ctx.fillStyle = q.col; ctx.fillRect(Math.round(pp.x), Math.round(pp.y), q.s || 1, q.s || 1); }
+    for (const q of F.parts) { const pp = R.proj(U(q.x, q.y), V(q.x, q.y), q.z); if (pp.d < 1.2) continue; const sz = R.particleSize(q, pp.s), offset = q.interceptTeam != null ? sz / 2 : 0; ctx.fillStyle = q.col; ctx.fillRect(Math.round(pp.x - offset), Math.round(pp.y - offset), sz, sz); }
     if (F.rings) for (const r of F.rings) {
       if (r.t < 0) continue; const u = r.t / r.T, c = R.proj(U(r.x, r.y), V(r.x, r.y), r.z); if (c.d < 1.2) continue;
       const rad = (0.25 + r.R * (1 - (1 - u) * (1 - u))) * c.s * 0.5, n = Math.max(16, Math.round(rad * 0.9)); ctx.fillStyle = r.col;

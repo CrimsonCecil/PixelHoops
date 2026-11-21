@@ -5,7 +5,7 @@ const vm = require('node:vm');
 const source = name => fs.readFileSync(path.join(__dirname, '../js', name + '.js'), 'utf8');
 
 function fixture(mode, local = 0) {
-  const sounds = [], text = [];
+  const sounds = [], text = [], rectangles = [];
   const ctx = vm.createContext({ performance: { now: () => 0 }, setTimeout() {}, clearTimeout() {} });
   ctx.window = ctx; ctx.addEventListener = () => {}; ctx.navigator = { getGamepads: () => [] };
   vm.runInContext('Math.random = () => 0.25;', ctx);
@@ -20,6 +20,7 @@ function fixture(mode, local = 0) {
     createImageData: (w, h) => ({ data: new Uint8ClampedArray(w * h * 4) }),
     createLinearGradient: () => ({ addColorStop() {} }),
     measureText: s => ({ width: s.length * 12 }),
+    fillRect(x, y, w, h) { rectangles.push({ x, y, w, h, col: this.fillStyle }); },
     fillText: (s, x, y, max) => text.push({ s, x, y, max })
   }, { get: (o, k) => o[k] ?? (() => {}) }) });
   ctx.document = { createElement: canvas };
@@ -31,7 +32,7 @@ function fixture(mode, local = 0) {
     const slots = ['curry', 'edwards', 'jokic', 'lebron', 'durant', 'giannis'].map((arch, i) => ({ arch, role: i === 0 || i === 3 ? 'human' : 'cpu' }));
     PH.T3.start({ slots, local: local < 0 ? -1 : local * 3, target: 21, clock: 24, replay: false });
   } else PH.T5.start({ home: 'LAL', away: 'BOS', human: local });
-  return { PH, G, game, sounds, text };
+  return { PH, G, game, sounds, text, rectangles };
 }
 
 function roomHarness(f, slot, role) {
@@ -58,7 +59,7 @@ function networkPerspectives(host, room, hostTeam, stealing) {
     assert.equal(guest.sounds.filter(s => ['steal', 'interceptGood', 'interceptBad'].includes(s)).join(), expected.sound);
     assert.equal(F.possession, undefined); assert.equal(F.flash, 0); assert.equal(F.shake, 0);
     const sparks = F.parts.filter(q => q.interceptTeam === stealing);
-    assert.equal(sparks.length, 8);
+    assert.equal(sparks.length, 16);
     for (const q of sparks) assert.equal(q.col, q.interceptWhite ? '#ffffff' : expected.col);
     assert.equal(guest.G.players.find(p => p.ring)?.tm ?? -1, local);
     guest.sounds.length = 0;
@@ -124,14 +125,14 @@ function interception(mode, local, stealing, result = 'int', network = false) {
   assert.equal(G.fx.possession, undefined); assert.equal(G.banner, null);
   assert.equal(G.fx.flash, 0); assert.equal(G.fx.shake, 0);
   assert.equal(G.fx.rings.length, 0, 'Interceptions must not trigger ordinary pickup floor rings');
-  assert.equal(G.fx.parts.length, 8, 'Only the eight hand sparks remain, without an ordinary pickup burst');
+  assert.equal(G.fx.parts.length, 16, 'Only the sixteen hand sparks remain, without an ordinary pickup burst');
   assert(!sounds.includes('grab'), 'Interceptions must not play the loose-ball grab cue');
   const sparks = G.fx.parts.filter(q => q.interceptTeam != null);
-  assert.equal(sparks.length, 8);
+  assert.equal(sparks.length, 16);
   const sign = mode === 5 ? -1 : 1;
   for (const q of sparks) {
     assert(Math.hypot(q.x - sign * spot[0], q.y - sign * spot[1], q.z - spot[2]) < 1e-9, 'Spark starts at the closest rig hand, including possession flip');
-    assert(q.life <= 0.18); assert(q.s <= 2); assert(Math.hypot(q.vx, q.vy, q.vz) * q.life <= 0.18, 'Spark stays compact');
+    assert.equal(q.life, 0.33); assert.equal(q.s, 4); assert(Math.hypot(q.vx, q.vy, q.vz) * q.life <= 0.35, 'Spark stays within 0.35m of the hand');
   }
   assert.equal(G.floats.filter(x => x.text === (mode === 3 ? '抢断传球' : '抢断')).length, 1, 'Only the original mode-specific float remains');
   const expected = local < 0 ? 'steal' : local === stealing ? 'interceptGood' : 'interceptBad';
@@ -139,15 +140,24 @@ function interception(mode, local, stealing, result = 'int', network = false) {
   if (network) networkPerspectives(f, room, local, stealing);
 
   for (const camera of mode === 3 ? ['half-court'] : ['broadcast', '2k']) {
-    f.text.length = 0;
+    f.text.length = 0; f.rectangles.length = 0;
     if (mode === 3) PH.render.render(G);
     else { T.cam.preset = camera; PH.render5.render(T, 1 / 60); }
     assert(!f.text.some(q => /抢断！攻防转换|获得球权/.test(q.s)), `${camera}: no possession banner`);
+    const q = sparks[0], project = mode === 3 ? PH.render.proj : T.view.pr || ((x, y, z) => PH.render.proj(T.view.d * y, -T.view.d * x, z));
+    const at = project(q.x, q.y, q.z), size = PH.render.particleSize(q, at.s);
+    assert(size >= 4 && size <= 6);
+    assert(f.rectangles.filter(r => r.x === Math.round(at.x - size / 2) && r.y === Math.round(at.y - size / 2) && r.w === size && r.h === size).length >= 16, `${camera}: all sixteen sparks render at the projected hand with a 4px floor`);
   }
-  for (let i = 0; i < 12; i++) game.t5.qaFx(1 / 60);
-  assert(!G.fx.parts.some(q => q.interceptTeam != null), 'Contact spark expires within 0.2 seconds');
+  assert.equal(PH.render.particleSize(sparks[0], 8), 4, 'Wide cameras retain a readable pixel floor');
+  assert.equal(PH.render.particleSize(sparks[0], 48), 6, 'Close cameras scale up without dominating the scene');
+  assert.equal(PH.render.particleSize({ s: 2 }, 48), 2, 'Ordinary particles retain their size');
+  for (let i = 0; i < 18; i++) game.t5.qaFx(1 / 60);
+  assert.equal(G.fx.parts.filter(q => q.interceptTeam != null).length, 16, 'Contact spark stays visible for 0.3 seconds');
+  for (let i = 0; i < 4; i++) game.t5.qaFx(1 / 60);
+  assert(!G.fx.parts.some(q => q.interceptTeam != null), 'Contact spark expires within 0.35 seconds plus one frame');
   assert.equal(PH.render.drawPossession, undefined);
-  console.log(`PASS ${mode}V${mode}: local=${local < 0 ? 'spectator' : local} interceptor=${stealing} hand spark + ${expected}; no banner/flash/shake, 0.16s expiry`);
+  console.log(`PASS ${mode}V${mode}: local=${local < 0 ? 'spectator' : local} interceptor=${stealing} 16 hand sparks + ${expected}; 4–6px camera scaling, 0.33s lifetime, radius <=0.35m; no banner/flash/shake/rings/grab`);
 }
 
 for (const mode of [3, 5]) {

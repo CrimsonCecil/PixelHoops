@@ -2156,9 +2156,9 @@
     const F = G.fx, b = G.ball, style = interceptionStyle(pl.tm, localTeam), col = style.col;
     const rig = PH.rig(pl), distance = h => Math.hypot(h[0] - b.x, h[1] - b.y, h[2] - b.z);
     const hand = distance(rig.handL) < distance(rig.handR) ? rig.handL : rig.handR;
-    for (let i = 0; i < 8; i++) {
-      const a = i * Math.PI / 4, speed = 0.65 + i % 2 * 0.3;
-      part(hand[0], hand[1], hand[2], Math.cos(a) * speed, Math.sin(a) * speed, (i % 3 - 1) * 0.4, i % 3 ? col : '#ffffff', 0.16, 0, 2);
+    for (let i = 0; i < 16; i++) {
+      const a = i * Math.PI / 8, speed = 0.65 + i % 2 * 0.3;
+      part(hand[0], hand[1], hand[2], Math.cos(a) * speed, Math.sin(a) * speed, (i % 3 - 1) * 0.4, i % 3 ? col : '#ffffff', 0.33, 0, 4);
       const spark = F.parts[F.parts.length - 1];
       spark.interceptTeam = pl.tm;
       if (!(i % 3)) spark.interceptWhite = true;
