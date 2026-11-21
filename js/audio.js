@@ -310,12 +310,26 @@
   function voPreload(keys) {
     const run = () => { if (!voM) return; for (const k of keys) {
       const V = voM[k]; if (V?.s) voFile(V.s);
+      const alias = voM[VO_ALIAS[k]?.key]; if (alias?.s) voFile(alias.s);
       if (!V?.lines?.intro?.length) for (const f of VO_INTRO[k]?.flat() || []) { if (voIdx[f]) voFile(voIdx[f].s); }
     } };
     if (voM) run(); else voReady.then(run);
   }
   // 新事件没有录到时退回到相近的事件
   const VO_FB = { poster: 'dunk', fall: 'ankle', pin: 'block', clutch: 'make', hot: 'make', stop: 'taunt', rejected: 'hurt', dropped: 'hurt', posterized: 'hurt', stolen: 'hurt' };
+  // 只借用审核过的通用台词；球员自己的语音（尤其 intro/reply）始终优先。
+  const VO_ALIAS = {
+    ginobili: { key: 'white', events: { dunk: 1, three: 2, make: 1, ankle: 0, block: 2, steal: 1, taunt: 1, dom: 2, win: 1, miss: 1, hurt: 0, poster: 0, fall: 2, pin: 0, clutch: 0, hot: 0, stop: 2, rejected: 1, dropped: 2, posterized: 2, stolen: 0 } },
+    iverson: { key: 'kyrie', events: { dunk: 0, three: 1, make: 2, ankle: 1, block: 1, steal: 0, taunt: 2, dom: 1, win: 0, miss: 1, hurt: 0, poster: 0, fall: 1, pin: 0, clutch: 2, hot: 0, stop: 0, rejected: 1, dropped: 1, posterized: 1, stolen: 0 } },
+    carter: { key: 'lavine', events: { dunk: 1, three: 0, make: 1, ankle: 2, block: 1, steal: 0, taunt: 1, dom: 1, win: 1, miss: 1, hurt: 0, poster: 0, fall: 0, pin: 0, clutch: 0, hot: 1, stop: 1, rejected: 0, dropped: 0, posterized: 0, stolen: 0 } }
+  };
+  function voLines(key, ev) {
+    const own = voM && voM[key]?.lines?.[ev];
+    if (own && own.length) return own;
+    const alias = VO_ALIAS[key], i = alias?.events[ev];
+    const it = i != null && voM && voM[alias.key]?.lines?.[ev]?.[i];
+    return it ? [it] : null;
+  }
   function vo(key, ev, mode) {
     if (!voOn || !sfxOn || !voM || pauseOn) return null;
     const pri = mode === 'pri';
@@ -328,8 +342,8 @@
       }
       return null;
     }
-    const V = voM[key]; let L = V && V.lines && V.lines[ev];
-    if ((!L || !L.length) && V && V.lines) { const fb = VO_FB[ev]; L = fb && V.lines[fb]; }
+    let L = voLines(key, ev);
+    if (!L || !L.length) L = voLines(key, VO_FB[ev]);
     if (!L || !L.length) return null;
     const now = performance.now(); if (now < voBusy && !pri) return null;
     const lk = key + ev; let i = Math.floor(Math.random() * L.length); if (L.length > 1 && i === voLast[lk]) i = (i + 1) % L.length; voLast[lk] = i;
@@ -351,7 +365,7 @@
     }
     if (!lines) return null;
     const pick = (e) => {
-      const L = lines[e];
+      const L = voLines(key, e);
       if (!L || !L.length) return null;
       for (let k = 0; k < L.length; k++) {
         const it = L[((i || 0) + k) % L.length];
@@ -366,7 +380,7 @@
       const alt = pick(fb);
       if (alt) return alt;
     }
-    const L = lines[ev];
+    const L = voLines(key, ev);
     return L && L.length ? L[(i || 0) % L.length] : null;
   }
   function voStop() { voSeq++; voSayF = ''; if (voQTimer) { clearTimeout(voQTimer); voQTimer = null; } if (voCur) { try { voCur.stop(); } catch (e) { /* 已停 */ } voCur = null; } voBusy = 0; }

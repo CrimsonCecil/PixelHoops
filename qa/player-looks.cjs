@@ -274,6 +274,9 @@ for (const part of ['shoulder', 'chest', 'waist', 'armThickness', 'limb']) {
   assert(look('kdunn').body[part] < look('holiday').body[part], part);
 }
 const approvedWidths = {
+  ginobili: [0.8, 0.65, 0.65, 0.6],
+  iverson: [0.7, 0.65, 0.65, 0.6],
+  carter: [1.35, 1.5, 0.7, 1.5],
   holiday: [1.2193, 1.4798, 1.5209, 1.4044],
   queta: [1.1834, 1.5399, 1.5777, 1.4706],
   lebron: [1.8, 2.4098, 1.7891, 2.2396],
@@ -288,6 +291,10 @@ for (const [key, floors] of Object.entries(approvedWidths)) {
   assert([shoulder, chest, waist, armThickness].every((v, i) => v >= floors[i] - 1e-9), key);
 }
 assert(relativeLimb('queta') > relativeLimb('tatum') * 1.1);
+assert(look('iverson').body.height < look('kobe').body.height);
+assert(look('iverson').body.chest < look('ginobili').body.chest);
+assert(look('carter').body.shoulder > look('kobe').body.shoulder);
+assert(look('carter').body.waist < look('carter').body.chest * 0.65);
 assert(relativeLimb('queta') > relativeLimb('wemby') * 1.5);
 const queta = game.t5.makePlayer(0, 'queta', 'cpu');
 const { height, arm, legs } = queta.col.body, scale = 1 + (height / 1.95 - 1) * 1.55;

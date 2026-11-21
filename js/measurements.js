@@ -183,6 +183,9 @@ window.PH.measurements = {
   kmurray: [80, 225, 83], // Keegan Murray *
   knueppel: [78, 215, 78.25, 8.5], // Kon Knueppel
   kobe: [78, 212, 83], // Kobe Bryant *
+  ginobili: [78, 205], // Manu Ginobili
+  iverson: [72, 165], // Allen Iverson
+  carter: [78, 220], // Vince Carter
   kolek: [74, 195, 74.75, 8.25], // Tyler Kolek
   kornet: [85, 270], // Luke Kornet
   ksanders: [80, 207, 80.25, 8.5], // Kobe Sanders
@@ -359,7 +362,7 @@ window.PH.buildTags = {
   karaban: 'balanced', kat: 'muscular', kawhi: 'muscular', kcp: 'lean',
   kdunn: 'lean', keldon: 'muscular', kellis: 'lean', kenrich: 'balanced',
   kessler: 'muscular', kgeorge: 'balanced', klay: 'balanced', kmurray: 'balanced',
-  knueppel: 'balanced', kobe: 'muscular', kolek: 'balanced', kornet: 'balanced',
+  knueppel: 'balanced', kobe: 'muscular', ginobili: 'lean', iverson: 'lean', carter: 'muscular', kolek: 'balanced', kornet: 'balanced',
   ksanders: 'lean', kuminga: 'muscular', kuzma: 'balanced', kyrie: 'lean',
   kyshawn: 'balanced', lamelo: 'lean', landale: 'muscular', laravia: 'balanced',
   larsson: 'balanced', lavine: 'lean', leaky: 'lean', lebron: 'muscular',
