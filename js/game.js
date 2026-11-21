@@ -1517,11 +1517,10 @@
   function burst(x, y, z, n, cols, sp, life, g, size) { for (let i = 0; i < n; i++) { const a = rr(0, 6.283), u = rr(-0.3, 1), v = rr(0.4, 1) * sp; part(x, y, z, Math.cos(a) * v, Math.sin(a) * v * 0.6, u * sp, cols[(rnd() * cols.length) | 0], life * rr(0.6, 1.1), g, size); } }
   function led(text, col, dur) { G.fx.led = { text: text, col: col, t: 0, dur: dur || 2.2 }; }
   function shake(v) { G.fx.shake = Math.max(G.fx.shake, v); }
-  function flash(col, v) { G.fx.flash = v; G.fx.flashCol = col; delete G.fx.interceptFlash; }
+  function flash(col, v) { G.fx.flash = v; G.fx.flashCol = col; }
   function fxUpdate(dt) {
     for (const p of G.players) comboTick(p);
     const F = G.fx;
-    if (F.possession) { F.possession.t += dt; if (F.possession.t >= F.possession.dur) F.possession = null; }
     if (G.cz) { G.cz.t += dt; if (G.cz.t > G.cz.T) G.cz = null; }
     F.shake = Math.max(0, F.shake - dt * 22); F.flash = Math.max(0, F.flash - dt); F.cheer = Math.max(0, F.cheer - dt); F.board = Math.max(0, F.board - dt); F.shatter = Math.max(0, F.shatter - dt);
     if (F.led) { F.led.t += dt; if (F.led.t > F.led.dur) F.led = null; }
@@ -2151,24 +2150,19 @@
   }
   function localizeInterception(localTeam) {
     const F = G.fx;
-    for (const q of [...F.parts, ...F.rings]) if (q.interceptTeam != null) q.col = interceptionStyle(q.interceptTeam, localTeam).col;
-    for (const f of G.floats) if (f.interceptTeam != null) f.color = interceptionStyle(f.interceptTeam, localTeam).col;
-    if (F.possession) F.possession.col = interceptionStyle(F.possession.team, localTeam).col;
-    if (F.interceptFlash != null) F.flashCol = interceptionStyle(F.interceptFlash, localTeam).col;
+    for (const q of F.parts) if (q.interceptTeam != null && !q.interceptWhite) q.col = interceptionStyle(q.interceptTeam, localTeam).col;
   }
-  function passIntercept(pl, localTeam, teamName) {
+  function passIntercept(pl, localTeam) {
     const F = G.fx, b = G.ball, style = interceptionStyle(pl.tm, localTeam), col = style.col;
-    const x = b.x, y = b.y, z = Math.max(0.5, b.z);
-    for (let i = 0; i < 24; i++) {
-      const a = i * Math.PI / 12, speed = 2.5 + i % 3;
-      part(x, y, z, Math.cos(a) * speed, Math.sin(a) * speed, 1 + i % 4 * 0.3, i % 3 ? col : '#ffffff', 0.5, 5, 3);
-      if (i % 3) F.parts[F.parts.length - 1].interceptTeam = pl.tm;
+    const rig = PH.rig(pl), distance = h => Math.hypot(h[0] - b.x, h[1] - b.y, h[2] - b.z);
+    const hand = distance(rig.handL) < distance(rig.handR) ? rig.handL : rig.handR;
+    for (let i = 0; i < 8; i++) {
+      const a = i * Math.PI / 4, speed = 0.65 + i % 2 * 0.3;
+      part(hand[0], hand[1], hand[2], Math.cos(a) * speed, Math.sin(a) * speed, (i % 3 - 1) * 0.4, i % 3 ? col : '#ffffff', 0.16, 0, 2);
+      const spark = F.parts[F.parts.length - 1];
+      spark.interceptTeam = pl.tm;
+      if (!(i % 3)) spark.interceptWhite = true;
     }
-    for (let i = 0; i < 2; i++) F.rings.push({ x, y, z, t: -i * 0.08, T: 0.55, R: 2.4 + i * 0.4, col: i ? '#ffffff' : col, interceptTeam: i ? null : pl.tm });
-    flash(col, 0.12); F.interceptFlash = pl.tm; shake(4); pl.flash = 0.3;
-    F.possession = { text: '抢断！攻防转换', sub: teamName + ' · ' + pl.arch.name + ' 获得球权', team: pl.tm, col, t: 0, dur: 1.35 };
-    float('抢断传球', pl, col, 1);
-    G.floats[G.floats.length - 1].interceptTeam = pl.tm;
     audioSink?.('intercept', pl.tm);
     if (PH.audio) PH.audio.play(style.sfx);
   }

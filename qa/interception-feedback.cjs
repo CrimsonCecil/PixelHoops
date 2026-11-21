@@ -56,19 +56,19 @@ function networkPerspectives(host, room, hostTeam, stealing) {
     const expected = local < 0 ? { col: '#5ee0ff', sound: 'steal' } : local === stealing ? { col: '#7dff8a', sound: 'interceptGood' } : { col: '#ff6b5e', sound: 'interceptBad' };
     const F = guest.G.fx;
     assert.equal(guest.sounds.filter(s => ['steal', 'interceptGood', 'interceptBad'].includes(s)).join(), expected.sound);
-    assert.equal(F.possession.team, stealing); assert.equal(F.possession.col, expected.col);
-    assert.equal(F.possession.text, '抢断！攻防转换'); assert.equal(F.possession.t, host.G.fx.possession.t);
-    assert.equal(F.flashCol, expected.col);
-    for (const q of [...F.parts, ...F.rings]) assert.equal(q.col, q.interceptTeam == null ? '#ffffff' : expected.col);
-    assert.equal(guest.G.floats.find(f => f.interceptTeam === stealing).color, expected.col);
+    assert.equal(F.possession, undefined); assert.equal(F.flash, 0); assert.equal(F.shake, 0);
+    const sparks = F.parts.filter(q => q.interceptTeam === stealing);
+    assert.equal(sparks.length, 8);
+    for (const q of sparks) assert.equal(q.col, q.interceptWhite ? '#ffffff' : expected.col);
     assert.equal(guest.G.players.find(p => p.ring)?.tm ?? -1, local);
     guest.sounds.length = 0;
     client.receive({ ...packet, audio: [] });
-    assert.equal(guest.G.fx.possession.col, expected.col); assert.equal(guest.sounds.length, 0, 'State refresh must not replay the cue');
+    assert(guest.G.fx.parts.filter(q => q.interceptTeam === stealing && !q.interceptWhite).every(q => q.col === expected.col));
+    assert.equal(guest.sounds.length, 0, 'State refresh must not replay the cue');
   }
   assert.equal(room.snapshot().audio.length, 0, 'Neutral event drains once');
-  assert.equal(host.G.fx.possession.col, stealing === hostTeam ? '#7dff8a' : '#ff6b5e', 'Guest recoloring must not mutate host state');
-  console.log(`PASS online 3V3: host=${hostTeam} interceptor=${stealing}; same-team guest, opposing guest and spectator resolve their own sound and all effect colors`);
+  assert(host.G.fx.parts.filter(q => q.interceptTeam === stealing && !q.interceptWhite).every(q => q.col === (stealing === hostTeam ? '#7dff8a' : '#ff6b5e')), 'Guest recoloring must not mutate host state');
+  console.log(`PASS online 3V3: host=${hostTeam} interceptor=${stealing}; same-team guest, opposing guest and spectator resolve their own sound and spark tint`);
 }
 
 function interception(mode, local, stealing, result = 'int', network = false) {
@@ -77,7 +77,7 @@ function interception(mode, local, stealing, result = 'int', network = false) {
   const api = mode === 3 ? PH.T3 : PH.T5, T = api.T;
   const fromTeam = 1 - stealing, from = G.players.find(p => p.tm === fromTeam);
   const to = G.players.find(p => p.tm === fromTeam && p !== from), d = G.players.find(p => p.tm === stealing);
-  Object.assign(G, { phase: 'live', off: fromTeam }); Object.assign(T, { phase: 'live', off: fromTeam });
+  Object.assign(G, { phase: 'live', off: fromTeam, banner: null }); Object.assign(T, { phase: 'live', off: fromTeam });
   for (const p of G.players) Object.assign(p, { x: -7, y: -12, hasBall: false, stun: 0, action: null });
   Object.assign(from, { x: -3, y: 4, face: 0, hasBall: true });
   Object.assign(to, { x: 3, y: 4, vx: 0, vy: 0, speed: 0 });
@@ -86,9 +86,17 @@ function interception(mode, local, stealing, result = 'int', network = false) {
   sounds.length = 0;
   let spot;
   const original = game.t5.passIntercept;
-  game.t5.passIntercept = (...args) => { spot = { x: G.ball.x, y: G.ball.y }; return original(...args); };
+  game.t5.passIntercept = (...args) => {
+    const k = PH.rig(d), distance = h => Math.hypot(h[0] - G.ball.x, h[1] - G.ball.y, h[2] - G.ball.z);
+    spot = (distance(k.handL) < distance(k.handR) ? k.handL : k.handR).slice();
+    const before = { flash: G.fx.flash, shake: G.fx.shake, playerFlash: d.flash, rings: G.fx.rings.length, floats: G.floats.length, banner: G.banner };
+    original(...args);
+    assert.equal(G.fx.flash, before.flash); assert.equal(G.fx.shake, before.shake); assert.equal(d.flash, before.playerFlash);
+    assert.equal(G.fx.rings.length, before.rings); assert.equal(G.floats.length, before.floats); assert.equal(G.banner, before.banner);
+  };
   if (mode === 3) {
     assert(api.qaSend(from, to));
+    assert(!G.fx.parts.some(q => q.interceptTeam != null), 'No spark before contact');
     if (result === 'miss') d.stun = 1;
     api.qaPass(T.pass.duration / 2);
   } else {
@@ -99,10 +107,12 @@ function interception(mode, local, stealing, result = 'int', network = false) {
     PH.T5.TV.t5_int_grab = result === 'defl' ? 0 : 10;
     PH.T5.TV.t5_int_deflD = 10; PH.T5.TV.t5_int_defl = 1;
     if (result === 'miss') d.stun = 1;
+    assert(!G.fx.parts.some(q => q.interceptTeam != null), 'No spark before contact');
     api.qaPass(0.010001);
   }
   if (result !== 'int') {
     assert.equal(G.fx.possession, undefined);
+    assert(!G.fx.parts.some(q => q.interceptTeam != null));
     assert(!sounds.some(s => s.startsWith('intercept')));
     assert.equal(G.stats[d.id].stl, 0);
     if (result === 'defl') assert(sounds.includes('steal'), 'Deflection keeps its existing sound');
@@ -110,15 +120,16 @@ function interception(mode, local, stealing, result = 'int', network = false) {
   }
   assert.equal(G.ball.holder, d.id); assert.equal(G.off, stealing);
   assert.equal(G.stats[d.id].stl, 1); assert.equal(G.stats[from.id].tov, 1);
-  assert.equal(G.fx.possession.text, '抢断！攻防转换');
-  assert(G.fx.possession.sub.includes(d.arch.name));
-  const teamName = mode === 3 ? game.TEAMS[stealing].name : T.tm[stealing].name;
-  assert(G.fx.possession.sub.includes(teamName));
-  assert.equal(G.fx.possession.dur, 1.35);
-  assert(G.fx.flash >= 0.12); assert(G.fx.parts.length >= 24); assert(G.fx.rings.length >= 2);
+  assert.equal(G.fx.possession, undefined); assert.equal(G.banner, null);
+  assert.equal(G.fx.flash, 0); assert.equal(G.fx.shake, 0);
+  const sparks = G.fx.parts.filter(q => q.interceptTeam != null);
+  assert.equal(sparks.length, 8);
   const sign = mode === 5 ? -1 : 1;
-  assert(G.fx.rings.some(r => r.R >= 2.4 && Math.abs(r.x - sign * spot.x) < 1e-9 && Math.abs(r.y - sign * spot.y) < 1e-9), 'Effect follows the interception point, including possession flip');
-  assert.equal(G.floats.filter(x => x.text === '抢断传球').length, 1, 'Existing float remains visible in simple feedback');
+  for (const q of sparks) {
+    assert(Math.hypot(q.x - sign * spot[0], q.y - sign * spot[1], q.z - spot[2]) < 1e-9, 'Spark starts at the closest rig hand, including possession flip');
+    assert(q.life <= 0.18); assert(q.s <= 2); assert(Math.hypot(q.vx, q.vy, q.vz) * q.life <= 0.18, 'Spark stays compact');
+  }
+  assert.equal(G.floats.filter(x => x.text === (mode === 3 ? '抢断传球' : '抢断')).length, 1, 'Only the original mode-specific float remains');
   const expected = local < 0 ? 'steal' : local === stealing ? 'interceptGood' : 'interceptBad';
   assert.equal(sounds.filter(s => ['interceptGood', 'interceptBad', 'steal'].includes(s)).join(), expected);
   if (network) networkPerspectives(f, room, local, stealing);
@@ -127,16 +138,12 @@ function interception(mode, local, stealing, result = 'int', network = false) {
     f.text.length = 0;
     if (mode === 3) PH.render.render(G);
     else { T.cam.preset = camera; PH.render5.render(T, 1 / 60); }
-    const rows = f.text.filter(q => q.s === G.fx.possession.text || q.s === G.fx.possession.sub);
-    assert.equal(rows.length, 2, `${camera}: exactly one screen-space prompt`);
-    for (const row of rows) { assert.equal(row.x, PH.render.W / 2); assert(row.y > 0 && row.y < PH.render.H - 12); assert(row.max <= PH.render.W - 24); }
+    assert(!f.text.some(q => /抢断！攻防转换|获得球权/.test(q.s)), `${camera}: no possession banner`);
   }
-  for (let i = 0; i < 78; i++) game.t5.qaFx(1 / 60);
-  assert(G.fx.possession, 'Prompt remains for at least 1.3 seconds');
-  for (let i = 0; i < 4; i++) game.t5.qaFx(1 / 60);
-  assert.equal(G.fx.possession, null, 'Prompt expires after 1.35 seconds');
-  f.text.length = 0; PH.render.drawPossession(G); assert.equal(f.text.length, 0);
-  console.log(`PASS ${mode}V${mode}: local=${local < 0 ? 'spectator' : local} interceptor=${stealing} effect + Chinese prompt + ${expected}; cameras and 1.35s expiry`);
+  for (let i = 0; i < 12; i++) game.t5.qaFx(1 / 60);
+  assert(!G.fx.parts.some(q => q.interceptTeam != null), 'Contact spark expires within 0.2 seconds');
+  assert.equal(PH.render.drawPossession, undefined);
+  console.log(`PASS ${mode}V${mode}: local=${local < 0 ? 'spectator' : local} interceptor=${stealing} hand spark + ${expected}; no banner/flash/shake, 0.16s expiry`);
 }
 
 for (const mode of [3, 5]) {

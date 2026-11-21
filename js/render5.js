@@ -245,7 +245,6 @@
     RPL.rT = G5().time; const sw = RPL.on && RPL.view ? RPL.swap() : null;
     try { if (T.cam.preset === '2k') render2k(T, dt); else renderBroadcast(T, dt); } finally { if (sw) sw(); }
     if (sw) RPL.hud(); else overlays(T);
-    if (!sw) R.drawPossession(G5());
   }
   function renderBroadcast(T, dt) {
     const Gm = G5(), d = dOf(T), b = Gm.ball;

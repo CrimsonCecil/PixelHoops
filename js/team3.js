@@ -123,8 +123,8 @@
       if (!d.stun && dist(d, b) < 0.22 + d.tendency.read * 0.35) {
         const local = G.players.find(p => p.ring && p.ctrl !== 'cpu');
         G.stats[d.id].stl++; G.stats[P.from.id].tov++;
-        A.passIntercept(d, local ? local.tm : null, GM.TEAMS[d.tm].name);
-        A.pickup(d); return;
+        A.passIntercept(d, local ? local.tm : null);
+        A.pickup(d); A.float('抢断传球', d, '#7dff8a', 1); return;
       }
     }
     if (u === 1) A.pickup(P.to);
