@@ -4195,7 +4195,8 @@
       }
       // V4.2 招式不把人带出界：离边线 / 底线 / 中线（1V1）不到 mvEdge 就不再往外走
       if (pl.hasBall && (K.mvEdge > 0 || kd === 'hesi')) { const t5 = G.mode === 't5', XL = (t5 ? 7.62 : 7.5) - K.mvEdge, Y1 = (t5 ? 14.1 : 14) - K.mvEdge, Y0 = t5 ? -Y1 : K.mvEdge;
-        if (kd === 'hesi') { vx = clamp(vx, Math.min(0, (-XL - pl.x) / dt), Math.max(0, (XL - pl.x) / dt)); vy = clamp(vy, Math.min(0, (Y0 - pl.y) / dt), Math.max(0, (Y1 - pl.y) / dt)); }
+        if (kd === 'hesi') { const edge = Math.max(K.mvEdge, 0.35), hx = t5 ? 7.62 - edge : XL, hy = t5 ? 14 - edge : Y1, ly = t5 ? -hy : Y0;
+          vx = clamp(vx, Math.min(0, (-hx - pl.x) / dt), Math.max(0, (hx - pl.x) / dt)); vy = clamp(vy, Math.min(0, (ly - pl.y) / dt), Math.max(0, (hy - pl.y) / dt)); }
         if ((pl.x > XL && vx > 0) || (pl.x < -XL && vx < 0)) vx = 0; if ((pl.y > Y1 && vy > 0) || (pl.y < Y0 && vy < 0)) vy = 0; }
       pl.vx = vx; pl.vy = vy;
       if (a.t >= a.T) { if (kd === 'hesi') blendHeldBall(); if (isPostMove(kd)) { if (pl.postMove) pl.postMove.t = G.time; if (kd === 'postface' || kd === 'postdrop') { pl.face = Math.atan2(HOOP.y - pl.y, HOOP.x - pl.x); pl.vx = pl.vy = 0; } } pl.action = null; pl.lastMoveT = G.time; pl.mvEndT = G.time; pl.z = 0; pl.vz = 0; }

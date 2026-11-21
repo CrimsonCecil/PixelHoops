@@ -293,4 +293,25 @@ for (const [arch, canCancel] of [['kyrie', true], ['shaq', false]]) {
   assert(p.action.hesiHold === 'hesi');
 }
 
+for (const [x, y, face] of [[0, 13.75, -Math.PI / 2], [0, -13.75, Math.PI / 2], [7.3, 6, Math.PI], [-7.3, 6, 0], [0, 13.6, -Math.PI / 2]]) {
+  const { game, key, team5 } = fixture();
+  team5.start({ home: 'LAL', away: 'BOS', human: 0 });
+  const T = team5.T, p = T.ctl;
+  Object.assign(T, { phase: 'live', off: 0, lgPoss: T.cnt.poss, lgUsed: false, lgB: null });
+  Object.assign(game.G, { phase: 'live', off: 0 });
+  for (const other of game.G.players) if (other !== p) Object.assign(other, { x: -6 + other.id, y: 1, stun: 3 });
+  Object.assign(p, { x, y, face, hand: 1, hasBall: true, catchT: -9 });
+  Object.assign(game.G.ball, { state: 'held', holder: p.id, dead: false, lastTouch: p.id });
+  key('KeyH');
+  for (let i = 0; i < 80; i++) {
+    team5.tick(1 / 120);
+    assert.equal(p.action.kind, 'hesi');
+    assert.equal(T.lgUsed, false, 'hesitation must not consume the line guard');
+    if (Math.abs(y) > 13.65 || Math.abs(x) > 7.27) {
+      assert(Math.abs(p.x - x) < 1e-9, 'no inward snap from outside the guard zone');
+      assert(Math.abs(p.y - y) < 1e-9, 'no inward snap from outside the guard zone');
+    } else assert(Math.abs(p.y) <= 13.65, 'back-step stops inside the guard trigger');
+  }
+}
+
 console.log('Hesitation: sideways one-hand fake, release directions, buffering, move requirements, post-up, possession loss, and 5V5 passed.');
