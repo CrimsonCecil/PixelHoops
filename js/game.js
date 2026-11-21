@@ -144,6 +144,11 @@
     ['ctThruRnd', 'ct', '顶翻 随机幅度', 0.2, 0, 1, 0.01, '对抗差值每次接触再加随机（三次均匀平均，约 ±1.5 倍这个）：发力时机、重心'],
     ['ctThruP', 'ct', '顶翻 倒地概率', 0.85, 0, 1, 0.01, '概率：达到倒地门槛时触发的概率（0 = 关闭顶翻）'],
     ['ctThruPM', 'ct', '顶翻 踉跄概率', 0.8, 0, 1, 0.01, '概率：达到踉跄门槛时触发的概率'],
+    ['ctThruHnd', 'ct', '顶翻 控球质量权重', 0.25, 0, 1, 0.01, '综合质量按终结0.4、速度0.2、力量0.15与控球此权重加权平均；扣篮用扣篮，其他用上篮'],
+    ['ctThruQ0', 'ct', '顶翻 质量起算', 0.55, 0, 1, 0.01, '综合质量从此值到满额质量，逐渐恢复原顶翻概率与命中待遇'],
+    ['ctThruQ1', 'ct', '顶翻 满额质量', 0.85, 0, 1, 0.01, '综合质量达到此值，保留原顶翻概率、倒地命中下限与踉跄命中倍率'],
+    ['ctThruQMin', 'ct', '顶翻 最低触发倍率', 0.15, 0, 1, 0.01, '低质量进攻人的倒地/踉跄触发概率至少乘此倍率，仍须通过对抗门槛'],
+    ['ctThruMake', 'ct', '顶翻 低质量命中倍率', 0.65, 0, 1, 0.01, '顶翻后命中与倒地命中下限乘此倍率，随综合质量提高逐渐恢复到1；踉跄也适用'],
     ['ctThruFallT', 'ct', '顶翻 倒地时长', 1.3, 0.1, 4, 0.05, '秒：防守人倒地到起身（最后 0.45 秒起身）'],
     ['ctThruStgT', 'ct', '顶翻 踉跄时长', 0.55, 0.1, 2, 0.05, '秒'],
     ['ctThruV', 'ct', '顶翻 击退速度', 3.2, 0, 8, 0.1, '米/秒：倒地档（踉跄档 ×0.6），再 + 差值加成'],
@@ -778,6 +783,7 @@
     ['smFloR', 'fin', '抛投 能力系数', 0.44, 0, 1, 0.01, '概率'],
     ['smHook0', 'shot', '勾手 基础命中', 0.4, 0, 1, 0.01, '概率'],
     ['smHookR', 'shot', '勾手 能力系数', 0.38, 0, 1, 0.01, '概率'],
+    ['smGreenClose', 'shot', '近筐空位完美 免持球惩罚距离', 3, 0, 5, 0.1, '米：此距离内完美出手且干扰低于20%，不扣持球跳投的5%命中；其他跳投不变'],
     ['sm30', 'shot', '三分 基础命中', 0.12, 0, 1, 0.01, '概率：三分命中 = 基础 + 三分 × 系数 − 超远惩罚'],
     ['sm3R', 'shot', '三分 能力系数', 0.34, 0, 1, 0.01, '概率'],
     ['smDeep', 'shot', '超远三分 起算距离', 7.6, 6.7, 10, 0.05, '米：超出这个（+ 无限射程徽章）每米扣命中'],
@@ -2135,7 +2141,7 @@
     if (K.ctThruP > 0 || K.ctThruPM > 0) {
       const E = finEdge(f, o, a, dk, true) + (rnd() + rnd() + rnd() - 1.5) * K.ctThruRnd, tk = E >= K.ctThruHi ? 'fall' : E >= K.ctThruMid ? 'stagger' : '';
       if (G.qaCt) G.qaCt.push(E);
-      if (tk && rnd() < (tk === 'fall' ? K.ctThruP : K.ctThruPM)) { thruHit(f, o, a, tk, E, nx, ny, mx / ml, my / ml, air); return; }
+      if (tk && rnd() < (tk === 'fall' ? K.ctThruP : K.ctThruPM) * Math.max(K.ctThruQMin, thruQuality(f, dk))) { thruHit(f, o, a, tk, E, nx, ny, mx / ml, my / ml, air); return; }
     }
     const extra = 0.12 * (sp - 4) / 3 + (o.stance ? -0.15 : 0) + (dk ? 0.3 * (f.r.dunk - 0.6) : 0.25 * (f.r.lay - 0.6)) - 0.25 * (o.r.def - 0.6) - 0.25 * ((o.r.intD || 0.5) - 0.6)
       + (tkIs(f, 'finish') ? 0.3 : 0) - (tkIs(o, 'def') ? 0.3 : 0);
@@ -2742,7 +2748,7 @@
         float('硬挤出手', pl, '#ffd24a', 1);
       }
     }
-    if (a.thru && kind === 'lay' && !SK) prob = a.thru === 'fall' ? Math.max(prob, K.ctThruLay) : prob * (1 - K.ctThruPen);   // V4.5 顶翻
+    if (a.thru && kind === 'lay' && !SK) prob = thruProb(pl, a, prob, false);   // V4.5 顶翻
     if (LAYC) {
       const cd = ctDef(pl, df), cc = cd === df ? ci.c : contestOf(pl, cd, 'in');
       const w = clamp((cc - K.ctLayCapStart) / Math.max(0.05, K.ctLayCapSpan), 0, 1);
@@ -2751,7 +2757,7 @@
     }
     if (kind === 'shot' && !V.hook && !SK) {
       const cs = a.catchShot;
-      const delta = !cs && !hasB(pl, 'pullup') ? -0.05 : 0;
+      const delta = !cs && !hasB(pl, 'pullup') && !(green && c < 0.2 && d <= K.smGreenClose) ? -0.05 : 0;
       prob += delta * Math.min(1, prob / 0.5);
       info.shotStyle = cs ? 'catch' : 'pullup'; info.styleDelta = delta;
     }
@@ -3543,6 +3549,14 @@
     let best = df, bc = df && !df.off ? contestInfo(pl, df, 'in').c : -1;
     for (const q of G.players) if (q !== pl && !q.off && TM(q) !== TM(pl) && Math.hypot(q.x - pl.x, q.y - pl.y) < 2.7) { const c = contestInfo(pl, q, 'in').c; if (c > bc + 0.05) { bc = c; best = q; } }
     return best;
+  }
+  function thruQuality(pl, dk) {
+    const r = pl.r, q = (0.4 * (dk ? r.dunk : r.lay) + K.ctThruHnd * r.hnd + 0.2 * r.spd + 0.15 * r.str) / (0.75 + K.ctThruHnd);
+    return clamp((q - K.ctThruQ0) / Math.max(0.05, K.ctThruQ1 - K.ctThruQ0), 0, 1);
+  }
+  function thruProb(pl, a, prob, dk) {
+    const k = lerp(K.ctThruMake, 1, thruQuality(pl, dk));
+    return clamp(a.thru === 'fall' ? Math.max(prob, dk ? K.ctThruDk : K.ctThruLay) : prob * (1 - K.ctThruPen), 0, 1) * k;
   }
   function finEdge(pl, df, a, dk, fix) {
     if (!fix) df = ctDef(pl, df);
@@ -4575,7 +4589,7 @@
           const dR = dunkR(pl, a.run0 || 0), edge = df.off ? 1 : finEdge(pl, df, a, true);
           const flashy = a.v === 'windmill' || a.v === '360' || a.v === 'cock' || a.v === 'cradle' || a.v === 'pump' || a.v === 'scissor', vk = flashy ? K.dkFlyK : a.v === 'two' || a.v === 'rimpull' || a.v === 'shaq' ? K.dkPowK : 1;
           const prob0 = SK ? 1 : clamp(K.dkP0 + K.dkPR * dR - (flashy ? K.dkPFly : 0) - K.ctDkP * c * vk * clamp(K.dkC0 - K.dkCE * edge, 0.05, 1.3) - heavyD - (a.bodyPen ? a.bodyPen + K.dkBodyD * clamp(distHoop(pl) - 1, 0, 1.5) : 0) - (pl.stam < ST.layLow ? K.dkLowSt : 0), K.dkMin, K.dkMax);
-          const prob = alleyProb(a, SK || !a.thru ? prob0 : a.thru === 'fall' ? Math.max(prob0, K.ctThruDk) : prob0 * (1 - K.ctThruPen));
+          const prob = alleyProb(a, SK || !a.thru ? prob0 : thruProb(pl, a, prob0, true));
           a.edge = edge; if (a.v === 'poster') bpop(pl, 'poster');
           const info = { who: pl.id, name: a.alley ? '空接暴扣' : a.name, pts: 2, dist: distHoop(pl), contest: c, src: c > 0.04 ? ci.src : '', e: null, zone: 'lay', stamLow: pl.stam < ST.layLow, green: false, made: false, blocked: false, prob: prob, tl: '—', cl: c < 0.2 ? '空位' : c < 0.5 ? '轻微干扰' : '严重干扰', reason: '' };
           if ((!a.alley && a.esc && rnd() < 0.85) || rnd() < prob) {
