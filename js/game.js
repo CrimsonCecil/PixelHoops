@@ -556,6 +556,12 @@
     ['bdFat', 'ct', '冲撞 体型差权重', 0.7, 0, 3, 0.05, '比例'],
     ['bdStA', 'ct', '冲撞 冲方站稳加成', 0.1, 0, 0.5, 0.01, '比例'],
     ['bdStB', 'ct', '冲撞 被冲方站稳加成', 0.15, 0, 0.5, 0.01, '比例'],
+    ['bdSlip', 'ct', '身体接触 防守卡位', 0.85, 0, 1, 0.05, '比例：持球迎撞时削减横向滑步，随吨位比、防守与站姿增强'],
+    ['bdPbBias', 'ct', '身体接触 顶回防守优势', 0.5, 0, 1.5, 0.05, '优势：同吨位或略轻的防守人也能顶回，叠加外防与控球差'],
+    ['bdPbCd', 'ct', '身体接触 顶回间隔', 0.5, 0.1, 2, 0.05, '秒：与高速冲撞共用身体对抗判定，背打不受影响'],
+    ['bdPbVn', 'ct', '身体接触 顶回最低速度', 0.6, 0, 2.2, 0.1, '米/秒：持球人朝防守人的速度，低速接触也可触发'],
+    ['bdPbBase', 'ct', '身体接触 顶回基础速度', 2.4, 0, 6, 0.1, '米/秒：向后并远离篮筐弹回'],
+    ['bdPbScale', 'ct', '身体接触 顶回优势倍率', 2, 0, 6, 0.1, '米/秒：每点身体对抗优势增加的后退速度'],
     ['bdSpd', 'ct', '冲撞 速度权重', 0.12, 0, 1, 0.01, '比例：× (相对速度 − 3) / 3'],
     ['bdRnd', 'ct', '冲撞 随机幅度', 0.55, 0, 2, 0.01, '比例：三次随机叠加的幅度（同吨位有输有赢）'],
     ['bdFz0', 'ct', '冲撞 小个子缩放', 0.35, 0, 1, 0.01, '倍率：双方都瘦小时整体优势缩小'],
@@ -1582,7 +1588,7 @@
   function newTrainStats() { return { n: 0, made: 0, blocked: 0, sumC: 0, zones: { three: [0, 0], mid: [0, 0], lay: [0, 0] }, timing: [0, 0, 0, 0, 0], last: [] }; }
   function newGame(o) {
     o = o || {};
-    G.bumpT = -9; G.postBumpT = -9;
+    G.bumpT = -9; G.postBumpT = -9; G.pushT = -9;
     G.tips = null; G.mode = o.mode || 'cpu'; G.diff = o.diff == null ? 1 : o.diff; G.target = o.target || 21; G.glen = G.mode === 'cpu' || G.mode === '2p' ? (o.glen || 0) : 0; G.gclock = G.glen; G.sd = false; G.gEnd = false; G.mp = -1; G.mpT = 0; G.clkTick = 99; G.fb = o.fb || 'simple'; G.bpops = []; G.shotN = 0; G.hero = null; G.cz = null; G.hlQ = null; G.rec = []; G.replay = null;
     const c0 = G.mode === 'demo' ? 'cpu' : 'p1', c1 = G.mode === '2p' ? 'p2' : 'cpu';
     if (G.mode === 'cpu' || G.mode === 'train') G.aiPlay = {};
@@ -5569,12 +5575,14 @@
       if (hd && hd.post) { const df = hd === a ? c : a; const wh = clamp(0.5 - 0.45 * (powOf(hd) - powOf(df)) - 0.35 * (hd.r.post - df.r.intD) + (df.stance ? 0.12 : -0.05), 0.12, 0.88); wa = hd === a ? wh : 1 - wh; }
       // 冲撞：相对速度够大才算一次碰撞事件，按吨位比决定谁被撞开 / 撞倒
       const vn = (a.vx - c.vx) * nx + (a.vy - c.vy) * ny;
+      let bumped = false;
       // 被晃开/踉跄中的人：只被推开，不再触发冲撞事件（不会把冲过来的人弹回去）
       if (a.stun > 0 || c.stun > 0) wa = a.stun > 0 && c.stun <= 0 ? 0.88 : c.stun > 0 && a.stun <= 0 ? 0.12 : wa;
       // 鱼跃中的人不被卡身位：位移全给对方，也不触发冲撞弹回（撞开在 diveTick 里处理）
       const dvr = diving(a) ? a : diving(c) ? c : null; if (dvr) wa = dvr === a ? 0.04 : 0.96;
       if (!dvr && vn > K.bdVn && G.phase === 'live' && TM(a) !== TM(c) && a.stun <= 0 && c.stun <= 0 && G.time - G.bumpT > K.bdCd && !(c.dummy && (T.dummy === 'stand' || T.dummy === 'hands'))) {
         G.bumpT = G.time;
+        bumped = true;
         const va0 = a.vx * nx + a.vy * ny, vc0 = -(c.vx * nx + c.vy * ny), mv = va0 >= vc0 ? a : c, ot = mv === a ? c : a, s = mv === a ? 1 : -1;
         const Pm = bodyPow(mv) * (mv.box ? K.bdBoxP : 1), Po = bodyPow(ot) * (ot.box ? K.bdBoxP : 1), I = vn / 6 * Math.max(Pm, Po);
         // 对抗结果是概率：吨位比决定"期望优势"，每次再叠加随机（发力时机、重心），所以力量大不是每次都赢
@@ -5606,6 +5614,28 @@
           const rr0 = powOf(o) / powOf(f), sg = f === a ? -1 : 1;
           f.action.bump = Math.max(f.action.bump || 0, clamp((rr0 - 0.8) * K.bdLayB, 0, 0.5));
           if (rr0 > 1.15) for (let i = f.action.si; i < f.action.wp.length; i++) { const w = f.action.wp[i]; const sh = K.bdLayS * Math.min(1, rr0 - 1); w.x += nx * sg * sh; w.y += ny * sg * sh; if (i === f.action.si) { w.fx += nx * sg * sh * 0.5; w.fy += ny * sg * sh * 0.5; } }
+        }
+      }
+      if (hd && !hd.post && !bumped && !dvr && G.phase === 'live' && TM(a) !== TM(c) && a.stun <= 0 && c.stun <= 0 && !(hd.action && ['shot', 'layup', 'dunk'].includes(hd.action.type))) {
+        const df = hd === a ? c : a, sg = hd === a ? 1 : -1, hx = nx * sg, hy = ny * sg;
+        const into = hd.vx * hx + hd.vy * hy;
+        if (into > 0 && !(df.dummy && (T.dummy === 'stand' || T.dummy === 'hands'))) {
+          const hold = clamp(1 + Math.log(bodyPow(df) / bodyPow(hd)) * K.bdLog + 0.35 * (df.r.def - hd.r.hnd) + (df.stance ? K.bdStB : 0), 0, 1);
+          const tangent = -hd.vx * hy + hd.vy * hx, slip = K.bdSlip * hold;
+          hd.vx += hy * tangent * slip; hd.vy -= hx * tangent * slip;
+          if (into > K.bdPbVn && G.time - G.pushT > K.bdPbCd) {
+            G.pushT = G.time;
+            const adv = contactAdv(df, hd, K.bdPbBias + 0.35 * (df.r.def - hd.r.hnd) + (df.stance ? K.bdStB : 0));
+            if (adv > 0) {
+              const away = hoopDir(hd), bx = -hx - away.x * 0.5, by = -hy - away.y * 0.5, bl = Math.hypot(bx, by) || 1;
+              const speed = K.bdPbBase + K.bdPbScale * adv, I = clamp(speed / 6, 0.2, 1);
+              hd.vx -= hx * into; hd.vy -= hy * into;
+              knock(hd, bx / bl, by / bl, speed, adv >= K.bdT2 ? K.bdK2T : adv >= K.bdT1 ? K.bdK1T : 0, 'off');
+              bodyCost(hd, I, true); bodyCost(df, I * 0.3, false);
+              impactFx((a.x + c.x) / 2, (a.y + c.y) / 2, false, I * 0.3, hd, df);
+              if (adv >= K.bdT2) float('顶回', df, '#bfe9ff', 1);
+            }
+          }
         }
       }
       // 背打：每顶一下有一次撞击感
@@ -5734,7 +5764,7 @@
     if (!t5Saved) t5Saved = { shotClock: CFG.shotClock };
     CFG.shotClock = o.half ? o.clock : 24;
     G.mode = o.half ? 't3' : 't5'; G.diff = o.diff == null ? 1 : o.diff; G.target = o.half ? o.target : 999; G.glen = 0; G.gclock = 0; G.sd = false; G.gEnd = false; G.mp = -1; G.mpT = 0; G.clkTick = 99;
-    G.fb = 'simple'; G.bpops = []; G.shotN = 0; G.hero = null; G.cz = null; G.hlQ = null; G.rec = []; G.replay = null; G.tips = null; G.cel = null; G.cutin = null; G.bumpT = -9; G.postBumpT = -9; G.thruMk = null; G.chk = null;
+    G.fb = 'simple'; G.bpops = []; G.shotN = 0; G.hero = null; G.cz = null; G.hlQ = null; G.rec = []; G.replay = null; G.tips = null; G.cel = null; G.cutin = null; G.bumpT = -9; G.postBumpT = -9; G.pushT = -9; G.thruMk = null; G.chk = null;
     G.players = players; G.ball = { x: 0, y: 0, z: 1, vx: 0, vy: 0, vz: 0, state: 'ext', holder: -1, spin: 0, shot: null, lastTouch: 0, noPick: 0, dead: false, under: false, trail: null };
     G.score = [0, 0]; G.floats = []; G.banner = null; G.net = 0; G.time = 0; G.winner = -1; G.lastShot = null; G.lastScorer = 0; G.lastMakeAt = -Infinity;
     G.streak = players.map(() => 0); G.scout = players.map(() => ({})); G.hz = players.map(() => ({})); G.stats = players.map(newStats);
