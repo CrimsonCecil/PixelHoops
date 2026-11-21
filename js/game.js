@@ -13,6 +13,23 @@
   // 每项：[字段, 组, 中文名, 默认, 最小, 最大, 步长, 说明（单位 / 效果，只在调参台显示）, mode]
   const TU = PH.TUNE || null;
   const TDEF = [
+    ['alleyWindow', 'lay', '空接 完美判定阈值', 0.075, 0.02, 0.3, 0.005, '秒：自动能力判定的随机偏差不超过此值时为完美'],
+    ['alleyOpen', 'lay', '空接 空位窗口增幅', 0.5, 0, 2, 0.05, '倍率：无人封堵时扩大窗口'],
+    ['alleyLob', 'lay', '空接 终结者窗口增幅', 0.3, 0, 2, 0.05, '倍率：空接终结者类型扩大窗口'],
+    ['alleyContest', 'lay', '空接 补防窗口压缩', 0.55, 0, 0.9, 0.05, '比例：接球瞬间附近防守人压缩窗口'],
+    ['alleyRange', 'lay', '空接 补防距离', 2.7, 0.5, 5, 0.1, '米：接球人或篮筐附近防守人的影响范围'],
+    ['alleyOk', 'lay', '空接 普通窗口倍数', 2, 1, 4, 0.1, '倍：完美窗口之外的普通终结窗口'],
+    ['alleyGreen', 'lay', '空接 完美命中加成', 0.35, 0, 1, 0.05, '概率加成：仍可被封盖，仍计算干扰'],
+    ['alleyWeak', 'lay', '空接 失误命中倍率', 0.22, 0, 1, 0.02, '倍率：能力与干扰判定较差的终结'],
+    ['alleyFumble', 'lay', '空接 受干扰脱手概率', 0.65, 0, 1, 0.05, '概率：错过窗口时按补防强度判脱手'],
+    ['alleyCpu', 'lay', '空接 自动终结偏差', 0.34, 0.05, 1, 0.01, '秒：所有接球人按扣篮、弹跳、接球能力和传球质量缩小随机偏差'],
+    ['selfAlleyMin', 'lay', '自抛空接 最近距离', 2.5, 1.5, 4, 0.1, '米：持球向篮筐移动时允许自抛的最近距离'],
+    ['selfAlleyMax', 'lay', '自抛空接 最远距离', 7, 4, 9, 0.1, '米：允许自抛的最远距离'],
+    ['selfAlleyGlass', 'lay', '自抛空接 打板距离', 4.5, 3, 7, 0.1, '米：超过此距离选择打板，斜向切入也打板'],
+    ['selfAlleyAngle', 'lay', '自抛空接 打板夹角', 0.35, 0.1, 0.9, 0.05, '侧向距离 / 离筐距离：大于此值选择打板'],
+    ['selfAlleyCatch', 'lay', '自抛空接 接球离筐', 1.7, 1, 2.5, 0.1, '米：自抛后的自动跑动目标'],
+    ['selfAlleySpeed', 'lay', '自抛空接 最低向筐速度', 1, 0.3, 3, 0.1, '米/秒：静止或背离篮筐时不触发'],
+    ['selfAlleyCpu', 'lay', '自抛空接 电脑尝试率', 0.16, 0, 1, 0.01, '每秒：擅长扣篮且路线空旷的电脑尝试自抛的概率率'],
     ['poFakeCommit', 'shot', '背打 假投收球窗口', 0.24, 0, 0.5, 0.01, '秒：起跳前且在窗口内松手保持背打假投'],
     ['poFakeBite', 'def', '背打 假投骗跳', 0.35, 0, 1, 0.01, '概率：梦幻舞步提升骗跳效果'],
     ['poFakeCost', 'stam', '背打 假投消耗', 0, 0, 10, 0.1, '体力：沿用动作固定消耗倍率，默认假投免费'],
@@ -153,10 +170,10 @@
     ['pcHnd', 'drib', '急停干拔 控球门槛', 0.88, 0, 1, 0.01, '真实控球达到此值可随时中断运球起跳；脚踝终结者/运球如丝无门槛，后撤步大师仅限后撤步'],
     ['uuWin', 'drib', '上下步 假投衔接窗口', 0.45, 0, 1.5, 0.01, '秒：假投结束后可接方向运球动作'],
     ['uuT', 'drib', '上下步 动作时长', 0.42, 0.2, 0.9, 0.01, '秒'],
-    ['uuForward', 'drib', '上下步 突篮距离', 1.05, 0.2, 2, 0.05, '米：随背控、近投和控球缩放'],
-    ['uuBack', 'drib', '上下步 后撤距离', 0.9, 0.2, 2, 0.05, '米'],
-    ['uuSide', 'drib', '上下步 横移距离', 0.85, 0.2, 2, 0.05, '米'],
-    ['rsHold', 'drib', '右摇杆 长推投篮阈值', 0.2, 0.1, 0.4, 0.01, '秒：此前回中是运球，长推投篮，回中松手出手'],
+    ['uuForward', 'drib', '上下步 突篮距离', 1.5, 0.2, 3, 0.05, '米：随背控、近投和控球缩放'],
+    ['uuBack', 'drib', '上下步 后撤距离', 1.15, 0.2, 3, 0.05, '米'],
+    ['uuSide', 'drib', '上下步 横移距离', 1.25, 0.2, 3, 0.05, '米'],
+    ['rsHold', 'drib', '右摇杆 长推投篮阈值', 0.2, 0.1, 0.4, 0.01, '秒：推杆立即运球，持续长推转投篮；上下步接出手，回中松手定时；突破终结仍按住计时'],
     ['uuReq', 'drib', '上下步 能力门槛', 0.45, 0, 1, 0.01, '背控、近投、控球三者最高值'],
     ['uuCost', 'drib', '上下步 体力系数', 0.3, 0, 1, 0.01, '倍率：基础运球消耗'],
     ['uuBonus', 'shot', '上下步 骗跳命中加成', 0.08, 0, 0.3, 0.01, '概率：最近防守人被假投骗跳或仍在落地恢复'],
@@ -205,7 +222,7 @@
     ['gwBadge', 'shot', '徽章绿区加成上限', 1.45, 1, 3, 0.05, '倍率：多个徽章叠乘的封顶'],
     ['gwSkill', 'shot', '必杀技绿区倍数', 1.7, 1, 3, 0.05, '倍率：库里 / 东契奇 / 科比 / 欧文必杀技出手'],
     ['fkFrac', 'shot', '假投窗口 比例', 0.4, 0.1, 0.8, 0.01, '比例：投篮条涨到这个比例前松手 = 假投（玩家）'],
-    ['fkMin', 'shot', '假投窗口 最短', 0.17, 0.05, 0.4, 0.01, '秒'],
+    ['fkMin', 'shot', '假投窗口 最短', 0.22, 0.05, 0.4, 0.01, '秒：覆盖普通点按，仍避开投篮绿区'],
     ['fkGap', 'shot', '假投窗口 离绿区', 0.08, 0, 0.3, 0.01, '秒：假投窗口至少比最早绿区早这么多'],
     ['fkFloor', 'shot', '假投窗口 绝对下限', 0.12, 0.03, 0.3, 0.01, '秒'],
     ['fkCpu', 'shot', '电脑假投窗口', 0.17, 0.05, 0.4, 0.01, '秒'],
@@ -1144,10 +1161,10 @@
   // 槽位：S 横向跑动 / Ss 横向原地 / St 横向贴身 / FD 斜前 / F 前（拉开）/ Ft 前（贴身）/ BD 斜后 / B 后 / H 不推方向
   // 新招都是在基础动作（kind）的物理和骨骼上改参数：方向、速度、时长、晃人系数，以及“什么情况下好用”（sit）
   const MVX = {
-    uuForward: { name: '上下步·突篮', kind: 'uu', cost: 1, safe: true },
-    uuBack: { name: '上下步·后撤', kind: 'uu', cost: 1, safe: true },
-    uuLeft: { name: '上下步·左', kind: 'uu', cost: 1, safe: true },
-    uuRight: { name: '上下步·右', kind: 'uu', cost: 1, safe: true },
+    uuForward: { name: '上下步·突篮', kind: 'uu', cost: 1, safe: true, sit: () => 1, how: '假投后接：朝筐方向 + J / X，或朝筐长推右摇杆；骗起防守后跨步上篮，按住接投篮、松开出手；快拨或 B / L + 方向只跨步' },
+    uuBack: { name: '上下步·后撤', kind: 'uu', cost: 1, safe: true, sit: () => 1, how: '假投后接：背筐方向 + J / X，或背筐长推右摇杆；对手扑上来时后撤，按住接后撤跳投、松开出手；快拨或 B / L + 方向只跨步' },
+    uuLeft: { name: '上下步·左', kind: 'uu', cost: 1, safe: true, sit: () => 1, how: '假投后接：篮筐左侧方向 + J / X，或向左长推右摇杆；侧跨绕开封堵，按住接跳投、松开出手；快拨或 B / L + 方向只跨步' },
+    uuRight: { name: '上下步·右', kind: 'uu', cost: 1, safe: true, sit: () => 1, how: '假投后接：篮筐右侧方向 + J / X，或向右长推右摇杆；侧跨绕开封堵，按住接跳投、松开出手；快拨或 B / L + 方向只跨步' },
     killer: { name: '杀手变向', kind: 'cross', T: 0.92, sp: 1.2, bite: 1.15, cost: 1.25, req: { t: '控球 70', f: (r) => r.hnd >= 0.7 }, sit: (c) => (c.dd < 1.6 ? 1.3 : c.dd > 2.1 ? 0.6 : 1), how: '贴身时最狠，离得远就晃不到' },
     legsx: { name: '胯下变向', kind: 'legs', T: 1, sp: 1.45, bite: 1.6, cost: 0.9, req: { t: '控球 65', f: (r) => r.hnd >= 0.65 }, sit: () => 1, how: '跑动中胯下换手横移，稳定好用' },
     btbx: { name: '背后变向突破', kind: 'behind', dir: 'fd', T: 1, sp: 1.12, bite: 1.1, cost: 1.1, safe: true, req: { t: '控球 80', f: (r) => r.hnd >= 0.8 }, sit: (c) => (c.reach ? 1.6 : c.dd < 1.5 ? 1.25 : 0.8), how: '对手伸手或贴身时最好用，背后换手不怕断' },
@@ -1793,7 +1810,7 @@
   function checkStart(d, o) {
     const dx = o.x - HOOP.x, dy = o.y - HOOP.y, l = Math.hypot(dx, dy) || 1;
     d.x = HOOP.x + dx / l * CHK_R; d.y = HOOP.y + dy / l * CHK_R; d.vx = d.vy = 0;
-    const b = G.ball;
+    const b = G.ball; b.selfAlley = null;
     d.hasBall = o.hasBall = false; chkFace(d, o); chkFace(o, d);
     G.chk = { d: d.id, o: o.id, t: 0, bnc: false };
     Object.assign(b, { state: 'pass', holder: -1, lastTouch: d.id, dead: false, shot: null, wasShot: false, trail: null, vx: 0, vy: 0, vz: 0, cT: 0 });
@@ -2202,7 +2219,7 @@
       if (df.action.chase) fireSkill(df);
       if (!info) {
         G.stats[sh.id].fga++; G.stats[sh.id].ina++;
-        info = { who: sh.id, name: a.name || a.V.name, pts: 2, dist: distHoop(sh), contest: c, zone: 'lay', green: false, prob: 0 };
+        info = { who: sh.id, name: a.alley ? a.type === 'dunk' ? '空接暴扣' : '空接上篮' : a.name || a.V.name, pts: 2, dist: distHoop(sh), contest: c, zone: 'lay', green: false, prob: 0 };
       }
       blockBall(df, sh, hp, blockFx(df, hp, sh, kind));
       sh.hasBall = false;
@@ -2462,6 +2479,7 @@
   }
   function releaseShot(pl, e, kind) {
     const df = OP(pl), b = G.ball, a = pl.action, V = a.V;
+    if (a.alley) e = a.alley.grade === 'green' ? 0 : a.alley.grade === 'ok' ? 0.3 : 1;
     const sk = shotKind(a), inCls = sk === 'lay' || sk === 'float' || sk === 'hook' || a.V.post || a.v === 'postfade' ? 'in' : 'shot';
     const d = distHoop(pl), ci = contestInfo(pl, df, inCls), three = a.pts === 3, SK = a.skill, deep = three ? deepExcess(pl) : 0;
     let cm = 1;
@@ -2484,7 +2502,7 @@
       }
     }
     const zone = kind === 'lay' ? 'lay' : three ? 'three' : 'mid';
-    const info = { who: pl.id, name: V.name, pts: a.pts, dist: d, contest: c, src: c > 0.04 ? ci.src : '', e: e, zone: zone, stamLow: pl.stam < ST.low, green: false, made: false, blocked: false, prob: 0, tl: '', reason: '' };
+    const info = { who: pl.id, name: a.alley ? '空接上篮' : V.name, pts: a.pts, dist: d, contest: c, src: c > 0.04 ? ci.src : '', e: a.alley ? null : e, zone: zone, stamLow: pl.stam < ST.low, green: false, made: false, blocked: false, prob: 0, tl: '', reason: '' };
     // V4.3 封堵对抗（上篮 / 抛投）：差值 edge 决定被盖率和命中惩罚；本来要被盖时，差值占优有机会化解（拉杆躲开 / 硬挤出手）
     const LAYC = kind === 'lay' && !SK && !df.off, edge = LAYC ? finEdge(pl, df, a, false) : 0, ek = clamp(1 - K.ctLayE * edge, K.ctLo, K.ctHi);
     if (contactBlock(pl, a, hp, kind, info)) return;
@@ -2535,11 +2553,11 @@
     }
     const uu = a.uu, ud = nearestDefender(pl);
     info.uuBonus = uu && ud && ud.id === uu.def && (ud.z > 0.05 || G.time <= uu.bitUntil) ? K.uuBonus : 0;
-    prob = clamp(prob + info.uuBonus, K.smMin, 1); pl.uuShot = null;
+    prob = alleyProb(a, clamp(prob + info.uuBonus, K.smMin, 1)); pl.uuShot = null;
     const made = G.tips && G.tips.mk && pl.id === 0 ? true : rnd() < prob;
     const cl = SK ? '无视干扰' : c < 0.2 ? '空位' : c < 0.5 ? '轻微干扰' : '严重干扰';
-    const tl = green ? '完美' : e < 0 ? (ae > 0.5 ? '很早' : '稍早') : (ae > 0.5 ? '很晚' : '稍晚');
-    const colr = green ? '#7dff8a' : ae > 0.5 ? '#ff6b5e' : '#ffd24a';
+    const tl = a.alley ? '自动终结' : green ? '完美' : e < 0 ? (ae > 0.5 ? '很早' : '稍早') : (ae > 0.5 ? '很晚' : '稍晚');
+    const colr = a.alley ? '#ffd24a' : green ? '#7dff8a' : ae > 0.5 ? '#ff6b5e' : '#ffd24a';
     G.floats = G.floats.filter((f) => f.pid !== pl.id);
     if (info.styleDelta < 0) float('持球投衰减', pl, '#f6efe0', 1);
     if (kind === 'shot' && a.postOrigin && !SK) float(V.name, pl, '#f6efe0', 1);
@@ -2557,6 +2575,7 @@
         info.reason = prob > 0.62 ? '运气不佳（本次命中率 ' + Math.round(prob * 100) + '%）' : L[0][1];
       }
     } else info.reason = green ? '完美出手' : '命中率 ' + Math.round(prob * 100) + '%';
+    if (a.alley) info.reason = '自动终结，命中率 ' + Math.round(prob * 100) + '%';
     const air = !made && ae > 0.85 && kind !== 'lay';
     const ARCF = { low: 0.86, mid: 1, high: 1.12 }[arcOf(pl)] || 1;
     const T = kind === 'lay' ? (V.floater ? 0.72 : 0.34) : V.hook ? 0.62 + d * 0.04 : (0.6 + d * 0.065) * ARCF;
@@ -2571,7 +2590,7 @@
     b.vx = (tx - hp.x) / T; b.vy = (ty - hp.y) / T; b.vz = (tz - hp.z + 0.5 * GB * T * T) / T;
     b.trail = SK ? '#ffd24a' : green ? '#7dff8a' : G.streak[pl.id] >= K.hcHotN ? '#ff8a2a' : null;
     const win = made && winsWith(pl.id, a.pts);
-    b.shot = { t: 0, T: T, d: d, made: made, pts: a.pts, shooter: pl.id, kind: kind, air: air, win: win, name: SK ? pl.arch.skill.name : V.name, sk: SK, mk: MK || MS, attempt: a, info: info };
+    b.shot = { t: 0, T: T, d: d, made: made, pts: a.pts, shooter: pl.id, kind: kind, air: air, win: win, name: a.alley ? '空接上篮' : SK ? pl.arch.skill.name : V.name, sk: SK, mk: MK || MS, attempt: a, info: info };
     if (SK) info.reason = (made ? '' : '未命中：') + pl.arch.skill.name + (green ? '（完美出手）' : '（未完美出手）');
     info.skill = SK || null;
     publishShot(info);
@@ -2624,17 +2643,17 @@
   // 开场入场：双方从两侧边线走到开球站位 → 主角依次做招牌动作（镜头推近）→ 对话框互相垃圾话，空格 / 点击下一句，Esc 跳过
   const ISIG = { lebron: 'chalk', curry: 'night', kobe: 'cool', shaq: 'flex', giannis: 'roar', luka: 'shrug', kyrie: 'shush', herb: 'wag' };
   const ISIG_CN = { chalk: '撒镁粉', night: '晚安手势', shimmy: '抖肩', flex: '秀肌肉', roar: '仰天怒吼', chest: '捶胸', toosmall: 'Too Small', shush: '嘘声', cool: '抱臂冷视', point: '隔空点名', dance: '尬舞', shrug: '耸肩', wag: '摇手指' };
-  // 宿敌台词：[说话人, 文本] 只有字幕；[说话人, 语音事件, 序号] 播语音包里的原声并显示它的字幕
+  // 宿敌台词：[说话人, 语音事件, 序号] 全部走各球员原声语音包并同步显示对应字幕
   const TALK = {
-    'curry|lebron': [['lebron', '2016 总决赛，1 比 3 落后我照样翻盘，还记得吗？'], ['curry', '记得。可我手上四枚总冠军戒指，你数数自己几枚？'], ['lebron', '73 胜又怎样？今天我就是要赢你！'], ['curry', 'dom', 0]],
-    'kobe|lebron': [['kobe', '五枚戒指，我只认冠军，别的都是数据。'], ['lebron', '历史得分王的名字，现在写的是我。'], ['kobe', 'taunt', 3], ['lebron', 'taunt', 3]],
-    'kobe|shaq': [['shaq', '湖人三连冠，内线是谁扛下来的？'], ['kobe', '没有我在外线撕开防守，你早被三人包夹了。'], ['shaq', 'dom', 1], ['kobe', 'dom', 1]],
-    'curry|kyrie': [['kyrie', '2016 抢七最后那记三分，就是在你头上投进的。'], ['curry', '那球我记得。可接下来两座总冠军，是我们拿的。'], ['kyrie', 'dom', 2], ['curry', 'dom', 2]],
-    'kyrie|lebron': [['lebron', '2016 那记三分，空位还是我帮你拉出来的。'], ['kyrie', '晃开防守是我自己的本事。今天单挑，你看好了。'], ['lebron', 'taunt', 0], ['kyrie', 'taunt', 2]],
-    'giannis|lebron': [['giannis', '2021 总决赛第六场 50 分，冠军是我自己扛回来的。'], ['lebron', '一个冠军就上头了？我有四个。'], ['giannis', 'taunt', 2], ['lebron', 'dom', 0]],
-    'lebron|luka': [['luka', '老大哥，现在湖人是谁在控球？'], ['lebron', '想接班？先把防守脚步练明白。'], ['luka', 'taunt', 0], ['lebron', 'taunt', 1]],
-    'curry|luka': [['luka', '2022 西决输给你，今天我要讨回来。'], ['curry', '4 比 1 那轮系列赛，还想再来一次？'], ['luka', 'taunt', 2], ['curry', 'dom', 0]],
-    'kobe|kyrie': [['kyrie', '2012 年就说要跟你单挑，今天兑现！'], ['kobe', 'taunt', 0], ['kyrie', 'taunt', 3]] };
+    'curry|lebron': [['lebron', 'taunt', 3], ['curry', 'taunt', 0], ['lebron', 'dom', 2], ['curry', 'dom', 0]],
+    'kobe|lebron': [['kobe', 'taunt', 0], ['lebron', 'taunt', 1], ['kobe', 'taunt', 3], ['lebron', 'taunt', 3]],
+    'kobe|shaq': [['shaq', 'taunt', 3], ['kobe', 'taunt', 1], ['shaq', 'dom', 1], ['kobe', 'dom', 1]],
+    'curry|kyrie': [['kyrie', 'win', 2], ['curry', 'taunt', 2], ['kyrie', 'dom', 2], ['curry', 'dom', 2]],
+    'kyrie|lebron': [['lebron', 'taunt', 0], ['kyrie', 'taunt', 0], ['lebron', 'dom', 0], ['kyrie', 'taunt', 2]],
+    'giannis|lebron': [['giannis', 'win', 1], ['lebron', 'taunt', 2], ['giannis', 'taunt', 2], ['lebron', 'dom', 0]],
+    'lebron|luka': [['luka', 'taunt', 0], ['lebron', 'taunt', 1], ['luka', 'dom', 0], ['lebron', 'dom', 2]],
+    'curry|luka': [['luka', 'taunt', 2], ['curry', 'taunt', 3], ['luka', 'dom', 1], ['curry', 'dom', 0]],
+    'kobe|kyrie': [['kyrie', 'taunt', 0], ['kobe', 'taunt', 0], ['kyrie', 'taunt', 3]] };
   // 入场走位时的造势动作（上半身），走到位后再做招牌动作
   const IWALK = { lebron: ['raise', 'wave'], curry: ['wave', 'shimmy'], kobe: ['wave', 'point'], shaq: ['raise', 'dance'], giannis: ['chest', 'flex'], luka: ['wave', 'wag'], kyrie: ['point', 'wave'], herb: ['flex', 'chest'] };
   const IWA = 3.8;
@@ -2684,6 +2703,7 @@
     for (const s of spots) { const p = s.p, star = p === fa || p === fb; s.w0 = t0 + (TM(p) === TM(fa) ? 0 : IWA); s.w1 = s.w0 + IWA;
       (star ? [(IWALK[p.arch.key] || ['wave'])[0], sigOf(p)] : ['wave']).forEach((ty, j) => walk.push({ id: p.id, ty: ty, t0: s.w0 + (star ? 0.3 + j * 1.75 : 0.9 + (p.id % 3) * 0.3), T: 1.6, fx: false, sig: star && j === 1, vo: star && j === 0, voAt: s.w0 + (p === fa ? 0.25 : 0), voDone: false })); }
     const foc0 = { x: fa.x, y: fa.y, u: G.mode === 't3' ? 0.08 : 0.3, mode: 'walk', snap: true };
+    if (PH.audio && PH.audio.voPreload) PH.audio.voPreload([fa.arch.key, fb.arch.key]);
     G.intro = { t0: t0, duo: [fa.id, fb.id], walk: walk, spots: spots, lines: lines, li: -1, lt: 0, ld: 0, tT: t0 + 2 * IWA + 0.15, cam: foc0, foc: foc0, banner: G.banner, phaseT: G.phaseT,
       sig: [], confettiT: 0 };
     G.cz = null; G.cutin = null; G.phase = 'intro';
@@ -2713,7 +2733,8 @@
       if (S.ty === 'chalk' && !S.fx && now >= S.t0 + 0.42) { S.fx = true; const p = plById(S.id); burst(p.x, p.y, p.h + 0.45, 70, ['#ffffff', '#f4f1e8', '#e2ded2', '#fffbe9'], 2.3, 1.7, 1.1, 2); spawnConfetti(28, [p.team.css, '#ffd24a', '#ffffff'], 'burst'); }
       else if (S.sig && !S.fx && now >= S.t0 + 0.35) { S.fx = true; const p = plById(S.id); spawnConfetti(26, [p.team.css, '#ffd24a', '#ffffff', '#ff8a2a'], 'burst'); flash('#ffffff', 0.08); G.fx.cheer = Math.max(G.fx.cheer, 2.6); }
     }
-    if (I.li < 0 ? now >= I.tT : now >= I.lt + I.ld) introNext();
+    const curL = I.li >= 0 ? I.lines[I.li] : null;
+    if (I.li < 0 ? now >= I.tT : (!curL || !curL.waitVo || now - I.lt >= 4) && now >= I.lt + I.ld) introNext();
     if (!G.intro) return;
     const A = plById(I.duo[0]), B2 = plById(I.duo[1]), mid = { x: (A.x + B2.x) / 2, y: (A.y + B2.y) / 2 };
     const sh = I.li < 0 ? (now < I.t0 + IWA ? A : B2) : null;
@@ -2749,7 +2770,14 @@
         if (!it) return false;
         L.t = it.t; L.d = it.d;
         G.intro.ld = Math.max(clamp(0.8 + L.t.length * 0.1, 1.9, 4.5), (L.d || 0) + 0.55);
-        if (G.mode !== 'demo') PH.audio.voSay(it);
+        if (G.mode !== 'demo') {
+          const pending = PH.audio.voSay(it, (playDur) => {
+            if (!G.intro || G.intro.lines[G.intro.li] !== L) return;
+            L.waitVo = false;
+            if (playDur > 0) { G.intro.lt = G.time; G.intro.ld = Math.max(clamp(0.8 + L.t.length * 0.1, 1.9, 4.5), playDur + 0.55); }
+          });
+          if (pending === true) L.waitVo = true;
+        }
         return true;
       };
       if (!sayVo() && PH.audio && PH.audio.voWhenReady) PH.audio.voWhenReady(sayVo);
@@ -2777,10 +2805,12 @@
     if (!G.hlQ || s >= G.hlQ.s) G.hlQ = { s, t: G.time, pid: id, x: HOOP.x, y: HOOP.y, z: HOOP.z };
   }
   function scoreBy(id, pts, kind, name, attempt) {
-    if (G.mode === 't5') { scoreT5(id, pts, kind, name); return; }
+    if ((attempt || G.players[id].action)?.alley) name = kind === 'dunk' ? '空接暴扣' : '空接上篮';
+    if (G.mode === 't5') { scoreT5(id, pts, kind, name, attempt); return; }
     // 没出三分线就出手：进了也不算，违例，球权交给对方
     if ((G.illId === id && G.mode !== 'train') || (G.mode === 't3' && G.needClear)) { G.illId = -1; G.ball.dead = true; G.net = 1; sfx(kind === 'dunk' ? 'dunk' : 'swish'); float('没出三分线 · 违例', G.players[id], '#ff5a4a', 1); G.streak[id] = 0; turnover(G.mode === 't3' ? OP(G.players[id]).id : 1 - id, '没出三分线 · 违例'); return; }
     if (G.mode === 't3') { scoreT5(id, pts, kind, name, attempt); return; }
+    if (name === '空接暴扣' || name === '空接上篮') G.stats[id].alley = (G.stats[id].alley || 0) + 1;
     const st = G.stats[id]; st.fg++; if (pts === 3) st.tp++; if (kind === 'dunk') st.dunk++; if (kind === 'dunk' || kind === 'lay') st.inm++;
     const pl = G.players[id], t = pl.team, train = G.mode === 'train' && G.train.role === 'off';
     G.lastScorer = id; G.lastMakeAt = G.time; G.net = 1; G.ball.dead = true; G.streak[id]++; cold(1 - id);
@@ -2790,7 +2820,7 @@
     const oppS = G.score[1 - id], win = !train && winsWith(id, pts), buzzer = win && (oppS >= G.target - 2 || G.sd || (G.glen > 0 && G.gclock <= 2));
     if (!train) { G.score[id] += pts; { const o2 = G.stats[1 - id]; st.lead = Math.max(st.lead, G.score[id] - G.score[1 - id]); st.runC += pts; o2.runC = 0; st.run = Math.max(st.run, st.runC); } G.phase = 'dead'; G.phaseT = win ? 2.6 : 1.7; }
     const hot = G.streak[id] >= K.hcHotN;
-    const title = kind === 'dunk' ? (name || '暴扣得分') : pts === 3 ? '三分命中' : (name && name !== '定点跳投' ? name + '命中' : '两分命中');
+    const title = kind === 'dunk' ? (name || '暴扣得分') : name === '空接上篮' ? name : pts === 3 ? '三分命中' : (name && name !== '定点跳投' ? name + '命中' : '两分命中');
     banner(title, (train ? '' : t.name + ' +' + pts) + (hot ? (train ? '' : ' · ') + '连中 ' + G.streak[id] + ' 球' : ''), t.css, train ? 0.9 : 1.4);
     sfx(kind === 'dunk' ? 'dunk' : 'swish');
     const F = G.fx, hx = HOOP.x, hy = HOOP.y, hz = HOOP.z, pa = pl.action;
@@ -2820,6 +2850,7 @@
 
   // 5V5 得分：投篮统计 / 连中 / 主宰能量 / 音效 / LED 和 1V1 一样，比分、发球、换边交给 team5
   function scoreT5(id, pts, kind, name, attempt) {
+    if (name === '空接暴扣' || name === '空接上篮') G.stats[id].alley = (G.stats[id].alley || 0) + 1;
     const st = G.stats[id], pl = G.players[id]; st.fg++; if (pts === 3) st.tp++; if (kind === 'dunk') st.dunk++; if (kind === 'dunk' || kind === 'lay') st.inm++;
     G.lastScorer = id; G.lastMakeAt = G.time; G.net = 1; G.ball.dead = true; G.streak[id]++; for (const p of G.players) if (TM(p) !== TM(pl)) G.streak[p.id] = 0;
     G.ball.lastSk = null;
@@ -2950,12 +2981,13 @@
   function startShot(pl, inp, btn, cancelVariant, postAt = inp.rsHold && pl.rsGesture ? pl.rsGesture.t : G.time) {
     const follow = postFollow(pl, postAt) ? pl.postMove : null;
     const d = distHoop(pl), q = inDir(pl, inp), df = OP(pl), postSide = follow ? follow.side : null;
+    const postD = inp.rsHold && pl.rsGesture && pl.rsGesture.post ? pl.rsGesture.d : d;
     let v;
     if (cancelVariant) v = cancelVariant;
     else if (pl.uuShot && G.time <= pl.uuShot.until && pl.uuShot.mv === 'uuBack') v = 'stepback';
     else if (pl.post || follow || (backTurn(pl) && d < 6.5)) {
       const away = q.l > 0.35 && q.fwd < -0.35;
-      v = away ? Math.abs(q.lat) > K.poOneLat ? 'postfade1' : 'postfade' : (pl.post || follow) && q.l > 0.35 && Math.abs(q.lat) > Math.abs(q.fwd) ? 'poSpinShot' : d < 4.8 && sigOf(pl, 'hook') >= 0.5 ? 'hook' : q.l > 0.35 && q.fwd > 0.35 ? 'postfront' : 'turn';
+      v = away ? Math.abs(q.lat) > K.poOneLat ? 'postfade1' : 'postfade' : (pl.post || follow) && q.l > 0.35 && Math.abs(q.lat) > Math.abs(q.fwd) ? 'poSpinShot' : postD < 4.8 && sigOf(pl, 'hook') >= 0.5 ? 'hook' : q.l > 0.35 && q.fwd > 0.35 ? 'postfront' : 'turn';
       if (follow && !away) {
         if (follow.kind === 'postdrop' && d < 3.8) v = 'drophook';
         else if (follow.kind === 'postshim' && follow.bite) v = 'shimshot';
@@ -3018,7 +3050,7 @@
   function sdScore(pl) { return pl.r.sdunk + K.sdH * (pl.h - 1.98) / 0.1 + K.sdStr * (pl.r.str - 0.5) - 0.3 * Math.max(0, (pl.r.bw || 1) - 1) - 0.3 * fat(pl); }
   function sdOk(pl) { return pl.stam > ST.dunk && sdScore(pl) >= K.sdReq; }
   // V3.9r 上篮 / 反篮 / 抛投最远起跳距离整体缩 10%（K.layK，调参台 zone 组）
-  function finPlan(pl, fvMin) {
+  function finPlan(pl, fvMin, aerial) {
     const d = distHoop(pl), h = hoopDir(pl);
     const fv = Math.max(0, pl.vx * h.x + pl.vy * h.y, fvMin || 0);   // fvMin：只给 zones() 预览跑速用
     const run = clamp(fv / K.runV, 0, 1);
@@ -3030,7 +3062,7 @@
     const ath = 0.6 * (pl.r.leap || pl.r.vert) + 0.25 * pl.r.spd + 0.15 * pl.r.acc, dR = dunkR(pl, run), dk = clamp((dR - 0.5) / 0.5, 0, 1);
     const reach = dR < 0.5 ? 0 : clamp(K.dunkBase + K.dunkAth * dk * Math.pow(ath, 1.5) * (0.4 + 0.6 * run) + (pl.h - 1.95) * 1.2 - heavy * 0.6 + ba(pl, 'launch', K.bgLaunch) - 0.9 * fat(pl), K.dunkMin, K.dunkMax);
     const tko = d - K.stepN * L;
-    const inside = pl.y < HOOP.y + 0.3 && d > 0.45;
+    const inside = pl.y < HOOP.y + 0.3 && (d > 0.45 || !!aerial);
     const back = pl.y >= HOOP.y + 0.3 && d > 0.45 && d < 6;
     const dunk = inside && reach > 0 && pl.stam > ST.dunk && Math.max(tko, 1.0) <= reach;
     return { d: d, h: h, fv: fv, run: run, L: L, adv: adv, reach: reach, tko: tko, inside: inside, back: back, dunk: dunk, lay: (inside || back) && tko <= K.layMax * K.layK, flo: inside && tko <= K.floMax * K.layK * K.floK && d > K.floMin };
@@ -3159,8 +3191,8 @@
   }
   // want: 'lay' | 'floater' | 'auto'(终结键：能扣就扣)
   // fast：加速 + 朝筐 + 投篮键（5V5 是 RT + X）发起的终结——按下当帧就判定：能扣就跑扣，否则立刻上篮（不再排队等跑到扣篮起跳点），上篮方式按站位 / 能力随机挑
-  function startFinish(pl, inp, want, btn, fast) {
-    const P = finPlan(pl), q = inDir(pl, inp, want === 'stick'), df = OP(pl);
+  function startFinish(pl, inp, want, btn, fast, aerial) {
+    const P = finPlan(pl, 0, aerial), q = inDir(pl, inp, want === 'stick'), df = OP(pl);
     if (!P.inside && !(P.back && P.lay)) { if (pl.ctrl !== 'cpu' && !pl.finQ) float(P.back ? '太远' : pl.y >= HOOP.y ? '在篮板后' : '太近', pl, '#ff6b5e', 1); return false; }
     if (want === 'auto' && P.dunk && !(pl.ctrl === 'cpu' && !df.off && contestOf(pl, df, 'in') > 0.45 && dunkAtk(pl, dunkR(pl, P.run)) - rimDef(df) < -0.04 && rnd() < 0.75)) return startDunk(pl, P, btn || 'a2'), true;
     // 人类玩家：扣篮键按早了就先记住，跑到起跳点自动起步（最多 1 秒）
@@ -3273,9 +3305,9 @@
   // 扣篮改上篮（被挡 / 起跳时判断扣不过去）：动作换成上篮，投篮条从这里开始照常走。扣篮键还按着 = 继续按住、松手判定；已经松开 = 再按一次再松开判定（a.rearm），一直不按就在出手点按 d2lE 自动出手
   function d2l(f, a, bump, now) {
     const btn = a.btn || 'a2', held = !a.rel; f.action = null;
-    const ok = startFinish(f, { mx: 0, my: 0, dx: 0, dy: 0 }, 'lay', btn);
+    const ok = startFinish(f, { mx: 0, my: 0, dx: 0, dy: 0 }, 'lay', btn, false, !!a.alley);
     if (!ok || !f.action || f.action.type !== 'layup') { f.action = a; return false; }
-    const na = f.action; na.cHit = true; na.bump = Math.max(na.bump || 0, bump); na.run0 = a.run0; na.dk0 = a.name;
+    const na = f.action; na.alley = a.alley; na.cHit = true; na.bump = Math.max(na.bump || 0, bump); na.run0 = a.run0; na.dk0 = a.name;
     if (now) { na.wp.length = 0; layMeter(na); }
     if (!held && f.ctrl !== 'cpu') na.rearm = true;
     if (cvOk(f, true)) cvSet(f, na, 'dunk2lay'); else { na.cv = 'dunk2lay'; na.cvT = 0; na.cvR = na.ideal; na.lsv = ''; }
@@ -4055,6 +4087,7 @@
 
   function updateAction(pl, inp, dt, shootPress) {
     const a = pl.action, df = OP(pl), t0 = a.t;
+    if (a.alley) { inp = zeroInp(); shootPress = false; }
     a.t += dt; a.vt = (a.vt || 0) + dt; // vt：执行后真实经过的时间（5V5 接球即投的 cs 加成只加在 a.t 上）
     if (a.type === 'dive') { diveTick(pl, a, dt); return; }
     if (a.type === 'shot') {
@@ -4093,7 +4126,7 @@
         if (rp && a.vh > 1) { if (a.t >= TI) releaseJumpShot(pl, 0); }
         else if (rp ? a.vt >= a.vh : !btnHeld(pl, a, inp, a.btn || 'a1')) {
           if (a.postOrigin && !a.jumped && (a.stride || hT < K.poFakeCommit)) { pumpFake(pl, 0.26, false); return; }
-          // 假投窗口（人控球员）：fkT = clamp(0.4 × ideal, 0.17, 最早绿区 − 0.08)，即条涨到约 40% 前松手算假投。起跳前松开 = 原地假投；已离地、fkT 前松开 = 起跳假投：取消出手、快速落地，之后可接运球/传球。
+          // 假投窗口避开最早绿区；起跳前松开 = 原地假投，离地后仍在窗口内 = 快速落地假投。
           // fkT 之后到绿区之间松开仍按偏早出手结算；按住到绿区永远是出手。电脑球员仍是 0.17 秒，不改 AI 节奏；ibuf 缓冲的点按（a.vh）回放按住时长后也走这里
           if (a.fkT == null) a.fkT = pl.ctrl === 'cpu' ? K.fkCpu : Math.max(K.fkFloor, Math.min(a.ideal - (a.meter ? a.meter.gw * a.meter.span : 0) - K.fkGap, Math.max(K.fkMin, K.fkFrac * a.ideal))); // 条涨到约 40% 前松手 = 假投
           if (!a.postOrigin && hT < a.fkT && !a.jumped) { pumpFake(pl, 0.26, false); return; }
@@ -4124,7 +4157,8 @@
         const rel = (e) => { a.relT = a.t; releaseShot(pl, e, 'lay'); a.meter.v = a.tap && a.tapV != null ? a.tapV : layDispE(a, e); };
         const landing = pl.z + pl.vz * dt <= 0;
         // 拉杆松手判定用实际时刻；太早松手也先做完收球再伸手出球。
-        if (a.relAt >= 0 && (a.clutchT == null || a.t >= a.ideal || landing)) rel(error(a.relAt));
+        if (a.alley && a.t >= a.ideal) rel(0);
+        else if (a.relAt >= 0 && (a.clutchT == null || a.t >= a.ideal || landing)) rel(error(a.relAt));
         else if (a.tap && a.t >= a.ideal) rel(hum && a.tapAt != null ? error(a.tapAt) : 0.72);
         else if (a.rearm && a.t >= a.ideal) rel(K.d2lE);
         else if (landing || a.t >= a.ideal + (a.V.floater ? 0.14 : U)) rel(1);
@@ -4149,10 +4183,10 @@
           const dR = dunkR(pl, a.run0 || 0), edge = df.off ? 1 : finEdge(pl, df, a, true);
           const flashy = a.v === 'windmill' || a.v === '360' || a.v === 'cock' || a.v === 'cradle' || a.v === 'pump' || a.v === 'scissor', vk = flashy ? K.dkFlyK : a.v === 'two' || a.v === 'rimpull' || a.v === 'shaq' ? K.dkPowK : 1;
           const prob0 = SK ? 1 : clamp(K.dkP0 + K.dkPR * dR - (flashy ? K.dkPFly : 0) - K.ctDkP * c * vk * clamp(K.dkC0 - K.dkCE * edge, 0.05, 1.3) - heavyD - (a.bodyPen ? a.bodyPen + K.dkBodyD * clamp(distHoop(pl) - 1, 0, 1.5) : 0) - (pl.stam < ST.layLow ? K.dkLowSt : 0), K.dkMin, K.dkMax);
-          const prob = SK || !a.thru ? prob0 : a.thru === 'fall' ? Math.max(prob0, K.ctThruDk) : prob0 * (1 - K.ctThruPen);   // V4.5 顶翻
+          const prob = alleyProb(a, SK || !a.thru ? prob0 : a.thru === 'fall' ? Math.max(prob0, K.ctThruDk) : prob0 * (1 - K.ctThruPen));
           a.edge = edge; if (a.v === 'poster') bpop(pl, 'poster');
-          const info = { who: pl.id, name: a.name, pts: 2, dist: distHoop(pl), contest: c, src: c > 0.04 ? ci.src : '', e: null, zone: 'lay', stamLow: pl.stam < ST.layLow, green: false, made: false, blocked: false, prob: prob, tl: '—', cl: c < 0.2 ? '空位' : c < 0.5 ? '轻微干扰' : '严重干扰', reason: '' };
-          if ((a.esc && rnd() < 0.85) || rnd() < prob) {
+          const info = { who: pl.id, name: a.alley ? '空接暴扣' : a.name, pts: 2, dist: distHoop(pl), contest: c, src: c > 0.04 ? ci.src : '', e: null, zone: 'lay', stamLow: pl.stam < ST.layLow, green: false, made: false, blocked: false, prob: prob, tl: '—', cl: c < 0.2 ? '空位' : c < 0.5 ? '轻微干扰' : '严重干扰', reason: '' };
+          if ((!a.alley && a.esc && rnd() < 0.85) || rnd() < prob) {
             if (a.esc && !df.off && relPos(df, pl) > 0.2 && (a.v === 'one' || a.v === 'two' || a.v === 'tomahawk')) { a.v = 'poster'; a.name = DK.poster || a.name; }
             looseBall(grip, 0, -0.4, -5, pl.id); G.ball.slam = { x, y, z, rimY: HOOP.y, t: 0 };
             if (a.v === 'two' || a.v === 'cock' || a.v === 'poster' || a.v === 'rimpull' || a.v === 'shaq' || SK) { a.hang = SK ? 0.5 : a.v === 'shaq' ? 0.7 : a.v === 'rimpull' ? 0.55 : 0.36; a.hz = pl.z - (a.ikz || 0); a.hx = pl.x - (a.ikx || 0); a.hy = pl.y - (a.iky || 0); if (a.v === 'shaq' || a.v === 'rimpull') { G.fx.board = Math.max(G.fx.board, a.v === 'shaq' ? 1.1 : 0.6); shake(a.v === 'shaq' ? 9 : 5); } }
@@ -4166,7 +4200,7 @@
               const l = Math.hypot(df.x - pl.x, df.y - pl.y) || 1; df.action = null; df.z = 0;
               bpop(pl, 'poster'); knock(df, (df.x - pl.x) / l, (df.y - pl.y) / l, 2.5 + 2 * (powOf(pl) - powOf(df)), 1.0, 'fall'); impactFx(df.x, df.y, true, 2.4);
             }
-            const nm = SK ? pl.arch.skill.name : poster ? '隔人暴扣' : a.long ? '长距离起跳 · ' + a.name : a.name; scoreBy(pl.id, 2, 'dunk', nm); float(nm, pl, '#ffd24a', 1);
+            const nm = a.alley ? '空接暴扣' : SK ? pl.arch.skill.name : poster ? '隔人暴扣' : a.long ? '长距离起跳 · ' + a.name : a.name; scoreBy(pl.id, 2, 'dunk', nm); float(nm, pl, '#ffd24a', 1);
             if (SK) led(SK === 'shaq' ? 'BACKBOARD DOWN  篮架摧毁' : SK === 'giannis' ? 'GREEK FREAK  一步登天' : pl.arch.skill.en + '  ' + pl.arch.skill.name, '#ffd24a', 3.2); else if (a.brk) led('SHAQ BROKE THE GLASS  篮板碎了', '#ffd24a', 3.4);
           } else if (!df.off && c > 0.4 && edge < 0 && Math.hypot(df.x - pl.x, df.y - pl.y) < 1.5 && rnd() < 0.65) {
             // 被内线大闸正面挡住：球被打掉，扣篮的人被弹开
@@ -4180,6 +4214,7 @@
       } else if (a.hang && a.t - a.doneT < a.hang) { pl.z = a.hz + (a.ikz || 0); if (a.hx != null) { pl.x = a.hx + (a.ikx || 0); pl.y = a.hy + (a.iky || 0); } pl.vz = 0; pl.vx = pl.vy = 0; }
       else if (pl.z <= 0) pl.action = null;
     } else if (a.type === 'move') {
+      if (a.kind === 'uu' && a.uuHold && !btnHeld(pl, a, inp, 'a1')) a.uuHold = false;
       if (a.kind === 'hesi' && updateHesitation(pl, a, inp)) return;
       const u = clamp(a.t / a.T, 0, 1), kd = a.kind, sp = a.sp;
       let vx, vy;
@@ -4210,7 +4245,15 @@
       if (pl.hasBall && K.mvEdge > 0) { const t5 = G.mode === 't5', XL = (t5 ? 7.62 : 7.5) - K.mvEdge, Y1 = (t5 ? 14.1 : 14) - K.mvEdge, Y0 = t5 ? -Y1 : K.mvEdge;
         if ((pl.x > XL && vx > 0) || (pl.x < -XL && vx < 0)) vx = 0; if ((pl.y > Y1 && vy > 0) || (pl.y < Y0 && vy < 0)) vy = 0; }
       pl.vx = vx; pl.vy = vy;
-      if (a.t >= a.T) { if (kd === 'hesi') blendHeldBall(); if (isPostMove(kd)) { if (pl.postMove) pl.postMove.t = G.time; if (kd === 'postface' || kd === 'postdrop') { if (kd === 'postface') pl.face = Math.atan2(HOOP.y - pl.y, HOOP.x - pl.x); pl.vx = pl.vy = 0; } } pl.action = null; pl.lastMoveT = G.time; pl.mvEndT = G.time; pl.z = 0; pl.vz = 0; }
+      if (a.t >= a.T) {
+        if (isPostMove(kd)) { if (pl.postMove) pl.postMove.t = G.time; if (kd === 'postface' || kd === 'postdrop') { if (kd === 'postface') pl.face = Math.atan2(HOOP.y - pl.y, HOOP.x - pl.x); pl.vx = pl.vy = 0; } }
+        if (kd === 'hesi') blendHeldBall(); pl.action = null; pl.lastMoveT = G.time; pl.mvEndT = G.time; pl.z = 0; pl.vz = 0;
+        if (kd === 'uu' && a.uuHold && btnHeld(pl, a, inp, 'a1')) {
+          const si = Object.assign({}, inp, { mx: a.dx, my: a.dy });
+          if (a.mv === 'uuForward') tryStart(pl, si, { a1: true });
+          else startShot(pl, si, 'a1', a.mv === 'uuBack' ? 'stepback' : 'pullup');
+        }
+      }
     } else if (a.type === 'block') {
       if (pl.z <= 0 && a.t > 0.1) { pl.action = null; pl.cd = a.rbS && pl.hasBall ? a.rcv : K.bkLandCd * rejK(pl); if (a.rbS && pl.hasBall) { pl.recT = G.time + a.rcv; pl.landS = a.rbS; pl.landT = G.time; } }
     } else if (a.type === 'steal') {
@@ -4339,6 +4382,7 @@
   // V4.1 5V5 的 RT + X 突破（team5 把它转成扣篮键 a2）：和 1V1 的加速 + 投篮一样按 fast 处理（不排队等扣篮起跳点）
   // V4.5 5V5 物理 X 键：team5 按距离 / 速度 / RT 把 X 在 a1↔a2 之间切换，动作中途切换会被当成“松手”。按住判定改看原始 X
   function btnHeld(pl, a, inp, k) {
+    if (a.alley) return false;
     k = k || a.btn; if (inp[k]) return true;
     const T = G.mode === 't5' && pl.ctrl !== 'cpu' && (k === 'a1' || k === 'a2') && PH.T5 && PH.T5.T;
     return !!(T && T.R && T.R.X);
@@ -4366,9 +4410,12 @@
     if (pl.action && pl.action.postButton || raw.a1 && !rs.postShot) rs.postButton = true;
     if (rs.postButton) return Object.assign({}, raw, { a3: !!(raw.dribble || raw.hesi), dx: 0, dy: 0, rsHold: false, rsFlick: false });
     if (!pl.hasBall || G.phase !== 'live' || G.ball.dead || pl.stun > 0 || rs.postPad && !inp.rsPad || !inp.post && !rs.postShot) rs.postCancelled = true;
-    if (rs.postCancelled) return Object.assign({}, inp, { a1: false, a3: !!(inp.dribble || inp.hesi), dx: 0, dy: 0, rsHold: false, rsFlick: false });
+    if (!rs.move && !rs.postShot && pl.stam <= ST.act) rs.postCancelled = true;
+    if (rs.postCancelled) {
+      if (pl.action === rs.move) { pl.action = null; pl.postMove = null; }
+      return Object.assign({}, inp, { a1: false, a3: !!(inp.dribble || inp.hesi), dx: 0, dy: 0, rsHold: false, rsFlick: false });
+    }
     if (inp.rsHold) rs.postShot = true;
-    if (inp.rsFlick && pl.stam <= ST.act) return Object.assign({}, inp, { a3: false });
     return inp;
   }
   function rightStickInput(pl, inp) {
@@ -4376,20 +4423,34 @@
       if (!inp.rs) pl.reboundRS = false;
       else inp = Object.assign({}, inp, { rs: false, a3: !!(inp.dribble || inp.hesi), dx: 0, dy: 0 });
     }
-    if (!pl.hasBall || G.phase !== 'live' || G.ball.dead || pl.stun > 0 || inp.hesi || inp.dribble || pl.action && pl.action.hesiHold) pl.rsGesture = null;
+    if (!pl.hasBall || G.phase !== 'live' || G.ball.dead || pl.stun > 0 || inp.hesi || inp.dribble || pl.action && pl.action.hesiHold) {
+      const rs = pl.rsGesture;
+      if (rs && pl.action === rs.move && (!pl.hasBall || G.phase !== 'live' || G.ball.dead || pl.stun > 0)) {
+        pl.action = null; pl.buf = pl.ib = null;
+        if (isPostMove(rs.move.kind)) pl.postMove = null;
+      }
+      pl.rsGesture = null;
+    }
     else if (pl.ctrl !== 'cpu' && (inp.rs || pl.rsGesture)) {
       const held = !!inp.rs;
       let rs = pl.rsGesture;
       inp = Object.assign({}, inp, { a3: !!(inp.dribble || inp.hesi) });
       if (held) {
-        if (!rs) rs = pl.rsGesture = { t: G.time, x: inp.dx, y: inp.dy, shot: false };
+        if (!rs) {
+          const P = !pl.action && !pl.post && !inp.post && !pl.uuFake && finPlan(pl);
+          const q = inDir(pl, inp, true);
+          const finish = P && P.fv > 2 && (inp.sprint && P.dunk || (P.inside || P.back) &&
+            (P.lay || P.flo && q.fwd < -0.75 && P.d > 1.4 && canLay(pl, 'floater')));
+          rs = pl.rsGesture = { t: G.time, x: inp.dx, y: inp.dy, d: distHoop(pl), shot: false, finish: !!finish, follow: pl.postMove };
+          inp.a3 = inp.rsFlick = true;
+        }
         rs.x = inp.dx; rs.y = inp.dy;
-        const press = !rs.shot && G.time - rs.t >= K.rsHold;
+        const press = !rs.finish && !rs.shot && G.time - rs.t >= K.rsHold;
         if (press) rs.shot = true;
+        if (rs.finish) inp.a3 = true;
         inp.rsHold = rs.shot;
         if (rs.shot) { inp.a1 = true; inp.shootPress = inp.shootPress || press; inp.mx = rs.x; inp.my = rs.y; }
       } else if (rs) {
-        if (!rs.shot) { inp.a3 = inp.rsFlick = true; inp.dx = rs.x; inp.dy = rs.y; }
         pl.rsGesture = null;
       }
     }
@@ -4409,6 +4470,8 @@
     // 开了输入缓冲：边沿按原始按键算（硬直中按的键交给缓冲；一直按住穿过硬直不会在结束时凭空多出一次）
     const src = IB && !frozen ? raw : inp;
     const pr = { a1: src.a1 && !pl.prev.a1, a2: src.a2 && !pl.prev.a2, a3: src.a3 && !pl.prev.a3 };
+    if (pr.a3 && pl.ctrl !== 'cpu' && !frozen && pl.stun <= 0 && pl.hasBall && pl.action &&
+        pl.action.type === 'shot' && !pl.action.released && !btnHeld(pl, pl.action, inp, pl.action.btn || 'a1')) updateAction(pl, inp, 0, false);
     if (!pl.hasBall || frozen || G.ball.dead || pl.stun > 0) { pl.uuFake = null; pl.uuShot = null; }
     const uf = pl.uuFake;
     const uu = uf || pl.uuShot;
@@ -4418,13 +4481,31 @@
       if (df && df.z > 0.05) { uu.def = df.id; uu.bitUntil = G.time + K.uuRecover; }
     }
     if (uf && G.time > uf.until && !(pl.action && pl.action.type === 'fake')) pl.uuFake = null;
-    if (pr.a3 && pl.uuFake && pl.hasBall && G.phase === 'live' && pl.stun <= 0 &&
+    const uuShoot = pr.a1 || G.mode === 't5' && inp.shootPress;
+    if ((pr.a3 || uuShoot) && pl.uuFake && pl.hasBall && G.phase === 'live' && pl.stun <= 0 &&
         (!pl.action || pl.action.type === 'fake') && (pl.z <= 0.05 || pl.vz < 0) && pl.stam > ST.act && canMv(pl, 'uu')) {
-      const q = inDir(pl, inp, true);
+      const q = inDir(pl, inp, !!pr.a3);
       if (q.l > 0.3) {
         const variant = Math.abs(q.fwd) >= Math.abs(q.lat) ? q.fwd > 0 ? 'uuForward' : 'uuBack' : q.lat > 0 ? 'uuLeft' : 'uuRight';
-        startMove(pl, inp, variant); pl.ib = null; pr.a3 = false;
+        startMove(pl, inp, variant); pl.action.uuHold = !!uuShoot; pl.ib = null; pr.a1 = pr.a2 = pr.a3 = false;
       }
+    }
+    const rs = pl.rsGesture;
+    if (rs && inp.rsHold && inp.shootPress && rs.move && (!pl.action || pl.action === rs.move) &&
+        pl.hasBall && !frozen && !G.ball.dead && pl.stun <= 0) {
+      const a = rs.move;
+      if (a.kind === 'uu' && pl.action === a) a.uuHold = true;
+      else {
+        if (rs.post) { pl.post = true; pl.postMove = rs.follow; }
+        const si = a.kind === 'uu' ? Object.assign({}, inp, { mx: a.dx, my: a.dy }) : inp;
+        const variant = rs.post || a.kind === 'uu' && a.mv === 'uuForward' ? null : a.kind === 'stepback' || a.mv === 'uuBack' ? 'stepback' : 'pullup';
+        tryStart(pl, si, { a1: true }, variant);
+        if (pl.action !== a) {
+          pl.buf = pl.ib = null; pl.cd = 0; pl.mvEndT = pl.lastMoveT = G.time;
+          pl.vx = pl.vy = pl.vz = pl.z = pl.speed = 0;
+        }
+      }
+      pr.a1 = false;
     }
     const shootPress = G.phase === 'live' && !G.ball.dead && pl.stun <= 0 && (G.mode === 't5' ? inp.shootPress : pr.a1);
     pl.prev.a1 = src.a1; pl.prev.a2 = src.a2; pl.prev.a3 = src.a3; pl.prev.any = raw.a1 || raw.a2;
@@ -4509,6 +4590,7 @@
       const a = pl.action;
       if (ibTap && a && a.type === 'shot' && (a.btn || 'a1') === ibTap && ibHd != null) a.vh = ibHd;
     }
+    if (rs && pl.action !== moveAtStart && pl.action && pl.action.type === 'move') rs.move = pl.action;
     if (pl.finQ) {
       const Q = pl.finQ; Q.t -= dt;
       if (pl.action || !pl.hasBall || frozen || pl.stun > 0 || Q.t <= 0 || G.phase !== 'live') pl.finQ = null;
@@ -5013,6 +5095,7 @@
     if (G.ball.fl > 0) G.ball.fl -= dt;
     const b = G.ball;
     b.noPick = Math.max(0, b.noPick - dt);
+    if (b.state === 'pass' && b.selfAlley) { selfAlleyStep(dt); return; }
     if (b.state === 'pass' || b.state === 'ext') return;
     if (b.state === 'held') {
       const pl = G.players[b.holder], a = pl.action;
@@ -5220,6 +5303,11 @@
   };
   // 新招的演示：按这个球员运球包里该招所在的槽位自动生成按键序列
   function mvTip(id, slot, a0) {
+    if (MVX[id].kind === 'uu') {
+      const dir = id === 'uuForward' ? 'F' : id === 'uuBack' ? 'B' : id === 'uuLeft' ? 'L' : 'R';
+      return { a0: a0 || 'luka', y: id === 'uuForward' ? HOOP.y - 2.8 : 6.8, dm: 'stand', gap: 1.8, T: 3.2, mk: 1,
+        s0: SEQ([[0.25, 0.4, { a1: true }], TAP(0.55, { d: dir }), [1.05, 3.2, PF()]]) };
+    }
     const T = 2.6, S = {
       S: [1.3, [[0.1, 0.5, { m: 'L', ms: 0.7 }], TAP(0.5, { m: 'R' }), [0.56, T, { m: 'FR', sp: 1 }]]], St: [0.95, [[0.1, 0.4, { m: 'L', ms: 0.7 }], TAP(0.4, { m: 'R' }), [0.46, T, { m: 'FR', sp: 1 }]]],
       Ss: [1.8, [TAP(0.5, { m: 'L' }), [0.56, T, { m: 'FL', sp: 1 }]]], FD: [1.3, [TAP(0.5, { m: 'FL' }), [0.56, T, { m: 'F', sp: 1 }]]],
@@ -5428,6 +5516,12 @@
   }
   function aiInput(pl, dt, opt) {
     const o = aiInputCore(pl, dt, opt);
+    if (!teamPlay() && selfAlleyReady(pl) && pl.r.dunk > 0.8 && pl.r.vert > 0.75 && K.selfAlleyCpu > 0) {
+      const h = hoopDir(pl), d = OP(pl), dx = d.x - pl.x, dy = d.y - pl.y;
+      if ((d.off || Math.abs(dx * h.y - dy * h.x) > 1.5 || dx * h.x + dy * h.y < -0.5) && rnd() < 1 - Math.exp(-K.selfAlleyCpu * dt)) {
+        o.selfAlley = true; o.a1 = o.a2 = o.a3 = false;
+      }
+    }
     if (playCPU(pl) && pl.hasBall) {
       if (pl.x > 6.6 && o.mx > 0) o.mx = -0.5; if (pl.x < -6.6 && o.mx < 0) o.mx = 0.5;
       if (pl.y < 0.9 && o.my < 0) o.my = 0.5; if (pl.y > 13 && o.my > 0) o.my = -0.5;
@@ -6048,7 +6142,15 @@
       const pa = p.action, offK = G.off === p.id && (p.hasBall || !!(pa && (pa.type === 'shot' || pa.type === 'layup' || pa.type === 'dunk' || pa.type === 'fake')));
       if (humanInput) return humanInput(p, offK);
       return PH.input.read(p.ctrl === 'p1' ? 0 : 1, offK, solo);
-    }).map((x, i) => celInput(ps[i], x));
+    }).map((x, i) => celInput(ps[i], x)).map((x, i) => {
+      const p = ps[i], press = x.selfAlley && !p.prev.selfAlley;
+      p.prev.selfAlley = !!x.selfAlley;
+      if (press) startSelfAlley(p);
+      const P = G.ball.state === 'pass' && G.ball.selfAlley;
+      if (!P || P.to !== p) return x;
+      const dx = P.tx - p.x, dy = P.ty - p.y, l = Math.hypot(dx, dy), k = 1 / Math.max(l, 0.5);
+      return { ...zeroInp(), mx: dx * k, my: dy * k, sprint: true };
+    });
     celTick(); tipsTick();
     PH.input.endTick();
     for (let i = 0; i < 2; i++) { updatePlayer(ps[i], inps[i], dt); skTick(ps[i], dt); tkTick(ps[i], dt); }
@@ -6174,13 +6276,95 @@
     return true;
   }
   const PASS = { chest: { v: 12.5, ap: 0.25, tz: 1.25 }, skip: { v: 14, ap: 1.2, tz: 1.35 }, bounce: { v: 10, ap: 0, tz: 1 }, lob: { v: 8.5, ap: 2.2, tz: 2.2 }, alley: { v: 8.5, ap: 1.6, tz: 3.2 } };
+  function selfAlleyReady(p) {
+    if (teamPlay() || G.phase !== 'live' || G.ball.dead || G.ball.state !== 'held' || G.ball.holder !== p.id || !p.hasBall || p.action || p.stun || p.z > 0.05 || G.needClear) return false;
+    const d = distHoop(p), h = hoopDir(p);
+    return d >= K.selfAlleyMin && d <= K.selfAlleyMax && p.vx * h.x + p.vy * h.y >= K.selfAlleySpeed;
+  }
+  function startSelfAlley(p) {
+    if (!selfAlleyReady(p)) return false;
+    const b = G.ball, d = distHoop(p), glass = d > K.selfAlleyGlass || Math.abs(p.x - HOOP.x) / d > K.selfAlleyAngle;
+    const tx = HOOP.x + (p.x - HOOP.x) * 0.15, ty = HOOP.y - K.selfAlleyCatch;
+    const distance = Math.hypot(tx - p.x, ty - p.y), speed = (4.2 + 1.7 * p.r.spd) * CFG.speedMul * K.sprintSp;
+    const duration = Math.max(0.65, distance / Math.max(2, speed * 0.8) + 0.2, d / PASS.alley.v);
+    b.selfAlley = { kind: 'alley', self: true, glass, from: { id: p.id, x: p.x + (p.hand || 1) * 0.15, y: p.y }, to: p, x: b.x, y: b.y, z: Math.max(1, b.z), tx, ty, t: 0, duration,
+      gx: clamp(p.x * 0.15, -0.5, 0.5), gy: PH.render.BOARD_Y - PH.render.BALL_R, gz: HOOP.z + 0.5 };
+    p.hasBall = false; p.ib = p.buf = p.finQ = null; p.post = false;
+    b.state = 'pass'; b.holder = -1; b.lastTouch = p.id; b.shot = null; b.wasShot = false; b.trail = null;
+    G.stats[p.id].selfAlley = (G.stats[p.id].selfAlley || 0) + 1;
+    sfx('pass'); return true;
+  }
+  function selfAlleyStep(dt) {
+    const b = G.ball, P = b.selfAlley, p = P.to, old = { x: b.x, y: b.y, z: b.z };
+    P.t += dt;
+    const u = clamp(P.t / P.duration, 0, 1), end = Math.min(PASS.alley.tz, p.h + 0.5);
+    if (P.glass) {
+      const first = u < 0.65, v = first ? u / 0.65 : (u - 0.65) / 0.35;
+      b.x = lerp(first ? P.x : P.gx, first ? P.gx : P.tx, v);
+      b.y = lerp(first ? P.y : P.gy, first ? P.gy : P.ty, v);
+      b.z = passHeight('alley', first ? P.z : P.gz, first ? P.gz : end, PASS.alley.ap * (first ? 0.65 : 0.2), v);
+      if (!first && !P.bounced) { P.bounced = true; sfx('rim'); G.fx.board = Math.max(G.fx.board, 0.3); }
+    } else {
+      b.x = lerp(P.x, P.tx, u); b.y = lerp(P.y, P.ty, u);
+      b.z = passHeight('alley', P.z, end, PASS.alley.ap, u);
+    }
+    b.vx = (b.x - old.x) / dt; b.vy = (b.y - old.y) / dt; b.vz = (b.z - old.z) / dt; b.spin += dt * 10;
+    for (const df of G.players) if (df !== p && !df.off && !df.stun && u > 0.08 && b.z <= df.z + df.h + 0.35) {
+      const reach = 0.25 + 0.37 * clamp(df.r.def, 0, 1) + 0.12 * df.r.stl;
+      if (Math.hypot(df.x - b.x, df.y - b.y) < reach) {
+        b.selfAlley = null;
+        G.stats[df.id].stl++; G.stats[p.id].tov++; passIntercept(df); pickup(df, 'intercept'); return;
+      }
+    }
+    if (u < 1) return;
+    b.selfAlley = null;
+    if (p.off || p.stun || p.action || Math.hypot(p.x - b.x, p.y - b.y) > 1.05 + 0.4 * p.r.hnd) {
+      looseBall(b, b.vx * 0.2, b.vy * 0.2, 0, p.id); return;
+    }
+    pickup(p);
+    if (!alleyFinish(P, 0.9) && p.hasBall) looseBall(b, b.vx * 0.2, b.vy * 0.2, 0, p.id);
+  }
+  function alleyWindow(p) {
+    let pressure = 0;
+    for (const d of G.players) if (!d.off && TM(d) !== TM(p)) {
+      const near = Math.min(Math.hypot(d.x - p.x, d.y - p.y), distHoop(d));
+      pressure = Math.max(pressure, clamp(1 - near / K.alleyRange, 0, 1));
+    }
+    return { pressure, width: K.alleyWindow * (1 + K.alleyOpen * (1 - pressure) + (ptIs(p, 'lob') ? K.alleyLob : 0)) * (1 - K.alleyContest * pressure) };
+  }
+  function alleyFinish(P, quality) {
+    const p = P.to, a = P.finish || (P.finish = {}), w = alleyWindow(p);
+    const hands = p.r5?.raw?.hands != null ? p.r5.raw.hands / 99 : p.r.hnd;
+    const skill = clamp(0.3 * p.r.dunk + 0.2 * p.r.vert + 0.2 * hands + 0.3 * quality, 0, 1);
+    a.error = (rnd() * 2 - 1) * K.alleyCpu * (1.5 - skill);
+    const error = a.error == null ? Infinity : Math.abs(a.error), grade = error <= w.width ? 'green' : error <= w.width * K.alleyOk ? 'ok' : 'bad';
+    a.grade = grade; a.width = w.width; a.pressure = w.pressure;
+    let catchContest = 0;
+    for (const d of G.players) if (!d.off && TM(d) !== TM(p)) catchContest = Math.max(catchContest, contestOf(p, d, 'in'));
+    if (grade === 'bad' && rnd() < Math.min(w.pressure, catchContest) * K.alleyFumble) {
+      G.stats[P.from.id].tov++;
+      p.hasBall = false; p.ib = null;
+      looseBall({ x: G.ball.x, y: G.ball.y, z: G.ball.z }, G.ball.vx * 0.2, G.ball.vy * 0.2, 0, p.id);
+      float('空接脱手', p, '#ff6b5e', 1); return false;
+    }
+    if (p.action || p.stun || distHoop(p) >= 4.2 || G.needClear) return false;
+    p.ib = null; p.cq = null;
+    if (!startFinish(p, { ...zeroInp(), my: 1, sprint: true }, grade === 'bad' ? 'lay' : 'auto', 'a2', true, true)) return false;
+    p.action.alley = { grade, error: a.error, quality };
+    if (p.action.type === 'layup') p.action.rearm = true;
+    float(grade === 'bad' ? '勉强空接' : '空接终结', p, grade === 'green' ? '#7dff8a' : grade === 'ok' ? '#ffd24a' : '#ff6b5e', 1);
+    return true;
+  }
+  function alleyProb(a, prob) {
+    return a.alley ? a.alley.grade === 'green' ? Math.min(1, prob + K.alleyGreen) : a.alley.grade === 'bad' ? prob * K.alleyWeak : prob : prob;
+  }
   function passHeight(kind, z, end, arc, u) {
     if (kind !== 'bounce') return lerp(z, end, u) + arc * 4 * u * (1 - u);
     const v = (u - 0.55) / 0.45;
     return u < 0.55 ? lerp(z, 0.13, u / 0.55) : lerp(0.13, end, v) + 0.3 * Math.sin(Math.PI * v);
   }
   const T5API = { begin: t5begin, end: t5end, step: t5step, trackReplay, replayTick, makePlayer: makePlayer, aiInput: aiInput, zeroInp: zeroInp, newStats: newStats, contestOf: contestOf, contestInfo: contestInfo,
-    passProfiles: PASS, passHeight, startFinish, looseBall, rnd,
+    passProfiles: PASS, passHeight, startFinish, alleyFinish, alleyWindow, looseBall, rnd,
     distHoop: distHoop, isThree: isThree, finPlan: finPlan, OP: OP, TM: TM, pickup: pickup, float: float, led: led, sfx: sfx, vo: vo, vic: vic, burst: burst, part: part, hasB: hasB, powOf: powOf,
     knock: knock, bpop: bpop, tkAdd: tkAdd, fxReset: fxReset, rebBall: rebBall, hustle: hustle, HOOP: HOOP, cold: cold, scoreBy: scoreBy, banner: banner, passIntercept: passIntercept, interceptionStyle: interceptionStyle, localizeInterception: localizeInterception, checkBall: checkStart, checkStep: checkStep };
   // V4.0 区域可视化（调参台打开时 render.js 画）：单位米。lay / float / dunk / euro 以篮筐地面投影为圆心，表示“从这个圈内开始收球能做出该终结”（= 起跳上限 + 两步步幅）；
@@ -6206,7 +6390,7 @@
   }
   // V4.0 注册到调参台（ST / GW_TYPE / BLK_K / BLK_T / LSV 这些对象保持同一引用，值随调参刷新）
   if (TU) {
-    TU.reg(TDEF.map((d) => ({ k: 'l1_' + d[0], g: d[1], label: d[2], v: d[3], min: d[4], max: d[5], step: d[6], note: d[7], mode: d[8] || 'num', tmp: !!d[9] })));
+    TU.reg(TDEF.map((d) => ({ k: 'l1_' + d[0], g: d[1], label: d[2], v: d[3], min: d[4], max: d[5], step: d[6], note: d[7], mode: d[8] || 'num', tmp: !!d[9], ...(/^(alley|selfAlley)/.test(d[0]) ? { cat: 'fin', sub: '上篮', gm: 'both' } : {}) })));
     TU.reg(RDEF.map((d) => ({ k: 'l1_' + d[0], g: 'rules', label: d[1], v: CFG_DEF[d[0]], min: d[2], max: d[3], step: d[4], note: d[5], mode: d[6] || 'num' })));
     for (const d of RDEF) if (d[0] !== 'shotClock') Object.defineProperty(CFG, d[0], { enumerable: true, configurable: true, get: () => TU.get('l1_' + d[0]), set: (v) => { TU.set('l1_' + d[0], v); } });
     // 进攻时间是“本场”设置（比赛开始界面 / 5V5 会临时改），所以 CFG.shotClock 仍是普通字段，调参改动时同步过去

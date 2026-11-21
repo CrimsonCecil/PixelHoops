@@ -297,7 +297,13 @@
     { k: 't5_sk_dcT', g: 't5', cat: 't5', sub: '团队专属', gm: '5v5', label: '防守指挥 持续时间', v: 8, min: 0, max: 30, step: 0.5, note: '秒。防守指挥触发后全队防守增益持续时间' },
     { k: 't5_sk_dcR', g: 't5', cat: 't5', sub: '团队专属', gm: '5v5', label: '防守指挥 截传范围', v: 1.15, min: 1, max: 2, step: 0.01, note: '倍率。防守指挥期间截传范围 × 这个' },
     { k: 't5_sk_dcS', g: 't5', cat: 't5', sub: '团队专属', gm: '5v5', label: '防守指挥 被挡强度', v: 0.7, min: 0, max: 1, step: 0.05, note: '倍率。防守指挥期间被掩护挡住的强度 × 这个' },
-    { k: 't5_sk_dcC', g: 't5', cat: 't5', sub: '团队专属', gm: '5v5', label: '防守指挥 出手干扰', v: 1.15, min: 1, max: 2, step: 0.01, note: '倍率。防守指挥期间对方出手的干扰 × 这个' }
+    { k: 't5_sk_dcC', g: 't5', cat: 't5', sub: '团队专属', gm: '5v5', label: '防守指挥 出手干扰', v: 1.15, min: 1, max: 2, step: 0.01, note: '倍率。防守指挥期间对方出手的干扰 × 这个' },
+    // 5V5 镜头（暂停 → 镜头）：两种镜头各一套远近 / 高度，跟调参配置一起存云端
+    { k: 't5_camBc', g: 't5', cat: 'pace', sub: '镜头', gm: '5v5', label: '5V5 转播镜头', v: 0, mode: 'bool', note: '开 = 用侧面转播镜头，关 = 2K 镜头（暂停 → 镜头里切换）' },
+    { k: 't5_cam2kZ', g: 't5', cat: 'pace', sub: '镜头', gm: '5v5', label: '5V5 2K 镜头 远近', v: 5, min: 0, max: 10, step: 1, mode: 'int', wide: false, note: '档位 0~10，和 2K 镜头设置一样' },
+    { k: 't5_cam2kH', g: 't5', cat: 'pace', sub: '镜头', gm: '5v5', label: '5V5 2K 镜头 高度', v: 10, min: 0, max: 20, step: 1, mode: 'int', wide: false, note: '档位 0~20，10 是实机取景' },
+    { k: 't5_camBcZ', g: 't5', cat: 'pace', sub: '镜头', gm: '5v5', label: '5V5 转播镜头 远近', v: 5, min: 0, max: 10, step: 1, mode: 'int', wide: false, note: '档位 0~10' },
+    { k: 't5_camBcH', g: 't5', cat: 'pace', sub: '镜头', gm: '5v5', label: '5V5 转播镜头 高度', v: 5, min: 0, max: 10, step: 1, mode: 'int', wide: false, note: '档位 0~10' }
   ];
   // V4.6 和 1V1 共用的参数：直接读 l1_ 键（调参台改 1V1 的值，5V5 一起变），缓存进 TV；没有 TUNE 时用 1V1 默认值
   const L1D = { l1_stLow: 15, l1_contestRange: 2.7, l1_stlCpu0: 0.6, l1_stlCpuD: 0.35, l1_stealMul: 1, l1_gwSkill: 1.7, l1_gwBadge: 1.45, l1_smKy: 0.5 };
@@ -364,7 +370,7 @@
   const U = (p, f) => (p && p.r5 ? p.r5[f] : 0);
   const PASS = PH.game.t5.passProfiles;
   const ICON = ['A', 'B', 'X', 'Y', 'LT'];
-  // V3.9e 默认 2K 镜头（远近 5、高度 10，2K 社区常用值）；转播镜头留作可选。两种镜头各记一套远近 / 高度（只存内存）
+  // V3.9e 默认 2K 镜头（远近 5、高度 10，2K 社区常用值）；转播镜头留作可选。两种镜头各记一套远近 / 高度（调参台 t5_cam*，t5Sync 同步进来）
   const CAM_DEF5 = { broadcast: { zoom: 5, height: 5 }, '2k': { zoom: 5, height: 10 } };
   const CAMS = { preset: '2k', zoom: 5, height: 10, mem: JSON.parse(JSON.stringify(CAM_DEF5)) };
   let A5 = null, G = null;
@@ -894,7 +900,8 @@
     if (r && !P.lin) {
       const H = handPt(r, b), u0 = P.t / P.T, cap = (u0 < 0.65 ? 3 : 9) * dt * clamp(1 - (P.er || 0) / TV.t5_pass_trk, 0.12 * Math.min(1, TV.t5_pass_trk / 0.8), 1);   // V4.2 偏球修正不回来：真的偏到身后 / 脚下
       const dx = H[0] - P.ex, dy = H[1] - P.ey, l = hyp(dx, dy), mv = Math.min(l, cap); if (l > 0.01) { P.ex += dx / l * mv; P.ey += dy / l * mv; }
-      if (u0 > 0.4) P.ez += clamp((P.feet ? Math.max(0.35, H[2] - 0.75) : H[2]) - P.ez, -4 * dt, 4 * dt);
+      if (P.kind === 'alley') P.ez = Math.min(K.tz, r.h + 0.5);
+      else if (u0 > 0.4) P.ez += clamp((P.feet ? Math.max(0.35, H[2] - 0.75) : H[2]) - P.ez, -4 * dt, 4 * dt);
     }
     const u = clamp(P.t / P.T, 0, 1), px = b.x, py = b.y;
     b.x = lerp(P.x0, P.ex, u); b.y = lerp(P.y0, P.ey, u);
@@ -921,7 +928,7 @@
         T.lostPass = { t: T.time, from: P.from, to: P.to, by: d, rec: P.rec, shown: true }; return;
       }
     }
-    if (u >= 1 && r && !r.hasBall && r.stun <= 0.3 && G.players[r.id] === r && (P.ext || 0) < 2) {
+    if (P.kind !== 'alley' && u >= 1 && r && !r.hasBall && r.stun <= 0.3 && G.players[r.id] === r && (P.ext || 0) < 2) {
       // V3.9m 到达时球离手还有距离：不瞬间吸过去，按球速再飞一小段到手上（离得远就是伸手够球）
       const H = handPt(r, b), d = Math.hypot(H[0] - b.x, H[1] - b.y, H[2] - b.z);
       if (d > 0.12 && hyp(r.x - b.x, r.y - b.y) < TV.t5_ck_reachD) {
@@ -933,7 +940,7 @@
     if (u >= 1) {
       T.ps = null;
       // 手感 hands：低于中位数的人接快球 / 偏球会脱手（最多约 8%~13%）
-      const fum = P.inb ? 0 : Math.max(0, -U(r, 'hands')) * TV.t5_pass_fum0 * (P.rec && P.rec.lane > 1.5 ? 0.5 : 1) * (P.v > 11 ? 1.3 : 1) * (P.er > 0.4 ? 1.3 : 1) + (P.inb ? 0 : TV.t5_pass_fum * clamp((P.er || 0) - 0.35, 0, 1.5) * clamp(0.6 - U(r, 'hands'), 0, 1.1));   // V4.2 偏球漏接
+      const fum = P.inb || P.kind === 'alley' ? 0 : Math.max(0, -U(r, 'hands')) * TV.t5_pass_fum0 * (P.rec && P.rec.lane > 1.5 ? 0.5 : 1) * (P.v > 11 ? 1.3 : 1) * (P.er > 0.4 ? 1.3 : 1) + TV.t5_pass_fum * clamp((P.er || 0) - 0.35, 0, 1.5) * clamp(0.6 - U(r, 'hands'), 0, 1.1);   // V4.2 偏球漏接
       if (r && dist(r, b) < 1.9 && r.stun <= 0.3 && !r.hasBall && G.players[r.id] === r && rnd() < fum) { T.cnt.fumble++; if (r.rk) r.rk.st.drop++; if (P.rec) P.rec.res = 'fum'; T.lostPass = { t: T.time, from: P.from, to: r, by: null, rec: P.rec }; b.state = 'loose'; b.vz = 1.2; b.vx = rr(-1.5, 1.5); b.vy = rr(-1.5, 1.5); b.lastTouch = r.id; b.noPick = 0.2; A5.sfx('bounce'); }
       else if (r && dist(r, b) < 1.9 && r.stun <= 0.3 && !r.hasBall && G.players[r.id] === r) { if (P.rec) P.rec.res = 'ok'; catchBall(r, P); }
       // 传偏 / 接球人慢半步：2.6 米内没被撞倒的接球人伸手够球（以前直接变活球，被对方捡走就是莫名其妙的失误）
@@ -1123,7 +1130,10 @@
       if (!CATCH[k].rdy) r.f5.dec = Math.max(r.f5.dec, T.time + 0.2);
       if (r.ctrl === 'cpu' && catchEr > 0.25) r.f5.dec = Math.max(r.f5.dec, T.time + 0.2 + TV.t5_pass_ckD * clamp((catchEr - 0.25) / 0.5, 0, 1)); }   // V4.2 偏球：接球人要停顿、调整
     if (r.rk) r.rk.st.catch++;
-    if (P.kind === 'alley' && dHoop(r) < 4.2) r.f5.alley = T.time;
+    if (P.kind === 'alley' && dHoop(r) < 4.2) {
+      r.f5.csW = false; A5.alleyFinish(P, r.f5.pq);
+      if (!r.hasBall) { T.cnt.fumble++; T.cnt.tov++; if (r.rk) r.rk.st.drop++; if (P.rec) P.rec.res = 'fum'; }
+    }
     // V3.9c 空切接球：接着往篮下冲 0.7 秒，不马上回传
     if (r.f5.cut && dHoop(r) < 6) { r.f5.atk = T.time + 0.7; r.f5.dec = Math.max(r.f5.dec, T.time + 0.7); r.f5.cut = null; }
     if (T.hum === r.tm) setCtl(r, 'auto');
@@ -1246,7 +1256,6 @@
       }
       // 2K：RT + X 突破中 = 扣篮（1V1 的扣篮键 a2）
       if (X && R.RT && dHoop(p) < 6.5 && p.speed > 2.5) { o.a2 = true; o.a1 = false; }
-      if (p.f5.alley > T.time - 0.35) { o.a2 = true; o.sprint = true; }
       if (rsM > 0.5) { o.a3 = o.rs = true; o.dx = RS.x / rsM; o.dy = RS.y / rsM; }
       if (R.hesi) o.a3 = o.hesi = true;
       o.post = R.LT;
@@ -1257,6 +1266,7 @@
     }
     if (G.ball.state === 'pass' && T.ps && T.ps.to === p && hyp(R.lx, R.ly) < 0.3) { goInp(p, T.ps.tx, T.ps.ty, true, o); }
     if (p.tm === G.off && G.ball.state === 'pass' && T.ps && T.ps.to === p) {
+      if (T.ps.kind === 'alley') { o.a1 = o.a2 = o.a3 = false; return o; }
       // V3.9h 球正飞向我：X = 接球即投、A = 接球即传，记进接球缓冲，接到球再执行（以前 X 被当成无球起跳抢板，接球人会空跳）
       const IB = PH.game.ibuf, rsE = rsM > 0.5 && !(p.f5.rs0 > 0.5); p.f5.rs0 = rsM;
       if (IB.wc) {
@@ -1448,7 +1458,6 @@
       }
     }
     if (f.csW && !h.action && h.ctrl === 'cpu') { f.csW = false; if (T.time - (h.catchT || -9) < 0.4) { const o = A5.zeroInp(); o.a1 = true; f.veto = 0; return o; } }
-    if (f.alley > T.time - 0.35) { const o = A5.zeroInp(); o.a2 = true; o.sprint = true; o.my = 1; return o; }
     { const pp = plHand(h); if (pp) return pp; }   // V3.9m C2 战术
     if (f.isoT > T.time && T.time >= (f.isoC || 0)) {   // V3.9p 单打中：被包夹、或者有人大空（球商高的人才看得到）就把球分出去
       f.isoC = T.time + 0.25;
@@ -2416,8 +2425,19 @@
     // V3.9f 2K 镜头：高度 10 是实机取景，滑条在它两边调（0–20）；转播镜头仍是 0–10
     CAMS.zoom = clamp(Math.round(CAMS.zoom), 0, 10); CAMS.height = clamp(Math.round(CAMS.height), 0, CAMS.preset === '2k' ? 20 : 10);
     CAMS.mem[CAMS.preset] = { zoom: CAMS.zoom, height: CAMS.height };
+    camPush();
   }
-  function resetCam() { CAMS.mem = JSON.parse(JSON.stringify(CAM_DEF5)); CAMS.preset = '2k'; CAMS.zoom = 5; CAMS.height = 10; }
+  // 写回调参台（每次 set 都会 t5Sync 重算 CAMS，所以先拷一份再逐项写）
+  function camPush() {
+    const TU = PH.TUNE; if (!TU || !TU.has('t5_camBc')) return;
+    const m = JSON.parse(JSON.stringify(CAMS.mem)), bc = CAMS.preset === 'broadcast' ? 1 : 0;
+    TU.set('t5_cam2kZ', m['2k'].zoom); TU.set('t5_cam2kH', m['2k'].height); TU.set('t5_camBcZ', m.broadcast.zoom); TU.set('t5_camBcH', m.broadcast.height); TU.set('t5_camBc', bc);
+  }
+  function resetCam() {
+    const TU = PH.TUNE;
+    if (TU && TU.has('t5_camBc')) { for (const k of ['t5_camBc', 't5_cam2kZ', 't5_cam2kH', 't5_camBcZ', 't5_camBcH']) TU.reset(k); return; }
+    CAMS.mem = JSON.parse(JSON.stringify(CAM_DEF5)); CAMS.preset = '2k'; CAMS.zoom = 5; CAMS.height = 10;
+  }
   // V3.9e 2K 镜头朝向 phi（世界坐标里的角度，0 = 朝 +X 篮筐）。球权转换后用 0.5 秒平滑转 180 度，t ≥ 0 表示正在转
   function camTurn(dt) {
     const tg = T.dir[G.off] === 1 ? 0 : Math.PI;
@@ -2445,6 +2465,8 @@
     for (const k in PASS) PASS[k].v = TV['t5_pv_' + k];
     ISO_K.s = TV.t5_iso_s; ISO_K.h = TV.t5_iso_h; ISO_K.b = TV.t5_iso_b; ISO_K.c = TV.t5_iso_c;
     ACC5.up = TV.t5_acc_up; ACC5.upA = TV.t5_acc_upA; ACC5.dn = TV.t5_acc_dn;
+    CAMS.mem['2k'] = { zoom: TV.t5_cam2kZ, height: TV.t5_cam2kH }; CAMS.mem.broadcast = { zoom: TV.t5_camBcZ, height: TV.t5_camBcH };
+    CAMS.preset = TV.t5_camBc ? 'broadcast' : '2k'; CAMS.zoom = CAMS.mem[CAMS.preset].zoom; CAMS.height = CAMS.mem[CAMS.preset].height;
     const C = PH.T5.scrCfg; C.TH[0] = TV.t5_scr_th1; C.TH[1] = TV.t5_scr_th2; C.TH[2] = TV.t5_scr_th3; C.dK = TV.t5_scr_dK; C.sK = TV.t5_scr_sK; C.pK = TV.t5_scr_pK; C.p2 = TV.t5_scr_p2;
   }
   t5Tune(); t5Sync();

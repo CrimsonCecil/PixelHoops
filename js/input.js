@@ -31,6 +31,24 @@
   }
   let padPrev = {};
   const lock = { on: false };
+  const yTaps = [];
+  function finishTap(slot, down, onOffense, teamPass) {
+    const now = PH.game ? PH.game.G.time : Date.now() / 1000;
+    let s = yTaps[slot];
+    if (!s || s.teamPass !== teamPass || now < s.time || !onOffense) s = yTaps[slot] = { down: false, at: null, finish: false, teamPass };
+    s.time = now;
+    if (!onOffense) return { finish: false, alley: false };
+    let alley = false, finish = false;
+    if (down && !s.down) {
+      if (s.at != null && now - s.at < 0.25) { alley = true; s.at = null; s.finish = false; }
+      else { s.at = now; s.finish = false; }
+    }
+    if (s.at != null && now - s.at >= 0.25) { s.at = null; s.finish = true; finish = true; }
+    finish = finish || s.finish && down;
+    if (!down && s.at == null) s.finish = false;
+    s.down = down;
+    return { finish, alley };
+  }
 
   function pads() {
     const out = [];
@@ -49,6 +67,7 @@
     const a3 = held(m.a3), hesi = onOffense && held([slot === 0 ? 'KeyH' : 'Numpad5']);
     const o = { mx: mx, my: my, sprint: held(m.sprint), a1: held(m.a1), a2: held(m.a2), a3: a3 || hesi, dribble: a3, hesi: hesi, post: onOffense && held(m.post), dx: 0, dy: 0 };
     const gp = lock.on ? null : pads()[slot];
+    const y = finishTap(slot, padBtn(gp, 3), onOffense, teamPass);
     if (gp) {
       const ax = gp.axes[0] || 0, ay = gp.axes[1] || 0;
       if (Math.hypot(ax, ay) > 0.22) { o.mx = ax; o.my = -ay; }
@@ -56,7 +75,7 @@
       if (onOffense && B(11)) o.a3 = o.hesi = true;
       if (B(14)) o.mx = -1; if (B(15)) o.mx = 1; if (B(12)) o.my = 1; if (B(13)) o.my = -1;
       if (B(7) || B(5)) o.sprint = true;
-      if (onOffense) { if (B(2)) o.a1 = true; if (B(3)) o.a2 = true; if (B(1)) o.a3 = o.dribble = true; if (B(6) || B(4)) o.post = true; }
+      if (onOffense) { if (B(2)) o.a1 = true; if (y.finish) o.a2 = true; if (B(1)) o.a3 = o.dribble = true; if (B(6) || B(4)) o.post = true; }
       else { if (B(3)) o.a1 = true; if (B(2)) o.a2 = true; if (B(6) || B(4) || (!teamPass && B(0))) o.a3 = true; }
       const rx = gp.axes[2] || 0, ry = gp.axes[3] || 0;
       o.rsPad = true;
@@ -67,6 +86,8 @@
       o.a1 = o.a1 || touchBtn('a1'); o.a2 = o.a2 || touchBtn('a2'); o.a3 = o.a3 || touchBtn('a3'); o.sprint = o.sprint || touchBtn('sprint');
       if (onOffense) { o.dribble = o.dribble || touchBtn('a3'); o.post = o.post || touchBtn('alt'); }
     }
+    o.selfAlley = !teamPass && (held(slot === 0 ? ['KeyV'] : ['Numpad4']) || y.alley);
+    if (teamPass && y.alley) { o.pass = true; o.passKind = 'alley'; }
     const l = Math.hypot(o.mx, o.my); if (l > 1) { o.mx /= l; o.my /= l; }
     return o;
   }
@@ -102,10 +123,11 @@
   function read3(onOffense) {
     const input = read(0, onOffense, true, true), gp = lock.on ? null : pads()[0];
     const B = (i) => padBtn(gp, i);
-    input.pass = held(['KeyE']) || B(0) || touchBtn('pass');
+    const padAlley = input.passKind === 'alley';
+    input.pass = held(['KeyE']) || B(0) || touchBtn('pass') || padAlley;
     const bounce = held(['KeyZ']) || touchBtn('bounce') || B(0) && B(4);
     const lob = held(['KeyX']) || touchBtn('lob') || B(0) && B(6);
-    const alley = held(['KeyV']) || touchBtn('alley') || bounce && lob;
+    const alley = held(['KeyV']) || touchBtn('alley') || bounce && lob || padAlley;
     if (onOffense && (bounce || lob || alley)) input.pass = true;
     if (input.pass) input.passKind = alley ? 'alley' : lob ? 'lob' : bounce ? 'bounce' : input.sprint ? 'skip' : 'chest';
     input.screen = held(['KeyF']) || B(11) || touchBtn('screen');
@@ -145,6 +167,7 @@
   function endTick() { for (const k in latch) delete latch[k]; }
   function flush() {
     endTick();
+    yTaps.length = 0;
     for (const k in blockedKeys) delete blockedKeys[k];
     for (const k in keys) if (keys[k]) blockedKeys[k] = true;
     for (const k in blockedPad) delete blockedPad[k];
