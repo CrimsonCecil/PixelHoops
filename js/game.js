@@ -2636,7 +2636,7 @@
   function backTurn(pl) { const t = G.time; return !pl.post && pl.hasBall && faceHoop(pl) < -0.2 && (t - (pl.postAt || -9) < 0.7 || ((pl.lastMove === 'spin' || pl.lastMove === 'postspin') && t - pl.lastMoveT < 0.9)); }
   function canPullupCancel(pl, a) { return pl.r.hnd >= K.pcHnd || hasB(pl, 'ankle') || hasB(pl, 'tight') || (a.kind === 'stepback' && hasB(pl, 'stepper')); }
   function catchShot(pl) {
-    return G.mode === 't5' && pl.passCatchT != null && G.time - pl.passCatchT >= 0 && G.time - pl.passCatchT <= 0.6 && !pl.catchDribbled;
+    return teamPlay() && pl.passCatchT != null && G.time - pl.passCatchT >= 0 && G.time - pl.passCatchT <= 0.6 && !pl.catchDribbled;
   }
   function startShot(pl, inp, btn, cancelVariant) {
     const d = distHoop(pl), q = inDir(pl, inp), df = OP(pl);
@@ -2650,6 +2650,12 @@
     const V = SV[v], three = !V.hook && isThree(pl.x, pl.y), F = formOf(pl), TI = CFG.shotIdeal * F.sp * bk(pl, 'quick', K.bgQuickT);
     const a = { type: 'shot', lefty: !V.hook && !!pl.arch.lefty, v: v, V: V, F: F, jT: V.hook ? K.shotJump : clamp(K.shotJump * F.dip, 0.18, TI - 0.12), t: 0, pts: three ? 3 : 2, released: false, jumped: false, latS: q.lat >= 0 ? 1 : -1, ideal: TI, meter: null, skill: null, d0: d, btn: btn || 'a1' };
     a.catchShot = catchShot(pl);
+    if (G.mode === 't3' && a.catchShot && G.time - pl.passCatchT <= 0.5 && !V.hook) {
+      const q = pl.passQuality - 0.65, ready = pl.passQuality >= 0.55 && contestOf(pl, df) < 0.35;
+      a.t += Math.max(0, (ready ? 0.04 + 0.04 * clamp((pl.r.three - 0.6) / 0.35, 0, 1) : 0) + 0.06 * q);
+      const p = ready ? 1.03 + 0.04 * clamp((pl.r.three - 0.7) / 0.25, 0, 1) : 0.96;
+      a.V = Object.assign({}, V, { p: V.p * p * (1 + 0.15 * q), g: V.g * (ready ? 1.08 : 1) * (1 + q) });
+    }
     // 勾手：侧身对着篮筐，用离篮筐远的那只手出手；默认往禁区中路转身，推左右可以自己选方向
     if (V.hook) { const hd = hoopDir(pl), sx = Math.sign(hd.y * pl.x) || 1; a.hs = Math.abs(q.lat) > 0.35 && q.l > 0.35 ? (q.lat > 0 ? 1 : -1) : sx; a.hand = -a.hs; }
     if (skOf(pl, 'curry') && pl.sk.ready && three && d >= 7.0) a.skill = 'curry';
@@ -2659,7 +2665,7 @@
     if (a.skill) { pl.sk.cd = 12; G.ball.lastSk = { id: pl.id, sk: a.skill }; }
     hzSet(pl, a); if (pl.sk.ky > G.time) { a.ky = true; pl.sk.ky = 0; }
     const mT0 = 0, mSp = TI + 0.12 - mT0; // 投篮条按下当帧就出现、从 0 往上涨；绿区的真实时间窗口不变（gw 按 mSp 归一）
-    a.meter = { v: 0, t0: mT0, span: mSp, ideal: (TI - mT0) / mSp, gw: greenWidth(pl, ratingOf(pl, a), a.skill ? 0 : contestOf(pl, df, V.hook || v === 'postfade' ? 'in' : 'shot') * V.c * (a.ky ? 0.5 : 1), shotKind(a), a) * V.g * (a.skill ? K.gwSkill : 1) * 0.2 / mSp, done: false, color: a.skill ? '#ffd24a' : '#fff', label: a.skill ? pl.arch.skill.name : V.name };
+    a.meter = { v: 0, t0: mT0, span: mSp, ideal: (TI - mT0) / mSp, gw: greenWidth(pl, ratingOf(pl, a), a.skill ? 0 : contestOf(pl, df, V.hook || v === 'postfade' ? 'in' : 'shot') * V.c * (a.ky ? 0.5 : 1), shotKind(a), a) * a.V.g * (a.skill ? K.gwSkill : 1) * 0.2 / mSp, done: false, color: a.skill ? '#ffd24a' : '#fff', label: a.skill ? pl.arch.skill.name : V.name };
     pl.action = a; pl.post = false; pl.animT = 0;
     if (!a.skill && v !== 'set' && v !== 'pullup') float(V.name, pl, '#f6efe0', 1);
   }
@@ -5545,7 +5551,14 @@
     if (G.banner) { G.banner.t += dt; if (G.banner.t > G.banner.dur) G.banner = null; }
     return true;
   }
+  const PASS = { chest: { v: 12.5, ap: 0.25, tz: 1.25 }, skip: { v: 14, ap: 1.2, tz: 1.35 }, bounce: { v: 10, ap: 0, tz: 1 }, lob: { v: 8.5, ap: 2.2, tz: 2.2 }, alley: { v: 8.5, ap: 1.6, tz: 3.2 } };
+  function passHeight(kind, z, end, arc, u) {
+    if (kind !== 'bounce') return lerp(z, end, u) + arc * 4 * u * (1 - u);
+    const v = (u - 0.55) / 0.45;
+    return u < 0.55 ? lerp(z, 0.13, u / 0.55) : lerp(0.13, end, v) + 0.3 * Math.sin(Math.PI * v);
+  }
   const T5API = { begin: t5begin, end: t5end, step: t5step, trackReplay, replayTick, makePlayer: makePlayer, aiInput: aiInput, zeroInp: zeroInp, newStats: newStats, contestOf: contestOf, contestInfo: contestInfo,
+    passProfiles: PASS, passHeight, startFinish, looseBall, rnd,
     distHoop: distHoop, isThree: isThree, finPlan: finPlan, OP: OP, TM: TM, pickup: pickup, float: float, led: led, sfx: sfx, vo: vo, burst: burst, part: part, hasB: hasB, powOf: powOf,
     knock: knock, bpop: bpop, tkAdd: tkAdd, fxReset: fxReset, rebBall: rebBall, hustle: hustle, HOOP: HOOP, cold: cold, scoreBy: scoreBy, banner: banner, passIntercept: passIntercept, interceptionStyle: interceptionStyle, localizeInterception: localizeInterception, checkBall: checkStart, checkStep: checkStep };
   // V4.0 区域可视化（调参台打开时 render.js 画）：单位米。lay / float / dunk / euro 以篮筐地面投影为圆心，表示“从这个圈内开始收球能做出该终结”（= 起跳上限 + 两步步幅）；

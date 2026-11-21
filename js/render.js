@@ -542,7 +542,7 @@
           if (!h.dust) { h.dust = 1; dust(pl, h.dx || 0, h.dy || 0, 5, 0.7); }
         } else if (h.tier === 4 && !h.dust) { h.dust = 1; dust(pl, h.dx || 0, h.dy || 0, 7, 0.9); }
       }
-      const T5 = PH.T5 && PH.T5.T, P = T5 && T5.on && T5.pick, im = pl.scrImp, setNow = P && P.s === pl && P.ph === 'set';
+      const T5 = PH.T5 && PH.T5.T, P = T5 && T5.on && T5.pick, im = pl.scrImp, setNow = pl.screen3 || P && P.s === pl && P.ph === 'set';
       const imE = im ? now - im.t : 9;
       if ((setNow || imE < 0.6) && !a && pl.z <= 0.01 && !(pl.stun > 0) && !pl.hasBall) {
         // 站定：脚分开、膝微屈、两臂张开护在胸前
@@ -1617,10 +1617,11 @@
 
   // 三分线提示：球权转换未出线时沿三分线闪光；出线瞬间绿色闪一下
   function draw3pt(G) {
+    if (G.mode === 't3') return;
     const now = G.time, ping = now - (G.clearPing || -9), ok = now - (G.clearOk || -9);
     let col, a;
-    const h = G.players[G.mode === 't3' ? G.ball.holder : G.off];
-    if (G.needClear && G.phase === 'live' && G.ball.state === 'held' && h && (G.mode === 't3' || h.ctrl !== 'cpu')) { col = '#ff3b30'; a = 0.7 + 0.3 * Math.sin(now * 7) + (ping < 0.5 ? 0.5 * (1 - ping / 0.5) : 0); }
+    const h = G.players[G.off];
+    if (G.needClear && G.phase === 'live' && G.ball.state === 'held' && h && h.ctrl !== 'cpu') { col = '#ff3b30'; a = 0.7 + 0.3 * Math.sin(now * 7) + (ping < 0.5 ? 0.5 * (1 - ping / 0.5) : 0); }
     else if (ok < 0.6) { col = '#7dff8a'; a = 1 - ok / 0.6; }
     else return;
     const pts = [];

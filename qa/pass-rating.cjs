@@ -30,7 +30,24 @@ function fixture(baseline = false, human = -1, seed = 7, camera = false) {
     const code = fs.readFileSync(path.join(__dirname, '../js/render5.js'), 'utf8').replace('PH.render5 = {', 'PH.render5 = { qaWp: wp, qaPoseInView: poseInView,');
     vm.runInContext(code, ctx, { filename: 'render5.js' });
   }
-  return { t5: ctx.PH.T5, G: ctx.PH.game.G, game: ctx.PH.game, b5: ctx.PH.B5, rig: ctx.PH.rig, render5: ctx.PH.render5 };
+  return { t5: ctx.PH.T5, G: ctx.PH.game.G, game: ctx.PH.game, b5: ctx.PH.B5, rig: ctx.PH.rig, render5: ctx.PH.render5, input: ctx.PH.input, navigator: ctx.navigator };
+}
+
+{
+  const { t5, G, input, navigator } = fixture(false, 0), T = t5.T, p = T.ctl;
+  const pad = { connected: true, axes: [0.7, 0, 0, 0], buttons: [{ pressed: true }] };
+  navigator.getGamepads = () => [pad];
+  Object.assign(T, { phase: 'live', R: input.read5(), E: { A: true } });
+  Object.assign(G, { phase: 'live', off: p.tm });
+  Object.assign(p, { hasBall: true, action: null, stun: 0 });
+  Object.assign(G.ball, { state: 'held', holder: p.id, x: p.x, y: p.y, z: 1.25 });
+  assert(T.R.A && !T.R.B);
+  assert.equal(t5.qaHumanInp(p).a3, false, 'A with left-stick direction is not a dribble move in 5V5');
+  pad.buttons[0].pressed = false;
+  Object.assign(T, { R: input.read5(), E: {} });
+  assert.equal(t5.qaHumanInp(p).a3, false);
+  assert.equal(T.ps?.kind, 'chest', 'Xbox A press/release triggers a chest pass');
+  console.log('PASS: Xbox A releases a 5V5 chest pass without producing a dribble move.');
 }
 
 {

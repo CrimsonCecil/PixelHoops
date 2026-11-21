@@ -96,13 +96,13 @@ for (const [hand, dir, kind, side, nextHand] of [
   assert(p.action.dx < 0);
 }
 
-// A right-stick flick does not override the left stick or keep the A button held.
+// A right-stick flick does not override the left stick or keep the dribble button held.
 {
   const { p, step, pads } = fixture();
   const gp = { connected: true, axes: [0, 0, 0, 0], buttons: Array.from({ length: 16 }, () => ({ pressed: false })) };
   pads.push(gp);
-  gp.buttons[0].pressed = true; step(40);
-  gp.buttons[0].pressed = false; gp.axes[0] = -0.82; gp.axes[2] = 0.9; step();
+  gp.buttons[1].pressed = true; step(40);
+  gp.buttons[1].pressed = false; gp.axes[0] = -0.82; gp.axes[2] = 0.9; step();
   assert.equal(p.action.kind, 'cross');
   assert(p.action.dx < 0);
 }
