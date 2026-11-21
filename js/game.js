@@ -2004,7 +2004,11 @@
     else if (S.id === 'giannis') h = pl.hasBall && pl.stam >= 25 && pl.speed > 5 && distHoop(pl) < 8.5 ? 'ready' : '';
     else if (S.id === 'lebron') { const oa = opp.action; h = !pl.hasBall && oa && (oa.type === 'layup' || oa.type === 'dunk') && !oa.released && !oa.done && oa.chaseD >= 1.8 ? 'ready' : ''; }
     else if (S.id === 'shaq') h = shaqReady(pl) ? 'ready' : pl.post && k.postT > 0.3 ? 'half' : '';
-    else if (dropSignature(S)) h = pl.hasBall && postFollow(pl) && pl.postMove.signature ? 'ready' : pl.post && k.postT > 0.3 ? 'half' : '';
+    else if (S.trig === 'middleHook') h = pl.hasBall && postFollow(pl) && pl.postMove.signature ? 'ready' : pl.post && k.postT > 0.3 ? 'half' : '';
+    else if (S.trig === 'flying') {
+      const P = pl.hasBall && !pl.post && !pl.action && finPlan(pl);
+      h = P && P.dunk && P.flying ? 'ready' : '';
+    }
     else if (S.trig === 'vertical') h = !pl.hasBall && verticalBlockReady(pl, opp) ? 'ready' : '';
     else if (S.type === 'shot') h = pl.hasBall && gTrig(pl, S, opp) ? 'ready' : '';
     else if (S.type === 'post') h = pl.hasBall && postOk(pl) ? 'ready' : pl.post && k.postT > 0.3 ? 'half' : '';
@@ -3212,7 +3216,7 @@
     if (skOf(pl, 'curry') && pl.sk.ready && three && d >= 7.0) a.skill = 'curry';
     else if (skOf(pl, 'luka') && v === 'stepback' && three && G.time < pl.sk.win) a.skill = 'luka';
     else if (skOf(pl, 'kobe') && (V.fade || v === 'fade' || v === 'postfade' || v === 'turn') && (isClutch() || contestOf(pl, df) >= 0.3)) a.skill = 'kobe';
-    if (!a.skill) { const S = gsk(pl, 'shot') || postS; if (S && !dropSignature(S) && (!S.v || S.v.indexOf(v) >= 0) && (S.type === 'post' ? postOk(pl) : gTrig(pl, S, df) && gZone(pl, S, three, d))) a.skill = S.id; }
+    if (!a.skill) { const S = gsk(pl, 'shot') || postS; if (S && S.trig !== 'middleHook' && (!S.v || S.v.indexOf(v) >= 0) && (S.type === 'post' ? postOk(pl) : gTrig(pl, S, df) && gZone(pl, S, three, d))) a.skill = S.id; }
     if (a.skill) { pl.sk.cd = 12; G.ball.lastSk = { id: pl.id, sk: a.skill }; }
     hzSet(pl, a); if (pl.sk.ky > G.time) { a.ky = true; pl.sk.ky = 0; }
     const mT0 = a.stride ? a.stride.T : 0, mSp = TI + 0.12;
