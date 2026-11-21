@@ -125,6 +125,7 @@ for (const three of [false, true]) {
     assert.equal(f.G.hlQ?.pid, f.p.id, 'the made double clutch must queue a replay');
     f.runTo(() => f.G.replay != null, 3);
     assert.equal(f.G.replay.q.pid, f.p.id);
+    assert(f.G.time - f.G.lastMakeAt >= f.game.replayFlow.makeBeat);
   });
 }
 
