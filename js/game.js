@@ -3783,6 +3783,9 @@
       const fwd = Math.max(0.2, Math.cos(angle)), lat = side * Math.max(0, Math.sin(angle) * side, Math.abs(q.lat));
       const len = Math.hypot(fwd, lat);
       dx = (hx * fwd - hy * lat) / len; dy = (hy * fwd + hx * lat) / len;
+      const rawX = q.x / q.l, rawY = q.y / q.l, toX = df.x - pl.x, toY = df.y - pl.y;
+      const rawToward = Math.max(0, toX * rawX + toY * rawY), laneToward = Math.max(0, toX * dx + toY * dy);
+      if (dd * dd - rawToward * rawToward >= K.bdR * K.bdR || laneToward > rawToward) { dx = rawX; dy = rawY; }
     }
     const M = mvEff(kind, mvx, PK), X = mvx ? MVX[mvx] : null, CBk = cb ? CB[cb] : null;
     if (kind === 'uu') { M.T = K.uuT; M.cost = K.uuCost; }

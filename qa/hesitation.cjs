@@ -181,7 +181,7 @@ for (const [hand, dir, kind, side, nextHand] of [
   key(dir, false); step(28);
   assert(p.hasBall);
   if (side) assert(p.x * side > 0.15);
-  if (kind === 'inout') assert(p.y > y + 0.2 && p.action.hesiDrive);
+  if (kind === 'inout') assert(Math.abs(p.y - y) < 1e-9 && p.action.hesiDrive);
   if (kind === 'stepback') { assert(p.y < y - 0.2); assert(!p.action.hesiBurst); }
 }
 
@@ -409,6 +409,29 @@ for (const hand of [1, -1]) {
   assert(p.y > startY + 0.4);
 }
 
+for (const hand of [1, -1]) for (const side of [1, -1]) {
+  const { game, p, d } = fixture(hand);
+  game.G.mode = '2p';
+  Object.assign(p, { x: 0, y: 6.8, face: Math.PI / 2 });
+  Object.assign(d, { x: side * 1.2, y: 7.7, dummy: false, ctrl: 'p2', stun: 0 });
+  const step = inp => game.tick(1 / 120, q => q === p ? inp : game.t5.zeroInp());
+  for (let i = 0; i < 24; i++) step({ mx: 0, my: 0, a3: true, hesi: true });
+  const startY = p.y;
+  step({ mx: side, my: 0 });
+  const a = p.action;
+  assert(a.hesiBurst);
+  assert.equal(a.dx, side, 'keep an already-clear lateral stick direction');
+  assert.equal(a.dy, 0, 'do not add forward steering into a diagonal defender');
+  const dx = d.x - p.x, dy = d.y - p.y, distance = (vx, vy) => Math.sqrt(Math.max(0, dx * dx + dy * dy - Math.max(0, dx * vx + dy * vy) ** 2));
+  assert(distance(a.dx, a.dy) >= distance(side, 0) - 1e-9, 'assisted ray cannot approach the body more closely than the raw stick ray');
+  for (let i = 0; i < 60 && p.action === a; i++) {
+    step({ mx: side, my: 0 });
+    assert(Math.abs(p.y - startY) < 1e-9);
+    assert(Math.hypot(p.x - d.x, p.y - d.y) > game.K.bdR, 'open lateral exit never contacts the defender');
+  }
+}
+
 console.log('Hesitation: sideways one-hand fake, release directions, buffering, move requirements, post-up, possession loss, and 5V5 passed.');
 console.log('PASS hesitation shoulder lanes: forward/diagonal releases, both hands, 1V1/5V5, forward-held recovery, and CPU combo exits');
 console.log('PASS forward hesitation near baseline: defender beyond rim, both hands');
+console.log('PASS sideways hesitation: clear stick lanes preserved against diagonal defenders, both hands and sides');
