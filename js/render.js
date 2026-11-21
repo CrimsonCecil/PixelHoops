@@ -320,7 +320,7 @@
       const fx = Math.cos(pl.face), fy = Math.sin(pl.face), Hh = 1 + (height(pl) / 1.95 - 1) * 1.55, w = tune('stWidth', 0.42) * Hh;
       const k = rig(pl, { ...pose, crab: 0 }, false, pl.col && pl.col.body), reach = 0.012 * Hh;
       const base = (side) => {
-        const foot = k[side < 0 ? 'footL' : 'footR'];
+        const foot = k[side < 0 ? 'kneeL' : 'kneeR'];
         return [pl.x + fy * side * w + fx * ((foot[0] - pl.x) * fx + (foot[1] - pl.y) * fy),
           pl.y - fx * side * w + fy * ((foot[0] - pl.x) * fx + (foot[1] - pl.y) * fy), 0];
       };
@@ -337,7 +337,7 @@
         if (c.rest) { c.side = dx * fy - dy * fx < 0 ? 'L' : 'R'; c.phase = 0; c.rest = false; }
         const v = distance / dt, lo = tune('stHzMin', 1), hi = Math.max(lo, tune('stHzMax', 2.4));
         const hz = cl(v / (tune('stStep', 0.42) + 0.12 * v), lo, hi) * Math.min(1, v / 0.35);
-        const lateral = Math.abs((dx * fy - dy * fx) / distance), step = Math.min(v / hz, reach);
+        const step = Math.min(v / hz, reach);
         c.hz = hz; c.lead = dx * fy - dy * fx < 0 ? 'L' : 'R';
         let advance = hz * dt;
         while (advance > 0) {
@@ -349,8 +349,7 @@
           const u = c.phase, blend = u * u * (3 - 2 * u), foot = c[c.side];
           foot[0] = c.from[0] + (c.to[0] - c.from[0]) * blend;
           foot[1] = c.from[1] + (c.to[1] - c.from[1]) * blend;
-          const drag = lateral * (c.side === c.lead ? 0 : 1);
-          foot[2] = Math.sin(Math.PI * u) * Math.min(tune('stLift', 0.025), 0.03 * Hh) * (1 - drag);
+          foot[2] = Math.sin(Math.PI * u) * tune('stLift', 0.07) * Math.min(1, v / 0.8);
           if (u >= 1) { foot[2] = 0; c.side = c.side === 'L' ? 'R' : 'L'; c.phase = 0; }
         }
       }
@@ -1181,6 +1180,7 @@
       for (const [side, leg] of [['L', L], ['R', R]]) {
         const target = [(P['foot' + side + 'X'] || 0) / sxk, P['foot' + side + 'Y'] || 0, ((P['foot' + side + 'Z'] || 0) + pl.z + 0.06 * Hh - pelZ) / sy];
         const foot = leg[2].map((v, i) => lerpN(v, target[i], P.crab));
+        leg[1][2] += (P['foot' + side + 'Z'] || 0) * P.crab / sy;
         leg[2] = foot;
         leg[3] = [leg[2][0], leg[2][1] + 0.2 * Hh, leg[2][2]];
       }
