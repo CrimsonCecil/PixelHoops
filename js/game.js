@@ -1680,6 +1680,7 @@
       if (u >= 1) {
         b.x = at[0]; b.y = at[1]; b.z = at[2];
         delete o.pose.passHands; G.chk = null; pickup(o);
+          if (o.ctrl !== 'cpu') { o.prev.a1 = o.prev.a2 = true; o.ib = null; } // 接球前按住的键（手柄换了映射）不算新的投篮
         return true;
       }
     }

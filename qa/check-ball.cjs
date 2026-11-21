@@ -46,6 +46,11 @@ function verify(log, G, offId, label) {
   GM.setupCheck(1, '测试');
   const log2 = watch(G, () => GM.tick(1 / 60), 1, 0);
   verify(log2, G, 1, '1V1 after a change of possession');
+  GM.newGame({ mode: 'cpu', arch0: 'curry', arch1: 'lebron', target: 11 });
+  const held = (p) => Object.assign(GM.t5.zeroInp(), p.hasBall ? { a1: true } : { a2: true });
+  for (let i = 0; i < 90; i++) GM.tick(1 / 60, held);
+  assert.equal(G.phase, 'live');
+  assert(!G.players[0].action || !['shot', 'layup', 'dunk'].includes(G.players[0].action.type), 'a button held through the catch is not a new shot');
   GM.newGame({ mode: 'train', arch0: 'curry', arch1: 'lebron' });
   assert.equal(G.ball.state, 'held', 'training mode keeps its instant reset');
   console.log('PASS: 1V1 check ball goes defender -> bounce pass -> offense catch -> live.');
