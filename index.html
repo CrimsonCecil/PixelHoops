@@ -8,7 +8,10 @@
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 8' shape-rendering='crispEdges'%3E%3Crect width='8' height='8' fill='%2315101f'/%3E%3Crect x='2' y='1' width='4' height='6' fill='%23ee7f30'/%3E%3Crect x='1' y='2' width='6' height='4' fill='%23ee7f30'/%3E%3Crect x='1' y='4' width='6' height='1' fill='%237a3212'/%3E%3Crect x='4' y='1' width='1' height='6' fill='%237a3212'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/fusion-pixel-12px-proportional-sc@5/index.css">
-<link rel="stylesheet" href="style.css">
+<script>
+window.__V__ = (Date.parse(document.lastModified) || Date.now()).toString(36);
+document.write('<link rel="stylesheet" href="style.css?v=' + window.__V__ + '">');
+</script>
 <script>window.__API_BASE__='https://pixelhoops-api.cecilcai322.workers.dev';</script>
 </head>
 <body>
@@ -288,25 +291,12 @@
 
   <div id="debug" class="hidden"></div>
 </div>
-<script src="js/tune.js"></script>
-<script src="js/cfgstore.js"></script>
-<script src="js/ptype.js"></script>
-<script src="js/render.js"></script>
-<script src="js/input.js"></script>
-<script src="js/audio.js"></script>
-<script src="js/icons.js"></script>
-<script src="js/roster.js"></script>
-<script src="js/measurements.js"></script>
-<script src="js/r5.js"></script>
-<script src="js/r2k.js"></script>
-<script src="js/game.js"></script>
-<script src="js/b5.js"></script>
-<script src="js/team5.js"></script>
-<script src="js/team3.js"></script>
-<script src="js/rooms.js"></script>
-<script src="js/render5.js"></script>
-<script src="js/box5.js"></script>
-<script src="js/tuneui.js"></script>
-<script src="js/main.js"></script>
+<script>
+['tune', 'cfgstore', 'ptype', 'render', 'input', 'audio', 'icons', 'roster',
+ 'measurements', 'r5', 'r2k', 'game', 'b5', 'team5', 'team3', 'rooms',
+ 'render5', 'box5', 'tuneui', 'main'].forEach(function (name) {
+  document.write('<script src="js/' + name + '.js?v=' + window.__V__ + '"><\/script>');
+});
+</script>
 </body>
 </html>

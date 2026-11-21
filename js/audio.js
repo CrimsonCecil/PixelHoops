@@ -279,7 +279,7 @@
   let voM = null, voOn = true, voCur = null, voLast = {}, voBusy = 0;
   // 每名球员的全部语音合成一个文件（vo/p/<球员>.mp3，40kbps 定长帧，每帧 120 字节、24ms），清单里记每句的起始帧 o 和帧数 n
   const voIdx = {}, voSpr = {};
-  const voReady = fetch('vo/manifest.json').then((r) => r.ok ? r.json() : null).then((j) => {
+  const voReady = fetch('vo/manifest.json' + (window.__V__ !== undefined ? '?v=' + window.__V__ : '')).then((r) => r.ok ? r.json() : null).then((j) => {
     voM = j && j.voices;
     if (voM) for (const k in voM) { const V = voM[k]; for (const ev in V.lines) for (const it of V.lines[ev]) voIdx[it.f] = { s: V.s, o: it.o, n: it.n }; }
     return voM;
