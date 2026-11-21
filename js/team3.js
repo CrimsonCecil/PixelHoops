@@ -133,13 +133,14 @@
     if (G.score[tm] >= G.target) G.winner = tm;
     A.banner(pts === 3 ? '三分命中' : '两分命中', p.arch.name + ' · ' + GM.TEAMS[tm].name + ' +' + pts, p.team.css, beat);
   }
-  function gotBall(p, change) {
+  function gotBall(p, change, wasShot) {
     if (T.missedPass && p.tm !== T.missedPass.tm) G.stats[T.missedPass.id].tov++;
     T.missedPass = null;
     T.acquired = G.time; T.pass = null; T.lastPass = null;
     if (change) { clearPick(); matchups(); }
     p.ai.hold = false; p.ai.su = null;
     if (p.ctrl !== 'cpu') { const input = T.inputs && T.inputs[p.id]; if (input) Object.assign(p.prev, { a1: input.a1, a2: input.a2, a3: input.a3 }); }
+    if (wasShot && p.ctrl !== 'cpu') p.prev.a1 = p.prev.a2 = true;
   }
   function start(o) {
     const players = o.slots.map((s, i) => {
