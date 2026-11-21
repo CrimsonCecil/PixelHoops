@@ -32,7 +32,7 @@
   // 暂停时 BGM 平滑降到约 30%，恢复时平滑回来；暂停时停掉正在播的配音
   function setPaused(on) {
     on = !!on; if (on === pauseOn) return; pauseOn = on;
-    if (on && voCur) { try { voCur.stop(); } catch (e) { /* 已停 */ } voCur = null; }
+    if (on) { voSeq++; if (voCur) { try { voCur.stop(); } catch (e) { /* 已停 */ } voCur = null; } }
     if (introBed && ac) ramp(introBed.g.gain, on ? 0.0001 : introBed.want, 0.25);
     if (!pauseGain || !ac) return;
     const g = pauseGain.gain, t = ac.currentTime;
@@ -367,21 +367,22 @@
     const it = L[i];
     if (!ensure()) return null;
     if (voCur && pri) { try { voCur.stop(); } catch (e) { /* 已停 */ } voCur = null; }
-    voBuf(it.f).then((buf) => { if (!buf || !voOn || pauseOn) return; if (ac.state === 'suspended') ac.resume(); const src = ac.createBufferSource(); src.buffer = buf; src.connect(voGain); src.start(0, 0.1); voCur = src; duckMusic(buf.duration); }).catch(() => {});
+    const seq = ++voSeq;
+    voBuf(it.f).then((buf) => { if (!buf || !voOn || pauseOn || seq !== voSeq) return; if (ac.state === 'suspended') ac.resume(); const src = ac.createBufferSource(); src.buffer = buf; src.connect(voGain); src.start(0, 0.1); voCur = src; duckMusic(buf.duration); }).catch(() => {});
     voBusy = now + ((it.d || 1.5) * 1000) + 500;
     return it;
   }
   // 指定一条语音（开场对话用）：voLine 按序号取条目，voSay 打断当前语音直接播
   function voLine(key, ev, i) { const L = voM && voM[key] && voM[key].lines && voM[key].lines[ev]; return L && L.length ? L[(i || 0) % L.length] : null; }
-  function voStop() { voSayF = ''; if (voCur) { try { voCur.stop(); } catch (e) { /* 已停 */ } voCur = null; } voBusy = 0; }
+  function voStop() { voSeq++; voSayF = ''; if (voCur) { try { voCur.stop(); } catch (e) { /* 已停 */ } voCur = null; } voBusy = 0; }
   function voSay(it) {
     if (!it || !voOn || !sfxOn || pauseOn || !ensure()) return;
-    voStop(); const want = it.f; voSayF = want;
-    voBuf(it.f).then((buf) => { if (!buf || !voOn || pauseOn || voSayF !== want) return; if (ac.state === 'suspended') ac.resume(); const src = ac.createBufferSource(); src.buffer = buf; src.connect(voGain); src.start(0, 0.1); voCur = src; duckMusic(buf.duration); }).catch(() => {});
+    voStop(); const want = it.f, seq = ++voSeq; voSayF = want;
+    voBuf(it.f).then((buf) => { if (!buf || !voOn || pauseOn || voSayF !== want || seq !== voSeq) return; if (ac.state === 'suspended') ac.resume(); const src = ac.createBufferSource(); src.buffer = buf; src.connect(voGain); src.start(0, 0.1); voCur = src; duckMusic(buf.duration); }).catch(() => {});
     voBusy = performance.now() + ((it.d || 1.5) * 1000) + 500;
   }
   function voWhenReady(cb) { if (voM) cb(); else voReady.then(() => { if (voM) cb(); }); }
-  let voSayF = '';
+  let voSayF = '', voSeq = 0;
   // 离线混音测量：用 OfflineAudioContext 按当前总线增益渲染一段（音乐 / 某个音效 / 某条语音），返回采样
   // name 为音乐场景名（加 '!' 后缀 = 关键时刻强度全开）；空名 = 1V1 比赛音乐
   async function mixRender(kind, name, secs) {
