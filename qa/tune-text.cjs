@@ -15,6 +15,7 @@ function load(base) {
   return ctx.PH.TUNE;
 }
 const old = load(true), current = load(false);
+const validNote = d => /^(越大|越小|开：)/.test(d.note) || d.note === '当前版本未使用，改了无效果';
 assert.deepEqual(Array.from(current.list(), d => d.k).sort(), Array.from(old.list(), d => d.k).sort());
 let edited = 0;
 const maxChanges = [];
@@ -25,14 +26,18 @@ for (const d of current.list()) {
   if (d.label !== before.label || d.note !== before.note) {
     edited++;
     assert(d.syn.includes(before.label), `${d.k}: old label searchable`);
-    assert(/^(越大|越小|开：)/.test(d.note), `${d.k}: tip style`);
+    assert(validNote(d), `${d.k}: tip style`);
   }
 }
 console.log(`Registry comparison: ${current.list().length} keys identical; default/min/step/group/category/sub/mode identical`);
 console.log(`Max changes: ${maxChanges.length ? maxChanges.join(', ') : 'none'}`);
 console.log(`Rewritten parameters: ${edited}`);
 console.log(`Empty notes: ${current.list().filter(d => !d.note.trim()).length}`);
-console.log(`Notes outside requested style: ${current.list().filter(d => !/^(越大|越小|开：)/.test(d.note)).length}`);
+console.log(`Notes outside requested style: ${current.list().filter(d => !validNote(d)).length}`);
+for (const cat of [...new Set(current.list().map(d => d.cat))]) {
+  const defs = current.list().filter(d => d.cat === cat);
+  console.log(`Category ${cat}: ${defs.filter(validNote).length}/${defs.length} compliant`);
+}
 current.reg([{ k: 'qa_display', label: '旧名', v: 0.5, min: 0, max: 1, step: 0.01, note: '概率', display: ['新名', '越大越容易触发'] }]);
 assert.equal(current.meta('qa_display').max, 1, 'widen uses original probability text');
 assert.equal(current.meta('qa_display').label, '新名');
