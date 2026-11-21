@@ -4383,7 +4383,7 @@
       T.lA += c * 0.6; T.rA += c * 0.6; T.lB += c * 1.3; T.rB += c * 1.3; T.lean += c * 0.45;
     }
     if (PH.gait) PH.gait.post(pl, T, an, a);
-    const IG0 = G.intro && !a && (an === 'run' || an === 'idle') ? introWalk(pl) : null;
+    const IG0 = G.intro && !a && (an === 'run' || an === 'idle' || an === 'def') ? introWalk(pl) : null;
     if (IG0) { const e = G.time - IG0.t0, o = celPose(IG0.ty, e), k = Math.min(1, e / 0.2, (IG0.T - e) / 0.2); for (const n in o) if (n[0] === 'a') T[n] = lerp(T[n], o[n], k); }
     return T;
   }
