@@ -2,7 +2,7 @@
 (function () {
   const PH = window.PH, GM = PH.game, G = GM.G, R = PH.render, CFG = GM.CFG, TR = G.train;
   const $ = (id) => document.getElementById(id);
-  const stage = $('stage'), canvas = $('game');
+  const stage = $('stage'), canvas = $('game'), replayWipe = $('replay-wipe');
   const opts = { format: 'duel', opponent: 'cpu', get mode() { return this.format === 'duel' ? this.opponent : this.format; }, diff: 1, target: 21, clock: 24, glen: 0, arch0: GM.ROSTER[(Math.random() * GM.ROSTER.length) | 0], arch1: 'random', fb: 'simple', info: 'show', home: 'LAL', away: 'BOS', qlen: 300, side: 0 };
   const lobbyRoles = { human: '你', cpu: '电脑', waiting: '等待玩家' };
   const lobby3 = ['curry', 'edwards', 'jokic', 'lebron', 'durant', 'giannis'].map((arch, i) => ({ arch, role: i === 0 ? 'human' : i % 3 === 2 ? 'waiting' : 'cpu' }));
@@ -598,7 +598,7 @@
         g('属性颜色', [['亮绿 90+', '顶级，带发光'], ['黄绿 80+', '优秀'], ['金黄 70+', '合格'], ['暗橙 60+', '偏弱'], ['暗红 60 以下', '短板']]) +
         g('比赛规则', [['目标分', '11 / 21 / 33 / 50 分，默认 21；必须领先 2 分才算赢，没拉开就一直打下去'], ['赛点', '某一方这一回合进一个三分就能赢时进入赛点：广告屏打出 MATCH POINT，观众起立，广告带上下沿按该队颜色闪，比分牌下方显示“赛点”'], ['比赛时间', '默认不限；可选 3 / 5 / 10 分钟，只在比赛进行中走表。最后 10 秒每秒读秒，时间到鸣笛：球在空中等它落地（压哨球算），领先方获胜；平分进加时，下一球定胜负'], ['进攻时间', '最后 5 秒每秒滴一声，最后 3 秒更急'], ['三分线外清球', '球权转换后要先把球带出三分线，三分线变红并流动提示，出线时闪一下绿色。没出线也可以投篮、突破，但进了不算，判违例，球权交给对方']]) +
         g('声音（设置 → 声音）', [['音量', '总音量、音乐、音效、语音四个滑条，50 是默认；默认值按离线测出来的响度配平，语音和普通音效差不多响，音乐垫在下面，球员说话时音乐自动压低'], ['动作演示', '选人界面右侧的运球、上篮动作和必杀技都能点，用这名球员本人演示']]) +
-        g('精彩回放与特写（设置 → 显示 里可关）', [['特写', '精彩瞬间镜头推近；越精彩推得越近、停得越久'], ['回放', '每个回合里最精彩的一球，死球后立即慢放回放一次，双方都算；播满 ' + REPLAY_MIN + ' 秒后，按键盘任意键、手柄任意按钮或点画面跳过'], ['精彩度', '按档位打分，再加分：隔扣、花式扣、钉板、完美时机、晃倒、晃倒后得分、关键球、致胜球、超远三分']]) +
+        g('精彩回放与特写（设置 → 显示 里可关）', [['特写', '精彩瞬间镜头推近；越精彩推得越近、停得越久'], ['回放', '每个回合里最精彩的一球，等进球画面播完再切入慢放；播满 ' + REPLAY_MIN + ' 秒后，按键盘任意键、手柄任意按钮或点画面跳过'], ['精彩度', '按档位打分，再加分：隔扣、花式扣、钉板、完美时机、晃倒、晃倒后得分、关键球、致胜球、超远三分']]) +
         g('进攻节奏博弈（对电脑）', [['电脑会记你的打法', '电脑会记住你最近几回合靠什么得分（背打转身、背打勾手、突破、三分、后撤步、中投），下回合可能提前针对：防背身转身就退一步等你转、防突破就退后放投、防三分就贴身。它猜中了很难打，猜错了反而更好打，换打法就能反制'], ['看防守反应', '你做完一个动作，电脑会选择：扑上来（压低身体、举手贴近）、后撤（退一步防突破）或者不动'], ['它扑上来', '重心在前、转身慢，这时变向或直接突破最容易过'], ['它后撤', '给出了投篮空间，接着投'], ['常用骗法', '犹豫步 / 内外晃引它后撤再投；后撤步引它扑出来再突破。投射好的人，电脑更愿意扑，防守好的电脑更常选不动']]);
     }
     const D = HELP[tab], pad = tab === 'pad';
@@ -1083,7 +1083,7 @@
   }
   function hud() {
     frameN++;
-    stage.classList.toggle('replay', !!(G.replay && screen === 'play'));
+    stage.classList.toggle('replay', !!(G.replay?.view && screen === 'play'));
     if (frameN % 30 === 0) { const hp = PH.input.pads().length > 0; if (hp !== hasPad) { hasPad = hp; show('padtag', hp); hintKey = ''; } }
     if (screen === 'tips') { drawFloats(); return; }
     if (screen !== 'play') { for (const d of fpool) d.style.display = 'none'; return; }
@@ -1704,11 +1704,15 @@
   // 浏览器要求用户操作后才能出声：第一次点击 / 按键时启动音乐（主菜单就有音乐）
   const musKick = () => { if (PH.audio.ensure()) { PH.audio.startMusic(); musicPick(); } };
   window.addEventListener('pointerdown', musKick, true); window.addEventListener('keydown', musKick, true);
+  let lastReplayCover = 0;
   function draw(dt) {
     PH.audio.setPaused((screen === 'play' || screen === 'play5') && paused);
     musicPick();
+    const r5 = PH.render5.rpl, replay = screen === 'play' ? G.replay : screen === 'play5' && r5.on ? r5 : null;
+    const cover = GM.replayFlow.cover(replay);
+    if (cover !== lastReplayCover) { replayWipe.style.setProperty('--cover', cover); lastReplayCover = cover; }
     if (screen === 'play5') { PH.render5.render(PH.T5.T, manual ? 0.05 : 1 / Math.max(30, fps)); hud5(); cutin(); return; }
-    const hint = screen === 'play' && G.mode === 't3' && !G.replay ? $('hint') : null;
+    const hint = screen === 'play' && G.mode === 't3' && !G.replay?.view ? $('hint') : null;
     const hintY = hint?.offsetHeight ? hint.offsetTop / scale : undefined;
     R.render(G, dt, hintY); hud(); cutin();
     const dbg = $('debug');

@@ -1546,7 +1546,7 @@
     G.players = [makePlayer(0, ARCH[o.arch0] ? o.arch0 : 'dosunmu', c0), makePlayer(1, ARCH[o.arch1] ? o.arch1 : 'joe', c1)]; G.cutin = null;
     if (G.mode !== 'demo') applyMatchKits(G.players);
     G.ball = { x: 0, y: 4, z: 1, vx: 0, vy: 0, vz: 0, state: 'held', holder: 0, spin: 0, shot: null, lastTouch: 0, noPick: 0, dead: false, under: false, trail: null };
-    G.score = [0, 0]; G.floats = []; G.banner = null; G.net = 0; G.time = 0; G.winner = -1; G.lastShot = null; G.streak = [0, 0]; G.scout = [{}, {}]; G.lastScorer = 0; G.hz = [{}, {}];
+    G.score = [0, 0]; G.floats = []; G.banner = null; G.net = 0; G.time = 0; G.winner = -1; G.lastShot = null; G.streak = [0, 0]; G.scout = [{}, {}]; G.lastScorer = 0; G.lastMakeAt = -Infinity; G.hz = [{}, {}];
     G.stats = [newStats(), newStats()];
     fxReset();
     G.state = 'play';
@@ -2433,7 +2433,7 @@
     if (G.mode === 't3') { scoreT5(id, pts, kind, name, attempt); return; }
     const st = G.stats[id]; st.fg++; if (pts === 3) st.tp++; if (kind === 'dunk') st.dunk++; if (kind === 'dunk' || kind === 'lay') st.inm++;
     const pl = G.players[id], t = pl.team, train = G.mode === 'train' && G.train.role === 'off';
-    G.lastScorer = id; G.net = 1; G.ball.dead = true; G.streak[id]++; cold(1 - id);
+    G.lastScorer = id; G.lastMakeAt = G.time; G.net = 1; G.ball.dead = true; G.streak[id]++; cold(1 - id);
     const lsk = G.ball.lastSk && G.ball.lastSk.id === id ? G.ball.lastSk.sk : null; G.ball.lastSk = null;
     if (pl.arch.skill && pl.arch.skill.id === 'curry' && pts === 3 && !lsk) { pl.sk.streak++; if (pl.sk.streak >= 2 && pl.sk.cd <= 0) pl.sk.ready = true; }
     tkAdd(pl, 13 + 4 * (pts - 2) + 4 * Math.min(3, G.streak[id] || 0)); tkAdd(OP(G.players[id]), -4);
@@ -2469,7 +2469,7 @@
   // 5V5 得分：投篮统计 / 连中 / 主宰能量 / 音效 / LED 和 1V1 一样，比分、发球、换边交给 team5
   function scoreT5(id, pts, kind, name, attempt) {
     const st = G.stats[id], pl = G.players[id]; st.fg++; if (pts === 3) st.tp++; if (kind === 'dunk') st.dunk++; if (kind === 'dunk' || kind === 'lay') st.inm++;
-    G.lastScorer = id; G.net = 1; G.ball.dead = true; G.streak[id]++; for (const p of G.players) if (TM(p) !== TM(pl)) G.streak[p.id] = 0;
+    G.lastScorer = id; G.lastMakeAt = G.time; G.net = 1; G.ball.dead = true; G.streak[id]++; for (const p of G.players) if (TM(p) !== TM(pl)) G.streak[p.id] = 0;
     G.ball.lastSk = null;
     tkAdd(pl, 13 + 4 * (pts - 2) + 4 * Math.min(3, G.streak[id] || 0)); tkAdd(OP(pl), -4);
     sfx(kind === 'dunk' ? 'dunk' : 'swish');
@@ -5192,6 +5192,25 @@
 
   // ---------- 主循环 ----------
   // ---------- 即时回放 ----------
+  const REPLAY_MAKE_BEAT = 1.25, REPLAY_WIPE_TIME = 0.36;
+  const replayReady = () => G.time - G.lastMakeAt >= REPLAY_MAKE_BEAT;
+  function advanceReplay(R, dt, ending) {
+    if (ending || R.wipeOut) {
+      R.wipeOut = Math.min(1, R.wipeOut + dt / REPLAY_WIPE_TIME);
+      if (R.wipeOut >= 0.5) R.view = null;
+      return R.wipeOut >= 1 ? 'done' : 'wipe';
+    }
+    R.wipeIn = Math.min(1, R.wipeIn + dt / REPLAY_WIPE_TIME);
+    if (R.wipeIn < 0.5) return 'wipe';
+    R.age += dt;
+    return 'play';
+  }
+  function replayCover(R) {
+    // Keep the midpoint fully covered even when a frame skips past it.
+    const p = R && (R.wipeOut || R.wipeIn);
+    return p > 0 && p < 1 ? Math.min(1, 1.15 * Math.sin(Math.PI * p)) : 0;
+  }
+  const replayFlow = { makeBeat: REPLAY_MAKE_BEAT, ready: replayReady, advance: advanceReplay, cover: replayCover };
   // 每个推进的逻辑帧录一份画面快照（只录渲染需要的字段，保留 12 秒）；回合死球时播放本回合最精彩的一次
   function snapP(p) { return { x: p.x, y: p.y, z: p.z, face: p.face, pose: Object.assign({}, p.pose), h: p.h, col: p.col, id: p.id, stun: p.stun, stunK: p.stunK, knock: p.knock || null, knockT: p.knockT || 0, knockD: p.knockD || 0, knockUp: p.knockUp || 0, knockDx: p.knockDx || 0, knockDy: p.knockDy || 0, flash: p.flash, off: p.off, action: null,
     sq: p.sq, armS: p.armS && p.armS.slice(), brPh: p.brPh, stam: p.stam, exr: p.exr, grip: p.grip, hasBall: p.hasBall, anim: p.anim,
@@ -5207,15 +5226,16 @@
     const t0r = q.mk ? Math.min(q.t - K.rpPre, q.mk.t - 1.4) : q.t - K.rpPre, fr = G.rec.filter((f) => f.t >= t0r && f.t <= q.t + K.rpPost);
     if (fr.length < 30) return;
     const kp = fr[0].p[q.pid];
-    G.replay = { fr: fr, i: 0, rt: fr[0].t, t1: fr[fr.length - 1].t, q: q, fc: { cx: G.focus.cx, cy: G.focus.cy }, skip: false, view: null, kx: kp.x, ky: kp.y, kz: kp.z + kp.h * 0.6 };
-    G.cz = null; G.hero = null; G.banner = null; G.floats = []; G.bpops = [];
+    G.replay = { fr: fr, i: 0, rt: fr[0].t, t1: fr[fr.length - 1].t, q: q, fc: { cx: G.focus.cx, cy: G.focus.cy }, skip: false, view: null, age: 0, wipeIn: 0, wipeOut: 0, kx: kp.x, ky: kp.y, kz: kp.z + kp.h * 0.6 };
     sfx('swoosh');
     G.replayLog = (G.replayLog || []).concat([{ t: G.time, s: q.s, ph: G.phase }]);
   }
   function replayTick(dt) {
     const R = G.replay;
-    R.age = (R.age || 0) + dt;
-    if (R.skip || R.rt >= R.t1) { G.replay = null; G.rec = []; return; }
+    const phase = advanceReplay(R, dt, R.skip || R.rt >= R.t1);
+    if (phase === 'done') { G.replay = null; G.rec = []; }
+    if (phase !== 'play') return;
+    if (!R.view) { G.cz = null; G.hero = null; G.banner = null; G.floats = []; G.bpops = []; }
     const dq = R.rt - R.q.t, near = dq > -1.0 && dq < 0.5, MK = R.q.mk, dm = MK ? R.rt - MK.t : 9, nearM = Math.abs(dm) < 0.35;
     R.rt += dt * (nearM ? K.rpSpM : near ? K.rpSpH : K.rpSpN);   // V4.5 顶翻：接触那一刻前后 0.35 秒 ×0.25 慢放
     while (R.i < R.fr.length - 1 && R.fr[R.i + 1].t <= R.rt) R.i++;
@@ -5243,7 +5263,7 @@
   function trackReplay() {
     recFrame();
     if (G.hlQ && (!G.vopt.replay || G.time - G.hlQ.t > 10)) G.hlQ = null;
-    if (G.hlQ && !G.tips && G.time - G.hlQ.t > 0.8 && ((G.phase === 'dead' && G.phaseT < 1.0) || G.phase === 'check' || G.phase === 'over')) startReplay();
+    if (G.hlQ && !G.tips && replayReady() && G.time - G.hlQ.t > 0.8 && ((G.phase === 'dead' && G.phaseT < 1.0) || G.phase === 'check' || G.phase === 'over')) startReplay();
   }
   // 两人身体碰撞（1V1 / 5V5 共用）
   function collide(a, c) {
@@ -5431,7 +5451,7 @@
     G.mode = o.half ? 't3' : 't5'; G.diff = o.diff == null ? 1 : o.diff; G.target = o.half ? o.target : 999; G.glen = 0; G.gclock = 0; G.sd = false; G.gEnd = false; G.mp = -1; G.mpT = 0; G.clkTick = 99;
     G.fb = 'simple'; G.bpops = []; G.shotN = 0; G.hero = null; G.cz = null; G.hlQ = null; G.rec = []; G.replay = null; G.tips = null; G.cel = null; G.cutin = null; G.bumpT = -9; G.postBumpT = -9; G.thruMk = null;
     G.players = players; G.ball = { x: 0, y: 0, z: 1, vx: 0, vy: 0, vz: 0, state: 'ext', holder: -1, spin: 0, shot: null, lastTouch: 0, noPick: 0, dead: false, under: false, trail: null };
-    G.score = [0, 0]; G.floats = []; G.banner = null; G.net = 0; G.time = 0; G.winner = -1; G.lastShot = null; G.lastScorer = 0;
+    G.score = [0, 0]; G.floats = []; G.banner = null; G.net = 0; G.time = 0; G.winner = -1; G.lastShot = null; G.lastScorer = 0; G.lastMakeAt = -Infinity;
     G.streak = players.map(() => 0); G.scout = players.map(() => ({})); G.hz = players.map(() => ({})); G.stats = players.map(newStats);
     G.illId = -1; G.needClear = false; G.off = 0; G.phase = 'live'; G.phaseT = 0; G.shotClock = CFG.shotClock; G.camK = 0; G.focus = G.focus || { cx: 0, cy: 0 };
     fxReset(); G.h5 = o.hooks || null; G.state = 'play';
@@ -5495,6 +5515,7 @@
   }
   PH.game = { ptIs: ptIs, ptOf: ptOf, ibuf: ibuf, t5: T5API, G: G, HZ: HZ, HZN: HZN, zoneOf: zoneOf, hzBase: hzBase, hzLvl: hzLvl, MVX: MVX, DPKG: DPKG, DPK_OF: DPK_OF, ST: ST, GW_OUT: K.gwOut, zones: zones, K: K, TDEF: TDEF, blkTier: blkTier, blkReact: blkReact, blkMove: blkMove, _qa: { finEdge: finEdge, blockBall: blockBall, greenWidth: greenWidth, ratingOf: ratingOf, SV: SV, LVR: LVR, startDunk: startDunk, startFinish: startFinish, finPlan: finPlan, contactAdv: contactAdv, bodyPow: bodyPow }, mobOf: mobOf, winnerNow: winnerNow, moveSet: moveSet, SF: SF, dunkPkg: dunkPkg, TKD: TKD, CB: CB, TIPS: TIPS, tipsStart: tipsStart, tipsStop: tipsStop, tkType: tkType, hcMod: hcMod, lookOf: lookOf, newGame: newGame, tick: tick, toText: toText, ARCH: ARCH, ATTRS: ATTRS, BADGES: BADGES, BADGE_TIER: BADGE_TIER, TIER_CN: TIER_CN, TIER_F: TIER_F, btier: btier, bk: bk, ba: ba, ROSTER: ROSTER, NBA: TEAMS_NBA, hasB: hasB, TEAMS: TEAMS, DIFF: DIFF, CFG: CFG, CFG_DEF: CFG_DEF, isThree: isThree, distHoop: distHoop, setupCheck: setupCheck, contestInfo: contestInfo,
     _dbg: { tkStart: tkStart, tkAdd: tkAdd, startShot: startShot, releaseShot: releaseShot, greenWidth: greenWidth, startMove: startMove, startBlock: startBlock, startFinish: startFinish, startDunk: startDunk, contestOf: contestOf, contestInfo: contestInfo, finPlan: finPlan }, TIERS: TIERS, grade: grade, DIMS: DIMS, applyTrain: applyTrain, applyMatchKits: applyMatchKits, placeDummy: placeDummy, trainReset: trainReset, giveBall: giveBall, newTrainStats: newTrainStats, styOf: styOf, styK: styK, STY_NAME: STY_NAME, seed: (s) => { seed = s | 1; } };
+  PH.game.replayFlow = replayFlow;
   PH.game.setAudioSink = (sink) => { audioSink = sink; };
   Object.defineProperty(PH.game, 'GW_OUT', { enumerable: true, configurable: true, get: () => K.gwOut });
 })();

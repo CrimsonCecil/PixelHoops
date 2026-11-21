@@ -51,9 +51,10 @@
     const tm = p.tm;
     G.score[tm] += pts;
     G.stats[p.id].pts = (G.stats[p.id].pts || 0) + pts;
-    G.phase = 'dead'; G.phaseT = 1.0; T.next = 1 - tm;
+    const beat = T.replay && G.vopt.replay && G.hlQ ? GM.replayFlow.makeBeat + 0.05 : 1;
+    G.phase = 'dead'; G.phaseT = beat; T.next = 1 - tm;
     if (G.score[tm] >= G.target) G.winner = tm;
-    A.banner(pts === 3 ? '三分命中' : '两分命中', p.arch.name + ' · ' + GM.TEAMS[tm].name + ' +' + pts, p.team.css, 1.0);
+    A.banner(pts === 3 ? '三分命中' : '两分命中', p.arch.name + ' · ' + GM.TEAMS[tm].name + ' +' + pts, p.team.css, beat);
   }
   function gotBall(p) {
     T.acquired = G.time; T.pass = null;
