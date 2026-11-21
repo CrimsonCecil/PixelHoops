@@ -1654,7 +1654,7 @@
     mpCheck();
   }
   // check ball（1V1 / 3V3）：防守人在弧顶持球，击地传给进攻人，接住才算活球
-  const CHK = { hold: 0.5, fly: 0.42 };
+  const CHK = { hold: 0.5, fly: 0.42, bow: 0.25 };   // bow：击地点往防守人那侧外弧，免得背后镜头被接球人挡住
   function chkFace(a, c) { a.face = Math.atan2(c.y - a.y, c.x - a.x); }
   function chkPt(p, f) { return [p.x + Math.cos(p.face) * f, p.y + Math.sin(p.face) * f, p.z + p.h * 0.56]; }
   function chkHands(p, c) {
@@ -1679,16 +1679,16 @@
     let at = rel;
     if (C.t < CHK.hold) chkHands(d, rel);
     else {
-      const u = Math.min(1, (C.t - CHK.hold) / CHK.fly), bu = 0.52, R = PH.render.BALL_R;
+      const u = Math.min(1, (C.t - CHK.hold) / CHK.fly), bu = 0.4, R = PH.render.BALL_R, bow = (Math.sign(d.x - o.x) || 1) * CHK.bow * Math.sin(Math.PI * u);
       const z = u < bu ? lerp(rel[2], R, (u / bu) * (u / bu)) : lerp(R, cat[2], 1 - Math.pow(1 - (u - bu) / (1 - bu), 2));
-      at = [lerp(rel[0], cat[0], u), lerp(rel[1], cat[1], u), z];
+      at = [lerp(rel[0], cat[0], u) + bow, lerp(rel[1], cat[1], u), z];
       if (!C.bnc && u >= bu) { C.bnc = true; sfx('bounce'); }
       if (u < 0.4) chkHands(d, chkPt(d, 0.44 + 0.2 * u)); else delete d.pose.passHands;
       if (u > 0.55) chkHands(o, u > 0.8 ? at : cat);
       if (u >= 1) {
         b.x = at[0]; b.y = at[1]; b.z = at[2];
         delete o.pose.passHands; G.chk = null; pickup(o);
-          if (o.ctrl !== 'cpu' && o.prev.any) { o.prev.a1 = o.prev.a2 = true; o.ib = null; } // 接球前按住的键（手柄换了 X/Y 映射）不算新的投篮
+        if (o.ctrl !== 'cpu' && o.prev.any) { o.prev.a1 = o.prev.a2 = true; o.ib = null; } // 接球前按住的键（手柄换了 X/Y 映射）不算新的投篮
         return true;
       }
     }
