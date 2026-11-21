@@ -7429,7 +7429,32 @@
     return o;
   }
   // V4.0 注册到调参台（ST / GW_TYPE / BLK_K / BLK_T / LSV 这些对象保持同一引用，值随调参刷新）
+  const RULE_DISPLAY = {
+    sprintDrain: ['冲刺 基础耗体', '越大冲刺时耗体越快；点/秒，再按体能与徽章调整'],
+    moveCost: ['运球招式 基础耗体', '越大每次运球招式耗体越多；点，再按招式和连招调整'],
+    stamRegen: ['体力 恢复倍数', '越大非冲刺时回体越快；1 = 基准'],
+  };
   const BLOCK_DISPLAY = {
+    cbFat: ['疲劳 连招加成折损', '越大疲劳时连招位移加成越弱；折损比例'],
+    mvFat: ['疲劳 招式速度折损', '越大疲劳时运球招式越慢、位移越短；折损比例'],
+    stCost: ['动作 耗体倍数', '越大投篮起跳和身体对抗耗体越多；不含冲刺与运球招式'],
+    stShotCost: ['跳投 基础耗体', '越大实际跳投出手耗体越多；点，另乘动作耗体倍数'],
+    stFat0: ['疲劳 起算体力', '越大越早出现疲劳降速和命中折损；体力点'],
+    stLow: ['低体力 判定门槛', '越大越容易判为低体力并触发相关惩罚；体力点'],
+    stLay: ['扣篮 低体力门槛', '越大扣篮越容易受到低体力命中惩罚；体力点'],
+    stDunk: ['扣篮 最低体力', '越小越能在低体力时发起扣篮；体力点'],
+    stAct: ['招式 最低体力', '越小越能在低体力时运球变招或扑球；体力点'],
+    stJump: ['起跳 最低体力', '越小越能在低体力时响应起跳输入；体力点'],
+    stRgIdle: ['体力 站立恢复', '越大站立时回体越快；点/秒，另乘恢复倍数'],
+    stRgMove: ['体力 移动恢复', '越大非冲刺移动时回体越快；点/秒，另乘恢复倍数'],
+    stRgPost: ['体力 背打恢复', '越大背打停住时回体越快；点/秒，另乘恢复倍数'],
+    dvCost: ['鱼跃扑球 基础耗体', '越大每次鱼跃扑球耗体越多；点，另乘动作与徽章倍数'],
+    bdStam: ['身体对抗 基础耗体', '越大贴身顶住时耗体越多；再按接触深度和吨位调整'],
+    smFat: ['疲劳 命中折损', '越大疲劳时出手越不准；命中率乘以一减疲劳折损'],
+    bgTightSt: ['运球如丝 耗体倍数', '越大运球如丝持有者运球招式耗体越多；金档倍数，1 = 无减耗'],
+    bgHuCost: ['鱼跃徽章 耗体倍数', '越大鱼跃徽章持有者扑球耗体越多；金档倍数，1 = 无减耗'],
+    bgMotorSt: ['永动机 耗体倍数', '越大永动机持有者冲刺等动作耗体越多；金档倍数，1 = 无减耗'],
+    dkLowSt: ['扣篮 低体力命中惩罚', '越大低体力扣篮越难进；直接扣除的命中概率'],
     stDepth: ['防守滑步 下蹲深度', '越大防守姿态越蹲得低；屈膝倍数，不改移速'],
     stLean: ['防守滑步 躯干前倾', '越大防守时上身越向前倾；弧度'],
     stWidth: ['防守滑步 站姿半宽', '越大防守时双脚站得越宽；米，随身高缩放'],
@@ -7505,7 +7530,7 @@
   };
   if (TU) {
     TU.reg(TDEF.map((d) => ({ k: 'l1_' + d[0], g: d[1], label: d[2], v: d[3], min: d[4], max: d[5], step: d[6], note: d[7], display: BLOCK_DISPLAY[d[0]], mode: d[8] || 'num', tmp: !!d[9], ...(d[0] === 'stLift' || d[0] === 'stReach' || /^(euroTempo|euroBeat|manu|aiCommit|aiProbeRange|aiBurst|aiChain|vc)/.test(d[0]) ? { wide: false } : {}), ...(/^manu/.test(d[0]) ? { cat: 'fin', sub: '上篮变体', gm: 'both' } : {}), ...(/^vc/.test(d[0]) ? { cat: 'fin', sub: '扣篮', gm: 'both' } : {}), ...(/^ai(Commit|ProbeRange|Burst|Chain)/.test(d[0]) ? { cat: 'drib', sub: '连招', gm: 'both' } : {}), ...(/^(alley|selfAlley)/.test(d[0]) ? { cat: 'fin', sub: '上篮', gm: 'both' } : {}) })));
-    TU.reg(RDEF.map((d) => ({ k: 'l1_' + d[0], g: 'rules', label: d[1], v: CFG_DEF[d[0]], min: d[2], max: d[3], step: d[4], note: d[5], mode: d[6] || 'num' })));
+    TU.reg(RDEF.map((d) => ({ k: 'l1_' + d[0], g: 'rules', label: d[1], v: CFG_DEF[d[0]], min: d[2], max: d[3], step: d[4], note: d[5], display: RULE_DISPLAY[d[0]], mode: d[6] || 'num' })));
     for (const d of RDEF) if (d[0] !== 'shotClock') Object.defineProperty(CFG, d[0], { enumerable: true, configurable: true, get: () => TU.get('l1_' + d[0]), set: (v) => { TU.set('l1_' + d[0], v); } });
     // 进攻时间是“本场”设置（比赛开始界面 / 5V5 会临时改），所以 CFG.shotClock 仍是普通字段，调参改动时同步过去
     TU.on((ks) => { if (!ks || ks.indexOf('l1_shotClock') >= 0) CFG.shotClock = TU.get('l1_shotClock'); syncK(); });

@@ -308,10 +308,20 @@
   // V4.6 和 1V1 共用的参数：直接读 l1_ 键（调参台改 1V1 的值，5V5 一起变），缓存进 TV；没有 TUNE 时用 1V1 默认值
   const L1D = { l1_stLow: 15, l1_contestRange: 2.7, l1_stlCpu0: 0.6, l1_stlCpuD: 0.35, l1_stealMul: 1, l1_gwSkill: 1.7, l1_gwBadge: 1.45, l1_smKy: 0.5 };
   const TV = {}; for (const d of T5REG) TV[d.k] = d.v; Object.assign(TV, L1D);
+  const T5_DISPLAY = {
+    t5_fat_up: ['长期疲劳 累积速度', '越大在场越容易累积长期疲劳；点/7分钟，按节长缩放'],
+    t5_fat_dn: ['长期疲劳 板凳恢复', '越大坐板凳消除疲劳越快；点/4分钟，按节长缩放'],
+    t5_fat_max: ['长期疲劳 累积上限', '越大长期疲劳越能压低体力上限；体力上限 = 100 − 疲劳'],
+    t5_fat_qb: ['长期疲劳 节间恢复', '越大节间休息消除疲劳越多；点/次，全员生效'],
+    t5_spr_d: ['无球冲刺 距离门槛', '越小无球跑位越容易冲刺；离目标点的距离，米'],
+    t5_fat_runV: ['长期疲劳 高速门槛', '越小越容易按高速倍数累积疲劳；米/秒'],
+    t5_fat_run: ['长期疲劳 高速倍数', '越大高速跑动累积疲劳越快；1 = 与普通移动相同'],
+    t5_fat_dead: ['长期疲劳 死球恢复倍数', '越大死球时板凳球员恢复疲劳越快；1 = 与活球相同'],
+  };
   let t5Reg = false;
   function t5Tune() {
     const TU = PH.TUNE; if (!TU) return;
-    if (!t5Reg) { t5Reg = true; TU.reg(T5REG); if (TU.on) TU.on(t5Pull); }
+    if (!t5Reg) { t5Reg = true; TU.reg(T5REG.map((d) => ({ ...d, display: T5_DISPLAY[d.k] }))); if (TU.on) TU.on(t5Pull); }
     t5Pull();
   }
   function t5Pull() { const TU = PH.TUNE; if (TU) for (const d of T5REG) { const v = TU.get(d.k); TV[d.k] = typeof v === 'number' && isFinite(v) ? v : d.v; } if (TU) for (const k in L1D) { const v = TU.get(k); TV[k] = typeof v === 'number' && isFinite(v) ? v : L1D[k]; } if (typeof t5Sync === 'function') t5Sync(); }
