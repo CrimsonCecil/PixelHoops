@@ -88,8 +88,8 @@
       const restore = rpl.swap();
       try { PH.render5.render(T5, dt); } finally { restore(); rpl.view = null; }
     } else {
-      const C = PH.render.CAMV, b = f.b, sx = 3.4 + Math.max(0, C.zoom - 1) * 6;
-      const players = f.p.map((p, i) => Object.assign(Object.create(G.players[i]), p, { action: null }));
+      const C = PH.render.CAMV, b = { vx: 0, vy: 0, ...f.b }, sx = 3.4 + Math.max(0, C.zoom - 1) * 6;
+      const players = f.p.map((p, i) => Object.assign(Object.create(G.players[i]), { vx: 0, vy: 0 }, p, { action: null }));
       const view = Object.assign(Object.create(G), { players, ball: b, net: f.net || 0, time: f.t, focus: { cx: Math.max(-sx, Math.min(sx, b.x * C.follow)), cy: Math.max(2 - C.dist, Math.min(9 - C.dist, b.y - C.dist)) }, cz: null, fx, replay: null });
       PH.render.render(view, dt);
     }

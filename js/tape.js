@@ -53,6 +53,9 @@
     if (G.time >= 1200) { tape.meta.truncated = true; return; }
     if (G.tapeTick++ % (G.mode === 't5' ? 4 : 2)) return;
     const f = quantize({ ...frame, s: state });
+    f.b.vx = Math.round((G.ball.vx || 0) * 1000) / 1000;
+    f.b.vy = Math.round((G.ball.vy || 0) * 1000) / 1000;
+    f.p.forEach((p, i) => { p.vx = Math.round((G.players[i].vx || 0) * 1000) / 1000; p.vy = Math.round((G.players[i].vy || 0) * 1000) / 1000; });
     f.p.forEach((p, i) => { p.name = (G.players[i].arch || G.players[i].a || {}).name || G.players[i].key || String(G.players[i].id); p.key = G.players[i].key || (G.players[i].arch || {}).key; });
     tape.frames.push(f);
   }
