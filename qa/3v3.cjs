@@ -153,6 +153,7 @@ function fixture(options = {}) {
   assert.match($('pc0').innerHTML, /data-position="内线"/);
   assert.match($('pc1').innerHTML, /字母哥.*data-position="内线"/);
   assert.match($('hint').innerHTML, /^进攻.*<b>Y<\/b> 抢篮板/);
+  assert.match($('hint').innerHTML, /<b>A<\/b> 要球/);
   assert.match($('hint').innerHTML, /<b>R3<\/b> 掩护/);
   assert.equal($('tb1').textContent, '篮板');
 
@@ -160,6 +161,7 @@ function fixture(options = {}) {
   api.pickup(G.players[2]);
   vm.runInContext('hud()', ctx);
   assert.match($('hint').innerHTML, /^进攻.*<b>X<\/b> 投篮/);
+  assert.match($('hint').innerHTML, /<b>B<\/b>\+方向 运球动作.*<b>A<\/b> 胸传/);
   assert.doesNotMatch($('hint').innerHTML, /掩护/);
   assert.equal($('tb1').textContent, '投篮');
 
@@ -228,17 +230,42 @@ function tactics(cpu = []) {
   pad.buttons[11] = { pressed: true };
   assert.equal(clean(input.read3(false)).screen, true);
   pad.buttons[11].pressed = false;
+  const off = () => input.read(0, true, true);
+  pad.axes = [0.8, 0, 0, 0];
+  pad.buttons[0] = { pressed: true };
+  assert.equal(off().a3, false, 'Xbox A with direction does not dribble in 1V1');
+  assert.equal(off().dribble, false);
+  assert.equal(input.read3(true).passKind, 'chest');
+  assert.equal(input.read3(true).a3, false, 'Xbox A with direction only passes in 3V3');
+  assert.equal(input.read3(true).dribble, false);
+  pad.buttons[0].pressed = false;
+  pad.buttons[1] = { pressed: true };
+  assert(off().a3 && off().dribble);
+  assert(input.read3(true).a3 && input.read3(true).dribble);
+  assert.equal(input.read3(true).pass, false, 'Xbox B dribbles without passing in 3V3');
+  pad.buttons[1].pressed = false;
+  pad.axes = [0, 0, 0.8, 0];
+  assert(off().a3 && input.read3(true).a3, 'the right stick still dribbles in both modes');
+  pad.axes = [];
+  events.keydown({ code: 'KeyE' });
+  assert.equal(clean(input.read3(true)).passKind, 'chest');
+  events.keyup({ code: 'KeyE' });
+  input.endTick();
   events.keydown({ code: 'KeyZ' });
   assert.equal(clean(input.read3(true)).passKind, 'bounce');
   events.keyup({ code: 'KeyZ' });
   input.endTick();
-  pad.buttons[1] = { pressed: true };
+  pad.buttons[0].pressed = true;
+  pad.buttons[4] = { pressed: true };
+  assert.equal(clean(input.read3(true)).passKind, 'bounce');
+  pad.buttons[4].pressed = false;
   pad.buttons[6] = { pressed: true };
   assert.equal(clean(input.read3(true)).passKind, 'lob');
   pad.buttons[4] = { pressed: true };
   assert.equal(clean(input.read3(true)).passKind, 'alley');
-  pad.buttons[1].pressed = pad.buttons[4].pressed = pad.buttons[6].pressed = false;
+  pad.buttons[0].pressed = pad.buttons[4].pressed = pad.buttons[6].pressed = false;
   assert.equal(clean({ pass: true, passKind: 'invalid' }).passKind, undefined);
+  console.log('PASS: Xbox A is not a dribble input in 1V1 or 3V3; only Xbox A passes in 3V3.');
   const html = fs.readFileSync(path.join(__dirname, '../index.html'), 'utf8');
   const button = html.match(/<button data-tb="([^"]+)"[^>]+id="tbscreen"/);
   assert(button);
@@ -453,6 +480,35 @@ console.log('PASS: a CPU honors an open call according to pass IQ, vetoes a bloc
   while (T3.T.pass) run(1);
   assert(['layup', 'dunk'].includes(T3.holder()?.action?.type), 'an accurate lob at the rim starts a shared finish');
   console.log('PASS: a clean alley-oop catch at the rim starts a shared finish.');
+}
+
+{
+  const { api, T3, put, run } = tactics();
+  put(0, -5, 6); put(1, 5, 4); put(2, -1, api.HOOP.y - 3.65);
+  put(3, 0, 7); put(4, 5, 10); put(5, 4, 12);
+  run(1, { 0: { pass: true, passKind: 'alley', mx: 1, my: 0.7 } });
+  assert.equal(T3.T.pass?.to.id, 2, 'aim the alley at Jokic');
+  while (T3.T.pass) run(1);
+  assert.equal(T3.holder()?.id, 2);
+  assert(['layup', 'dunk'].includes(T3.holder()?.action?.type), 'a clean Jokic catch within the 5V5 alley window starts a finish');
+  console.log('PASS: Jokic finishes a clean alley-oop catch inside the 5V5 range.');
+}
+
+{
+  const { G, T3, put, run } = tactics();
+  put(0, -5, 6); put(1, -6, 4); put(2, -1, 9);
+  put(3, -3, 7.5); put(4, 5, 10); put(5, 4, 12);
+  Object.assign(G.ball, { x: -5, y: 6, z: 1.25 });
+  run(1, { 0: { pass: true, passKind: 'alley', mx: 1, my: 0.75 } });
+  assert.equal(T3.T.pass?.to.id, 2);
+  let passedOver = false;
+  while (T3.T.pass) {
+    run(1);
+    const d = G.players[3], b = G.ball;
+    if (Math.hypot(d.x - b.x, d.y - b.y) < 0.25 && b.z > d.z + d.h + 0.35) passedOver = true;
+  }
+  assert(passedOver && T3.holder()?.id === 2, 'a standing defender cannot intercept a high alley directly overhead');
+  console.log('PASS: an alley-oop clears a standing defender when it passes above his reach.');
 }
 
 {

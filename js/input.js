@@ -28,7 +28,7 @@
   }
 
   // 返回抽象输入：mx,my(屏幕上方为 +y)、sprint、a1(投篮/盖帽)、a2(扣篮/抢断)、a3(运球动作/防守姿态)
-  function read(slot, onOffense, solo) {
+  function read(slot, onOffense, solo, teamPass = false) {
     const m = MAPS[slot];
     let mx = 0, my = 0;
     if (held(m.left) || (solo && held(SOLO_EXTRA.left))) mx -= 1;
@@ -44,8 +44,8 @@
       const B = (i) => !!(gp.buttons[i] && (gp.buttons[i].pressed || ((i === 6 || i === 7) && gp.buttons[i].value > 0.3)));
       if (B(14)) o.mx = -1; if (B(15)) o.mx = 1; if (B(12)) o.my = 1; if (B(13)) o.my = -1;
       if (B(7) || B(5)) o.sprint = true;
-      if (onOffense) { if (B(2)) o.a1 = true; if (B(3)) o.a2 = true; if (B(0) || B(1)) o.a3 = o.dribble = true; if (B(6) || B(4)) o.post = true; }
-      else { if (B(3)) o.a1 = true; if (B(2)) o.a2 = true; if (B(6) || B(4) || B(0)) o.a3 = true; }
+      if (onOffense) { if (B(2)) o.a1 = true; if (B(3)) o.a2 = true; if (B(1)) o.a3 = o.dribble = true; if (B(6) || B(4)) o.post = true; }
+      else { if (B(3)) o.a1 = true; if (B(2)) o.a2 = true; if (B(6) || B(4) || (!teamPass && B(0))) o.a3 = true; }
       const rx = gp.axes[2] || 0, ry = gp.axes[3] || 0;
       if (onOffense && Math.hypot(rx, ry) > 0.6) { o.a3 = true; o.dx = rx; o.dy = -ry; }
     }
@@ -86,16 +86,16 @@
   }
 
   function read3(onOffense) {
-    const input = read(0, onOffense, true), gp = lock.on ? null : pads()[0];
+    const input = read(0, onOffense, true, true), gp = lock.on ? null : pads()[0];
     const B = (i) => !!(gp?.buttons[i]?.pressed || ((i === 6 || i === 7) && gp?.buttons[i]?.value > 0.3));
-    input.pass = held(['KeyE']) || B(1) || !!touch.pass;
-    const bounce = held(['KeyZ']) || touch.bounce || B(1) && B(4);
-    const lob = held(['KeyX']) || touch.lob || B(1) && B(6);
+    input.pass = held(['KeyE']) || B(0) || !!touch.pass;
+    const bounce = held(['KeyZ']) || touch.bounce || B(0) && B(4);
+    const lob = held(['KeyX']) || touch.lob || B(0) && B(6);
     const alley = held(['KeyV']) || touch.alley || bounce && lob;
     if (onOffense && (bounce || lob || alley)) input.pass = true;
     if (input.pass) input.passKind = alley ? 'alley' : lob ? 'lob' : bounce ? 'bounce' : input.sprint ? 'skip' : 'chest';
     input.screen = held(['KeyF']) || !!(gp && gp.buttons[11]?.pressed) || !!touch.screen;
-    if (gp && gp.buttons[1] && gp.buttons[1].pressed && !(gp.buttons[0] && gp.buttons[0].pressed) && !held(MAPS[0].a3) && !touch.a3 && Math.hypot(input.dx, input.dy) <= 0.6) input.a3 = input.dribble = false;
+    if (B(0) && (B(4) || B(6))) input.post = false;
     return input;
   }
   // 每帧轮询手柄的菜单按键（上下左右 / A / B / Menu）

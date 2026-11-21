@@ -445,7 +445,7 @@
   const HELP = {
     k1: { move: K('W') + K('A') + K('S') + K('D'), sprint: K('左 Shift'), a1: K('J') + or + K('空格'), a2: K('K'), a3: K('L'), post: K('Q'), pause: K('Esc') + or + K('P'), music: K('M') },
     k2: { move: K('↑') + K('←') + K('↓') + K('→'), sprint: K('小键盘 0') + or + K('右 Shift'), a1: K('小键盘 1') + or + K(','), a2: K('小键盘 2') + or + K('.'), a3: K('小键盘 3') + or + K('/'), post: K('O'), pause: K('Esc'), music: K('M') },
-    pad: { move: K('左摇杆', 'g'), sprint: K('RT', 'g'), a1: K('X', 'x'), a2: K('Y', 'y'), a3: K('A', 'a'), a3r: K('A', 'a') + or + K('拨右摇杆', 'g'), post: K('LT', 'g'), blk: K('Y', 'y'), stl: K('X', 'x'), stance: K('LT', 'g'), pause: K('Menu ≡', 'g'), music: '<span>键盘 M</span>' },
+    pad: { move: K('左摇杆', 'g'), sprint: K('RT', 'g'), a1: K('X', 'x'), a2: K('Y', 'y'), a3: K('B', 'b'), a3r: K('B', 'b') + or + K('拨右摇杆', 'g'), post: K('LT', 'g'), blk: K('Y', 'y'), stl: K('X', 'x'), stance: K('LT', 'g'), pause: K('Menu ≡', 'g'), music: '<span>键盘 M</span>' },
   };
   // 说明行：有演示的动作后面带“演示”按钮
   const TIPN = { 体前变向: 'cross', 胯下运球: 'legs', 背后运球: 'behind', 内外假晃: 'inout', 转身过人: 'spin', 后撤步: 'stepback', 犹豫步: 'hesi', 双重变向: 'dbl', 遛狗过人: 'sham', 拽回后撤: 'snatch', 犹豫爆发: 'hgo',
@@ -1121,14 +1121,14 @@
     const key = (two ? '2' : '1') + (offBall ? 'b' : off ? 'o' : 'd') + (post ? 'p' : '') + (hasPad ? 'g' : '') + (train ? 't' : '') + (t3 ? '3' : '');
     if (key !== hintKey) {
       hintKey = key;
-      const kb = hasPad ? { a1: 'X', a2: 'Y', a3: 'A', po: 'LT', sp: 'RT', st: 'LT', d1: 'Y', d2: 'X' } : { a1: 'J', a2: 'K', a3: 'L', po: 'Q', sp: 'Shift', st: '按住 L', d1: 'J', d2: 'K' };
+      const kb = hasPad ? { a1: 'X', a2: 'Y', a3: 'B', po: 'LT', sp: 'RT', st: 'LT', d1: 'Y', d2: 'X' } : { a1: 'J', a2: 'K', a3: 'L', po: 'Q', sp: 'Shift', st: '按住 L', d1: 'J', d2: 'K' };
       const O = '<b>' + kb.a1 + '</b> 投篮/突破上篮 <b>' + kb.a2 + '</b> 扣篮/终结 <b>' + kb.a3 + '</b>+方向 运球动作／中立按住 犹豫步 <b>' + kb.po + '</b> 背打 <b>' + kb.sp + '</b> 加速';
       const B = '<b>' + kb.d1 + '</b> 抢篮板 <b>' + kb.st + '</b> 卡位 <b>' + kb.sp + '</b> 加速';
       const P = '背打中　<b>' + kb.a1 + '</b> 勾手 / 按住后方向后仰 <b>' + kb.a2 + '</b> 转身终结　松开时按左右 转身';
       const D = '<b>' + kb.d1 + '</b> 封盖 <b>' + kb.d2 + '</b> 抢断 <b>' + kb.st + '</b> 举手干扰 <b>' + kb.sp + '</b> 加速';
       show('hint', train || !!(t3 && local) || opts.fb === 'detail');
-      const passing = t3 && local && off ? offBall ? '　<b>' + (hasPad ? 'B' : 'E') + '</b> 要球' : hasPad
-        ? '　<b>B</b> 胸传　<b>RT+B</b> 过顶　<b>LB+B</b> 击地　<b>LT+B</b> 高吊　<b>LB+LT+B</b> 空接'
+      const passing = t3 && local && off ? offBall ? '　<b>' + (hasPad ? 'A' : 'E') + '</b> 要球' : hasPad
+        ? '　<b>A</b> 胸传　<b>RT+A</b> 过顶　<b>LB+A</b> 击地　<b>LT+A</b> 高吊　<b>LB+LT+A</b> 空接'
         : '　<b>E</b> 胸传　<b>Shift+E</b> 过顶　<b>Z</b> 击地　<b>X</b> 高吊　<b>V</b> 空接' : '';
       $('hint').innerHTML = two ? '玩家 1：WASD + J K L，Q 背打　玩家 2：方向键 + 小键盘 1 2 3，O 背打' : (post ? P : off ? '进攻　' + (offBall ? B : O) : '防守　' + D) + passing + (offBall ? '　<b>' + (hasPad ? 'R3' : 'F') + '</b> 掩护' : '') + (train ? '　<b>' + (hasPad ? 'View' : 'Tab') + '</b> 参数 <b>R</b> 重置' : '');
       if (isTouch) {
