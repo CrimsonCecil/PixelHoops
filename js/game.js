@@ -7429,8 +7429,55 @@
     return o;
   }
   // V4.0 注册到调参台（ST / GW_TYPE / BLK_K / BLK_T / LSV 这些对象保持同一引用，值随调参刷新）
+  const BLOCK_DISPLAY = {
+    bChase: ['追身盖帽 水平距离', '越大越能离出手人更远追帽；米'],
+    bRange: ['盖帽 水平距离', '越大越能离出手人更远盖帽；米'],
+    bFront: ['盖帽 正面要求', '越小越能从侧面盖到；−1 到 1'],
+    bStopDist: ['封堵扣篮 反馈距离', '越大越容易显示封盖反馈，不计盖帽；米'],
+    bShot: ['跳投被盖 倍数', '越大跳投越容易被盖；1 = 基准'],
+    bLay: ['上篮被盖 倍数', '越大上篮越容易被盖；1 = 基准'],
+    bDunk: ['扣篮被盖 倍数', '越大扣篮越容易被盖；1 = 基准'],
+    bkQ0: ['盖帽 时机基础倍数', '越大各起跳阶段越容易盖到；基础倍数'],
+    bkQ1: ['盖帽 时机加成', '越大越奖励接近跳跃最高点的盖帽；倍数加成'],
+    bkPosF: ['盖帽 正面倍数', '越大正面封盖上篮扣篮越容易成功；1 = 基准'],
+    bkPosS: ['盖帽 侧面倍数', '越大侧面封盖上篮扣篮越容易成功；1 = 基准'],
+    bkPosB0: ['盖帽 背后基础倍数', '越大从背后封盖上篮扣篮越容易成功；基础倍数'],
+    bkPosBK: ['盖帽 背后能力加成', '越大盖帽能力越能提高背后封盖成功率；倍数加成'],
+    bkRelF: ['盖帽 正面门槛', '越小上篮扣篮越容易按正面站位算；−1 到 1'],
+    bkRelS: ['盖帽 侧面门槛', '越小上篮扣篮越少按背后站位算；−1 到 1'],
+    bkR0: ['盖帽 能力基础倍数', '越大所有球员越容易盖到；基础倍数'],
+    bkR1: ['盖帽 能力加成', '越大盖帽能力对成功率的加成越强；倍数加成'],
+    bkRimD: ['盖帽 护框徽章距离', '越大护框者徽章越能在远离篮筐处生效；米'],
+    bkBdRim: ['盖帽 护框徽章倍数', '越大护框者徽章越能提高盖帽成功率；1 = 基准'],
+    bkBdQuick: ['跳投被盖 快速出手倍数', '越大快速出手徽章持有者越容易被盖；1 = 基准'],
+    bkDist: ['盖帽 距离补偿', '越大同样距离下越容易盖到；仍受水平距离限制'],
+    bkReachE: ['盖帽 臂展影响', '越大臂展优势越有利、劣势越不利；指数'],
+    bkPowK: ['盖帽 吨位影响', '越大吨位比偏离起点时的影响越强；内线与勾手生效'],
+    bkPow0: ['盖帽 吨位比起点', '越大进攻人越难靠吨位优势抗盖；攻守吨位比'],
+    bkPowLo: ['盖帽 吨位倍数下限', '越大被吨位压制时越容易盖到；倍数下限'],
+    bkPowHi: ['盖帽 吨位倍数上限', '越大吨位占优时越能提高盖帽成功率；倍数上限'],
+    bkSeal: ['盖帽 失位倍数', '越大被背打顶开后越容易盖到；1 = 基准'],
+    bkTkFin: ['盖帽 终结接管倍数', '越大对手终结接管时越容易盖到上篮扣篮；1 = 基准'],
+    bkTkDef: ['盖帽 防守接管倍数', '越大防守接管时越容易盖到；1 = 基准'],
+    bkVz0: ['盖帽 起跳初速度', '越大起跳越快越高，臂长不变；米/秒'],
+    bkVzJ: ['盖帽 弹跳速度加成', '越大弹跳能力对起跳速度的加成越强；米/秒'],
+    bkVzCh: ['追身盖帽 起跳加速', '越大追身盖帽起跳越快越高；米/秒'],
+    bkVzFat: ['盖帽 疲劳折损', '越大疲劳时起跳越低；折损比例'],
+    bkCost: ['盖帽 耗体倍数', '越大每次起跳封盖耗体越多；基础动作耗体的倍数'],
+    bkAimM: ['盖帽 摇杆修正', '越大起跳时越能用摇杆改变横移方向；米/秒'],
+    bkAimV: ['盖帽 惯性保留', '越大起跳后越保留原来的移动速度；比例'],
+    bkAimMax: ['盖帽 横移速度上限', '越大空中横移越快；米/秒'],
+    bkLandCd: ['盖帽 落地冷却', '越大落地后越久才能再出动作；秒'],
+    bkNear: ['被盖球 近落概率', '越大被盖球越容易落在进攻人身边；概率'],
+    bkFlyD0: ['被盖球 飞远下限', '越大普通盖帽后球至少飞得越远；米'],
+    bkFlyD1: ['被盖球 飞远上限', '越大普通盖帽后球最远能飞得越远；米'],
+    bkFlyA0: ['被盖球 偏角下限', '越大飞球越偏离背筐方向；弧度下限'],
+    bkFlyA1: ['被盖球 偏角上限', '越大飞球最多能偏离背筐方向越多；弧度上限'],
+    bkLkSh: ['被盖球 进攻拾球冷却', '越大球被扇远后进攻人越晚能捡回；秒'],
+    bkLkDf: ['被盖球 防守拾球冷却', '越大球被扇远后盖帽人越晚能捡球；秒'],
+  };
   if (TU) {
-    TU.reg(TDEF.map((d) => ({ k: 'l1_' + d[0], g: d[1], label: d[2], v: d[3], min: d[4], max: d[5], step: d[6], note: d[7], mode: d[8] || 'num', tmp: !!d[9], ...(d[0] === 'stLift' || d[0] === 'stReach' || /^(euroTempo|euroBeat|manu|aiCommit|aiProbeRange|aiBurst|aiChain|vc)/.test(d[0]) ? { wide: false } : {}), ...(/^manu/.test(d[0]) ? { cat: 'fin', sub: '上篮变体', gm: 'both' } : {}), ...(/^vc/.test(d[0]) ? { cat: 'fin', sub: '扣篮', gm: 'both' } : {}), ...(/^ai(Commit|ProbeRange|Burst|Chain)/.test(d[0]) ? { cat: 'drib', sub: '连招', gm: 'both' } : {}), ...(/^(alley|selfAlley)/.test(d[0]) ? { cat: 'fin', sub: '上篮', gm: 'both' } : {}) })));
+    TU.reg(TDEF.map((d) => ({ k: 'l1_' + d[0], g: d[1], label: d[2], v: d[3], min: d[4], max: d[5], step: d[6], note: d[7], display: BLOCK_DISPLAY[d[0]], mode: d[8] || 'num', tmp: !!d[9], ...(d[0] === 'stLift' || d[0] === 'stReach' || /^(euroTempo|euroBeat|manu|aiCommit|aiProbeRange|aiBurst|aiChain|vc)/.test(d[0]) ? { wide: false } : {}), ...(/^manu/.test(d[0]) ? { cat: 'fin', sub: '上篮变体', gm: 'both' } : {}), ...(/^vc/.test(d[0]) ? { cat: 'fin', sub: '扣篮', gm: 'both' } : {}), ...(/^ai(Commit|ProbeRange|Burst|Chain)/.test(d[0]) ? { cat: 'drib', sub: '连招', gm: 'both' } : {}), ...(/^(alley|selfAlley)/.test(d[0]) ? { cat: 'fin', sub: '上篮', gm: 'both' } : {}) })));
     TU.reg(RDEF.map((d) => ({ k: 'l1_' + d[0], g: 'rules', label: d[1], v: CFG_DEF[d[0]], min: d[2], max: d[3], step: d[4], note: d[5], mode: d[6] || 'num' })));
     for (const d of RDEF) if (d[0] !== 'shotClock') Object.defineProperty(CFG, d[0], { enumerable: true, configurable: true, get: () => TU.get('l1_' + d[0]), set: (v) => { TU.set('l1_' + d[0], v); } });
     // 进攻时间是“本场”设置（比赛开始界面 / 5V5 会临时改），所以 CFG.shotClock 仍是普通字段，调参改动时同步过去

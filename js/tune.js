@@ -183,6 +183,12 @@
         if (!GID[d.g]) d.g = 'rules';
         classify(d);
         widen(d);
+        if (it.display) {
+          d.syn = [...(d.syn || []), d.label];
+          d.label = it.display[0] || d.label;
+          d.note = it.display[1] || d.note;
+          delete d.display;
+        }
         if (d.min != null && d.v < d.min) d.min = d.v;
         if (d.max != null && d.v > d.max) d.max = d.v;
         defs.push(d); D[d.k] = d; V[d.k] = d.v; ks.push(d.k);
