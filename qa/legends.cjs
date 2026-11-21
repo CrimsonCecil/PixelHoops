@@ -144,7 +144,9 @@ async function checkEventAudio() {
     for (const [event, clips] of Object.entries(pack.lines)) {
       for (let i = 0; i < clips.length; i++) assert.strictEqual(audio.voLine(key, event, i), clips[i], 'other player lines unchanged');
     }
-    assert.equal(audio.vo(key, 'intro', 'pri'), null, 'other players do not acquire aliases');
+    const intro = audio.vo(key, 'intro', 'pri');
+    if (pack.lines.intro?.length) assert(pack.lines.intro.includes(intro), 'other players retain their own intro recordings');
+    else assert.equal(intro, null, 'other players do not acquire aliases');
   }
   console.log('PASS legend audio: only three legends aliased; unknown/empty events, future own recordings, existing event fallback and all original player lines preserved');
 }
