@@ -136,19 +136,22 @@ function fixture(options = {}) {
     return els.get(id);
   };
   const ctx = vm.createContext({
-    G, GM: Gm, CFG: Gm.CFG, $, stage: $('stage'), cues: [$('cue0'), $('cue1')], screen: 'play',
+    G, GM: Gm, PH: { T3 }, CFG: Gm.CFG, $, stage: $('stage'), cues: [$('cue0'), $('cue1')], screen: 'play',
     matchConfig: { mode: 't3' }, localSlot: 2, opts: { info: 'show' }, TR: {}, hasPad: true, isTouch: true,
     frameN: 9, hintKey: '', lastClock: '', lastTB2: '', lastS0: -1, lastS1: -1,
     TT: {}, pcRatings: noop, bList: () => [], fitBadgePops: noop, pcards5: noop, bpops: noop, drawFloats: noop,
     show: noop, shotCard: noop
   });
-  vm.runInContext(main.slice(main.indexOf('  function cardHTML('), main.indexOf('  function fitBadgePops(')) +
+  vm.runInContext(main.slice(main.indexOf('  function positionBadge('), main.indexOf('  function pkCard(')) +
+    main.slice(main.indexOf('  function cardHTML('), main.indexOf('  function fitBadgePops(')) +
     main.slice(main.indexOf('  function pcards()'), main.indexOf('  // V3.9g 5V5 信息卡')) +
     main.slice(main.indexOf('  function hud()'), main.indexOf('  // ---------- 结算面板')) + '\nlet overShown = false;', ctx);
   G.banner = null;
   vm.runInContext('hud()', ctx);
   assert.match($('pc0').innerHTML, /<u class="ro">进攻<\/u>/);
   assert.match($('pc1').innerHTML, /<u class="rd">防守<\/u>/);
+  assert.match($('pc0').innerHTML, /data-position="内线"/);
+  assert.match($('pc1').innerHTML, /字母哥.*data-position="内线"/);
   assert.match($('hint').innerHTML, /^进攻.*<b>Y<\/b> 抢篮板/);
   assert.match($('hint').innerHTML, /<b>R3<\/b> 掩护/);
   assert.equal($('tb1').textContent, '篮板');
@@ -170,7 +173,7 @@ function fixture(options = {}) {
 }
 
 function tactics(cpu = []) {
-  const f = fixture({ slots: ['curry', 'edwards', 'jokic', 'lebron', 'durant', 'giannis'].map((arch, id) => ({
+  const f = fixture({ slots: ['curry', 'edwards', 'jokic', 'luka', 'kobe', 'giannis'].map((arch, id) => ({
     arch, role: cpu.includes(id) ? 'cpu' : 'human'
   })) });
   const { G, T3, api } = f;
@@ -182,6 +185,30 @@ function tactics(cpu = []) {
     Object.entries(inputs).map(([id, input]) => [id, { ...api.zeroInp(), ...input }])
   ));
   return { ...f, put, run };
+}
+
+{
+  const { G, api, T3, run } = fixture({
+    slots: ['curry', 'lebron', 'giannis', 'boozer', 'luka', 'bridges'].map((arch) => ({ arch, role: 'human' }))
+  });
+  const marks = (team) => Array.from(G.players.filter((p) => p.tm === team), (p) => p.opp.id);
+  assert.deepEqual(marks(1), [2, 0, 1], 'positions beat distance and roster order at the check');
+  assert(G.players.slice(3).every((p) => Math.abs(p.x - p.opp.x) < 1), 'check-ball defenders start next to their marks');
+  run(60);
+  T3.holder().hasBall = false;
+  for (const p of G.players) { p.x = (p.id % 3 - 1) * 5.5; p.y = 9; }
+  api.pickup(G.players[3]);
+  assert(G.needClear);
+  assert.deepEqual(marks(0), [4, 5, 3], 'positional matchups reset immediately on a live change of possession');
+
+  const tie = ['curry', 'maxey', 'jokic', 'luka', 'kyrie', 'sengun'].map((arch) => ({ arch, role: 'human' }));
+  const tied = fixture({ slots: tie });
+  tied.run(60);
+  tied.T3.holder().hasBall = false;
+  [5, -5, 0, -5, 5, 0].forEach((x, id) => Object.assign(tied.G.players[id], { x, y: 8 }));
+  tied.api.pickup(tied.G.players[3]);
+  assert.deepEqual(Array.from(tied.G.players.slice(0, 3), (p) => p.opp.id), [4, 3, 5], 'distance breaks ties between identical positions');
+  console.log('PASS: check-ball and live changes favor positional matchups over proximity; distance breaks position ties.');
 }
 
 {
@@ -236,6 +263,7 @@ function tactics(cpu = []) {
     if (switchCover) {
       assert.equal(G.players[4].opp.id, 0, 'screen defender switches onto the ball');
       assert.equal(d.opp.id, 1, 'original defender takes the screener');
+      assert.equal(T3.T.marks.get(d).id, 0, 'screen switches leave the underlying matchup intact');
     }
     return { time: d.screenSlow3 - G.time, speed: d.screenSpeed3 };
   };
@@ -275,6 +303,10 @@ console.log('PASS: CPU teammates set screens, roll or pop by tendency, and recei
   assert.equal(G.players[4].opp.id, 0, 'the closer teammate takes over a lost matchup');
   assert.equal(G.players[3].opp.id, 1);
   assert.equal(T3.T.cover, null, 'a perimeter switch is not a paint rotation');
+  G.time = T3.T.switchAt;
+  put(0, 0, 5); put(3, 0, 7);
+  run(1);
+  assert.deepEqual(Array.from(G.players.slice(3), (d) => d.opp.id), [0, 1, 2], 'recover positional assignments after a switch');
 }
 
 function driveCoverage(helpIQ) {

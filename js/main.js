@@ -5,7 +5,7 @@
   const stage = $('stage'), canvas = $('game');
   const opts = { format: 'duel', opponent: 'cpu', get mode() { return this.format === 'duel' ? this.opponent : this.format; }, diff: 1, target: 21, clock: 24, glen: 0, arch0: GM.ROSTER[(Math.random() * GM.ROSTER.length) | 0], arch1: 'random', fb: 'simple', info: 'show', home: 'LAL', away: 'BOS', qlen: 300, side: 0 };
   const lobbyRoles = { human: '你', cpu: '电脑', waiting: '等待玩家' };
-  const lobby3 = ['curry', 'edwards', 'jokic', 'lebron', 'durant', 'giannis'].map((arch, i) => ({ arch, role: i === 0 ? 'human' : i % 3 === 2 ? 'waiting' : 'cpu' }));
+  const lobby3 = ['curry', 'lebron', 'jokic', 'edwards', 'durant', 'giannis'].map((arch, i) => ({ arch, role: i === 0 ? 'human' : i % 3 === 2 ? 'waiting' : 'cpu' }));
   const rooms = PH.rooms, room = rooms.room;
   let localSlot = -1, roomSlot = -1, matchConfig = null, netFrame = 0;
   let scale = 2, paused = false, manual = false, screen = 'menu', last = 0, acc = 0, fps = 60, debug = /[?&]debug/.test(location.search);
@@ -73,10 +73,14 @@
   const badgeHtml = (k, full, t) => { const B = GM.BADGES[k]; return '<div class="bdg tr' + (t || 3) + '">' + bHex(k, t) + (full ? '<div><b>' + B.name + (B.five ? '<sup>5V5</sup>' : '') + '</b><span>' + B.desc + '</span></div>' : '<b>' + B.name + '</b>') + '</div>'; };
   let pkSide = 0, pkSel = 'curry', pkSlot = null;
   const listedHeight = (a) => (PH.measurements && PH.measurements[a.key] ? PH.measurements[a.key][0] * 0.0254 : a.h).toFixed(2);
+  function positionBadge(a, detailed = false) {
+    const group = PH.T3.position(a);
+    return '<span class="pos3" data-position="' + group + '" title="' + a.pos + ' · ' + group + '">' + (detailed ? a.pos : group) + '</span>';
+  }
   function pkCard(key) {
     if (key === 'random') return '<button class="pkc rnd" data-pk="random" data-testid="pk-random"><span class="pkf q">?</span><span class="pkn">随机</span><span class="pkp">任意球员</span></button>';
     const a = GM.ARCH[key];
-    return '<button class="pkc t' + TT[a.tier] + '" data-pk="' + key + '" data-testid="pk-' + key + '"><canvas class="pkf" width="32" height="32"></canvas><span class="pkn">' + a.name + (a.skill ? '<i class="pkst">' + IC.svg('takeover') + '</i>' : '') + '</span><span class="pkp">' + a.pos + '<small class="pkh"> · ' + listedHeight(a) + '</small></span><span class="pko">' + a.ovr + '</span></button>';
+    return '<button class="pkc t' + TT[a.tier] + '" data-pk="' + key + '" data-testid="pk-' + key + '"><canvas class="pkf" width="32" height="32"></canvas><span class="pkn">' + a.name + (a.skill ? '<i class="pkst">' + IC.svg('takeover') + '</i>' : '') + '</span><span class="pkp">' + (pkSlot === null ? a.pos : positionBadge(a, true)) + '<small class="pkh"> · ' + listedHeight(a) + '</small></span><span class="pko">' + a.ovr + '</span></button>';
   }
   const LTIP = { normal: 'lay' };
   let pkShown = '';
@@ -198,11 +202,11 @@
   $('pk-cancel').addEventListener('click', () => closePicker(false));
   $('pick0').addEventListener('click', () => openPicker(0));
   $('pick1').addEventListener('click', () => openPicker(1));
-  function pickBtn(id, key, side = id === 'pick0' ? 0 : 1) {
+  function pickBtn(id, key, side = id === 'pick0' ? 0 : 1, t3 = false) {
     const el = $(id);
     if (key === 'random') { el.className = 'pick'; el.innerHTML = '<span class="pkf q">?</span><span class="pk-n">随机</span><span class="pk-s">任意球员</span><span class="pk-c">更换</span>'; return; }
     const a = GM.ARCH[key];
-    el.className = 'pick t' + TT[a.tier]; el.innerHTML = '<canvas class="pkf" width="32" height="32"></canvas><span class="pk-n">' + a.name + ' <small>' + a.ovr + '</small></span><span class="pk-s">' + (a.skill ? '必杀技 · ' + a.skill.name : a.pos + ' · ' + GM.TIERS[a.tier]) + '</span><span class="pk-c">更换</span>';
+    el.className = 'pick t' + TT[a.tier]; el.innerHTML = '<canvas class="pkf" width="32" height="32"></canvas><span class="pk-n">' + a.name + ' <small>' + a.ovr + '</small></span>' + (t3 ? positionBadge(a) : '<span class="pk-s">' + (a.skill ? '必杀技 · ' + a.skill.name : a.pos + ' · ' + GM.TIERS[a.tier]) + '</span><span class="pk-c">更换</span>');
     portrait(el.querySelector('canvas'), a, GM.TEAMS[side]);
   }
   const lobbySlotName = (i) => (i < 3 ? '主队' : '客队') + ' ' + (i % 3 + 1) + ' 号位';
@@ -216,8 +220,9 @@
   function refreshLobby() {
     lobby3.forEach((slot, i) => {
       const id = 'pick3-' + i;
-      pickBtn(id, slot.arch, i < 3 ? 0 : 1);
-      $(id).setAttribute('aria-label', lobbySlotName(i) + '：' + GM.ARCH[slot.arch].name + '，更换球员');
+      const a = GM.ARCH[slot.arch];
+      pickBtn(id, slot.arch, i < 3 ? 0 : 1, true);
+      $(id).setAttribute('aria-label', lobbySlotName(i) + '：' + a.name + '，' + a.pos + '，更换球员');
       lobbySlotRole(i);
     });
   }
@@ -756,7 +761,7 @@
     const brow = bl.length ? '<div class="pcb" data-testid="pc-badges">' + bl.map((x) => '<span class="tr' + x[1] + (hot.has(x[0]) ? ' hot' : '') + '" title="' + GM.BADGES[x[0]].name + '">' + bHex(x[0], x[1]) + '</span>').join('') + '</div>' : '';
     const name = '<b>' + a.name + '</b>', ovr = '<em class="t' + TT[a.tier] + '">' + a.ovr + '</em>';
     const role = '<u class="' + (isOff ? 'ro' : 'rd') + '">' + (isOff ? '进攻' : '防守') + '</u>';
-    const head = '<span class="pc-id">' + name + ovr + '</span>' + role;
+    const head = '<span class="pc-id">' + name + ovr + (G.mode === 't3' ? positionBadge(a) : '') + '</span>' + role;
     return '<div class="pch">' + head + '</div>' + sl + '<div class="pcg">' + cells + '</div>' + brow + tkl + '<div class="pctk' + (tkOn ? ' on' : '') + '"><span>主宰</span><s><b style="width:' + Math.round(pl.tk) + '%"></b></s></div>';
   }
   function fitBadgePops(cardPrefix, colPrefix) {
@@ -770,8 +775,10 @@
     }
   }
   function pcards() {
+    const t3 = G.mode === 't3', me = t3 && G.players[localSlot];
+    const matchup = me && (G.off === me.tm ? G.players.find((p) => p.tm !== me.tm && p.opp === me) || me.opp : me.opp);
     for (let i = 0; i < 2; i++) {
-      const me = G.mode === 't3' && G.players[localSlot], pl = G.mode === 't3' ? me && (i ? me.opp : me) : G.players[i], el = $('pc' + i);
+      const pl = t3 ? (i ? matchup : me) : G.players[i], el = $('pc' + i);
       const on = screen === 'play' && opts.info === 'show' && pl && !pl.dummy && !(G.mode === 'train' && i === 1 && TR.dummy === 'none');
       el.classList.toggle('hidden', !on); if (!on) continue;
       const S = G.stats && G.stats[pl.id];

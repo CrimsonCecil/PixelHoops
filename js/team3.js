@@ -15,29 +15,41 @@
     const r = PH.R5, row = r && r.P[p.arch.key];
     return (row && row[r.F.indexOf(key)] || fallback) / 100;
   };
+  const position = (a) => a.pos.endsWith('后卫') ? '后卫' : a.pos === '中锋' || a.pos === '大前锋' ? '内线' : '锋线';
   function matchups() {
-    const off = teams(G.off), def = teams(1 - G.off), h = holder();
+    const off = teams(G.off), def = teams(1 - G.off);
     const pairs = [[0, 1, 2], [0, 2, 1], [1, 0, 2], [1, 2, 0], [2, 0, 1], [2, 1, 0]];
-    let order, min = Infinity;
+    let order, bestGroup = -1, bestExact = -1, min = Infinity;
     for (const pair of pairs) {
-      const cost = pair.reduce((sum, j, i) => sum + dist(def[i], off[j]) * (off[j] === h ? 1.25 : 1) - (def[i].opp === off[j] ? 0.7 : 0), 0);
-      if (cost < min) { min = cost; order = pair; }
+      let group = 0, exact = 0, cost = 0;
+      pair.forEach((j, i) => {
+        const d = def[i], o = off[j];
+        group += Number(position(d.arch) === position(o.arch));
+        exact += Number(d.arch.pos === o.arch.pos);
+        cost += dist(d, o);
+      });
+      if (group > bestGroup || group === bestGroup && (exact > bestExact || exact === bestExact && cost < min)) {
+        bestGroup = group; bestExact = exact; min = cost; order = pair;
+      }
     }
     T.marks = new Map(def.map((p, i) => [p, off[order[i]]]));
     T.defTeam = 1 - G.off;
     T.cover = null;
+    T.swap = null;
     T.switchAt = G.time;
     restoreMarks();
   }
   function restoreMarks() {
     for (const [d, m] of T.marks) d.opp = m;
+    if (T.swap) {
+      const { a, b } = T.swap;
+      a.opp = T.marks.get(b); b.opp = T.marks.get(a);
+    }
     const def = [...T.marks.keys()];
     for (const p of teams(G.off)) p.opp = nearest(def, p);
   }
   function swapMarks(a, b) {
-    const mark = T.marks.get(a);
-    T.marks.set(a, T.marks.get(b));
-    T.marks.set(b, mark);
+    T.swap = { a, b, h: holder() };
     T.switchAt = G.time + 0.85;
     restoreMarks();
   }
@@ -47,6 +59,7 @@
   }
   function defense(h) {
     if (T.defTeam !== 1 - G.off) matchups();
+    if (T.swap && (h !== T.swap.h || G.needClear || G.time >= T.switchAt)) T.swap = null;
     restoreMarks();
     const previous = T.cover;
     T.cover = null;
@@ -96,6 +109,8 @@
     T.acquired = G.time; T.nextPass = G.time + 1.4; T.nextPick = G.time + 2.5;
     G.ball = { x: h.x, y: h.y, z: 1, vx: 0, vy: 0, vz: 0, state: 'held', holder: h.id, spin: 0, shot: null, lastTouch: h.id, noPick: 0, dead: false, under: false, trail: null };
     matchups();
+    for (const [d, o] of T.marks) { d.x = o.x * 0.9; d.y = o.y + 1.15; }
+    restoreMarks();
     A.banner(message || '弧顶交换球', GM.TEAMS[team].name + '球权', GM.TEAMS[team].css, 0.9);
   }
   function lost(by, text, receiving) {
@@ -111,8 +126,9 @@
     if (G.score[tm] >= G.target) G.winner = tm;
     A.banner(pts === 3 ? '三分命中' : '两分命中', p.arch.name + ' · ' + GM.TEAMS[tm].name + ' +' + pts, p.team.css, 1.0);
   }
-  function gotBall(p) {
+  function gotBall(p, change) {
     T.acquired = G.time; T.pass = null;
+    if (change) { clearPick(); matchups(); }
     p.ai.hold = false; p.ai.su = null;
     if (p.ctrl !== 'cpu') { const input = T.inputs && T.inputs[p.id]; if (input) Object.assign(p.prev, { a1: input.a1, a2: input.a2, a3: input.a3 }); }
   }
@@ -378,5 +394,5 @@
       if (!G.shotClock && b.state !== 'shot' && !rebounding) lost(ballCarrier || G.players[b.lastTouch], T.clock + ' 秒违例');
     }
   }
-  PH.T3 = { T, start, stop, tick, holder };
+  PH.T3 = { T, start, stop, tick, holder, position };
 })();
