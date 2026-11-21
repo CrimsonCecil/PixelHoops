@@ -211,6 +211,8 @@
     ['ai_cb_lean', 'ai', 'AI 连招 读重心速度', 1.2, 0, 5, 0.1, '米/秒：防守人横移速度超过这个，下一段往他移动的反方向变'],
     ['ai_cb_sb', 'ai', 'AI 连招 后撤收尾', 0.45, 0, 1, 0.01, '概率：会投的人（投射 ≥ 70）贴身时用后撤步收尾、接投篮'],
     ['brClutch', 'shot', '布伦森「关键先生」进攻时间', 8, 3, 24, 0.5, '秒：布伦森专属技能在进攻时间 ≤ 这个时触发（1V1 另有赛点等条件；5V5 第四节关键时刻也触发）。其他人和关键先生徽章仍是 5 秒'],
+    ['hesiBack', 'drib', '犹豫步 后移距离', 0.32, 0, 0.6, 0.01, '米：起手时沿面朝方向后退一小步'],
+    ['hesiBackT', 'drib', '犹豫步 后移时段', 0.32, 0.1, 0.35, 0.01, '动作比例：前段完成后移，按住时停在后移位置'],
     ['mvEdge', 'drib', '招式 边线留白', 0.3, 0, 1, 0.01, '米：持球做招式时离边线 / 底线 / 中线不到这么多就不再往外位移（不会被招式带出界）'],
     // —— 投篮 ——
     ['shotJump', 'shot', '跳投起跳时间', 0.22, 0.1, 0.4, 0.01, '秒：按下到离地'],
@@ -4010,6 +4012,7 @@
     const kind = q.fwd < -0.45 ? 'stepback' : q.lat * a.h0 > 0.25 ? 'cross' : 'inout';
     if (!canMv(pl, kind)) return false;
     pl.lastMoveT = G.time;
+    pl.vx = pl.vy = 0;
     startMove(pl, { mx: q.x, my: q.y }, kind);
     blendHeldBall();
     return true;
@@ -4173,7 +4176,9 @@
         if (u < p0) { const s = 1 - (u / p0) * 0.75; vx = a.v0x * s; vy = a.v0y * s; }
         else { const s = (1 - (u - p0) * 0.5) * (kd === 'legs' ? 0.85 : 1); vx = a.dx * sp * s; vy = a.dy * sp * s; }
       } else if (kd === 'hesi') {
-        vx = vy = 0;
+        const end = a.T * K.hesiBackT;
+        const back = K.hesiBack * (sm(clamp(a.t / end, 0, 1)) - sm(clamp(t0 / end, 0, 1))) / dt;
+        vx = -Math.cos(a.f0) * back; vy = -Math.sin(a.f0) * back;
       } else if (a.hesiDrive) {
         const s = sp * (1 - u * 0.4);
         vx = a.dx * s; vy = a.dy * s;
@@ -4189,7 +4194,8 @@
         vx = (a.dx * c - a.dy * sn) * sp * m; vy = (a.dx * sn + a.dy * c) * sp * m;
       }
       // V4.2 招式不把人带出界：离边线 / 底线 / 中线（1V1）不到 mvEdge 就不再往外走
-      if (pl.hasBall && K.mvEdge > 0) { const t5 = G.mode === 't5', XL = (t5 ? 7.62 : 7.5) - K.mvEdge, Y1 = (t5 ? 14.1 : 14) - K.mvEdge, Y0 = t5 ? -Y1 : K.mvEdge;
+      if (pl.hasBall && (K.mvEdge > 0 || kd === 'hesi')) { const t5 = G.mode === 't5', XL = (t5 ? 7.62 : 7.5) - K.mvEdge, Y1 = (t5 ? 14.1 : 14) - K.mvEdge, Y0 = t5 ? -Y1 : K.mvEdge;
+        if (kd === 'hesi') { vx = clamp(vx, Math.min(0, (-XL - pl.x) / dt), Math.max(0, (XL - pl.x) / dt)); vy = clamp(vy, Math.min(0, (Y0 - pl.y) / dt), Math.max(0, (Y1 - pl.y) / dt)); }
         if ((pl.x > XL && vx > 0) || (pl.x < -XL && vx < 0)) vx = 0; if ((pl.y > Y1 && vy > 0) || (pl.y < Y0 && vy < 0)) vy = 0; }
       pl.vx = vx; pl.vy = vy;
       if (a.t >= a.T) { if (kd === 'hesi') blendHeldBall(); if (isPostMove(kd)) { if (pl.postMove) pl.postMove.t = G.time; if (kd === 'postface' || kd === 'postdrop') { pl.face = Math.atan2(HOOP.y - pl.y, HOOP.x - pl.x); pl.vx = pl.vy = 0; } } pl.action = null; pl.lastMoveT = G.time; pl.mvEndT = G.time; pl.z = 0; pl.vz = 0; }

@@ -31,6 +31,42 @@ function fixture(hand = 1, arch0 = 'luka') {
   return { game, p, d, b, rig, key, step, pads, input: ctx.PH.input, team3: ctx.PH.T3, team5: ctx.PH.T5 };
 }
 
+for (const moving of [false, true]) for (const face of [0, Math.PI / 2, -Math.PI / 2]) {
+  const { game, p, d } = fixture();
+  const fx = Math.cos(face), fy = Math.sin(face);
+  Object.assign(p, { face, vx: moving ? fx * 4 : 0, vy: moving ? fy * 4 : 0, speed: moving ? 4 : 0 });
+  d.off = true;
+  const start = [p.x, p.y];
+  const step = (n = 1, hesi = true) => { for (let i = 0; i < n; i++) game.tick(1 / 120, () => ({ mx: moving ? fx : 0, my: moving ? fy : 0, a3: hesi, hesi })); };
+  step(40);
+  const dx = p.x - start[0], dy = p.y - start[1];
+  assert(Math.abs(dx * fx + dy * fy + game.K.hesiBack) < 0.001);
+  assert(Math.abs(dx * -fy + dy * fx) < 0.001);
+  assert(Math.hypot(dx, dy) >= 0.2 && Math.hypot(dx, dy) <= 0.4);
+  const held = [p.x, p.y];
+  step(120);
+  assert.deepEqual([p.x, p.y], held);
+  assert.equal(p.speed, 0);
+  step(80, false);
+  if (!moving) assert.deepEqual([p.x, p.y], held);
+}
+
+for (const [x, y, face] of [[7.19, 6, Math.PI], [-7.19, 6, 0], [0, 0.31, Math.PI / 2], [0, 13.69, -Math.PI / 2]]) {
+  const { game, p, d } = fixture();
+  Object.assign(p, { x, y, face }); d.off = true;
+  for (let i = 0; i < 80; i++) game.tick(1 / 120, () => ({ mx: 0, my: 0, a3: true, hesi: true }));
+  assert(Math.abs(p.x) <= 7.2 && p.y >= 0.3 && p.y <= 13.7, 'back-step respects move-edge bounds');
+}
+
+{
+  const { game, p, d } = fixture();
+  Object.assign(p, { face: Math.PI / 2 });
+  Object.assign(d, { x: p.x, y: p.y - game.K.bdR - 0.05, dummy: false, ctrl: 'p2', stun: 3 });
+  for (let i = 0; i < 60; i++) game.tick(1 / 120, q => q === p ? { mx: 0, my: 0, a3: true, hesi: true } : { mx: 0, my: 0 });
+  assert(p.y > d.y, 'back-step cannot pass through a defender behind the handler');
+  assert(Math.hypot(p.x - d.x, p.y - d.y) >= game.K.bdR - 0.001);
+}
+
 for (const mode of ['1v1', '3v3']) for (const binding of ['KeyH', 'R3']) {
   for (const [dir, kind] of [['KeyA', 'cross'], ['KeyD', 'inout'], ['KeyS', 'stepback'], [null, null]]) {
     const f = fixture();
@@ -54,9 +90,15 @@ for (const mode of ['1v1', '3v3']) for (const binding of ['KeyH', 'R3']) {
     assert.equal(p.action.kind, 'hesi', mode + ' ' + binding + ' starts while moving');
     assert.equal(p.action.hesiHold, 'hesi');
     const start = [p.x, p.y];
+    const face = p.action.f0;
     step(80);
     assert.equal(p.action.kind, 'hesi');
-    assert.deepEqual([p.x, p.y], start);
+    const dx = p.x - start[0], dy = p.y - start[1];
+    assert(dx * Math.cos(face) + dy * Math.sin(face) < -0.2);
+    assert(Math.hypot(dx, dy) <= 0.33);
+    const held = [p.x, p.y];
+    step(40);
+    assert.deepEqual([p.x, p.y], held);
     key('KeyW', false);
     if (dir) key(dir);
     step();
@@ -84,7 +126,7 @@ for (const mode of ['1v1', '3v3']) for (const binding of ['KeyH', 'R3']) {
   assert(!input.read(1, false, false).hesi);
 }
 
-// While held, moving the stick previews a direction but never moves the handler.
+// After the short back-step, moving the stick only previews the release direction.
 {
   const { p, d, key, step } = fixture();
   const start = [p.x, p.y];
@@ -93,14 +135,16 @@ for (const mode of ['1v1', '3v3']) for (const binding of ['KeyH', 'R3']) {
   assert.equal(p.action.kind, 'hesi');
   key('KeyA'); step(160);
   assert.equal(p.action.kind, 'hesi');
-  assert.deepEqual([p.x, p.y], start);
+  assert(Math.abs(p.x - start[0]) < 0.001);
+  assert(p.y < start[1] - 0.2 && p.y > start[1] - 0.34);
+  const held = [p.x, p.y];
   assert.equal(p.speed, 0);
   assert(p.hasBall);
   assert.equal(d.action, null);
   key('KeyA', false); step();
   key('KeyL', false); step(80);
   assert.equal(p.action, null);
-  assert.deepEqual([p.x, p.y], start);
+  assert.deepEqual([p.x, p.y], held);
 }
 
 // Both arms open sideways; the ball follows the same palm, below the head.
@@ -125,8 +169,8 @@ for (const [hand, dir, kind, side, nextHand] of [
   [1, 'KeyS', 'stepback', 0, 1],
 ]) {
   const { p, key, step } = fixture(hand);
-  const y = p.y;
   key('KeyL'); step(28);
+  const y = p.y;
   key(dir); step(12);
   assert.equal(p.action.kind, 'hesi');
   key('KeyL', false); step();
@@ -240,7 +284,7 @@ for (const [arch, canCancel] of [['kyrie', true], ['shaq', false]]) {
   const step = (n = 1) => { for (let i = 0; i < n; i++) team5.tick(1 / 120); };
   key('KeyW'); key('KeyH'); step(40);
   assert.equal(p.action.kind, 'hesi');
-  assert.equal(p.y, 6.8);
+  assert(p.y < 6.6 && p.y > 6.46);
   assert.equal(T.cnt.passes, 0);
   key('KeyW', false); key('KeyA'); key('KeyH', false); step();
   assert.equal(p.action.kind, 'cross');
