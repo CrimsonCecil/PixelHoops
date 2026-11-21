@@ -626,6 +626,7 @@
       if (tier >= 3 && GM().t5 && GM().t5.sfx) try { GM().t5.sfx('bump'); } catch (e) {}
       g.n[tier]++; g[kind === 'pnr' ? 'on' : 'off'][tier]++; const ty = typ || (kind === 'pnr' ? 'pnr' : 'gen'); (g.ty[ty] || (g.ty[ty] = [0, 0, 0, 0, 0]))[tier]++; (g.ks || (g.ks = [])).push(+k.toFixed(2));
       const m = tgt || (kind === 'pnr' ? (PH.T5.T.pick && PH.T5.T.pick.h) : d.mark);
+      if (m && GM().t5.legendScreen) GM().t5.legendScreen(s, d, m);
       if (m) S.rec.push({ id: m.id, t: PH.T5.T.time, tier, kind: kind === 'pnr' ? 'on' : 'off' });
       return tier;
     }
@@ -1439,6 +1440,12 @@
       if (w >= 8) {
         px(cx, h * 0.58, w * 0.09, h * (fs.soft ? 0.06 : 0.1), nose);
         if (!fs.soft) px(cx - w * 0.09, h * 0.68, w * 0.18, 1, dark);
+      }
+      if (C.mask) {
+        const frame = '#dfeced';
+        px(w * 0.08, h * 0.36, w * 0.84, 1, frame);
+        px(w * 0.08, h * 0.36, 1, h * 0.32, frame); px(w * 0.84, h * 0.36, 1, h * 0.32, frame);
+        px(w * 0.08, h * 0.68, w * 0.84, 1, frame); px(cx, h * 0.48, 1, h * 0.2, frame);
       }
       const bd = C.beard === true ? 'full' : C.beard;
       if (bd === 'full' || bd === 'boxed' || bd === 'long') {

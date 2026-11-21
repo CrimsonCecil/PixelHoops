@@ -185,6 +185,9 @@ window.PH.measurements = {
   klay: [77, 220, 81, 8.75], // Klay Thompson
   kmurray: [80, 225, 83], // Keegan Murray *
   knueppel: [78, 215, 78.25, 8.5], // Kon Knueppel
+  tmac: [80, 210],
+  nash: [75, 178],
+  rip: [79, 185],
   kobe: [78, 212, 83], // Kobe Bryant *
   ginobili: [78, 205], // Manu Ginobili
   iverson: [72, 165], // Allen Iverson
@@ -398,5 +401,6 @@ window.PH.buildTags = {
   vanderbilt: 'lean', vassell: 'lean', wagler: 'lean', walsh: 'lean',
   ware: 'muscular', wcj: 'muscular', wemby: 'lean', white: 'balanced',
   wiggins: 'balanced', wolf: 'heavy', youngblood: 'muscular', ziaire: 'lean',
+  tmac: 'lean', nash: 'lean', rip: 'lean',
   zion: 'heavy', zubac: 'muscular',
 };

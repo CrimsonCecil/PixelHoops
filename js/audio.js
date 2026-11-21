@@ -288,7 +288,7 @@
   const voIdx = {}, voSpr = {};
   const voReady = fetch('vo/manifest.json' + (window.__V__ !== undefined ? '?v=' + window.__V__ : '')).then((r) => r.ok ? r.json() : null).then((j) => {
     voM = j && j.voices;
-    if (voM) for (const k in voM) { const V = voM[k]; for (const ev in V.lines) for (const it of V.lines[ev]) voIdx[it.f] = { s: V.s, it }; }
+    if (voM) for (const k in voM) { const V = voM[k]; for (const ev in V.lines) for (const it of V.lines[ev]) if (V.s && it.n > 0) voIdx[it.f] = { s: V.s, it }; }
     return voM;
   }).catch(() => null);
   function voFile(s) { if (!voSpr[s]) voSpr[s] = fetch('vo/' + s).then((r) => r.ok ? r.arrayBuffer() : null).catch(() => { delete voSpr[s]; return null; }); return voSpr[s]; }
@@ -363,6 +363,12 @@
   }
   // 指定一条语音（开场对话用）：voLine 按序号取条目，voSay 打断当前语音直接播
   function voLine(key, ev, i, skip) {
+    const text = {
+      tmac: { dom: '半步就行。剩下的是出手。', taunt: '我不后仰，你也得先跟上。' },
+      nash: { dom: '你盯我，顺下的那位谁管？', taunt: '你没跟出来？那这球我自己投。' },
+      rip: { dom: '你跟我跑就好。一会儿还有一圈。', taunt: '我在肘区等你，别迟到。' }
+    };
+    if (text[key] && text[key][ev] && !(voM && voM[key])) return { f: key + '_' + ev + '_text', t: text[key][ev], d: 3 };
     const lines = voM && voM[key] && voM[key].lines;
     if (ev === 'intro' && !lines?.intro?.length) {
       for (const f of VO_INTRO[key]?.[i] || []) { if (voIdx[f] && !skip?.has(f)) return voIdx[f].it; }
