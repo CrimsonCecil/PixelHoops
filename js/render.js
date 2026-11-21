@@ -626,6 +626,7 @@
       if (tier >= 3 && GM().t5 && GM().t5.sfx) try { GM().t5.sfx('bump'); } catch (e) {}
       g.n[tier]++; g[kind === 'pnr' ? 'on' : 'off'][tier]++; const ty = typ || (kind === 'pnr' ? 'pnr' : 'gen'); (g.ty[ty] || (g.ty[ty] = [0, 0, 0, 0, 0]))[tier]++; (g.ks || (g.ks = [])).push(+k.toFixed(2));
       const m = tgt || (kind === 'pnr' ? (PH.T5.T.pick && PH.T5.T.pick.h) : d.mark);
+      if (m && GM().t5.legendScreen) GM().t5.legendScreen(s, d, m);
       if (m) S.rec.push({ id: m.id, t: PH.T5.T.time, tier, kind: kind === 'pnr' ? 'on' : 'off' });
       return tier;
     }

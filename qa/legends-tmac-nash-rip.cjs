@@ -21,7 +21,7 @@ for (const [key, type, ovr, inches, pounds, open, reply] of [
   assert.equal(a.tier, 'star');
   assert.equal(a.ovr, ovr);
   assert(game.ROSTER.indexOf(key) < game.ROSTER.indexOf('peat'));
-  assert.equal(a.skill, undefined);
+  assert.equal(a.skill.id, key);
   assert.equal(PT.of(a).id, type);
   assert.equal(ctx.PH.buildTags[key], 'lean');
   assert.deepEqual(Array.from(ctx.PH.measurements[key]), [inches, pounds]);
@@ -59,3 +59,4 @@ assert.equal(audio.voLine('unknown', 'taunt', 0), null);
 assert.equal(audio.voLine('tmac', 'missing', 0), null);
 assert.equal(audio.voSay(null), false);
 console.log('PASS: 3V3 lineup, midrange emphasis and missing voice fallbacks');
+require('./legend-skills.cjs');
