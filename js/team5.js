@@ -787,6 +787,8 @@
   }
   function doPass(p, m, kind) {
     if (!m || !canPass(p)) return false;
+    const pocket = A5.legendPocket(p, m), LK = PH.game.K;
+    if (pocket) kind = 'bounce';
     const cancelShot = p.action && (p.action.type === 'shot' || p.action.type === 'layup' || p.action.type === 'dunk');
     if (p.action) p.action = null;
     const b = G.ball, K = PASS[kind] || PASS.chest, ua = U(p, 'pac');
@@ -800,7 +802,7 @@
     const lead = lerp(TV.t5_pass_leadLow + rr(-TV.t5_pass_leadRnd, TV.t5_pass_leadRnd), 1, skill);
     let tx = m.x + (m.vx || 0) * (Tt + windup) * lead, ty = m.y + (m.vy || 0) * (Tt + windup) * lead;
     // V4.2 落点误差：传球准确越低越偏（失手的高难度传球再偏 0.9~1.8 米）；接球人在跑动时多半偏到身后，偏得多的有时偏到脚下
-    const er = TV.t5_pass_er * Math.max(0, TV.t5_pass_er0 - ua) * (0.5 + d0 / 14) * (kind === 'skip' || kind === 'lob' || kind === 'alley' ? 1.4 : 1) * Math.sqrt(rnd()) + (kf ? rr(0.9, 1.8) : 0);
+    const er = (TV.t5_pass_er * Math.max(0, TV.t5_pass_er0 - ua) * (0.5 + d0 / 14) * (kind === 'skip' || kind === 'lob' || kind === 'alley' ? 1.4 : 1) * Math.sqrt(rnd()) + (kf ? rr(0.9, 1.8) : 0)) * (pocket ? LK.lgNashError : 1);
     let ea = rnd() * 6.2832; if ((m.speed || 0) > 1.2 && rnd() < TV.t5_pass_bh) ea = Math.atan2(-(m.vy || 0), -(m.vx || 0)) + rr(-0.7, 0.7);
     if (p.jpNow) {
       // 跳传准度：传球准确 pac、视野 vis；离防守人越近、出手越晚越偏
@@ -809,6 +811,7 @@
       tx += Math.cos(ja) * je; ty += Math.sin(ja) * je;
     }
     tx += Math.cos(ea) * er; ty += Math.sin(ea) * er;
+    if (pocket) { tx += (m.vx || 0) * LK.lgNashLead; ty += (m.vy || 0) * LK.lgNashLead; }
     if (kind === 'alley' || kind === 'lob') { const hl = dHoop(m); if (hl < 5.5) { tx = lerp(tx, 0, 0.35); ty = lerp(ty, HY - 0.6, 0.35); } }
     tx = clamp(tx, -7.4, 7.4); ty = clamp(ty, -13.8, 13.8);
     b.state = 'pass'; b.holder = -1; p.hasBall = false; b.lastTouch = p.id; b.wasShot = false; b.shot = null; b.trail = null;
@@ -826,6 +829,7 @@
       p.pose.passHands = { L: H.handL.slice(), R: H.handR.slice(), follow: 0.14 };
     }
     T.ps.playPass = !!T.plPassing;
+    if (pocket) { T.ps.skill = 'nash'; A5.fireSkill(p); }
     const blind = ((m.x - p.x) * Math.cos(p.face) + (m.y - p.y) * Math.sin(p.face)) / (d0 || 1) < -0.2;
     T.ps.blind = blind;
     T.ps.pointC = ptIs5(p, 'pointC') && dHoop(p) > 3.5 && dHoop(p) < 7.5;
@@ -1088,7 +1092,7 @@
   // game.js 只用对位人 OP 的 contestInfo，这里按比例改 a.V.c（每帧在出手前更新）；盖帽仍按各自起跳的人判定，不叠加
   function dblC() {
     for (const p of ps()) {
-      const a = p.action; if (!a || (a.type !== 'shot' && a.type !== 'layup') || a.released || !a.k5 || !a.V || a.skill && a.skill !== 'rallen') continue;
+      const a = p.action; if (!a || (a.type !== 'shot' && a.type !== 'layup') || a.released || !a.k5 || !a.V || a.skill && a.skill !== 'rallen' && !a.softSkill) continue;
       const cls = a.type === 'layup' || a.V.hook || a.V.post || a.v === 'postfade' ? 'in' : 'shot', L = [];
       for (const d of defs()) if (dist(d, p) < TV.t5_dbl_r) { const c = A5.contestInfo(p, d, cls).c; if (c > 0) L.push(c); }
       L.sort((x, y) => y - x);
@@ -1111,6 +1115,7 @@
     b.cT = 0.1; b.cx = b.x; b.cy = b.y; b.cz = b.z;
     b.state = 'held'; b.holder = r.id; r.hasBall = true; b.shot = null; b.under = false; b.trail = null; b.lastTouch = r.id; r.drib = 0; r.catchT = T.time; r.gotT = G.time;
     r.passCatchT = G.time; r.catchDribbled = false;
+    A5.legendCatch(r);
     if (P.rec && P.rec.ov != null) { let nd = 9; for (const d of defs()) nd = Math.min(nd, dist(d, r)); P.rec.cnd = +nd.toFixed(2); }
     if (P.inb || T.phase === 'inb') { T.phase = 'live'; G.shotClock = 24; }
     for (const p of ps()) { p.ai.t = 0.25; p.ai.hold = false; if (p.tm !== G.off) p.ai.dm = null; }
@@ -1556,6 +1561,7 @@
       // 掩护质量（沿用 1V1 力量 str / 体重 bw）：卡人范围、卡人时长；防守人协防意识 hlp 越高越快绕过，换防判断也更积极
       const sr = TV.t5_pnr_sr * (1 + 0.3 * (s.r.str - 0.7)) * (0.9 + 0.1 * (s.r.bw || 1));
       for (const dd of defs()) if (dd.opp === h && dist(dd, s) < sr && dd.f5.scr < T.time - 0.8) {
+        A5.legendScreen(s, dd, h);
         s.f5.setT = T.time; if (PH.scr) { PH.scr.hit(s, dd, 'pnr', T.time, h); dd.f5.scrK = Math.min(dd.f5.scrK || 0.35, TV.t5_scr_pnrK); } else { dd.f5.scr = T.time; dd.f5.scrD = 0.6 * (0.8 + 0.4 * s.r.str) * (1 - 0.8 * U(dd, 'hlp')); dd.f5.scrK = 0.35; }   // V3.9n 被挡分档（render.js PH.scr）
         const sd0 = defs().find((q) => q.mark === s), hv = (U(dd, 'hlp') + U(sd0, 'hlp')) / 2;
         // V3.9m C1 挡拆对策（按球队设置，25% 的时候临场变化）：换防 / 挤过 / 绕过 / 延误 / 下沉 / 夹击
