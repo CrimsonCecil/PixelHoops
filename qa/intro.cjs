@@ -246,3 +246,24 @@ function runIntro(Gm, G) {
 
   console.log('PASS: pass presses (keyboard tap/hold and gamepad A) ending 3V3 intro do not fire at tip-off.');
 }
+{
+  const { ctx, Gm, G } = load();
+  const dist3 = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
+  Gm.newGame({ mode: 'cpu', arch0: 'beal', arch1: 'braun' });
+  assert.ok(G.players[1].pose.passHands, 'setupCheck sets defender passHands for check-ball');
+  Gm.introStart();
+  for (const p of G.players) assert.equal(p.pose.passHands, undefined, `introStart clears passHands on player ${p.id}`);
+  for (let n = 0; n < 300 && G.intro; n++) {
+    Gm.introTick(1 / 60);
+    for (const p of G.players) {
+      assert.equal(p.pose.passHands, undefined, `no stale passHands on player ${p.id} during intro`);
+      const k = ctx.PH.rig(p);
+      assert.ok(dist3(k.shL, k.handL) < 1.3, `player ${p.id} left arm length stays normal during intro`);
+      assert.ok(dist3(k.shR, k.handR) < 1.3, `player ${p.id} right arm length stays normal during intro`);
+    }
+  }
+  const css = fs.readFileSync(path.join(__dirname, '../style.css'), 'utf8');
+  assert.match(css, /#stage\.intro\s+#scorebar\b/, 'CSS hides scoreboard during intro');
+  assert.match(css, /#stage\.intro\s+\.pcard\b/, 'CSS hides player info cards during intro');
+  console.log('PASS: intro clears check-ball passHands (no stretched arms) and hides top scoreboard/player cards.');
+}

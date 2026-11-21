@@ -1690,7 +1690,7 @@
     if (G.mode === 'train') offId = G.train.role === 'def' ? 1 : 0;
     const o = G.players[offId], d = G.players[1 - offId], b = G.ball;
     G.off = offId; G.needClear = false; G.illId = -1; G.shotClock = CFG.shotClock; G.phase = 'check'; G.phaseT = 1.1;
-    for (const p of G.players) { p.vx = p.vy = p.vz = 0; p.z = 0; p.action = null; p.stun = 0; p.hasBall = false; p.stance = false; p.box = false; p.jbuf = 0; p.post = false; p.boost = 0; p.combo = 0; p.stam = Math.min(100, p.stam + 25); p.ai.t = 0.3; p.ai.jumpAt = -1; p.ai.hold = false; p.ai.comboAt = -1; }
+    for (const p of G.players) { p.vx = p.vy = p.vz = 0; p.z = 0; p.action = null; p.stun = 0; p.hasBall = false; p.stance = false; p.box = false; p.jbuf = 0; p.post = false; p.boost = 0; p.combo = 0; p.stam = Math.min(100, p.stam + 25); p.ai.t = 0.3; p.ai.jumpAt = -1; p.ai.hold = false; p.ai.comboAt = -1; if (p.pose) delete p.pose.passHands; }
     o.x = 0; o.y = 4.65; o.face = Math.PI / 2; o.hasBall = true; o.hand = o.arch.lefty ? -1 : 1; o.handX = 0.33 * o.hand;
     if (!d.off) { d.x = 0; d.y = 6.6; d.face = -Math.PI / 2; } d.ai.hx = o.x; d.ai.hy = o.y;
     b.state = 'held'; b.holder = offId; b.dead = false; b.shot = null; b.lastTouch = offId; b.under = false; b.trail = null; b.wasShot = false; b.slam = null;
@@ -2588,7 +2588,7 @@
     const lines = sc ? sc.map((L) => ({ id: (L[0] === fa.arch.key ? fa : fb).id, t: L.length === 2 ? L[1] : '', v: L.length > 2 ? L[1] : null, i: L[2] || 0 }))
       : genTalk(fa, fb, h);
     const spots = ps.map((p) => ({ p: p, x: p.x, y: p.y, face: p.face }));
-    spots.forEach((s, i) => { const sd = TM(s.p) === 0 ? -1 : 1; Object.assign(s.p, { x: sd * 7.1, y: clamp(s.y + 1.4 + (i % 3) * 0.35, 0.5, 12.5), face: sd < 0 ? 0 : Math.PI, vx: 0, vy: 0, speed: 0 }); });
+    spots.forEach((s, i) => { const sd = TM(s.p) === 0 ? -1 : 1; if (s.p.pose) delete s.p.pose.passHands; Object.assign(s.p, { x: sd * 7.1, y: clamp(s.y + 1.4 + (i % 3) * 0.35, 0.5, 12.5), face: sd < 0 ? 0 : Math.PI, vx: 0, vy: 0, speed: 0 }); });
     const t0 = G.time;
     const sigOf = (p) => ISIG[p.arch.key] || (CELS[p.arch.key] || ['flex'])[0], walk = [];
     for (const s of spots) { const p = s.p, star = p === fa || p === fb; s.w0 = t0 + (TM(p) === TM(fa) ? 0 : IWA); s.w1 = s.w0 + IWA;
