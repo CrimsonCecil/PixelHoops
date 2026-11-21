@@ -62,6 +62,7 @@ function fixture(source) {
     vm.runInContext(code, ctx, { filename: name + '.js' });
   }
   const gm = ctx.PH.game;
+  gm.context = ctx;
   gm.rig = ctx.PH.rig;
   gm.reachAudit = ctx.reachAudit;
   gm.seed(7);
@@ -261,10 +262,10 @@ for (const mode of ['2p', 't5', 't3']) for (const outcome of ['hit', 'miss', 'ou
 }
 console.log('PASS steal wrist recoil within 200ms, unchanged gameplay timers, mirrored hit/miss/empty/out-of-range poses in 1V1/5V5/3V3');
 
-let maxElbowStep = 0, maxWristStep = 0;
+let maxElbowStep = 0, maxWristStep = 0, minHipDrop = Infinity, minLeadStep = Infinity, maxGroundStep = 0;
 for (const mode of ['2p', 't5', 't3']) for (const fps of [60, 120]) for (const hit of [true, false]) {
   const visual = fixture(), { G, K, _qa, t5 } = visual, dt = 1 / fps;
-  for (const range of [0.55, 0.8, 1.01, 1.3, 1.35]) for (const phase of [0, 1, 2, 3]) for (const hand of [-1, 1]) {
+  for (const range of [0.55, 0.8, 0.94, 1.01, 1.3, 1.35]) for (const phase of [0, 1, 2, 3]) for (const hand of [-1, 1]) {
     visual.newGame({ mode: '2p', arch0: 'lyles', arch1: 'djmurray', target: 999 });
     visual.CFG.stealMul = hit ? 100 : 0; K.stlMax = 1;
     const [p, d] = G.players;
@@ -280,12 +281,15 @@ for (const mode of ['2p', 't5', 't3']) for (const fps of [60, 120]) for (const h
       _qa.updateBall(dt);
     };
     for (let i = 0; i < fps / 2; i++) step();
+    const stanceRig = visual.rig(d), position = [d.x, d.y, d.z];
     p.drib = phase; _qa.updateBall(0); _qa.startSteal(d);
     const action = d.action, label = `${mode} ${fps}fps ${hit ? 'hit' : 'miss'} ${range}m phase=${phase} hand=${hand}`;
     const joints = () => {
       const rig = visual.rig(d);
       return { elbows: [d.pose.aLe, d.pose.aRe], wrists: [rig.handL, rig.handR] };
     };
+    const leadName = action.swipe < 0 ? 'footL' : 'footR', rest = stanceRig[leadName][2];
+    let previousFoot = stanceRig[leadName], landed = false, liftedBack = false;
     let previous = joints(), duration = null, raised = false;
     for (let i = 1; i <= Math.ceil(0.9 * fps); i++) {
       if (!action.done && action.t + dt >= K.stlHitT) {
@@ -293,8 +297,28 @@ for (const mode of ['2p', 't5', 't3']) for (const fps of [60, 120]) for (const h
         duration = hit ? K.stlRecT : Math.max(action.t + dt, K.stlHitT, K.stlMissT + K.stlMissDistT * ratio * ratio
           + K.stlMissWeakT * (1 - d.r.stl) + K.stlFarT * Math.max(0, ratio - 1) + K.stlRiskT * read.risk);
       }
+      const contact = !action.done && action.t + dt >= K.stlHitT;
+      const stepping = !!d.stealFoot || d.action === action;
       step();
       const current = joints();
+      const foot = visual.rig(d)[leadName], groundStep = Math.hypot(foot[0] - previousFoot[0], foot[1] - previousFoot[1]);
+      if (stepping && foot[2] < rest + 0.01) {
+        maxGroundStep = Math.max(maxGroundStep, groundStep);
+        assert(groundStep <= 0.02, `${label}: grounded lead foot slid ${groundStep}m at ${i * dt}s`);
+        if (i * dt >= K.stlHitT * 0.75) landed = true;
+      } else if (stepping && landed && foot[2] > rest + 0.05) liftedBack = true;
+      previousFoot = foot;
+      if (contact) {
+        const rig = visual.rig(d), lead = action.swipe < 0 ? 'footL' : 'footR', trail = action.swipe < 0 ? 'footR' : 'footL';
+        const drop = stanceRig.pelvis[2] - rig.pelvis[2];
+        const advance = (rig[lead][0] - stanceRig[lead][0]) * Math.cos(d.face) + (rig[lead][1] - stanceRig[lead][1]) * Math.sin(d.face);
+        const split = (rig[lead][0] - rig[trail][0]) * Math.cos(d.face) + (rig[lead][1] - rig[trail][1]) * Math.sin(d.face);
+        minHipDrop = Math.min(minHipDrop, drop); minLeadStep = Math.min(minLeadStep, advance);
+        assert(drop > 0.12, `${label}: pelvis lowers clearly at contact (${drop}m)`);
+        assert(advance > 0.25 && split > 0.4, `${label}: swipe-side foot takes a big forward step (${advance}m, split ${split}m)`);
+        assert(Math.abs(rig[lead][2] - d.z - 0.06) < 0.1, label + ': lead foot lands on the floor');
+        assert.deepEqual([d.x, d.y, d.z], position, label + ': lunge never moves gameplay position');
+      }
       if (i * dt >= K.stlHitT - 2 * dt && i * dt <= Math.min(K.stlHitT + K.stlRecoilT, action.T)) {
         for (let arm = 0; arm < 2; arm++) {
           const elbow = Math.abs(current.elbows[arm] - previous.elbows[arm]);
@@ -314,10 +338,101 @@ for (const mode of ['2p', 't5', 't3']) for (const fps of [60, 120]) for (const h
       previous = current;
     }
     assert(raised, label + ': quick recoil still lifts wrist within 200ms');
+    assert(liftedBack, label + ': planted lead foot returns with visible clearance');
     assert.equal(d.action, null, label + ': recovery completes');
   }
 }
-console.log(`PASS steal contact continuity: hit/miss, 0.55/0.8/1.01/1.3/1.35m, both arms, four dribble phases, 60/120fps, 1V1/5V5/3V3; max elbow=${maxElbowStep.toFixed(3)}rad, wrist=${maxWristStep.toFixed(3)}m/frame`);
+console.log(`PASS steal contact continuity: hit/miss, 0.55/0.8/0.94/1.01/1.3/1.35m, both arms, four dribble phases, 60/120fps, 1V1/5V5/3V3; max elbow=${maxElbowStep.toFixed(3)}rad, wrist=${maxWristStep.toFixed(3)}m/frame`);
+console.log(`PASS visual steal lunge: contact pelvis drop >=${minHipDrop.toFixed(3)}m, lead-foot advance >=${minLeadStep.toFixed(3)}m, grounded lead foot and unchanged gameplay position`);
+console.log(`PASS planted steal foot: hit/miss, six distances including 0.94m, both sides, 60/120fps, all modes; max grounded motion=${maxGroundStep.toFixed(3)}m/frame; lifted return`);
+
+{
+  const visual = fixture(), { G, K, _qa, t5, context } = visual;
+  const [p, d] = G.players, dt = 1 / 120;
+  Object.assign(G, { phase: 'live', needClear: false, mode: 't5', time: 0 });
+  Object.assign(p, { x: 0, y: 5, hasBall: true, face: Math.PI / 2, opp: d, action: null, hand: 1, handX: 0.33 });
+  Object.assign(d, { x: 0.564, y: 5.752, hasBall: false, face: -Math.PI / 2, opp: p, action: null, f5: {} });
+  Object.assign(G.ball, { state: 'held', holder: p.id, dead: false });
+  visual.CFG.stealMul = 0;
+  const step = () => { G.time += dt; _qa.updatePlayer(d, t5.zeroInp(), dt); _qa.updateBall(dt); };
+  for (let i = 0; i < 60; i++) step();
+  _qa.startSteal(d);
+  for (let i = 0; i < 16; i++) step();
+  let source = fs.readFileSync(path.join(__dirname, '../js/render5.js'), 'utf8');
+  const wpk = source.match(/const wpk = \(p\) => \{[\s\S]*?\n    \};/)[0].replace('const wpk = ', '').replace(/;$/, '');
+  source = source.replace('PH.render5 = {', `PH.cameraQA = { wp, rotated: (U, V, fa) => (${wpk}) }; PH.render5 = {`);
+  vm.runInContext(source, context);
+  const cameras = context.PH.cameraQA, side = d.stealFoot.side, lead = 'foot' + side, knee = 'knee' + side;
+  const check = (q, xy, label) => {
+    const original = visual.rig(d), view = visual.rig(q), expected = xy(original[lead][0], original[lead][1]);
+    const error = Math.hypot(view[lead][0] - expected[0], view[lead][1] - expected[1]);
+    assert(error < 1e-8, `${label}: planted foot follows camera/possession transform (error=${error}m)`);
+    assert(Math.hypot(...view[lead].map((v, i) => v - view[knee][i])) < 1.05, label + ': ankle remains attached to shin');
+    assert(Math.abs(view[lead][2] - 0.06 * (1 + (d.h / 1.95 - 1) * 1.7)) < 0.01, label + ': planted foot grounded');
+  };
+  const checkCameras = () => {
+    for (const direction of [-1, 1]) {
+      check(cameras.wp(d, direction), (x, y) => [direction * y, -direction * x], `broadcast d=${direction}`);
+      for (const phi of [0, 0.7, Math.PI]) {
+        const U = (x, y) => direction * y * Math.sin(phi) + direction * x * Math.cos(phi);
+        const V = (x, y) => direction * y * Math.cos(phi) - direction * x * Math.sin(phi);
+        check(cameras.rotated(U, V, Math.PI / 2 - direction * Math.PI / 2 - phi)(d), (x, y) => [U(x, y), V(x, y)], `2k d=${direction} phi=${phi}`);
+      }
+    }
+  };
+  checkCameras();
+  const teamSource = fs.readFileSync(path.join(__dirname, '../js/team5.js'), 'utf8');
+  const flip = teamSource.slice(teamSource.indexOf('  function flipAll()'), teamSource.indexOf('  function setOff('));
+  const flipAll = vm.runInContext(`(G, T, ps) => { ${flip}; flipAll(); }`, context);
+  const old = d.stealFoot.pos.slice();
+  for (const player of G.players) player.f5 ||= {};
+  flipAll(G, {}, () => G.players);
+  assert(Math.hypot(d.stealFoot.pos[0] + old[0], d.stealFoot.pos[1] + old[1]) < 1e-8, 'possession flip rotates planted foot');
+  checkCameras();
+  console.log('PASS planted steal foot transforms: broadcast and rotated 2K, both directions, possession flip; grounded and attached to shin');
+}
+
+let maxRepeatedSwing = 0;
+for (const fps of [60, 120]) for (const opposite of [false, true]) for (const initialSide of [-1, 1]) {
+  const visual = fixture(), { G, K, _qa, t5 } = visual, [p, d] = G.players, dt = 1 / fps;
+  Object.assign(d.r, { stl: 1 });
+  Object.assign(G, { phase: 'live', needClear: false, time: 0 });
+  Object.assign(p, { x: 0, y: 5, hasBall: true, action: null, opp: d, face: Math.PI / 2 });
+  Object.assign(d, { x: initialSide * 0.564, y: 5.752, hasBall: false, action: null, opp: p, face: -Math.PI / 2 });
+  visual.CFG.stealMul = 100; K.stlMax = 1;
+  const resetBall = () => {
+    p.hasBall = true; d.hasBall = false;
+    Object.assign(G.ball, { state: 'held', holder: p.id, dead: false });
+    _qa.updateBall(0);
+  };
+  const step = () => { G.time += dt; _qa.updatePlayer(p, t5.zeroInp(), dt); _qa.updatePlayer(d, t5.zeroInp(), dt); _qa.updateBall(dt); };
+  resetBall();
+  for (let i = 0; i < fps / 2; i++) step();
+  const stance = visual.rig(d);
+  let firstPeak = 0;
+  for (let attempt = 0; attempt < (opposite ? 3 : 5); attempt++) {
+    const side = opposite && attempt % 2 ? -initialSide : initialSide;
+    p.hand = side; p.handX = side * 0.33; p.drib = 1;
+    resetBall();
+    _qa.startSteal(d); d.action.swipe = side;
+    const action = d.action, lead = side < 0 ? 'footL' : 'footR';
+    for (let frame = 0; frame < Math.ceil(0.25 * fps); frame++) {
+      step();
+      const swing = visual.rig(d)[lead][2] - stance[lead][2];
+      if (attempt === 0) firstPeak = Math.max(firstPeak, swing);
+      else assert(swing <= firstPeak + 0.01, `${fps}fps attempt=${attempt}: repeated swing ${swing}m exceeds first peak ${firstPeak}m`);
+      maxRepeatedSwing = Math.max(maxRepeatedSwing, swing);
+      if (frame * dt >= 0.1 && frame * dt < K.stlHitT) {
+        const foot = visual.rig(d)[lead], home = stance[lead];
+        const stride = Math.hypot(foot[0] - home[0], foot[1] - home[1]);
+        assert(stride <= K.stlLungeStep * d.h / 1.95 + 0.04, `${fps}fps ${opposite ? 'opposite' : 'same'} side attempt=${attempt}: stride accumulated to ${stride}m`);
+        assert(Math.abs(foot[2] - home[2]) < 0.01, 'repeated steal lands on court, not above previous airborne foot');
+      }
+    }
+    assert(action.poked && !d.action && d.stealFoot, 'next steal begins legally after quick-hit timer but during visual foot recovery');
+  }
+}
+console.log(`PASS repeated steal stride: five same-side/three alternating quick hits, both initial arms, 50ms tap intervals, 60/120fps; capped stance-relative stride, grounded landing, swing <=first peak+0.01m; max swing=${maxRepeatedSwing.toFixed(3)}m`);
 
 if (process.env.STEAL_BASELINE) {
   const before = fixture(fs.readFileSync(process.env.STEAL_BASELINE, 'utf8'));

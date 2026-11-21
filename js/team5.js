@@ -435,6 +435,7 @@
     for (const p of ps()) {
       neg(p, ['x', 'y', 'vx', 'vy']); p.face += Math.PI;
       if (p.pose && p.pose.passHands) for (const side of ['L', 'R']) { const h = p.pose.passHands[side]; h[0] = -h[0]; h[1] = -h[1]; }
+      if (p.stealFoot) for (const key of ['start', 'end', 'pos']) { const f = p.stealFoot[key]; f[0] = -f[0]; f[1] = -f[1]; }
       if (p.ai) { neg(p.ai, ['hx', 'hy', 'cdx', 'cdy']); p.ai.om = null; p.ai.dm = null; p.ai.t = 0; }
       if (p.action && /shot|layup|dunk|post|fake|dive/.test(p.action.type)) p.action = null;
       if (p.ghosts) for (const g of p.ghosts) { g.x = -g.x; g.y = -g.y; g.face += Math.PI; }

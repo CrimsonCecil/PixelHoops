@@ -540,6 +540,8 @@
     ['stlFarT', 'def', '抢断够不着 额外代价', 0.16, 0, 2, 0.01, '秒：超出够得着距离后，每多一倍距离追加的动作时长'],
     ['stlRecoilT', 'def', '抢断动画 收臂时长', 0.1, 0.04, 0.2, 0.01, '秒：判定后快速收臂并轻微回弹；只影响动画，不改硬直或成功率'],
     ['stlStumble', 'def', '抢断动画 失衡幅度', 0.28, 0, 0.6, 0.01, '弧度：伸手方向的侧倾、错步和躯干回摆；只影响动画'],
+    ['stlLungeDrop', 'def', '抢断动画 弓步下沉', 0.2, 0, 0.4, 0.01, '米：伸手时髋部下沉，随身高缩放；只影响动画，不改位置或判定'],
+    ['stlLungeStep', 'def', '抢断动画 弓步步长', 0.6, 0, 0.9, 0.05, '米：伸手侧脚向前跨步，随身高缩放；只影响动画，不改移动或抢断距离'],
     ['stlMissStumble', 'def', '抢断动画 落空失衡倍率', 1.6, 1, 3, 0.05, '倍：落空后的身体失衡加大，手臂仍快速收回；不改动作时长'],
     // V4.5 盖帽公式 / 起跳 / 被盖球飞行（原写死，默认值不变）
     ['bkQ0', 'def', '盖帽 起跳时机基础', 0.62, 0, 1.5, 0.01, '倍率：时机系数 = 基础 + 增益 × 起跳到最高点的比例'],
@@ -5128,17 +5130,35 @@
       if (p0 * Math.sin(pl.drib) < 0) { if (!(pl.f5 && pl.f5.ck)) { pl.catchDribbled = true; if (pl.arch.key === 'rallen') pl.sk.rayDribN = (pl.sk.rayDribN || 0) + 1; } sfx('bounce'); if (pl.z <= 0.01) pl.sqv = (pl.sqv || 0) - 3.0; }
     }
     pl.handX = lerp(pl.handX, pl.hand * 0.33, Math.min(1, dt * 16));
+    if (an === 'steal' && (!pl.stealFoot || pl.stealFoot.action !== a)) {
+      const side = a.swipe < 0 ? 'L' : 'R', start = PH.rig(pl)['foot' + side].slice(), length = K.stlLungeStep * pl.h / 1.95;
+      const stance = Object.assign(Object.create(pl), { anim: 'def', action: null, stealFoot: null, crab: null, sq: 1, speed: 0 });
+      const home = PH.rig(stance, poseTarget(stance), false)['foot' + side], floor = pl.z + 0.06 * (1 + (pl.h / 1.95 - 1) * 1.7);
+      pl.stealFoot = { action: a, side, start, end: [home[0] + Math.cos(pl.face) * length, home[1] + Math.sin(pl.face) * length, floor], pos: start.slice(), t: 0 };
+    }
     const T = poseTarget(pl), P = pl.pose, kq = postBlend ? 1 - Math.exp(-2 * dt / blendT) : Math.min(1, dt * 22);
     if (postBlend && T.yaw == null) T.yaw = 0;
     if (a && a.type === 'block') { pl.armS = null; T.reachL = T.reachR = P.reachL = P.reachR = 1; }
     // 肩部转角按最短路径插值（风车扣篮手臂转一整圈后，不会再倒着从最下面绕回去）
     for (const n in T) {
-      if (n.startsWith('foot') || pl.stance && T.crab && /^(crab|lA|lB|lS|rA|rB|rS|bob)$/.test(n)) P[n] = T[n];
+      if (n.startsWith('foot') || pl.stance && pl.anim === 'def' && T.crab && /^(crab|lA|lB|lS|rA|rB|rS|bob)$/.test(n)) P[n] = T[n];
       else if (postBlend) { let delta = T[n] - (P[n] || 0); if (n === 'aLp' || n === 'aRp') delta = Math.atan2(Math.sin(delta), Math.cos(delta)); P[n] = (P[n] || 0) + clamp(delta * kq, -2 * dt / blendT, 2 * dt / blendT); }
       else { if ((n === 'aLp' || n === 'aRp') && Math.abs(T[n] - P[n]) > Math.PI) P[n] += Math.round((T[n] - P[n]) / (2 * Math.PI)) * 2 * Math.PI; P[n] = lerp(P[n] || 0, T[n], kq); }
     }
     dunkIK(pl);
     squash(pl, a, dt);
+    if (pl.stealFoot) {
+      const f = pl.stealFoot; f.t += dt;
+      const back = Math.max(K.stlHitT + 0.05, f.action.T - 0.02), returning = f.t > back;
+      const phase = clamp(returning ? (f.t - back) / 0.16 : f.t / Math.max(0.02, K.stlHitT * 0.75), 0, 1);
+      f.sampling = true;
+      const home = PH.rig(pl)['foot' + f.side];
+      f.sampling = false;
+      const travel = sm(clamp((phase - 0.2) / 0.6, 0, 1)), from = returning ? f.end : f.start, to = returning ? home : f.end;
+      f.pos = from.map((v, i) => lerp(v, to[i], travel));
+      f.pos[2] = Math.max(f.pos[2], Math.min(from[2], to[2]) + 0.16 * Math.sin(Math.PI * phase));
+      if (returning && phase >= 1) pl.stealFoot = null;
+    }
     updateGrip(pl, a, dt);
     // 残影
     const gs = pl.ghosts || (pl.ghosts = []);
@@ -5349,17 +5369,20 @@
       const q = clamp(after / K.stlRecoilT, 0, 1) - 1, recoil = 1 + 1.8 * q * q * q + 0.8 * q * q;
       const side = a && a.swipe < 0 ? -1 : 1, miss = a && a.done && !a.poked ? K.stlMissStumble : 1;
       const sway = K.stlStumble * miss * weight, wave = Math.sin(r * Math.PI * 2), step = sway * (0.6 + 0.4 * Math.sin(r * Math.PI));
-      set({ lean: 0.25 + 0.4 * weight + sway * wave, tilt: side * sway * (0.4 + 0.6 * Math.sin(r * Math.PI)), yaw: -side * 0.2 * weight,
-        bob: -0.035 * weight + 0.025 * wave * weight, lA: 0.45 + step, lB: 0.85 + step * 1.2, rA: 0.45 - step, rB: 0.85 + step * 0.3,
-        lS: 0.32 + step * 0.2, rS: 0.32, aRp: lerp(0.75 + 0.8 * u, 1.2 - 0.45 * settle, recoil),
+      const lunge = u * (1 - clamp(after / Math.max(0.02, Math.min(0.22, (a ? a.T : K.stlT) - hit)), 0, 1)), Hh = pl.h / 1.95;
+      set({ lean: 0.25 + 0.65 * lunge + sway * wave, tilt: side * sway * (0.4 + 0.6 * Math.sin(r * Math.PI)), yaw: -side * 0.2 * weight,
+        bob: -K.stlLungeDrop * lunge + 0.025 * wave * weight, lA: 0.45 + 0.1 * lunge - step * 0.15, lB: 0.85 + 0.55 * lunge + step * 0.3,
+        rA: 0.45 + 0.9 * lunge + step * 0.3, rB: 0.85 + 0.85 * lunge + step * 0.4,
+        crab: 1, footLX: -0.28 * Hh, footRX: 0.28 * Hh, footLY: (-0.04 - 0.25 * lunge) * Hh, footRY: (0.04 + K.stlLungeStep * lunge) * Hh, footLZ: 0, footRZ: 0,
+        lS: 0.32 + step * 0.2, rS: 0.32, aRp: lerp(0.75 + 0.5 * u, 1.75 - 0.5 * settle, recoil),
         aRe: lerp(0.6 - 0.55 * u, 1.25 - 0.65 * settle, recoil), aRq: lerp(0.9 * (1 - u), 0.9, recoil), aLp: 0.65, aLq: 1, aLe: 0.75 });
       if (side < 0) {
-        for (const pair of [['aLp', 'aRp'], ['aLq', 'aRq'], ['aLe', 'aRe'], ['lA', 'rA'], ['lB', 'rB'], ['lS', 'rS']]) {
+        for (const pair of [['aLp', 'aRp'], ['aLq', 'aRq'], ['aLe', 'aRe'], ['lA', 'rA'], ['lB', 'rB'], ['lS', 'rS'], ['footLY', 'footRY']]) {
           const v = T[pair[0]]; T[pair[0]] = T[pair[1]]; T[pair[1]] = v;
         }
       }
       if (a && a.reach) {
-        const w = 0.35 * Math.max(0, 1 - recoil), arm = a.reach.arm ? ['aRp', 'aRq', 'aRe'] : ['aLp', 'aLq', 'aLe'];
+        const w = 0.2 * Math.max(0, 1 - recoil), arm = a.reach.arm ? ['aRp', 'aRq', 'aRe'] : ['aLp', 'aLq', 'aLe'];
         for (const n of arm) {
           const goal = a.reach.pose[n] + (n === arm[0] ? Math.round((T[n] - a.reach.pose[n]) / (2 * Math.PI)) * 2 * Math.PI : 0);
           T[n] = lerp(T[n], goal, w);

@@ -416,8 +416,8 @@
     }
     // poseTarget 末尾：运球手形、冲刺重心与呼吸叠加
     function post(pl, T, an, a) {
-      T.crab = pl.crab && an === 'def' ? 1 : 0;
-      if (T.crab) {
+      T.crab = an === 'steal' ? T.crab || 0 : pl.crab && an === 'def' ? 1 : 0;
+      if (T.crab && an === 'def') {
         const fx = Math.cos(pl.face), fy = Math.sin(pl.face);
         for (const side of ['L', 'R']) {
           const f = pl.crab[side], dx = f[0] - pl.x, dy = f[1] - pl.y;
@@ -1267,6 +1267,11 @@
       // V4.0 手指段：沿前臂延长；投篮压腕（pose.flR/flL）时朝前下方弯（鹅颈）
       fgL: tw(fing(AL, P.flL || 0)), fgR: tw(fing(AR, P.flR || 0)),
     };
+    if (pl.stealFoot && !pl.stealFoot.sampling) {
+      const side = pl.stealFoot.side, foot = k['foot' + side], planted = pl.stealFoot.pos;
+      k['toe' + side] = k['toe' + side].map((v, i) => v + planted[i] - foot[i]);
+      k['foot' + side] = planted.slice();
+    }
     if (grip && P === pl.pose && pl.grip) finishGrip(k, pl);
     if (grip && P === pl.pose && P.passHands) {
       for (const side of ['L', 'R']) gripArm(k, side, P.passHands[side], false);
