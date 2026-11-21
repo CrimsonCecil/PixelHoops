@@ -413,7 +413,7 @@
     });
   }
   const KING_T = [0, 0.6, 1.2, 2, 2.6]; // 0 简单 · 1 普通 · 2 困难，超过 2 的部分在困难基础上继续外推
-  const KING_TARGET = 11;
+  const KING_TARGET = 21;
   let kingLadder = null, KR = null;
   // 按能力档各抽一人；位置尽量错开：相邻两关不同位置，同一位置（后卫 / 锋线 / 内线）最多两人
   function kingRoll() {
