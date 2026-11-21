@@ -413,16 +413,18 @@
         // 非运球手：走/慢跑时护球半抬，冲刺时跟着摆但幅度减半
         const o = R ? 'aL' : 'aR', s = Math.sin(pl.runPh || 0) * (R ? -1 : 1);
         if (an === 'run') { T[o + 'p'] = 0.35 * (1 - sp) + sp * 0.45 * s * (0.6 + 0.4 * k); T[o + 'e'] = 0.7 * (1 - sp) + Math.PI / 2 * sp; T[o + 'q'] = 0.3 - 0.18 * sp; }
-        const lo = (0.06 + tune('drCrouch', 0.32) * cl(kW(pl) / 1.35, 0, 1)) * (1 - sp + sp * [0.45, 0.38, 0.32]['SMT'.indexOf(tier(pl))]);
+        const lo = 0.06 + tune('drCrouch', 0.32) * cl(kW(pl) / 1.35, 0, 1);
+        T.lA += lo * 0.6; T.rA += lo * 0.6; T.lB += lo * 1.3; T.rB += lo * 1.3; T.lean += lo * 0.3;
         if (sp > 0) {
           const wave = Math.sin(pl.runPh || 0), knee = Math.cos((pl.runPh || 0) - 0.15);
+          const depth = tune('drCrouch', 0.32) / 0.32 * cl(kW(pl) / 1.2, 0, 1) * [1.08, 1, 0.96]['SMT'.indexOf(tier(pl))];
           for (const [side, sign] of [['l', 1], ['r', -1]]) {
-            const w = wave * sign, a = (w > 0 ? 0.62 : 0.38) * w;
+            const a = 0.48 * depth + 0.26 * wave * sign;
+            const b = Math.min(0.16 + 1.22 * depth + 0.35 * Math.max(0, knee * sign), a + 1.15);
             T[side + 'A'] += (a - T[side + 'A']) * sp;
-            T[side + 'B'] += (0.16 + 1.05 * Math.pow(Math.max(0, knee * sign), 1.2) - T[side + 'B']) * sp;
+            T[side + 'B'] += (b - T[side + 'B']) * sp;
           }
         }
-        T.lA += lo * 0.6; T.rA += lo * 0.6; T.lB += lo * 1.3; T.rB += lo * 1.3; T.lean += lo * 0.3;
         T.lean += (drTune(pl, 'drLean', [0.30, 0.26, 0.22]) - T.lean) * sp;
         T.tilt += ((R ? 1 : -1) * drTune(pl, 'drRoll', [0.10, 0.08, 0.06]) * (1 + 0.15 * (1 - u)) - T.tilt) * sp;
         T.bob *= 1 - 0.35 * sp;

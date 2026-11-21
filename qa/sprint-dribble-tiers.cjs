@@ -5,7 +5,9 @@ const vm = require('node:vm');
 const ctx = vm.createContext({ console, performance: { now: () => 0 }, setTimeout() {} });
 ctx.window = ctx;
 for (const name of ['tune', 'ptype', 'render', 'roster', 'measurements', 'r5', 'game']) {
-  vm.runInContext(fs.readFileSync(path.join(__dirname, '../js', name + '.js'), 'utf8'), ctx);
+  let source = fs.readFileSync(path.join(__dirname, '../js', name + '.js'), 'utf8');
+  if (name === 'game') source = source.replace('PH.game = {', 'PH.sprintQA = { poseTarget, updateBall }; PH.game = {');
+  vm.runInContext(source, ctx);
 }
 const { game, gait, TUNE } = ctx.PH;
 const tau = Math.PI * 2;
@@ -14,18 +16,17 @@ for (const [key, suffix, lean, roll, push, ratio] of [
   ['kobe', 'M', 0.26, 0.08, 0.45, 0.5],
   ['embiid', 'T', 0.22, 0.06, 0.55, 0.5],
 ]) {
-  const p = game.t5.makePlayer(0, key, 'p1');
-  Object.assign(p, { hasBall: true, anim: 'run', speed: 7, sprW: 1, z: 0, drib: 0 });
+  game.newGame({ mode: 'train', arch0: key, arch1: 'herb' });
+  Object.assign(game.G, { phase: 'live', intro: null, tips: null });
+  const p = game.G.players[0];
+  Object.assign(p, { hasBall: true, anim: 'run', speed: 7, sprW: 1, z: 0, drib: 0, exr: 0, brPh: 0 });
   for (const [name, expected] of [['Lean', lean], ['Roll', roll], ['Push', push], ['Step', ratio]]) {
     assert.equal(TUNE.get('l1_dr' + name + suffix), expected);
     const meta = TUNE.meta('l1_dr' + name + suffix);
     assert.equal(meta.cat, 'move'); assert.equal(meta.sub, '跑步与运球');
   }
   assert(Math.abs(gait.ballFwd(p) - (0.08 + push)) < 1e-10);
-  const pose = () => {
-    const T = { ...p.pose, tilt: 0, yaw: 0 };
-    gait.run(p, T); gait.post(p, T, 'run', null); return T;
-  };
+  const pose = () => ctx.PH.sprintQA.poseTarget(p);
   for (const hand of [-0.33, 0.33]) {
     p.handX = hand;
     for (let i = 0; i < 120; i++) {
@@ -35,6 +36,9 @@ for (const [key, suffix, lean, roll, push, ratio] of [
       assert(Math.sign(T.tilt) === Math.sign(hand));
       assert(Math.abs(T.tilt) >= roll && Math.abs(T.tilt) <= roll * 1.15 + 1e-10);
       assert(Math.max(Math.abs(T.lA), Math.abs(T.rA)) < 0.8, 'upright thighs');
+      assert(T.lA > 0 && T.rA > 0, 'both hips flexed');
+      assert(Math.min(T.lB, T.rB) > 1.1, 'both knees bent, including support knee');
+      assert(Math.max(T.lB - T.lA, T.rB - T.rA) <= 1.15 + 1e-10, 'rear shin never horizontal');
       assert(Math.abs(T[hand > 0 ? 'aLe' : 'aRe'] - Math.PI / 2) < 1e-10);
       assert(Math.abs(gait.drib(p) - gait.cad(p) * ratio) < 1e-10, 'footfall phase lock');
     }
@@ -49,6 +53,21 @@ for (const [key, suffix, lean, roll, push, ratio] of [
     return sum / 120;
   };
   const crouchedHip = hipMean();
+  p.drib = Math.PI / 2;
+  const sprintHip = hipMean();
+  p.speed = 2.8; p.sprW = 0;
+  const jogHip = hipMean();
+  assert(sprintHip < jogHip * 0.95, `sprint hips ${sprintHip} vs jog ${jogHip}`);
+  p.speed = 7; p.sprW = 1;
+  for (const phase of [0, Math.PI / 2]) {
+    p.drib = phase; p.pose = pose();
+    const rig = ctx.PH.rig(p, p.pose, false, p.col.body);
+    Object.assign(game.G.ball, { state: 'held', holder: 0, cT: 0 });
+    ctx.PH.sprintQA.updateBall(0);
+    const z = game.G.ball.z;
+    if (!phase) assert.equal(z, 0.13, 'ball reaches floor');
+    else assert(z > rig.pelvis[2] - 0.1 && z < rig.pelvis[2] + 0.5, 'low hand-height return');
+  }
   TUNE.set('l1_drCrouch', 0);
   assert(hipMean() > crouchedHip, 'speed crouch lowers sprint hips');
   assert(pose().lB < normal.lB, 'crouch still bends knees');
@@ -58,7 +77,7 @@ for (const [key, suffix, lean, roll, push, ratio] of [
   TUNE.set('l1_drHeight', 0); assert(Number.isFinite(gait.drib(p)));
   TUNE.reset('l1_drHeight'); assert.equal(gait.drib(p), rate);
   assert.equal(gait.cad(p), 0);
-  console.log(`PASS ${key}: ${suffix}, lean=${lean}, roll=${roll}, push=${push}, bounces/step=${ratio}; left/right, crouch, stopped input`);
+  console.log(`PASS ${key}: ${suffix}, lean=${lean}, roll=${roll}, push=${push}, bounces/step=${ratio}; sprint hip=${sprintHip.toFixed(3)} < jog hip=${jogHip.toFixed(3)} × 0.95; bent support knees, low ball, left/right, crouch, stopped input`);
 }
 for (const [height, expected, push] of [[1.9099, 1, 0.35], [1.91, 0.5, 0.45], [2.0599, 0.5, 0.45], [2.06, 0.5, 0.55]]) {
   const p = { h: height, anim: 'run', hasBall: true, speed: 7, sprW: 1, runPh: 0, drib: 0 };
