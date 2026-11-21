@@ -7,23 +7,27 @@ const pads = [];
 const ctx = vm.createContext({ console, navigator: { getGamepads: () => pads }, performance: { now: () => 0 }, setTimeout() {}, clearTimeout() {}, addEventListener() {} });
 ctx.window = ctx;
 vm.runInContext('Math.random = () => 0.5;', ctx);
-for (const name of ['tune', 'ptype', 'render', 'input', 'roster', 'measurements', 'r5', 'game', 'b5', 'team5']) {
+for (const name of ['tune', 'ptype', 'render', 'input', 'roster', 'measurements', 'r5', 'game', 'b5', 'team5', 'team3', 'render5']) {
   let source = fs.readFileSync(path.join(__dirname, '../js', name + '.js'), 'utf8');
   if (name === 'render') source = source.replace('PH.rig = rig;', 'PH.postVisualRig = visualRig; PH.rig = rig;');
-  if (name === 'game') source = source.replace('PH.game = {', 'PH.postQA = { updatePlayer, aiInput, postFollow, postMoveOf, poseTarget, MKF }; PH.game = {');
+  if (name === 'game') source = source.replace('PH.game = {', 'PH.postQA = { updatePlayer, aiInput, postFollow, postMoveOf, poseTarget, MKF, collide }; PH.game = {');
   if (name === 'team5') source = source.replace('doPass: doPass,', 'doPass: doPass, qaHumanInp: humanInp, qaStick: stick,');
+  if (name === 'render5') source = source.replace('// 世界坐标 → 屏幕（给篮架、看台用）', 'return; // QA: camera geometry only').replace('PH.render5 = {', "PH.render5 = { qaProject(T) { R = PH.render; W = R.W; H = R.H; cam = R.cam; if (T.cam.preset === '2k') { render2k(T, 0); return lastProj; } camBroadcast(T, 0, dOf(T)); return (x, y, z) => R.proj(dOf(T) * y, -dOf(T) * x, z); },");
   vm.runInContext(source, ctx, { filename: name + '.js' });
 }
 const { game: gm, T5: team, TUNE: tune, input, postQA: qa } = ctx.PH;
+ctx.PH.render5.reset = () => {};
 const { G, _dbg: dbg } = gm;
 const dt = 1 / 120, hoop = ctx.PH.render.HOOP;
 const zero = () => gm.t5.zeroInp();
 function fixture(mode = '2p', distance = 5.2, arch = 'luka') {
+  if (ctx.PH.T3.T.on) ctx.PH.T3.stop();
   if (team.T.on) team.stop();
   if (G.mode === 't5') gm.t5.end();
   tune.load({ l1_stamRegen: 0 });
   gm.seed(7);
   if (mode === 't5') team.start({ home: arch === 'embiid' ? 'PHI' : arch === 'jokic' ? 'DEN' : 'LAL', away: arch === 'luka' ? 'BOS' : 'MIN', human: 0 });
+  else if (mode === 't3') ctx.PH.T3.start({ local: 0, slots: [arch, 'curry', 'jokic', 'gobert', 'kobe', 'lebron'].map((arch, i) => ({ arch, role: i ? 'cpu' : 'human' })) });
   else gm.newGame({ mode: '2p', arch0: arch, arch1: 'gobert', target: 999 });
   const p = mode === 't5' ? arch === 'luka' ? team.T.ctl : G.players.find(q => q.arch.key === arch) : G.players[0];
   const d = G.players.find(q => q !== p && q.arch.key === 'gobert' && (mode !== 't5' || q.tm !== p.tm)) || G.players.find(q => q !== p && (mode !== 't5' || q.tm !== p.tm));
@@ -49,7 +53,7 @@ function adapted(p, x, y, shot = false, shim = false) {
   return team.qaHumanInp(p);
 }
 
-for (const mode of ['2p', 't5']) {
+for (const mode of ['2p', 't3', 't5']) {
   for (const [x, y, expected] of [[1, 0, 'postspin'], [-1, 0, 'postspin'], [0.7, 0.7, 'postdrop'], [-0.7, 0.7, 'postdrop'], [0, 1, 'postdrop'], [0, -1, 'postface'], [0, 0, 'postshim']]) {
     const { p } = fixture(mode);
     const inp = mode === 't5' ? adapted(p, x, y, false, expected === 'postshim') : { post: true, a3: true, dx: x, dy: y };
@@ -59,7 +63,7 @@ for (const mode of ['2p', 't5']) {
     assert(p.stam < 100 && Number.isFinite(p.action.sp));
     assert(qa.MKF[expected].length >= 2);
   }
-  for (const [x, y, distance, hook, expected] of [[0, -1, 5.2, 0.8, 'postfade'], [0.8, -0.8, 5.2, 0.8, 'postfade1'], [0, 1, 5.2, 0.8, 'postfront'], [0, 1, 4, 0.2, 'postfront'], [1, 0, 4, 0.8, 'hook'], [0, 0, 5.2, 0.8, 'turn']]) {
+  for (const [x, y, distance, hook, expected] of [[0, -1, 5.2, 0.8, 'postfade'], [0.8, -0.8, 5.2, 0.8, 'postfade1'], [0, 1, 5.2, 0.8, 'postfront'], [0, 1, 4, 0.2, 'postfront'], [1, 0, 4, 0.8, 'poSpinShot'], [-1, 0, 4, 0.8, 'poSpinShot'], [0, 1, 4, 0.8, 'hook'], [0, 0, 5.2, 0.8, 'turn']]) {
     const { p } = fixture(mode, distance);
     p.r.hook = hook;
     step(p, mode === 't5' ? adapted(p, x, y, true) : { post: true, a1: true, mx: x, my: y });
@@ -73,6 +77,222 @@ for (const mode of ['2p', 't5']) {
   }
 }
 console.log('PASS post inputs: spins, drops, face-up, shimmy, six post shots and three follow-ups in 1V1 and 5V5 adapter');
+
+for (const mode of ['2p', 't3', 't5']) {
+  for (const [x, y, v, minimum] of [[1, 0, 'poSpinShot', 1.6], [-1, 0, 'poSpinShot', 1.6], [0, -1, 'postfade', 0.8], [0.8, -0.8, 'postfade1', 0.8], [0, 1, 'postfront', 0.8]]) {
+    const { p, d } = fixture(mode); d.off = true;
+    const x0 = p.x, y0 = p.y, f0 = p.face;
+    step(p, mode === 't5' ? adapted(p, x, y, true) : { post: true, a1: true, mx: x, my: y });
+    const a = p.action, s = a.stride;
+    assert.equal(a.v, v); assert(s && a.jT > s.T && a.ideal > a.jT);
+    assert.equal(a.meter.t0, s.T);
+    while (a.t < s.T) {
+      step(p, { post: true, a1: true });
+      assert.equal(p.z, 0); assert(!a.jumped && !a.released && p.hasBall);
+      assert.equal(a.meter.v, 0, 'The meter waits for the grounded stride');
+    }
+    const travel = Math.hypot(p.x - x0, p.y - y0);
+    assert(travel >= minimum, `${mode} ${v} grounded travel=${travel}`);
+    if (v === 'poSpinShot') assert(Math.cos(p.face - f0) < -0.7, 'The lateral stride turns the body through a half spin');
+    if (v === 'postfront') assert(p.y > y0 + minimum);
+    if (v === 'postfade') assert(p.y < y0 - minimum);
+    while (a.t + dt < a.ideal) step(p, { post: true, a1: true });
+    if (mode === 't5') team.T.R.X = false;
+    step(p, { post: true });
+    assert(a.released && G.ball.state === 'shot' && !p.hasBall);
+    assert(Math.abs(a.meter.v - a.meter.ideal) < 0.03, 'The shifted green timing remains reachable');
+  }
+  for (const stick of [false, true]) {
+    const { p, d } = fixture(mode, 4); d.off = true;
+    const x0 = p.x, y0 = p.y;
+    if (stick) gamepadStep(mode, p, { x: 1 }, holdFrames());
+    else step(p, mode === 't5' ? adapted(p, 1, 0, true) : { post: true, a1: true, mx: 1 });
+    const a = p.action;
+    assert.equal(a.v, 'poSpinShot', 'Lateral takes priority over a qualified close hook');
+    const frames = Math.floor(a.stride.T / dt / 2);
+    if (stick) gamepadStep(mode, p, { x: 1 }, frames);
+    else step(p, { post: true, a1: true }, frames);
+    assert(Math.hypot(p.x - x0, p.y - y0) > 0.5);
+    const stopped = { x: p.x, y: p.y };
+    if (mode === 't5' && !stick) team.T.R.X = false;
+    if (stick) gamepadStep(mode, p);
+    else step(p, { post: true });
+    const fake = p.action;
+    assert(fake.postFake && p.hasBall && p.post && !a.released && G.ball.state === 'held');
+    assert.equal(p.x, stopped.x); assert.equal(p.y, stopped.y);
+    assert(fake.T <= gm.K.poFakeT && fake.T < 0.25);
+    if (stick) gamepadStep(mode, p, { x: -1 }, holdFrames());
+    else step(p, { post: true, a1: true, mx: -1 });
+    for (let i = 0; i < Math.ceil(fake.T / dt) + 2 && p.action === fake; i++) {
+      if (stick) gamepadStep(mode, p, { x: -1 });
+      else step(p, { post: true, a1: true, mx: -1 });
+    }
+    if (!p.action) {
+      if (stick) gamepadStep(mode, p, { x: -1 });
+      else step(p, { post: true, a1: true, mx: -1 });
+    }
+    assert.equal(p.action?.v, 'poSpinShot');
+    assert.equal(p.action.stride.side, -a.stride.side, 'The buffered opposite-side shot starts after fake recovery');
+    assert(!p.cd && p.hasBall);
+  }
+}
+console.log('PASS post strides: grounded lateral >=1.6 and away/front >=0.8, half-spin facing, delayed green timing and real release in 1V1/3V3/5V5');
+console.log('PASS stride fake chains: button/stick mid-stride release stops in place, retains post/ball, and buffers an opposite-side spin immediately after short recovery');
+
+for (const state of ['neutral', 'hook', 'nonPost']) {
+  const { p } = fixture('2p', state === 'hook' ? 3 : 5.2);
+  if (state === 'nonPost') p.post = false;
+  step(p, { post: state !== 'nonPost', a1: true });
+  assert(!p.action.stride, `${state} has no added stride`);
+}
+{
+  const { p, d } = fixture(); d.off = true;
+  tune.set('l1_poStrideSpinSp', 0);
+  step(p, { post: true, a1: true, mx: 1 });
+  const a = p.action, x0 = p.x, y0 = p.y;
+  step(p, { post: true, a1: true }, Math.ceil(a.stride.T / dt));
+  assert.equal(p.x, x0); assert.equal(p.y, y0);
+  step(p, { post: true }); assert(p.action.postFake, 'Release after stride but before takeoff still fakes');
+}
+{
+  const { p, d } = fixture(); d.off = true; p.x = 7.1;
+  step(p, { post: true, a1: true, mx: 1 });
+  const a = p.action;
+  step(p, { post: true, a1: true }, Math.ceil(a.stride.T / dt));
+  assert(p.x <= 7.5 - gm.K.mvEdge + 1e-9, 'The scripted stride respects the court edge');
+}
+{
+  const { p, d } = fixture(); d.vx = d.vy = 0;
+  step(p, { post: true, a1: true, mx: 1 });
+  const a = p.action;
+  d.x = p.x + 0.4; d.y = p.y + 0.4;
+  step(p, { post: true, a1: true }); qa.collide(p, d);
+  assert(Math.hypot(p.x - d.x, p.y - d.y) >= gm.K.bdR - 1e-6, 'Stride shots retain shared body collisions');
+  assert(!a.released && p.hasBall);
+}
+console.log('PASS stride guards: neutral/hook/non-post unchanged; zero-speed tuning, pre-takeoff fake, court bounds and shared collisions');
+
+for (const mode of ['2p', 't3', 't5']) for (const [distance, my, expected] of [[6.3, -1, 3], [7.1, 1, 2], [5.2, -1, 2], [8.5, -1, 3]]) {
+  const { p, d } = fixture(mode, distance); d.off = true;
+  dbg.startShot(p, { ...zero(), my }, 'a1');
+  const a = p.action;
+  let takeoffDistance;
+  while (!a.jumped) { takeoffDistance = gm.distHoop(p); step(p, { a1: true }); }
+  assert.equal(a.pts, expected, `${mode} ${a.v} uses takeoff rather than pre-stride location`);
+  assert.equal(a.pts, gm.isThree(p.x, p.y) ? 3 : 2);
+  assert.equal(a.d0, takeoffDistance);
+  while (a.t < a.ideal) step(p, { a1: true });
+  step(p);
+  assert.equal(G.lastShot.pts, expected); assert.equal(G.ball.shot.pts, expected);
+  assert.equal(G.stats[p.id].tpa, expected === 3 ? 1 : 0);
+}
+{
+  const { p, d } = fixture('t3', 6.3); d.off = true;
+  G.needClear = true; G.illId = p.id;
+  dbg.startShot(p, { ...zero(), my: -1 }, 'a1');
+  const a = p.action;
+  while (!a.jumped) step(p, { a1: true });
+  assert.equal(a.pts, 3);
+  assert(G.needClear && G.illId === p.id, 'Shot classification must not erase an uncleared possession violation');
+}
+console.log('PASS stride scoring: arc crossings in both directions use takeoff points and attempt stats in 1V1/3V3/5V5; uncleared-possession legality preserved');
+
+for (const mode of ['2p', 't3', 't5']) for (const [axis, sign] of [['x', -1], ['x', 1], ['y', -1], ['y', 1]]) for (const inward of [false, true]) {
+  const { p, d } = fixture(mode); d.off = true;
+  const edge = axis === 'x' ? (mode === 't5' ? 7.5 : 7.4) * sign : sign > 0 ? (mode === 't5' ? 13.95 : 13.85) : mode === 't5' ? -13.95 : 0.15;
+  p[axis] = edge;
+  dbg.startShot(p, zero(), 'a1', inward ? 'postfront' : 'postfade');
+  step(p, { a1: true }, 8);
+  const travel = (edge - p[axis]) * sign;
+  if (inward) assert(travel > 0.02, `${mode} ${axis}/${sign} inward stride must escape the margin: ${travel}`);
+  else assert(Math.abs(travel) < 1e-9, `${mode} ${axis}/${sign} outward stride must not teleport or leave the margin`);
+}
+console.log('PASS stride edges: inward motion escapes all safety margins; outward motion stops without teleporting in 1V1/3V3/5V5');
+
+const savedCam = { ...ctx.PH.render.cam };
+for (const mode of ['2p', 't3', 't5']) for (const camera of mode === 't5' ? ['2k', 'broadcast'] : ['2k']) for (const flipped of mode === 't5' ? [false, true] : [false]) {
+  for (const side of [-1, 1]) for (const hand of [-1, 1]) for (const kind of ['postspin', 'stride']) {
+    const { p, d } = fixture(mode, 4); d.off = true; p.hand = hand;
+    if (mode === 't5') { team.setCam({ preset: camera }); team.T.dir[G.off] = flipped ? -1 : 1; team.T.c2 = { phi: flipped ? Math.PI : 0, t: -1 }; }
+    const f0 = p.face;
+    if (kind === 'stride') step(p, mode === 't5' ? adapted(p, -side, 0, true) : { post: true, a1: true, mx: -side });
+    else dbg.startMove(p, { ...zero(), dx: -side }, kind);
+    const a = p.action;
+    if (kind === 'postspin') assert.equal(a.h0, side, 'Spin footwork mirrors travel side, not the previous ball hand');
+    else { assert.equal(a.v, 'poSpinShot'); assert.equal(a.stride.side, side); }
+    step(p, { post: true, a1: kind === 'stride' }, 14);
+    const delta = Math.atan2(Math.sin(p.face - f0), Math.cos(p.face - f0));
+    assert(delta * side < -0.08, `${mode}/${camera} ${kind} side=${side} rotates toward travel: ${delta}`);
+    assert(Math.cos(p.face) * -side > 0, 'The body turns through the travel-side shoulder');
+    const project = mode === 't5' ? ctx.PH.render5.qaProject(team.T) : ctx.PH.render.proj;
+    const screenAngle = f => { const o = project(0, p.y, 0), tip = project(Math.cos(f), p.y + Math.sin(f), 0); return Math.atan2(tip.y - o.y, tip.x - o.x); };
+    const screenDelta = Math.atan2(Math.sin(screenAngle(p.face) - screenAngle(f0)), Math.cos(screenAngle(p.face) - screenAngle(f0)));
+    assert(screenDelta * side > 0, `${mode}/${camera} projected rotation agrees with world travel side`);
+  }
+}
+Object.assign(ctx.PH.render.cam, savedCam);
+let maxFaceDelta = 0, maxPoseDelta = 0;
+for (const kind of ['postspin', 'postdrop', 'Spin', 'Back', 'Front', 'fake']) {
+  const { p, d } = fixture(); d.off = true;
+  step(p, { post: true }, 30);
+  let lastFace = p.face, lastPose = { ...p.pose };
+  if (kind === 'postspin' || kind === 'postdrop') dbg.startMove(p, { ...zero(), dx: -0.7, dy: kind === 'postdrop' ? 0.7 : 0 }, kind);
+  else dbg.startShot(p, { ...zero(), mx: -1 }, 'a1', kind === 'Back' ? 'postfade' : kind === 'Front' ? 'postfront' : 'poSpinShot');
+  const a = p.action;
+  let sawFake = false, sawExit = false;
+  for (let i = 0; i < 210; i++) {
+    step(p, { post: true, a1: !!a.stride && (kind !== 'fake' || i < 12) });
+    sawFake ||= !!p.action?.postFake; sawExit ||= p.action == null;
+    const fd = Math.abs(p.face - lastFace);
+    maxFaceDelta = Math.max(maxFaceDelta, fd);
+    assert(fd < 0.27, `${kind} facing entry/exit delta=${fd}`);
+    for (const key of ['yaw', 'lean', 'tilt', 'lA', 'lB', 'rA', 'rB', 'aLp', 'aLq', 'aLe', 'aRp', 'aRq', 'aRe']) {
+      const pd = Math.abs((p.pose[key] || 0) - (lastPose[key] || 0));
+      maxPoseDelta = Math.max(maxPoseDelta, pd);
+      assert(pd < 0.18, `${kind} ${key} entry/exit delta=${pd}`);
+    }
+    lastFace = p.face; lastPose = { ...p.pose };
+  }
+  assert(sawExit); if (kind === 'fake') assert(sawFake);
+}
+console.log('PASS reverse pivots: both travel sides and ball hands in 1V1/3V3/5V5, 2K/broadcast camera projections; footwork follows travel side');
+console.log(`PASS post blends: entry/exit facing max=${maxFaceDelta.toFixed(3)}rad, yaw/limbs max=${maxPoseDelta.toFixed(3)}rad per 120Hz frame`);
+
+let exitFaceMax = 0, exitPoseMax = 0;
+for (const mode of ['2p', 't3', 't5']) for (const side of [-1, 1]) for (const kind of ['postspin', 'postdrop', 'spinFake', 'backFake', 'frontFake']) {
+  const { p, d } = fixture(mode); d.off = true;
+  const tick = (input = {}) => { G.time += 1 / 60; qa.updatePlayer(p, { ...zero(), post: true, ...input }, 1 / 60); };
+  if (kind.startsWith('post')) dbg.startMove(p, { ...zero(), dx: -side }, kind);
+  else {
+    dbg.startShot(p, { ...zero(), mx: kind === 'spinFake' ? -side : 0, my: kind === 'backFake' ? -1 : kind === 'frontFake' ? 1 : 0 }, 'a1');
+    const shot = p.action;
+    while (shot.t < shot.stride.T * 0.55) tick({ a1: true });
+    const face = p.face;
+    tick(); assert(p.action.postFake);
+    assert(Math.abs(Math.atan2(Math.sin(p.face - face), Math.cos(p.face - face))) <= 0.14, 'Stride-to-fake return must not whip at fake entry');
+  }
+  let exited = false;
+  for (let i = 0; i < 120; i++) {
+    const face = p.face, pose = { ...p.pose };
+    tick();
+    if (p.action && !p.action.postFake) continue;
+    if (!p.action) exited = true;
+    const delta = Math.abs(Math.atan2(Math.sin(p.face - face), Math.cos(p.face - face)));
+    exitFaceMax = Math.max(exitFaceMax, delta);
+    assert(delta <= 0.14, `${mode} ${kind}/${side} 60Hz exit facing delta=${delta}`);
+    for (const key of ['yaw', 'lean', 'tilt', 'aLp', 'aRp', 'aLr', 'aRr', 'hLp', 'hRp', 'kL', 'kR']) {
+      const pd = Math.abs((p.pose[key] || 0) - (pose[key] || 0));
+      exitPoseMax = Math.max(exitPoseMax, pd);
+      assert(pd <= 0.14, `${mode} ${kind}/${side} 60Hz exit ${key} delta=${pd}`);
+    }
+  }
+  assert(exited);
+  const target = Math.atan2(hoop.y - p.y, hoop.x - p.x) + (p.post ? Math.PI : 0);
+  assert(Math.abs(Math.atan2(Math.sin(p.face - target), Math.cos(p.face - target))) < 0.01, `${kind} return settles`);
+  step(p); step(p, { post: true }); step(p, { post: true, a1: true, mx: -side });
+  assert(p.action?.stride && !p.postReturnUntil, 'New stride starts immediately with the original entry blend');
+}
+console.log(`PASS post exit return: both sides, postspin/postdrop and spin/back/front stride fakes in 1V1/3V3/5V5; 60Hz facing max=${exitFaceMax.toFixed(3)}rad, pose max=${exitPoseMax.toFixed(3)}rad, limit=0.140rad`);
 
 for (const kind of ['postdrop', 'postface', 'postshim']) {
   const { p, d } = fixture();
@@ -149,13 +369,13 @@ assert(sv.postfade1.c < sv.postfade.c && sv.postfade1.p < sv.postfade.p);
 assert(sv.shimshot.c < sv.turn.c && sv.postfront.c < sv.turn.c);
 assert(probability('postfade1') < probability('postfade'));
 assert(probability('shimshot') > probability('turn'));
-for (const v of ['postfade1', 'postfront', 'spinfade', 'shimshot', 'drophook']) {
+for (const v of ['postfade1', 'postfront', 'spinfade', 'shimshot', 'drophook', 'poSpinShot']) {
   const prob = probability(v); assert(Number.isFinite(prob) && prob > 0 && prob <= 1, v);
   const key = 'l1_poV_' + v + '_p', before = sv[v].p;
   tune.set(key, before * 0.5); assert.equal(sv[v].p, before * 0.5);
 }
 {
-  const { p } = fixture(); dbg.startShot(p, zero(), 'a1', 'postfront'); const fast = p.action.ideal;
+  const { p } = fixture(); dbg.startShot(p, zero(), 'a1', 'postfront'); const fast = p.action.ideal - p.action.stride.T;
   dbg.startShot(p, zero(), 'a1', 'turn'); assert(fast < p.action.ideal);
 }
 console.log('PASS post shots: finite probabilities, one-leg risk/reward, shimmy advantage, front release speed and live l1 tuning');
@@ -254,7 +474,7 @@ function gamepadStep(mode, p, options = {}, n = 1) {
     step(p, inp); input.endTick();
   }
 }
-const holdFrames = () => Math.ceil(gm.K.rsHold / dt) + 2;
+function holdFrames() { return Math.ceil(gm.K.rsHold / dt) + 2; }
 for (const mode of ['2p', 't5']) for (const early of [false, true]) {
   const { p } = fixture(mode);
   gamepadStep(mode, p, { x: 1, shot: true });
@@ -269,7 +489,7 @@ for (const mode of ['2p', 't5']) for (const early of [false, true]) {
 }
 console.log('PASS post button ownership: early release fakes without a stick-driven follow-up; timed release fires despite deflected stick in 1V1/5V5');
 for (const mode of ['2p', 't5']) {
-  for (const [x, y, move, shot] of [[1, 0, 'postspin', 'turn'], [0.7, 0.7, 'postdrop', 'postfront'], [0, -1, 'postface', 'postfade'], [1, -0.7, 'postspin', 'postfade1']]) {
+  for (const [x, y, move, shot] of [[1, 0, 'postspin', 'poSpinShot'], [0, 1, 'postdrop', 'postfront'], [0, -1, 'postface', 'postfade'], [1, -0.7, 'postspin', 'postfade1']]) {
     let { p } = fixture(mode);
     gamepadStep(mode, p, { x, y });
     assert.equal(p.action?.kind, move, 'A post move starts on the deflection frame');
@@ -297,7 +517,7 @@ for (const mode of ['2p', 't5']) {
   for (const x of [-1, 1]) {
     const { p } = fixture(mode);
     gamepadStep(mode, p, { x: -x, mx: x, shot: true });
-    assert.equal(p.action?.v, 'turn', 'Button post shots still use movement rather than right-stick input');
+    assert.equal(p.action?.v, 'poSpinShot', 'Button post shots still use movement rather than right-stick input');
   }
   for (const my of [-1, 1]) {
     const { p } = fixture(mode);
@@ -323,8 +543,9 @@ for (const mode of ['2p', 't5']) {
   gamepadStep(mode, p, { shot: true }); gamepadStep(mode, p);
   assert(p.action.postFake && p.post, 'Shoot-button early release also stays posting');
   gamepadStep(mode, p, {}, 45);
-  gamepadStep(mode, p, { y: -1 }, holdFrames() + 45);
-  const real = p.action; gamepadStep(mode, p);
+  gamepadStep(mode, p, { y: -1 }, holdFrames());
+  const real = p.action;
+  gamepadStep(mode, p, { y: -1 }, Math.ceil((real.ideal - real.t) / dt)); gamepadStep(mode, p);
   assert(real.released, 'Full hold after chained post fakes still releases a real shot');
 
   for (const state of ['stun', 'noBall', 'dead', 'cancel', 'disconnect']) {
@@ -413,6 +634,33 @@ for (let seed = 1; seed <= 80; seed++) {
 assert(cpuFakes > 0 && cpuFakes < 80);
 console.log(`PASS live l1_rsHold threshold and seeded post AI fakes=${cpuFakes}/80`);
 
+let cpuStrides = 0;
+for (let seed = 1; seed <= 80; seed++) {
+  const { p } = fixture('2p', 5.2); p.ctrl = 'cpu'; G.mode = 'cpu';
+  tune.set('l1_aiPoFake', 0); tune.set('l1_aiPoSpinShot', 1);
+  Object.assign(p.ai, { plan: 'post', postT: 20, t: 2, su: null, cb: null, iso: null, om: null, call: null });
+  gm.seed(seed * 101);
+  const out = qa.aiInput(p, dt);
+  if (out.a1) { assert(Math.abs(out.mx) > 0.9 && out.my === 0); cpuStrides++; }
+}
+assert(cpuStrides > 0);
+for (const tendency of [0, 1]) {
+  const { p } = fixture(); p.ctrl = 'cpu';
+  tune.set('l1_aiPoFakeChain', tendency);
+  dbg.startShot(p, { ...zero(), mx: -1 }, 'a1');
+  const side = p.action.stride.side;
+  step(p, { a1: true }, 12); step(p);
+  assert(p.action.postFake);
+  assert.equal(p.ai.postChain || 0, tendency ? -side : 0);
+  if (tendency) {
+    while (p.action) step(p, { post: true });
+    const out = qa.aiInput(p, dt);
+    assert(out.a1 && out.post && out.mx * side > 0.9);
+    step(p, out); assert.equal(p.action.v, 'poSpinShot');
+  }
+}
+console.log(`PASS post AI: forced lateral tendency selects ${cpuStrides} stride shots; zero/full fake-chain tuning retains or disables opposite-side continuation`);
+
 for (const bite of [0, 1]) {
   const { p, d } = fixture();
   tune.set('l1_poFakeBite', bite); tune.set('l1_poFakeCost', 2);
@@ -448,7 +696,7 @@ console.log('PASS post fake tunables: commit window, stamina cost and defender b
   for (let i = 0; i < holdFrames(); i++) step(p, clean(input.read(0, true, true)));
   assert.equal(p.action?.v, 'postfade', 'Guest right-stick hold survives host cleanInput and starts a post shot');
   const a = p.action;
-  for (let i = 0; i < 45; i++) step(p, clean(input.read(0, true, true)));
+  for (let i = 0, n = Math.ceil((a.ideal - a.t) / dt); i < n; i++) step(p, clean(input.read(0, true, true)));
   pads[0].axes[3] = 0;
   step(p, clean(input.read(0, true, true)));
   assert(a.released && G.ball.state === 'shot', 'Guest stick release fires the post shot');
