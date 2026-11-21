@@ -90,3 +90,38 @@ for (const [distance, pops] of [[7, false], [7.7, false], [7.9, false], [8.1, tr
   assert.equal(shot(after, 75, false, distance, 0.35).pops.includes('limitless'), false);
 }
 console.log('PASS infinite-range badge popup only on clearly deep threes (> ' + after.PH.game.K.bgLimPop + 'm), not just behind the arc');
+
+const tune = after.PH.TUNE;
+for (const k of ['smDeep', 'smDeepGNear', 'smDeepGRamp', 'smDeepG']) {
+  assert.equal(tune.meta('l1_' + k).sub, '命中');
+}
+let previous = 1;
+for (let i = 0; i <= 32; i++) {
+  const d = (740 + i * 5) / 100;
+  const green = shot(after, 75, false, d, 0), white = shot(after, 75, false, d, 0.35);
+  assert(green.prob <= previous, 'green probability should not rise with distance');
+  previous = green.prob;
+  tune.set('l1_smDeepGRamp', 0);
+  const legacyGreen = shot(after, 75, false, d, 0), legacyWhite = shot(after, 75, false, d, 0.35);
+  tune.reset('l1_smDeepGRamp');
+  assert.equal(white.prob, legacyWhite.prob, 'non-green shots keep the original curve');
+  assert.equal(green.gw, legacyGreen.gw, 'timing window must not depend on the make-probability ramp');
+  if (i <= 4 || i >= 22) assert.equal(green.prob, legacyGreen.prob);
+  else assert(green.prob > legacyGreen.prob, 'only just-deep greens should improve');
+}
+for (const [d, target] of [[7.8, 0.9486], [8, 0.8449]]) {
+  for (const mode of ['2p', 't3', 't5']) {
+    const green = shot(after, 75, false, d, 0, mode);
+    assert(Math.abs(green.prob - target) < 0.001);
+    assert.equal(shot(after, 84, true, d, 0, mode).prob, 1, 'Limitless protects shots within its extended range');
+  }
+}
+assert(Math.abs(shot(after, 84, true, 9.06, 0).prob - shot(after, 84, false, 7.8, 0).prob) < 1e-9,
+  'the grace curve starts after the extended Limitless range');
+tune.load({ l1_smDeep: 8, l1_smDeepGNear: 0.1 });
+assert.equal(shot(after, 75, false, 8, 0).prob, 1, 'saved start-distance override applies');
+assert(shot(after, 75, false, 8.01, 0).prob > 0.998, 'saved near-slope override applies');
+tune.load({ l1_smDeepG: 0.1 });
+assert(Math.abs(shot(after, 75, false, 7.8, 0).prob - 0.98) < 1e-9, 'gentler saved long slope is not overridden');
+tune.reset();
+console.log('PASS green ramp, saved tuning, unchanged timing windows and long-range odds, and Limitless protection across modes');
