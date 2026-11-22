@@ -90,8 +90,6 @@ button.pick.fighter-pick { width:100%; min-height:260px; height:auto; display:fl
 .fighter-pick .pk-c { font-size:13px; margin-top:auto; }
 .fighter-pick:disabled { opacity:1; cursor:default; }
 #front-ready-state { color:#a9bfdb; font-size:14px; margin:10px 0; }
-#front-ready { margin-bottom:12px; }
-#front-ready.on { background:#265844; color:#b7ffce; }
 .menu-actions { margin-top:16px; }
 .menu-actions #btn-start { font-size:22px; padding:15px 30px; }
 .menu-actions-sub { margin-top:12px; }
@@ -182,7 +180,7 @@ button.pick.fighter-pick { width:100%; min-height:260px; height:auto; display:fl
 .front-brand { color:#f6f1dc; font:24px var(--font); text-decoration:none; white-space:nowrap; }
 .front-brand i { color:var(--front-gold); font-style:normal; }
 #front-breadcrumb { color:var(--front-muted); font-size:12px; }
-.front-edition { color:var(--front-gold); font-size:12px; margin-right:150px; }
+.front-edition { color:var(--front-gold); font-size:12px; margin-right:276px; }
 .front-footer { order:2; display:flex; flex-shrink:0; justify-content:space-between; gap:16px; align-items:center; min-height:40px; margin-top:auto; border-top:1px solid var(--front-line); color:var(--front-muted); font-size:11px; }
 .front-footer kbd { background:#24344f; color:#dae4f6; padding:3px 5px; margin-right:5px; font:10px/1.2 monospace; border:0; box-shadow:none; min-width:0; }
 .front-footer kbd:not(:first-child) { margin-left:14px; }
@@ -299,7 +297,6 @@ button.pick.fighter-pick .pk-c { font-size:11px; color:var(--fighter-color); }
 .pk-grid .pkc .pkn { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; overflow-wrap:normal; }
 #front-ready-state { color:var(--front-muted); font-size:12px; margin:8px 0; }
 #front-ready-state:empty { display:none; }
-#front-ready { margin-bottom:10px; font-size:14px; }
 #menu .menu-actions { margin-top:10px; display:flex; flex-direction:row; flex-wrap:wrap; align-items:center; justify-content:flex-end; gap:12px; }
 #menu .menu-actions #btn-start { width:auto; min-width:190px; font-size:16px; padding:12px 28px; order:2; }
 #menu .menu-actions-sub { margin:0 auto 0 0; display:flex; gap:12px; }
@@ -330,6 +327,9 @@ button.pick.fighter-pick .pk-c { font-size:11px; color:var(--fighter-color); }
 }
 @media(max-height:620px) {
   .front-home { flex:1 0 auto; }
+}
+@media(max-width:700px),(max-height:420px) {
+  #front-breadcrumb,.front-edition { display:none; }
 }
 @media(max-width:600px) {
   #menu.overlay,#menu[data-view=select] { padding:0 4%; }
