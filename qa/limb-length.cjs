@@ -28,7 +28,7 @@ const stats = {}, worst = {}, frames = [];
 const distance = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
 function lengths(p) {
   const b = p.col.body, height = b ? b.height * p.h / b.baseHeight : p.h;
-  const h = 1 + (height / 1.95 - 1) * (b ? 1.55 : 1.7);
+  const h = 1 + (height / 1.95 - 1) * (b ? ctx.PH.bodyHeightK() : 1.7);
   return { thigh: 0.41 * h * (b ? 0.95 * b.legs : 1), shin: 0.41 * h * (b ? 0.95 * b.legs : 1), upper: 0.28 * h * (b ? 0.94 * b.arm : p.col.wing || 1), fore: 0.26 * h * (b ? 0.94 * b.arm : p.col.wing || 1) };
 }
 function snapshot(p) {

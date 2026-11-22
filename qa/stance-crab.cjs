@@ -24,7 +24,7 @@ function rig(a, P = a.pose, grip = true, body) {
     const hip = k['hip' + side], knee = k['knee' + side], foot = k['foot' + side];
     const distance = (u, v) => Math.hypot(...u.map((x, j) => x - v[j]));
     const height = body ? body.height * a.h / body.baseHeight : a.h;
-    const Hh = 1 + (height / 1.95 - 1) * (body ? 1.55 : 1.7);
+    const Hh = 1 + (height / 1.95 - 1) * (body ? ctx.PH.bodyHeightK() : 1.7);
     const thigh = 0.41 * Hh * (body ? 0.95 * body.legs : 1), shin = thigh;
     assert(Math.abs(distance(hip, knee) / thigh - 1) <= 0.01, 'IK thigh length preserved within one percent');
     assert(Math.abs(distance(knee, foot) / shin - 1) <= 0.01, 'IK shin length preserved within one percent');
@@ -53,7 +53,7 @@ function checkFootContinuity(a, k, previous, dt) {
     for (const side of ['L', 'R']) {
       const foot = k['foot' + side], before = previous.rig['foot' + side];
       const travel = Math.hypot(...foot.map((v, j) => v - before[j]));
-      const floor = a.z + 0.06 * (1 + (a.col.body.height / 1.95 - 1) * 1.55);
+      const floor = a.z + 0.06 * (1 + (a.col.body.height / 1.95 - 1) * ctx.PH.bodyHeightK());
       velocity[side] = foot.slice(0, 2).map((v, j) => (v - before[j]) / dt);
       grounded[side] = foot[2] <= floor + 0.001 && before[2] <= floor + 0.001;
       if (exempt) continue;
@@ -106,7 +106,7 @@ for (const profile of ['official', 'saved']) for (const lift of [0, 0.07, 0.15])
     a.stam = 100; b.x = a.x; b.y = a.y + 4;
     game.t5.step([{ ...game.t5.zeroInp(), mx: 0.26, a3: true }, game.t5.zeroInp()], 1 / 60);
     if (i < 90) continue;
-    const k = rig(a, a.pose, false, a.col.body), sole = 0.06 * (1 + (a.col.body.height / 1.95 - 1) * 1.55);
+    const k = rig(a, a.pose, false, a.col.body), sole = 0.06 * (1 + (a.col.body.height / 1.95 - 1) * ctx.PH.bodyHeightK());
     previousFrame = checkFootContinuity(a, k, previousFrame, 1 / 60);
     assert(k.pelvis[2] - a.z <= 0.62, 'defensive crouch stays low');
     for (const s of ['L', 'R']) {
@@ -159,7 +159,7 @@ for (const [label, vx, vy] of [['slow right', 0.5, 0], ['slow left', -0.5, 0], [
     for (const side of ['L', 'R']) {
       const foot = k['foot' + side], before = prev['foot' + side];
       assert(foot.every(Number.isFinite), 'finite rig');
-      const lift = foot[2] - p.z - 0.06 * (1 + (p.col.body.height / 1.95 - 1) * 1.55);
+      const lift = foot[2] - p.z - 0.06 * (1 + (p.col.body.height / 1.95 - 1) * ctx.PH.bodyHeightK());
       if (lift > 0.01) lifts.add(side);
       peak[side] = Math.max(peak[side], lift);
       assert(lift >= -1e-8 && lift <= 0.071, 'grounded or visible lift');
@@ -286,7 +286,7 @@ for (const key of ['mrobinson', 'fvv']) {
     gait.crab(a, 1 / 240); renderPose();
     for (let i = 0; i < 480; i++) { a.x += speed / 240; gait.crab(a, 1 / 240); renderPose(); }
     let plants = 0, plantedFrames = 0, leadLifts = 0, leadPlants = 0, leadPlantedFrames = 0, leadHeight = 0, trailDrag = 0, previous = renderPose();
-    const sole = 0.06 * (1 + (a.col.body.height / 1.95 - 1) * 1.55);
+    const sole = 0.06 * (1 + (a.col.body.height / 1.95 - 1) * ctx.PH.bodyHeightK());
     for (let i = 0; i < 4800; i++) {
       const side = a.crab.side, leadZ = a.crab.R[2];
       a.x += speed / 240; gait.crab(a, 1 / 240);
@@ -361,7 +361,7 @@ for (const [label, mx, my, amount, contact] of [
     const local = v => [v[0] * fy - v[1] * fx, v[0] * fx + v[1] * fy, v[2]];
     const frame = ['L', 'R'].map(side => {
       const knee = k['knee' + side], foot = k['foot' + side], toe = k['toe' + side];
-      const lift = foot[2] - a.z - 0.06 * (1 + (a.col.body.height / 1.95 - 1) * 1.55);
+      const lift = foot[2] - a.z - 0.06 * (1 + (a.col.body.height / 1.95 - 1) * ctx.PH.bodyHeightK());
       peak[side] = Math.max(peak[side], lift);
       assert(lift >= -1e-8 && lift <= 0.071 && Math.abs(foot[2] - toe[2]) < 1e-8, 'live flat feet, grounded except swing lifts');
       if (side !== a.crab.side) assert(Math.abs(lift) < 1e-8, 'live support foot grounded');
@@ -452,7 +452,7 @@ for (const [profile, data] of stanceProfiles) for (const moving of [false, true]
     if (a.crab.recovering) recoveryLift = Math.max(recoveryLift, a.crab[a.crab.side][2]);
     const k = rig(a, a.pose, false, a.col.body), fx = Math.cos(a.face), fy = Math.sin(a.face);
     if (previousFrame) for (const side of ['L', 'R']) {
-      const foot = k['foot' + side], before = previousFrame.rig['foot' + side], floor = 0.06 * (1 + (a.col.body.height / 1.95 - 1) * 1.55);
+      const foot = k['foot' + side], before = previousFrame.rig['foot' + side], floor = 0.06 * (1 + (a.col.body.height / 1.95 - 1) * ctx.PH.bodyHeightK());
       if (foot[2] <= floor + 0.001 && before[2] <= floor + 0.001) worldPeak = Math.max(worldPeak, Math.hypot(...foot.map((v, j) => v - before[j])));
     }
     previousFrame = checkFootContinuity(a, k, previousFrame, 1 / 60);
@@ -489,7 +489,7 @@ for (const [profile, data] of stanceProfiles) {
       previous = checkFootContinuity(a, k, previous, dt);
       const support = ['L', 'R'].map(side => side !== a.crab.side);
       for (const [j, side] of ['L', 'R'].entries()) {
-        const foot = k['foot' + side], floor = 0.06 * (1 + (a.col.body.height / 1.95 - 1) * 1.55);
+        const foot = k['foot' + side], floor = 0.06 * (1 + (a.col.body.height / 1.95 - 1) * ctx.PH.bodyHeightK());
         if (i < 120) continue;
         peak = Math.max(peak, foot[2] - floor);
         const travel = Math.hypot(...foot.map((v, d) => v - before.rig['foot' + side][d]));

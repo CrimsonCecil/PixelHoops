@@ -1,6 +1,7 @@
 // PIXEL HOOPS - 渲染：伪 3D 投影、球场、像素角色
 (function () {
   const PH = (window.PH = window.PH || {});
+  PH.bodyHeightK = () => (PH.game && PH.game.K && PH.game.K.fxHeightK) || 1.55;
   // 逻辑画布：默认 480x270（16:9）；窗口比例不同时 main.js 调 resize() 把宽或高延展（不裁切、不留黑边）
   let W = 480, H = 270;
   const BW = 1000;
@@ -354,7 +355,7 @@
     function crab(pl, dt, pose = pl.pose) {
       if (!pl.stance || pl.anim !== 'def' || pl.z > 0.01) { pl.crab = null; return; }
       if (!(dt > 0)) return;
-      const fx = Math.cos(pl.face), fy = Math.sin(pl.face), Hh = 1 + (height(pl) / 1.95 - 1) * 1.55, w = tune('stWidth', 0.42) * Hh;
+      const fx = Math.cos(pl.face), fy = Math.sin(pl.face), Hh = 1 + (height(pl) / 1.95 - 1) * PH.bodyHeightK(), w = tune('stWidth', 0.42) * Hh;
       const k = rig(pl, { ...pose, crab: 0 }, false, pl.col && pl.col.body), reach = tune('stReach', 0.3) * Hh;
       const base = (side) => {
         const foot = k[side < 0 ? 'kneeL' : 'kneeR'];
@@ -1261,10 +1262,10 @@
   function distance3(a, b) { return Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]); }
 
   function rig(pl, P = pl.pose, grip = true, body) {
-    // 卡通化体型：身高差放大 1.7 倍，宽度/臂展按球员体型
+    // 卡通化体型：身高差按调参台倍数放大（无测量值时 1.7 倍），宽度/臂展按球员体型
     const C = pl.col || {}, bw = C.bw || 1, wg = C.wing || 1;
     const height = body ? body.height * (pl.h / body.baseHeight) : pl.h;
-    const Hh = 1 + (height / 1.95 - 1) * (body ? 1.55 : 1.7);
+    const Hh = 1 + (height / 1.95 - 1) * (body ? PH.bodyHeightK() : 1.7);
     // 像素风头身比（约 1:4.5）：大头、短躯干、短腿
     const legs = body ? 0.95 * body.legs : 1, armLength = body ? 0.94 * body.arm : wg, fb = Math.max(0.6, 1 + 1.5 * (bw - 1));
     const th = 0.41 * Hh * legs, sh = th, to = 0.48 * Hh - 0.82 * Hh * (legs - 1), ua0 = 0.28 * Hh * armLength, fa0 = 0.26 * Hh * armLength;
@@ -1356,7 +1357,7 @@
       for (const side of ['L', 'R']) gripArm(k, side, live['hand' + side], false, true);
     }
     const height = body ? body.height * pl.h / body.baseHeight : pl.h;
-    const Hh = 1 + (height / 1.95 - 1) * (body ? 1.55 : 1.7), arm = body ? 0.94 * body.arm : pl.col.wing || 1;
+    const Hh = 1 + (height / 1.95 - 1) * (body ? PH.bodyHeightK() : 1.7), arm = body ? 0.94 * body.arm : pl.col.wing || 1;
     const leg = 0.41 * Hh * (body ? 0.95 * body.legs : 1);
     for (const side of ['L', 'R']) {
       fitLimb(k, 'hip' + side, 'knee' + side, 'foot' + side, 'toe' + side, leg, leg);

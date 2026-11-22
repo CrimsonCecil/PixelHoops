@@ -207,7 +207,7 @@ for (const key of ['curry', 'wemby', 'sga']) {
 }
 const relativeLimb = key => {
   const { height, limb } = look(key).body;
-  return limb / (1 + (height / 1.95 - 1) * 1.55);
+  return limb / (1 + (height / 1.95 - 1) * ctx.PH.bodyHeightK());
 };
 assert(relativeLimb('kyrie') < relativeLimb('fvv'));
 assert(relativeLimb('durant') < relativeLimb('tatum'));
@@ -335,7 +335,7 @@ assert(look('carter').body.shoulder > look('kobe').body.shoulder);
 assert(look('carter').body.waist < look('carter').body.chest * 0.65);
 assert(relativeLimb('queta') > relativeLimb('wemby') * 1.5);
 const queta = game.t5.makePlayer(0, 'queta', 'cpu');
-const { height, arm, legs } = queta.col.body, scale = 1 + (height / 1.95 - 1) * 1.55;
+const { height, arm, legs } = queta.col.body, scale = 1 + (height / 1.95 - 1) * ctx.PH.bodyHeightK();
 const { k: visual } = render.drawPlayer(queta);
 const dist = (a, b) => Math.hypot(...a.map((v, i) => v - b[i]));
 assert(dist(visual.shL, visual.elL) < 0.96 * 0.28 * scale * arm);
@@ -450,7 +450,7 @@ game.newGame({ mode: 'train', arch0: 'luka', arch1: 'curry' });
 for (const p of game.G.players) {
   const base = p.h, listed = p.col.body.height;
   assert.notEqual(base, listed);
-  const heightScale = h => 1 + (h / 1.95 - 1) * 1.55;
+  const heightScale = h => 1 + (h / 1.95 - 1) * ctx.PH.bodyHeightK();
   const headZ = () => render.drawPlayer(p).k.head[2];
   const initial = headZ();
   let previous = -Infinity;
