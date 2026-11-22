@@ -27,7 +27,7 @@
   }
   // Run fn now if no credential fetch is in flight, otherwise right after it settles (<= 3 s, never rejects).
   function whenIce(fn) { if (icePending) icePending.then(fn); else fn(); }
-  const room = { peer: null, role: '', code: '', links: new Map(), active: false, ping: null, transport: '' };
+  const room = { peer: null, role: '', code: '', links: new Map(), active: false, ping: null, transport: '', route: '' };
   let attempt = 0, pending = null, timeout, checkDeadline, stopRecovery;
   let stateSeq = 0, inputSeq = 0, lastInputKey = '', lastInputAt = -Infinity;
 
@@ -71,14 +71,20 @@
     return false;
   }
   function syncTransport() {
-    if (room.role === 'guest') { room.transport = pending?.open ? pending.transport : ''; return; }
-    let any = false, anyRelay = false;
+    if (room.role === 'guest') {
+      room.transport = pending?.open ? pending.transport : '';
+      room.route = room.transport === 'p2p' ? (pending.route || '') : '';
+      return;
+    }
+    let any = false, anyRelay = false, anyTurn = false;
     for (const link of room.links.values()) {
       if (!link.conn.open) continue;
       any = true;
       if (link.conn.transport !== 'p2p') anyRelay = true;
+      else if (link.conn.route === 'turn') anyTurn = true;
     }
     room.transport = !any ? '' : anyRelay ? 'relay' : 'p2p';
+    room.route = room.transport !== 'p2p' ? '' : anyTurn ? 'turn' : 'direct';
   }
   function relayURL(code, role, secret) {
     const base = window.__API_BASE__;
@@ -98,6 +104,7 @@
     const link = {
       open: false,
       transport: 'relay',
+      route: '',            // 'direct' | 'turn' | '' : which ICE path the data channel really uses (diagnostics only)
       on(type, fn) { if (!listeners.has(type)) listeners.set(type, []); listeners.get(type).push(fn); return this; },
       emit(type, msg) { for (const fn of listeners.get(type) || []) fn(msg); },
       bufferInfo() {
@@ -171,6 +178,26 @@
         if (wasOpen) this.emit('close');
       }
     };
+    // 'p2p' only means the DataChannel is open. Ask WebRTC which candidate pair was actually selected so the HUD can
+    // tell a true direct path from one that is being relayed through our TURN server.
+    function probeRoute() {
+      const cur = pc;
+      if (closed || !cur || typeof cur.getStats !== 'function') return;
+      cur.getStats().then((stats) => {
+        if (closed || cur !== pc) return;
+        const cands = new Map(), pairs = []; let selId = '';
+        stats.forEach((r) => {
+          if (r.type === 'transport' && r.selectedCandidatePairId) selId = r.selectedCandidatePairId;
+          else if (r.type === 'local-candidate' || r.type === 'remote-candidate') cands.set(r.id, r);
+          else if (r.type === 'candidate-pair') pairs.push(r);
+        });
+        const pair = (selId && pairs.find((x) => x.id === selId)) || pairs.find((x) => x.nominated && x.state === 'succeeded');
+        if (!pair) return;
+        const lc = cands.get(pair.localCandidateId), rc = cands.get(pair.remoteCandidateId);
+        const route = (lc && lc.candidateType === 'relay') || (rc && rc.candidateType === 'relay') ? 'turn' : 'direct';
+        if (link.route !== route) { link.route = route; syncTransport(); }
+      }).catch(() => {});
+    }
     function flushIce() {
       if (!pc || !pendingIce.length) return;
       const list = pendingIce.splice(0);
@@ -190,7 +217,7 @@
       if (kind === 'ctrl') ctrl = ch; else if (kind === 'state') stateCh = ch; else inCh = ch;
       ch.onopen = () => {
         if (closed) { try { ch.close(); } catch {} return; }
-        if (isCtrl) { link.transport = 'p2p'; syncTransport(); }
+        if (isCtrl) { link.transport = 'p2p'; syncTransport(); probeRoute(); setTimeout(probeRoute, 3000); }
       };
       ch.onmessage = (ev) => {
         if (closed || !link.open || typeof ev.data !== 'string') return;
@@ -232,7 +259,7 @@
     stateSeq = 0; inputSeq = 0; lastInputKey = ''; lastInputAt = -Infinity;
     if (stopRecovery) { stopRecovery(); stopRecovery = null; }
     room.links.clear();
-    Object.assign(room, { peer: null, role: '', code: '', active: false, ping: null, transport: '' });
+    Object.assign(room, { peer: null, role: '', code: '', active: false, ping: null, transport: '', route: '' });
   }
   function broadcast(msg) {
     const out = msg?.type === 'state' && msg.seq == null ? { ...msg, seq: ++stateSeq } : msg;
