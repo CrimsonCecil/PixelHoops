@@ -150,6 +150,13 @@
     $('front-create').onsubmit = (e) => { e.preventDefault(); roomName = $('front-room-name').value.trim() || '来一场像素斗牛'; choose($('front-room-mode').value, true); ctx.action(false); };
     $('front-room-search').oninput = renderRooms;
     $('front-direct-join').onclick = () => joinRoom($('front-direct-code').value.trim().toUpperCase(), $('front-direct-mode').value);
+    // Text editing must not reach the global game shortcuts (P = Back, M = mute, arrows, Tab).
+    for (const type of ['keydown', 'keyup']) $('menu').addEventListener(type, (e) => {
+      if (!e.target.matches('input,select')) return;
+      e.stopPropagation();
+      if (type === 'keydown' && e.key === 'Escape') e.target.blur();
+      if (type === 'keydown' && e.key === 'Enter' && e.target.id === 'front-direct-code') { e.preventDefault(); $('front-direct-join').click(); }
+    });
     $('front-ready').onclick = () => { const id = localId(); ready[id] = !ready[id]; if (ctx.room.role === 'guest') ctx.rooms.sendLobby({ ready: ready[id] }); else sync(); refresh(); };
     go('home');
   }
