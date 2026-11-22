@@ -64,14 +64,13 @@ button.primary:hover { background: #ffdf70; }
 
 /* HUD */
 #hud { position: absolute; inset: 0; pointer-events: none; }
-#stage { --scorebar-body: var(--fs-xs); --scorebar-height: calc(var(--scorebar-body) * 2.4 + 25px); }
+#stage { --scorebar-body: var(--fs-xs); --scorebar-height: calc((var(--scorebar-body) + 10px) * 1.5 + 8px); }
 #scorebar { position: absolute; top: 0; left: 50%; transform: translateX(-50%); display: flex; align-items: stretch; border: calc(var(--u) * 1) solid var(--ink); background: var(--ink); gap: calc(var(--u) * 1); }
-:is(#scorebar, #sb5, #trainbar, #tape-scorebar, #b5-head) { --u: min(2px, calc(100vw / 480)); --fs-xs: calc(var(--scorebar-body) + 2px); --fs-sm: calc(var(--scorebar-body) + 3px); --fs-md: calc(var(--scorebar-body) + 6px); --fs-lg: calc(var(--scorebar-body) + 10px); position: absolute; top: 0; left: 50%; transform: translateX(-50%); display: flex; align-items: stretch; width: calc(var(--scorebar-body) * 22 + 140px); max-width: calc(100% - 8px); height: var(--scorebar-height); line-height: 1.1; border: calc(var(--u) * 1) solid var(--ink); background: var(--ink); gap: calc(var(--u) * 1); }
+:is(#scorebar, #sb5, #trainbar, #b5-head) { --u: min(2px, calc(100vw / 480)); --fs-xs: calc(var(--scorebar-body) + 2px); --fs-sm: calc(var(--scorebar-body) + 3px); --fs-md: calc(var(--scorebar-body) + 6px); --fs-lg: calc(var(--scorebar-body) + 10px); position: absolute; top: 0; left: 50%; transform: translateX(-50%); display: flex; align-items: stretch; width: calc(var(--scorebar-body) * 22 + 140px); max-width: calc(100% - 8px); height: var(--scorebar-height); line-height: 1.2; border: calc(var(--u) * 1) solid var(--ink); background: var(--ink); gap: calc(var(--u) * 1); }
 .scoreboard .team { min-width: 0; flex: 1; }
-.scoreboard .tname { min-width: 0; flex: 1; white-space: normal; overflow-wrap: anywhere; display: block; align-content: center; }
+.scoreboard .team .tname { min-width: 0; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; align-content: center; }
 .scoreboard .clock { flex-shrink: 0; }
 .scoreboard .tscore { flex-shrink: 0; }
-.replay-clock { font-size: var(--fs-lg); color: var(--gold); line-height: 1.2; }
 .team { display: flex; align-items: center; background: var(--panel); }
 .tname { font-size: var(--fs-sm); padding: 0 calc(var(--u) * 5); white-space: nowrap; min-width: calc(var(--u) * 58); text-align: center; }
 .t0 .tname { background: #2459b8; align-self: stretch; display: flex; align-items: center; justify-content: center; }
@@ -175,7 +174,7 @@ button.pf { outline: calc(var(--u) * 1) solid var(--gold); outline-offset: 1px; 
 #banner { animation: pop 0.22s steps(4) both; }
 @keyframes pop { 0% { transform: translate(-50%, -50%) scale(1.6); } 100% { transform: translate(-50%, -50%) scale(1); } }
 #trainbar { font-size: var(--fs-sm); padding: 0 calc(var(--u) * 4); align-items: center; justify-content: center; text-align: center; }
-#trainbar > span { overflow-wrap: anywhere; }
+#trainbar > span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 #trainbar b { color: var(--gold); font-weight: normal; }
 #trainbar b { font-size: var(--fs-lg); }
 
@@ -677,10 +676,11 @@ table.bx tr.b3s td.pcol { padding-left: 38px; }
 @media (max-width: 1000px) {
   #hud:has(.scoreboard:not(.hidden)) .pcard, #hud5 .pcard { top: calc(var(--scorebar-height) + 4px); }
 }
-#sb5 .t5t { min-width: 0; flex: 1; }
-#sb5 .t5n { min-width: 0; flex: 1; white-space: normal; overflow-wrap: anywhere; }
-#sb5 .t5m { flex-shrink: 0; }
-#sb5 #h5c, #sb5 #h5sc { font-size: var(--fs-lg); }
+.scoreboard .t5t { min-width: 0; flex: 1; }
+.scoreboard .t5n { min-width: 0; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.scoreboard .t5m { flex-shrink: 0; position: relative; }
+.scoreboard #h5c, .scoreboard .t5c { font-size: var(--fs-lg); }
+.scoreboard .shot-tab { position: absolute; top: calc(100% + var(--u)); left: 50%; transform: translateX(-50%); background: #0b0e1e; color: var(--gold); border: var(--u) solid var(--ink); padding: 0 calc(var(--u) * 3); min-width: 2.4em; text-align: center; font-size: var(--fs-xs); line-height: 1.5; white-space: nowrap; }
 .t5t { display: flex; align-items: center; background: var(--panel); border-bottom: calc(var(--u) * 1.5) solid var(--tc, #888); position: relative; }
 .t5t.ball::after { content: ''; position: absolute; top: calc(var(--u) * 1.5); width: calc(var(--u) * 3); height: calc(var(--u) * 3); background: #ee7f30; border: calc(var(--u) * 0.5) solid var(--ink); }
 .t5t:not(.r).ball::after { right: calc(var(--u) * 1.5); } .t5t.r.ball::after { left: calc(var(--u) * 1.5); }
@@ -688,10 +688,9 @@ table.bx tr.b3s td.pcol { padding-left: 38px; }
 .t5t.me .t5n { color: var(--gold); }
 .t5s { font-size: var(--fs-lg); min-width: calc(var(--u) * 22); text-align: center; padding: calc(var(--u) * 1) calc(var(--u) * 3); font-variant-numeric: tabular-nums; background: #0b0e1e; }
 .t5m { display: flex; align-items: center; gap: calc(var(--u) * 3); background: #0b0e1e; padding: 0 calc(var(--u) * 4); font-variant-numeric: tabular-nums; }
-#h5q { font-size: var(--fs-xs); color: var(--muted); white-space: nowrap; }
-#h5c { font-size: var(--fs-md); color: var(--text); min-width: calc(var(--u) * 20); text-align: center; }
-#h5sc { font-size: var(--fs-md); color: var(--gold); min-width: calc(var(--u) * 11); text-align: center; border-left: calc(var(--u) * 0.5) solid var(--line); padding-left: calc(var(--u) * 2.5); }
-#h5sc.low { color: var(--red); }
+#h5q, .t5q { font-size: var(--fs-xs); color: var(--muted); white-space: nowrap; }
+#h5c, .t5c { font-size: var(--fs-md); color: var(--text); min-width: calc(var(--u) * 20); text-align: center; }
+.scoreboard .shot-tab.low { color: var(--red); }
 #hud5 #sb5 { transition: opacity .35s; }
 #hud5.tiphide #sb5 { opacity: 0; }
 #topbtns5 { position: absolute; bottom: calc(var(--u) * 4); right: calc(var(--u) * 4); pointer-events: auto; opacity: 0.8; }
@@ -767,11 +766,8 @@ button.pick .pk-5 { grid-column: 2 / 4; color: var(--gold); opacity: 0.85; lette
 .b5head { display: flex; align-items: baseline; gap: calc(var(--u) * 4); font-size: var(--fs-md); white-space: nowrap; }
 .b5head b { font-weight: normal; font-size: var(--fs-lg); color: var(--text); font-variant-numeric: tabular-nums; }
 .b5head em { font-style: normal; font-size: var(--fs-xs); color: var(--muted); }
-#b5-head { align-items: center; justify-content: space-between; white-space: normal; font-size: var(--fs-sm); z-index: 23; }
+#b5-head { z-index: 23; }
 #stage:has(#box5.hidden) #b5-head { display: none; }
-#b5-head > span { min-width: 0; flex: 1; text-align: center; overflow-wrap: anywhere; }
-#b5-head small { font-size: var(--fs-xs); }
-#tape-scorebar { z-index: 29; pointer-events: none; }
 .b5top button { font-size: var(--fs-xs); padding: calc(var(--u) * 1) calc(var(--u) * 4); min-height: 0; }
 .b5tabs { display: flex; gap: calc(var(--u) * 1); border-bottom: calc(var(--u) * 0.5) solid var(--line); margin: calc(var(--u) * 2) 0 calc(var(--u) * 2); flex-wrap: wrap; }
 .b5tabs button { background: transparent; box-shadow: none; border: 0; border-bottom: calc(var(--u) * 1.5) solid transparent; color: var(--muted); font-size: var(--fs-sm); padding: calc(var(--u) * 1.5) calc(var(--u) * 5); min-height: 0; margin-bottom: calc(var(--u) * -0.5); white-space: nowrap; }

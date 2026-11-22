@@ -193,7 +193,9 @@
   function head() {
     const T = TT(), t0 = T.tm[0], t1 = T.tm[1], q = T.q <= 4 ? '第' + T.q + '节' : '加时' + (T.q > 5 ? T.q - 4 : '');
     const c = Math.max(0, T.gclock), cl = Math.floor(Math.ceil(c) / 60) + ':' + String(Math.ceil(c) % 60).padStart(2, '0');
-    return '<span style="color:' + t0.col.ui + '">' + esc(t0.name) + '</span><b>' + t0.score + '</b><em><small>' + q + '</small> <span class="replay-clock">' + cl + '</span></em><b>' + t1.score + '</b><span style="color:' + t1.col.ui + '">' + esc(t1.name) + '</span>';
+    const shot = T.phase === 'live' && T.sclock <= T.gclock ? String(Math.max(0, Math.ceil(T.sclock))) : T.phase === 'inb' ? '24' : '--';
+    const low = T.phase === 'live' && T.sclock < 5 && T.sclock <= T.gclock;
+    return '<div class="t5t" style="--tc:' + t0.col.ui + '"><span class="t5n" style="color:' + t0.col.ui + '">' + esc(t0.name) + '</span><span class="t5s">' + t0.score + '</span></div><div class="t5m"><span class="t5q">' + q + '</span><span class="t5c">' + cl + '</span><span class="shot-tab' + (low ? ' low' : '') + '">' + shot + '</span></div><div class="t5t r" style="--tc:' + t1.col.ui + '"><span class="t5s">' + t1.score + '</span><span class="t5n" style="color:' + t1.col.ui + '">' + esc(t1.name) + '</span></div>';
   }
   function render() {
     if (!S.open) return;
