@@ -75,7 +75,7 @@
   function createLink(relaySend, relayEnd, relayBuffered, isHost, localChannelName) {
     const listeners = new Map();
     let pc = null, ctrl = null, stateCh = null, pendingIce = [], closed = false, relayAlive = true;
-    let bc = null, localUp = false, localTimer = null;
+    let bc = null, localUp = false, localTimer = null, probeTimer = null;
     const inFlight = [];
     function pruneInFlight(now) {
       while (inFlight.length && now - inFlight[0].at > RELAY_ACK_TIMEOUT_MS) inFlight.shift();
@@ -129,7 +129,13 @@
       },
       detachRelay() {
         relayAlive = false;
-        if (!closed && this.transport === 'relay') this.close();
+        if (closed) return;
+        if (this.transport === 'relay') { this.close(); return; }
+        if (this.transport === 'local' && localUp && bc) {
+          clearTimeout(probeTimer);
+          probeTimer = setTimeout(() => { probeTimer = null; if (!closed) link.close(); }, 1500);
+          try { bc.postMessage({ fromHost: isHost, ctrl: 'probe' }); } catch { link.close(); }
+        }
       },
       startRtc() {
         if (closed) return;
@@ -192,6 +198,7 @@
     }
     function dropLocal() {
       clearTimeout(localTimer); localTimer = null;
+      clearTimeout(probeTimer); probeTimer = null;
       const old = bc; bc = null;
       const wasUp = localUp; localUp = false;
       if (old) { old.onmessage = null; try { old.close(); } catch {} }
@@ -217,6 +224,10 @@
           localUp = true;
           dropPc();
           upgradeTransport('local');
+        } else if (d.ctrl === 'probe') {
+          try { bc.postMessage({ fromHost: isHost, ctrl: 'probe-ack' }); } catch {}
+        } else if (d.ctrl === 'probe-ack') {
+          clearTimeout(probeTimer); probeTimer = null;
         } else if (d.ctrl === 'close') {
           link.close();
         } else if (localUp && link.open && d.msg && typeof d.msg === 'object') {

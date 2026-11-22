@@ -292,14 +292,18 @@ function client({ relay = true, rtc = false, bcBus = null } = {}) {
   assert.equal(lGuest.rooms.room.transport, 'local');
   assert.equal(lHost.rooms.relaying(), false);
   assert.equal(lHost.pcs[0].connectionState, 'closed');
-  // Surviving relay disconnect on local transport, then closing cleanly via local-close
+  // Surviving transient relay disconnect while local peer is still alive (probe-ack),
+  // and closing cleanly if the local peer vanished (tab closed/refreshed without ctrl:close)
   lHost.sockets[0].receive({ type: 'peer-close', id: 1 });
   assert.equal(lHost.rooms.room.links.has(1), true);
-  lHost.rooms.close();
+  lGuest.bcs[0].close(); // simulate guest tab hard-closed without sending ctrl:close
+  lHost.rooms.room.links.get(1).conn.detachRelay();
+  lHost.next(); // probe timeout fires -> releases dead local guest
+  assert.equal(lHost.rooms.room.links.has(1), false);
   assert.equal(lHost.bcs[0].closed, true);
-  assert.equal(lGuest.bcs[0].closed, true);
+  lHost.rooms.close();
   lGuest.rooms.close();
-  console.log('PASS: same-browser BroadcastChannel local upgrade, RTC teardown, and clean close');
+  console.log('PASS: same-browser BroadcastChannel local upgrade, RTC teardown, and dead-tab cleanup');
 
   // 10. Relay in-flight ACK pacing prevents TCP queue buildup without blocking audio or deadlocking
   const rHost = client(), rGuest = client();
