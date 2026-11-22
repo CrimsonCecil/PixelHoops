@@ -123,7 +123,6 @@
       <section class="front-home" data-view-panel="home">
         <div class="front-intro"><p class="front-eyebrow">PICK YOUR GAME</p><h1>PIXEL<br><span>HOOPS</span></h1><p class="front-tagline">从今晚的球场，到你的传奇。<br>选一位球星，把热爱交给自己。</p><p class="front-live">● LIVE COURT <span>球场永不打烊</span></p></div>
         <div class="front-home-nav"><div class="front-entries"><button id="front-solo" data-testid="home-solo"><small>01</small><div><b>本地开打</b><span>挑战电脑 · 同屏双人 · 自选球员</span></div><em>↗</em></button><button id="front-online" data-testid="home-online"><small>02</small><div><b>在线对战</b><span>查看在线球场，点击房间即加入</span></div><em>↗</em></button></div>
-        <div class="front-utility"><button data-home-format="train"><strong>自由训练</strong><span>热热手感，打磨动作 ↗</span></button><button data-home-format="king"><strong>斗牛之王</strong><span>五关挑战，谁上王座 ↗</span></button></div>
         <div class="front-tools"><button data-tool="help">操作说明</button><button data-tool="replays">录像</button><button data-tool="set">设置</button></div>
         </div>
       </section>
@@ -147,7 +146,6 @@
       const b = e.target.closest('button, a[data-home]'); if (!b) return;
       if (b.matches('a')) e.preventDefault();
       if (b.hasAttribute('data-home')) leave('home');
-      if (b.dataset.homeFormat) { previous = 'solo'; choose(b.dataset.homeFormat); }
       if (b.dataset.format) choose(b.dataset.format);
       if (b.dataset.tool) $('btn-' + b.dataset.tool).click();
       if (b.dataset.join) { const r = roomsList.find((r) => r.code === b.dataset.join); if (r) joinRoom(r.code, r.mode); }
