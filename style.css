@@ -50,6 +50,14 @@ body { display: flex; align-items: center; justify-content: center; }
   color: var(--gold); letter-spacing: .06em; text-shadow: 3px 3px #a8481c;
 }
 .wipe-brand span { display: block; margin-top: calc(var(--u) * 2); font-size: var(--fs-sm); color: var(--text); letter-spacing: .22em; }
+#replay-badge {
+  position: absolute; bottom: calc(var(--u) * 5); left: calc(var(--u) * 6); z-index: 15; pointer-events: none;
+  display: flex; align-items: center; gap: max(5px, calc(var(--u) * 3)); color: var(--text); background: #0c1022;
+  padding: max(4px, calc(var(--u) * 2)) max(7px, calc(var(--u) * 4)); border: 1px solid var(--line);
+  font-size: var(--fs-xs); line-height: 1; letter-spacing: .06em;
+}
+#replay-badge span { width: max(6px, calc(var(--u) * 4)); aspect-ratio: 1; border-radius: 50%; background: #ff443b; flex-shrink: 0; }
+#replay-badge:not(.hidden) ~ #hud5 #bcol50 { visibility: hidden; }
 @media (prefers-reduced-motion: reduce) {
   #replay-wipe { background: rgb(12 16 34 / var(--cover)); }
   #replay-wipe::before, #replay-wipe::after { content: none; }

@@ -2125,8 +2125,9 @@
   function draw(dt) {
     PH.audio.setPaused((screen === 'play' || screen === 'play5') && paused);
     musicPick();
-    if (PH.tapeView.open) { PH.tapeView.render(dt); return; }
     const r5 = PH.render5.rpl, replay = screen === 'play' ? G.replay : screen === 'play5' && r5.on ? r5 : null;
+    show('replay-badge', !!replay?.view && !paused && !PH.tapeView.open);
+    if (PH.tapeView.open) { PH.tapeView.render(dt); return; }
     const cover = GM.replayFlow.cover(replay);
     if (cover !== lastReplayCover) { replayWipe.style.setProperty('--cover', cover); lastReplayCover = cover; }
     if (screen === 'play5') { PH.render5.render(PH.T5.T, manual ? 0.05 : 1 / Math.max(30, fps)); hud5(); cutin(); return; }

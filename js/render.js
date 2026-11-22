@@ -2395,9 +2395,6 @@
     if (F.slow > 0) { ctx.fillStyle = '#05070f'; ctx.fillRect(0, 0, W, 14); ctx.fillRect(0, H - 14, W, 14); }
     if (RP) {
       ctx.fillStyle = '#05070f'; ctx.fillRect(0, H - 18, W, 18); ctx.fillRect(0, 0, W, 6);
-      if ((((G.time * 0) + performance.now() / 500) | 0) & 1) { ctx.fillStyle = '#ff3b3b'; ctx.fillRect(10, H - 12, 6, 6); }
-      ctx.font = "12px 'Fusion Pixel 12px Proportional SC', monospace"; ctx.textBaseline = 'top'; ctx.fillStyle = '#ffffff'; ctx.fillText('REPLAY', 22, H - 15);
-      ctx.fillStyle = '#ffd24a'; ctx.fillText('精彩回放', 76, H - 15);
     }
   }
 
