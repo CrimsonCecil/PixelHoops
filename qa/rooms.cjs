@@ -125,7 +125,9 @@ function client({ relay = false, peerFails = false } = {}) {
 
   c = client({ relay: true }); await c.open(); c.peers[0].emit('open'); c.next();
   assert.match(c.sockets[0].url, /^wss:\/\/relay.example\/api\/rooms\/ABCDE\/ws\?role=guest$/);
-  c.sockets[0].opened(); assert.equal(c.rooms.room.peer, null);
+  c.sockets[0].opened(); assert.notEqual(c.rooms.room.peer, null);
+  assert.equal(c.sockets[0].sent.length, 0);
+  c.sockets[0].receive({ type: 'relay-ready' }); assert.equal(c.rooms.room.peer, null);
   assert.equal(c.sockets[0].sent[0].type, 'join');
   c.sockets[0].receive(null); c.sockets[0].receive({ type: 'joined', slot: 1 });
   c.sockets[0].receive({ type: 'start', config: {} }); c.sockets[0].receive({ type: 'state', state: {} });
@@ -142,10 +144,21 @@ function client({ relay = false, peerFails = false } = {}) {
   c.sockets[0].opened(); assert.deepEqual(c.events, ['join']); c.rooms.close();
   c = client({ relay: true }); await c.open(); c.peers[0].emit('error', { type: 'network' });
   c.sockets[0].opened(); c.sockets[0].close(4404); assert.deepEqual(c.events, ['找不到该房间。']);
+  for (const code of [4404, 1006]) {
+    c = client({ relay: true }); await c.open(); c.peers[0].emit('open'); c.next();
+    c.sockets[0].opened(); c.sockets[0].close(code);
+    assert.deepEqual(c.events, []); assert.notEqual(c.rooms.room.peer, null);
+    c.peers[0].conn.emit('open'); c.peers[0].conn.emit('data', { type: 'joined', slot: 1 });
+    assert.deepEqual(c.events, ['join', 'joined']); c.rooms.close();
+  }
+  c = client({ relay: true }); await c.open(); c.peers[0].emit('open'); c.next();
+  c.sockets[0].opened(); c.sockets[0].close(4404); c.peers[0].emit('error', { type: 'peer-unavailable' });
+  assert.deepEqual(c.events, ['找不到该房间。']);
   c = client({ relay: true }); await c.open(); c.next(); c.sockets[0].opened(); c.time(16000);
   [...c.timers.values()].find((t) => t.delay === 15000).fn();
   assert.deepEqual(c.events, ['连接超时，请检查网络或房间号。']);
   console.log('PASS: P2P wins race, late relay cannot win, 4404 reports missing room, relay handshake retains 15s deadline');
+  console.log('PASS: relay waits for relay-ready; early 4404/close preserves pending P2P, missing room reported only after both fail');
 
   c = client({ relay: true, peerFails: true }); await c.open(true); c.sockets[0].opened();
   assert.deepEqual(c.events, ['ready']);
@@ -175,7 +188,7 @@ function client({ relay = false, peerFails = false } = {}) {
   c = client({ relay: true }); await c.open(true); c.peers[0].emit('open'); c.sockets[0].opened();
   c.sockets[0].close(4001); assert.deepEqual(c.events, ['ready']); c.rooms.close();
   c = client({ relay: true, peerFails: true }); await c.open(); assert.equal(c.sockets.length, 1);
-  c.sockets[0].opened(); c.sockets[0].receive({ type: 'reject' });
+  c.sockets[0].opened(); c.sockets[0].receive({ type: 'relay-ready' }); c.sockets[0].receive({ type: 'reject' });
   assert.deepEqual(c.events, ['房间已满、已开赛或比赛模式不同。']);
   console.log('PASS: independent host transport failures, relay reconnect, cancellation, PeerJS load failure, and room rejection');
 })().catch((err) => { console.error(err); process.exitCode = 1; });

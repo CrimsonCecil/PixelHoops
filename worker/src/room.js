@@ -47,7 +47,10 @@ export class RoomRelay {
       });
       ws.serializeAttachment({ role, id });
       const host = this.sockets('host')[0];
-      if (host) this.send(host, { type: 'peer-open', id });
+      if (host) {
+        this.send(host, { type: 'peer-open', id });
+        this.send(ws, { type: 'relay-ready' });
+      }
       else { ws.serializeAttachment({ role: 'closed' }); ws.close(4404, 'Room not found'); }
     }
     return new Response(null, { status: 101, webSocket: client });

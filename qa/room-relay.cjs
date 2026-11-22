@@ -23,6 +23,8 @@ async function connect(role, room = code, token = hostToken) {
   const missing = await connect('guest'); assert.equal((await missing.closed).code, 4404);
   console.log('PASS: route validation, Upgrade required, guest without host closes 4404');
   const host = await connect('host'), a = await connect('guest'), b = await connect('guest');
+  assert.deepEqual(await a.next(), { type: 'relay-ready' });
+  assert.deepEqual(await b.next(), { type: 'relay-ready' });
   const one = await host.next(), two = await host.next();
   for (const token of ['', 'wrong', 'f'.repeat(64)]) {
     const intruder = await connect('host', code, token);

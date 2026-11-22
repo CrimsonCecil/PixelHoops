@@ -102,15 +102,17 @@
       try { close(); } finally { handlers.error(reason); }
     };
     const deadline = Date.now() + 15000;
+    let relayError = '';
+    const deadlineFailure = () => fail(!host && relayDone && relayError || '连接超时，请检查网络或房间号。');
     const expired = () => {
       if (Date.now() < deadline) return false;
-      fail('连接超时，请检查网络或房间号。');
+      deadlineFailure();
       return true;
     };
     checkDeadline = expired;
     document.addEventListener('visibilitychange', checkDeadline);
     window.addEventListener('pageshow', checkDeadline);
-    timeout = setTimeout(() => fail('连接超时，请检查网络或房间号。'), 15000);
+    timeout = setTimeout(deadlineFailure, 15000);
     if (host) code = Array.from(crypto.getRandomValues(new Uint8Array(5)), (n) => alphabet[n % alphabet.length]).join('');
     const secret = host ? Array.from(crypto.getRandomValues(new Uint8Array(32)), (n) => n.toString(16).padStart(2, '0')).join('') : '';
     const url = relayURL(code, host ? 'host' : 'guest', secret);
@@ -126,6 +128,9 @@
     };
     const hostFailure = (reason) => {
       if (p2pDone && relayDone && !p2pUp && !relayUp && !room.active) fail(reason);
+    };
+    const guestFailure = () => {
+      if (p2pDone && relayDone && !winner) fail(relayError || '无法建立对等连接。');
     };
     const choose = (conn) => {
       if (!alive() || winner && winner !== conn) { conn.close(); return false; }
@@ -144,7 +149,7 @@
       conn.on('error', () => {
         if (!alive()) return;
         if (winner === conn) fail('无法建立对等连接。');
-        else if (url) startRelay();
+        else if (url) { p2pDone = true; startRelay(); guestFailure(); }
         else fail('无法建立对等连接。');
       });
       conn.on('data', (msg) => {
@@ -156,7 +161,7 @@
       });
     };
     function startRelay() {
-      if (!url || !alive() || relaySocket || (!host && winner)) return;
+      if (!url || !alive() || relaySocket || (!host && (winner || relayDone))) return;
       const send = (msg) => {
         const data = JSON.stringify(msg);
         if (ws.readyState === 1 && new TextEncoder().encode(data).length <= MAX_FRAME) ws.send(data);
@@ -164,7 +169,8 @@
       let ws;
       try { ws = new window.WebSocket(url); } catch {
         relayDone = true;
-        if (host) hostFailure('房间中继连接失败。'); else fail('房间中继连接失败。');
+        if (host) hostFailure('房间中继连接失败。');
+        else { relayError = '房间中继连接失败。'; guestFailure(); }
         return;
       }
       relaySocket = ws;
@@ -178,15 +184,17 @@
       ws.onopen = () => {
         if (!validSocket()) { ws.close(); return; }
         clearTimeout(relayWatch);
-        relayUp = true; relayDone = false; relayRetries = 0;
-        if (host) hostReady();
-        else { conn.open = true; conn.emit('open'); }
+        if (host) { relayUp = true; relayDone = false; relayRetries = 0; hostReady(); }
       };
       ws.onmessage = (event) => {
         if (!validSocket()) return;
         if (typeof event.data !== 'string' || new TextEncoder().encode(event.data).length > MAX_FRAME) return;
         let msg; try { msg = JSON.parse(event.data); } catch { return; }
         if (!host) {
+          if (!conn.open) {
+            if (msg?.type === 'relay-ready') { relayUp = true; conn.open = true; conn.emit('open'); }
+            return;
+          }
           if (msg?.type === 'relay-close') conn.close();
           else conn.emit('data', msg);
         } else if (msg?.type === 'peer-open' && Number.isInteger(msg.id)) {
@@ -203,13 +211,15 @@
         if (!validSocket()) return;
         relaySocket = null; relayUp = false; clearTimeout(relayWatch);
         if (!host) {
-          if (event.code === 4404) fail('找不到该房间。');
-          else if (!winner || winner === conn) fail('房间中继已断开（' + event.code + '）。');
+          relayDone = true;
+          relayError = event.code === 4404 ? '找不到该房间。' : '房间中继已断开（' + event.code + '）。';
+          if (winner === conn) fail(relayError);
+          else guestFailure();
           return;
         }
         for (const link of [...relayGuests.values()]) link.close();
         if (!alive()) return;
-        if (relayRetries >= 3 || event.code === 4001) {
+        if (relayRetries >= 3 || event.code === 4001 || event.code === 4003) {
           relayDone = true; hostFailure('房间中继重连失败。');
         } else relayTimer = setTimeout(startRelay, 500 * 2 ** relayRetries++);
       };
@@ -280,7 +290,7 @@
             if (ready && (signaling || err.type === 'unavailable-id' && retries > 0)) { recoverHost(); return; }
             p2pDone = true; hostFailure('在线服务连接失败（' + (err.type || 'WebRTC') + '）。'); return;
           }
-          if (url && !winner) { startRelay(); return; }
+          if (url && !winner) { p2pDone = true; startRelay(); guestFailure(); return; }
           if (winner === relayConn && winner) return;
           if ((err.type === 'peer-unavailable' || signaling) && retryGuest()) return;
           fail(err.type === 'peer-unavailable' ? '找不到该房间。' : '在线服务连接失败（' + (err.type || 'WebRTC') + '）。');
@@ -289,14 +299,14 @@
           if (!current(peer) || room.active) return;
           p2pUp = false;
           if (host && ready) recoverHost();
-          else if (url) startRelay();
+          else if (url) { p2pDone = true; startRelay(); guestFailure(); }
           else if (!retryGuest()) fail('在线服务已断开，请重新建房或加入。');
         });
         peer.on('close', () => {
           if (!current(peer)) return;
           p2pUp = false; p2pDone = true;
           if (host) hostFailure('在线服务已关闭，请重新建房或加入。');
-          else if (url && !winner) startRelay();
+          else if (url && !winner) { startRelay(); guestFailure(); }
           else fail('在线服务已关闭，请重新建房或加入。');
         });
         peer.on('open', () => {
@@ -316,7 +326,7 @@
     } catch (err) {
       p2pDone = true;
       if (host) hostFailure('无法加载在线服务，请检查网络。');
-      else if (url) startRelay();
+      else if (url) { startRelay(); guestFailure(); }
       else fail('无法加载在线服务，请检查网络。');
     }
   }
