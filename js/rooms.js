@@ -2,6 +2,7 @@
 (function () {
   const PH = window.PH;
   const alphabet = '23456789ABCDEFGHJKMNPQRSTUVWXYZ', prefix = 'pixelhoops-v1-';
+  const MAX_FRAME = 1024 * 1024;
   const room = { peer: null, role: '', code: '', links: new Map(), active: false };
   let script, attempt = 0, pending = null, timeout, checkDeadline, stopRecovery;
 
@@ -156,7 +157,10 @@
     };
     function startRelay() {
       if (!url || !alive() || relaySocket || (!host && winner)) return;
-      const send = (msg) => { if (ws.readyState === 1) ws.send(JSON.stringify(msg)); };
+      const send = (msg) => {
+        const data = JSON.stringify(msg);
+        if (ws.readyState === 1 && new TextEncoder().encode(data).length <= MAX_FRAME) ws.send(data);
+      };
       let ws;
       try { ws = new window.WebSocket(url); } catch {
         relayDone = true;
@@ -180,6 +184,7 @@
       };
       ws.onmessage = (event) => {
         if (!validSocket()) return;
+        if (typeof event.data !== 'string' || new TextEncoder().encode(event.data).length > MAX_FRAME) return;
         let msg; try { msg = JSON.parse(event.data); } catch { return; }
         if (!host) {
           if (msg?.type === 'relay-close') conn.close();

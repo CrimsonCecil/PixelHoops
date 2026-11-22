@@ -33,7 +33,7 @@ function client({ relay = false, peerFails = false } = {}) {
   win.WebSocket = WebSocket;
   if (relay) win.__API_BASE__ = 'https://relay.example';
   win.PH = {}; win.Peer = Peer;
-  const ctx = vm.createContext({ window: win, document: doc, URL, performance: { now: () => now }, crypto: { getRandomValues: (a) => a }, Date: { now: () => now },
+  const ctx = vm.createContext({ window: win, document: doc, URL, TextEncoder, performance: { now: () => now }, crypto: { getRandomValues: (a) => a }, Date: { now: () => now },
     setTimeout: (fn, delay) => { const id = {}; timers.set(id, { fn, delay }); return id; },
     clearTimeout: (id) => timers.delete(id) });
   vm.runInContext(fs.readFileSync(__dirname + '/../js/rooms.js', 'utf8'), ctx);
@@ -130,6 +130,10 @@ function client({ relay = false, peerFails = false } = {}) {
   c.sockets[0].receive(null); c.sockets[0].receive({ type: 'joined', slot: 1 });
   c.sockets[0].receive({ type: 'start', config: {} }); c.sockets[0].receive({ type: 'state', state: {} });
   c.rooms.input({ mx: 1 }); assert.equal(c.sockets[0].sent.at(-1).type, 'input');
+  const large = 'x'.repeat(94 * 1024);
+  c.sockets[0].receive({ type: 'state', state: large }); assert.equal(c.events.at(-1), 'state');
+  c.sockets[0].receive({ type: 'state', state: 'x'.repeat(1024 * 1024) });
+  c.events.pop();
   assert.deepEqual(c.events, ['joined', 'start', 'state']); c.rooms.close(); assert.equal(c.sockets[0].readyState, 3);
   console.log('PASS: guest falls back at 5s, uses JSON relay for join/start/state/input, and closes P2P loser');
 
@@ -153,6 +157,11 @@ function client({ relay = false, peerFails = false } = {}) {
   c.sockets[0].receive({ from: 7, msg: { type: 'input', input: { mx: 1 } } });
   assert.equal(c.rooms.inputs()[1].mx, 1);
   c.rooms.broadcast({ type: 'state', state: {} }); assert.equal(c.sockets[0].sent.at(-1).msg.type, 'state');
+  c.rooms.broadcast({ type: 'state', state: 'x'.repeat(94 * 1024) });
+  assert.equal(c.sockets[0].sent.at(-1).msg.state.length, 94 * 1024);
+  const count = c.sockets[0].sent.length;
+  c.rooms.broadcast({ type: 'state', state: 'x'.repeat(1024 * 1024) });
+  assert.equal(c.sockets[0].sent.length, count);
   c.sockets[0].receive({ type: 'peer-close', id: 7 }); assert.equal(c.rooms.room.links.size, 0); c.rooms.close();
   console.log('PASS: host works without PeerJS; virtual links reuse reserve/input/broadcast/disconnect logic');
 

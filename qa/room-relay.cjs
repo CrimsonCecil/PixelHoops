@@ -34,7 +34,10 @@ async function connect(role, room = code, token = hostToken) {
   host.send({ to: one.id, msg: { type: 'joined' } }); assert.deepEqual(await a.next(), { type: 'joined' });
   host.send({ to: '*', msg: { type: 'state' } });
   assert.deepEqual(await a.next(), { type: 'state' }); assert.deepEqual(await b.next(), { type: 'state' });
-  a.ws.send('bad json'); a.ws.send(new Uint8Array([1])); a.ws.send('"' + 'x'.repeat(65536) + '"');
+  const large = { type: 'state', data: 'x'.repeat(94 * 1024) };
+  host.send({ to: one.id, msg: large }); assert.deepEqual(await a.next(), large);
+  a.send(large); assert.deepEqual(await host.next(), { from: one.id, msg: large });
+  a.ws.send('bad json'); a.ws.send(new Uint8Array([1])); a.ws.send('"' + 'x'.repeat(1024 * 1024) + '"');
   host.send({}); a.send({ marker: 'after invalid frames' });
   assert.deepEqual(await host.next(), { from: one.id, msg: { marker: 'after invalid frames' } });
   b.ws.close(); assert.deepEqual(await host.next(), { type: 'peer-close', id: two.id });

@@ -1,4 +1,4 @@
-const MAX_FRAME = 64 * 1024;
+const MAX_FRAME = 1024 * 1024;
 
 export class RoomRelay {
   constructor(state) {
