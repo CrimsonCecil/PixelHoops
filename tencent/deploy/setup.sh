@@ -97,7 +97,9 @@ ln -sf /etc/nginx/sites-available/pixelhoops /etc/nginx/sites-enabled/pixelhoops
 rm -f /etc/nginx/sites-enabled/default
 nginx -t && systemctl reload nginx
 for d in $NAMES; do echo "DNS check: $d -> $(dig +short "$d" | tr '\n' ' ')   (this server: $PUBLIC_IP)"; done
-if certbot --nginx --non-interactive --agree-tos -m "$EMAIL" --redirect "${DOMAINS[@]}"; then echo "TLS ok"; else
+# --cert-name pins one stable certificate; --expand lets a re-run add names to it instead of refusing in non-interactive mode.
+# certbot --nginx also re-adds the 443 listener that the template rewrite above removes, so re-running is safe.
+if certbot --nginx --non-interactive --agree-tos -m "$EMAIL" --redirect --expand --cert-name "$API_DOMAIN" "${DOMAINS[@]}"; then echo "TLS ok"; else
   echo "!! certbot failed: DNS must point to $PUBLIC_IP and be DNS-only (grey cloud) in Cloudflare. Re-run this script after fixing."; fi
 
 say "8/8 firewall (host-level; ALSO open the same ports in the Lighthouse console firewall)"
