@@ -137,7 +137,7 @@ th { color: var(--muted); }
 #menu:not(.hidden) ~ #netstat { top: auto; left: 50%; transform: translateX(-50%); bottom: 10px; }
 #stage.replay #netstat, #replay-badge:not(.hidden) ~ #netstat { opacity: 0; }
 @media (max-width: 700px), (max-height: 420px) {
-  #menu:not(.hidden) ~ #netstat { top: auto; left: auto; right: 8px; bottom: 8px; transform: none; }
+  #menu:not(.hidden) ~ #netstat { position: fixed; top: auto; left: auto; right: 8px; bottom: 8px; transform: none; }
 }
 #debug { position: absolute; left: calc(var(--u) * 3); top: calc(var(--u) * 3); font-size: 12px; background: rgba(0, 0, 0, 0.7); padding: 3px 6px; z-index: 40; pointer-events: none; }
 
