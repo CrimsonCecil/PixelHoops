@@ -309,7 +309,7 @@
     $('menu-status').textContent = text; show('menu-status', !!text);
   }
   function roomStatus() {
-    if (room.role === 'host' && room.code) menuStatus('公开房间 · ' + (1 + room.links.size) + ' 人在房间 · 选好球星后点击准备');
+    if (room.role === 'host' && room.code) menuStatus('公开房间 · ' + (1 + room.links.size) + ' 人在房间 · ' + (room.links.size ? '选好球星即可开始' : '等待球友加入'));
     else if (!room.role) menuStatus('');
   }
   const NET_STATE = ['time', 'phase', 'phaseT', 'score', 'stats', 'target', 'shotClock', 'glen', 'gclock', 'sd', 'mp', 'needClear', 'off', 'winner',
@@ -448,7 +448,7 @@
         if (screen === 'menu' && room.role) { roomStatus(); PH.frontend.changed(); refreshMenu(); }
         if (left == null && room.links.size) { pingAt = performance.now(); rooms.ping(); }
       },
-      joined: (slot) => { roomSlot = slot; menuStatus('已加入房间 · 选好球星后点击准备'); PH.frontend.joined(); refreshMenu(); pingAt = performance.now(); rooms.ping(); },
+      joined: (slot) => { roomSlot = slot; menuStatus('已加入房间 · 选好球星，等待房主开始'); PH.frontend.joined(); refreshMenu(); pingAt = performance.now(); rooms.ping(); },
       message: (msg, slot) => PH.frontend.message(msg, slot),
       start: (config) => {
         if (!config || config.mode !== mode || (mode === 't3' && (!Array.isArray(config.slots) || config.slots.length !== 6 || !config.slots.every((s) => GM.ARCH[s.arch])))) return;
