@@ -3,7 +3,16 @@
   const PH = window.PH;
   const alphabet = '23456789ABCDEFGHJKMNPQRSTUVWXYZ', prefix = 'pixelhoops-v1-';
   const room = { peer: null, role: '', code: '', links: new Map(), active: false };
-  let script, attempt = 0, pending = null, timeout;
+  let script, attempt = 0, pending = null, timeout, checkDeadline, stopRecovery;
+
+  function clearDeadline() {
+    clearTimeout(timeout);
+    if (checkDeadline) {
+      document.removeEventListener('visibilitychange', checkDeadline);
+      window.removeEventListener('pageshow', checkDeadline);
+      checkDeadline = null;
+    }
+  }
 
   function loadPeer() {
     if (window.Peer) return Promise.resolve(window.Peer);
@@ -18,7 +27,8 @@
   }
   function write(conn, msg) { if (conn.open) conn.send(msg); }
   function close() {
-    attempt++; clearTimeout(timeout); pending = null;
+    attempt++; clearDeadline(); pending = null;
+    if (stopRecovery) { stopRecovery(); stopRecovery = null; }
     const peer = room.peer;
     room.links.clear();
     Object.assign(room, { peer: null, role: '', code: '', active: false });
@@ -64,31 +74,99 @@
     close();
     const token = attempt, host = !code;
     room.role = host ? 'host' : 'guest';
-    const fail = (reason) => { if (token === attempt) { close(); handlers.error(reason); } };
+    const fail = (reason) => {
+      if (token !== attempt) return;
+      try { close(); } finally { handlers.error(reason); }
+    };
+    const deadline = Date.now() + 15000;
+    const expired = () => {
+      if (Date.now() < deadline) return false;
+      fail('连接超时，请检查网络或房间号。');
+      return true;
+    };
+    checkDeadline = expired;
+    document.addEventListener('visibilitychange', checkDeadline);
+    window.addEventListener('pageshow', checkDeadline);
     timeout = setTimeout(() => fail('连接超时，请检查网络或房间号。'), 15000);
     try {
       const Peer = await loadPeer();
-      if (token !== attempt) return;
+      if (token !== attempt || expired()) return;
       if (host) code = Array.from(crypto.getRandomValues(new Uint8Array(5)), (n) => alphabet[n % alphabet.length]).join('');
-      const peer = room.peer = host ? new Peer(prefix + code) : new Peer();
-      peer.on('error', (err) => fail(err.type === 'peer-unavailable' ? '找不到该房间。' : '在线服务连接失败（' + (err.type || 'WebRTC') + '）。'));
-      peer.on('open', () => {
-        if (token !== attempt) return;
-        room.code = code;
-        if (host) { clearTimeout(timeout); handlers.ready(code); return; }
-        const conn = pending = peer.connect(prefix + code, { reliable: true, serialization: 'binary' });
-        conn.on('open', () => write(conn, { type: 'join', mode }));
-        conn.on('close', () => fail('已与房主断开连接。'));
-        conn.on('error', () => fail('无法建立对等连接。'));
-        conn.on('data', (msg) => {
-          if (token !== attempt || !msg) return;
-          if (msg.type === 'reject') fail('房间已满、已开赛或比赛模式不同。');
-          else if (msg.type === 'joined') { clearTimeout(timeout); handlers.joined(msg.slot); }
-          else if (msg.type === 'start') { room.active = true; handlers.start(msg.config); }
-          else if (msg.type === 'state' && room.active) handlers.state(msg.state);
+      let ready = false, joined = false, guestRetried = false, retries = 0, retryTimer = null;
+      const current = (peer) => token === attempt && room.peer === peer;
+      const recoverHost = (immediate = false) => {
+        if (token !== attempt || room.active || !ready) return;
+        if (retryTimer != null) {
+          if (!immediate) return;
+          clearTimeout(retryTimer);
+        }
+        retryTimer = setTimeout(() => {
+          retryTimer = null;
+          if (token !== attempt || room.active) return;
+          if (retries >= 3) { fail('在线服务重连失败，请重新建房。'); return; }
+          const peer = room.peer;
+          const delay = 1000 * 2 ** retries++;
+          retryTimer = setTimeout(() => { retryTimer = null; recoverHost(true); }, delay);
+          try {
+            if (!peer.disconnected) peer.disconnect();
+            peer.reconnect();
+          } catch (err) { /* Retry synchronous failures on the same backoff. */ }
+        }, immediate ? 0 : 500);
+      };
+      const visible = () => { if (!document.hidden && room.peer?.disconnected) recoverHost(true); };
+      document.addEventListener('visibilitychange', visible);
+      stopRecovery = () => { clearTimeout(retryTimer); document.removeEventListener('visibilitychange', visible); };
+      const retryGuest = () => {
+        if (host || joined || guestRetried || expired()) return false;
+        guestRetried = true;
+        const peer = room.peer;
+        room.peer = null; pending = null;
+        try { peer.destroy(); } finally {
+          retryTimer = setTimeout(() => {
+            retryTimer = null;
+            if (token === attempt && !expired()) createPeer();
+          }, 1000);
+        }
+        return true;
+      };
+      function createPeer() {
+        const peer = room.peer = host ? new Peer(prefix + code) : new Peer();
+        peer.on('error', (err) => {
+          if (!current(peer)) return;
+          const signaling = ['network', 'socket-error', 'socket-closed'].includes(err.type);
+          if (host && ready && (signaling || err.type === 'unavailable-id' && retries > 0)) { recoverHost(); return; }
+          if ((err.type === 'peer-unavailable' || signaling) && retryGuest()) return;
+          fail(err.type === 'peer-unavailable' ? '找不到该房间。' : '在线服务连接失败（' + (err.type || 'WebRTC') + '）。');
         });
-      });
-      if (host) peer.on('connection', (conn) => incoming(conn, handlers, token));
+        peer.on('disconnected', () => {
+          if (!current(peer) || room.active) return;
+          if (host && ready) recoverHost();
+          else if (!retryGuest()) fail('在线服务已断开，请重新建房或加入。');
+        });
+        peer.on('close', () => { if (current(peer)) fail('在线服务已关闭，请重新建房或加入。'); });
+        peer.on('open', () => {
+          if (!current(peer) || (!ready && expired())) return;
+          room.code = code;
+          if (host) {
+            clearTimeout(retryTimer); retryTimer = null; retries = 0;
+            if (!ready) { ready = true; clearDeadline(); handlers.ready(code); }
+            return;
+          }
+          const conn = pending = peer.connect(prefix + code, { reliable: true, serialization: 'binary' });
+          conn.on('open', () => { if (current(peer) && !expired()) write(conn, { type: 'join', mode }); });
+          conn.on('close', () => { if (current(peer)) fail('已与房主断开连接。'); });
+          conn.on('error', () => { if (current(peer)) fail('无法建立对等连接。'); });
+          conn.on('data', (msg) => {
+            if (!current(peer) || !msg) return;
+            if (msg.type === 'reject') fail('房间已满、已开赛或比赛模式不同。');
+            else if (msg.type === 'joined') { if (expired()) return; joined = true; clearDeadline(); handlers.joined(msg.slot); }
+            else if (msg.type === 'start') { room.active = true; handlers.start(msg.config); }
+            else if (msg.type === 'state' && room.active) handlers.state(msg.state);
+          });
+        });
+        if (host) peer.on('connection', (conn) => incoming(conn, handlers, token));
+      }
+      createPeer();
     } catch (err) { fail('无法加载在线服务，请检查网络。'); }
   }
   function input(data) { if (pending) write(pending, { type: 'input', input: data }); }
