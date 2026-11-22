@@ -1,0 +1,15 @@
+{
+  "name": "pixelhoops-tencent-backend",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "PixelHoops backend for Tencent Cloud: REST (reuses worker/src/index.js) + WebSocket room relay + TURN credentials",
+  "engines": { "node": ">=22.13" },
+  "scripts": {
+    "start": "node server.mjs",
+    "test": "node test/run.mjs"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  }
+}

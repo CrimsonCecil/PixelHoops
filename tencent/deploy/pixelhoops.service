@@ -1,0 +1,21 @@
+[Unit]
+Description=PixelHoops backend (REST + WebSocket relay + TURN credentials)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=pixelhoops
+WorkingDirectory=/opt/pixelhoops/app/tencent
+EnvironmentFile=/etc/pixelhoops.env
+ExecStart=/usr/bin/node --no-warnings server.mjs
+Restart=always
+RestartSec=2
+LimitNOFILE=65535
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/opt/pixelhoops/data
+
+[Install]
+WantedBy=multi-user.target

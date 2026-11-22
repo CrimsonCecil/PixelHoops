@@ -2237,7 +2237,8 @@
     netstatAt = now;
     const fpsText = Math.round(fps) + ' FPS';
     const p = room.ping;
-    const pingText = p != null ? 'PING ' + p + 'ms' : 'PING --';
+    const via = room.transport === 'p2p' ? ' P2P' : room.transport === 'relay' ? ' 中继' : '';
+    const pingText = (p != null ? 'PING ' + p + 'ms' : 'PING --') + via;
     const pingCls = p == null ? '' : p < 60 ? 'good' : p < 120 ? 'warn' : 'bad';
     if (fpsText !== lastFpsText) { $('netstat-fps').textContent = fpsText; lastFpsText = fpsText; }
     if (pingText !== lastPingText) { $('netstat-ping').textContent = pingText; lastPingText = pingText; }

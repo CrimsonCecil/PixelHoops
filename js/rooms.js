@@ -3,10 +3,33 @@
   const PH = window.PH;
   const alphabet = '23456789ABCDEFGHJKMNPQRSTUVWXYZ';
   const MAX_FRAME = 1024 * 1024, RELAY_BUFFER_LIMIT = 8 * 1024, P2P_BUFFER_LIMIT = 32 * 1024, INPUT_HEARTBEAT_MS = 100;
-  const ICE_SERVERS = [{ urls: ['stun:stun.miwifi.com:3478', 'stun:stun.qq.com:3478', 'stun:stun.l.google.com:19302'] }];
+  // Fallback only. google STUN is unreachable from mainland China, so it is no longer listed.
+  const FALLBACK_ICE = [{ urls: ['stun:stun.qq.com:3478', 'stun:stun.miwifi.com:3478'] }];
+  const ICE_REFRESH_MS = 60 * 60 * 1000;
+  let iceServers = FALLBACK_ICE, iceAt = -Infinity, iceBusy = false, icePending = null;
+  // Fetch short-lived TURN credentials from our own backend (GET /api/turn). Never blocks room setup:
+  // on any failure we keep whatever we had (own TURN from an earlier fetch, else the STUN fallback).
+  function refreshIce() {
+    const base = window.__API_BASE__, f = window.fetch;
+    if (iceBusy || typeof f !== 'function' || !base || /^__.*__$/.test(base)) return;
+    if (performance.now() - iceAt < ICE_REFRESH_MS) return;
+    iceBusy = true;
+    const opts = { cache: 'no-store' };
+    if (typeof AbortSignal !== 'undefined' && typeof AbortSignal.timeout === 'function') opts.signal = AbortSignal.timeout(3000);
+    icePending = Promise.resolve(f.call(window, base.replace(/\/$/, '') + '/api/turn', opts))
+      .then((r) => (r && r.ok ? r.json() : null))
+      .then((j) => {
+        const list = j && Array.isArray(j.iceServers) ? j.iceServers.filter((x) => x && x.urls) : [];
+        if (list.length) { iceServers = list.concat(FALLBACK_ICE); iceAt = performance.now(); }
+      })
+      .catch(() => {})
+      .then(() => { iceBusy = false; icePending = null; });
+  }
+  // Run fn now if no credential fetch is in flight, otherwise right after it settles (<= 3 s, never rejects).
+  function whenIce(fn) { if (icePending) icePending.then(fn); else fn(); }
   const room = { peer: null, role: '', code: '', links: new Map(), active: false, ping: null, transport: '' };
   let attempt = 0, pending = null, timeout, checkDeadline, stopRecovery;
-  let stateSeq = 0, lastInputKey = '', lastInputAt = -Infinity;
+  let stateSeq = 0, inputSeq = 0, lastInputKey = '', lastInputAt = -Infinity;
 
   function clearDeadline() {
     clearTimeout(timeout);
@@ -71,7 +94,7 @@
   }
   function createLink(relaySend, relayEnd, relayBuffered, isHost) {
     const listeners = new Map();
-    let pc = null, ctrl = null, stateCh = null, pendingIce = [], closed = false, relayAlive = true;
+    let pc = null, ctrl = null, stateCh = null, inCh = null, pendingIce = [], closed = false, relayAlive = true;
     const link = {
       open: false,
       transport: 'relay',
@@ -88,7 +111,10 @@
         if (!this.open) return;
         if (ctrl && ctrl.readyState === 'open') {
           const droppable = isDroppableState(msg);
-          const ch = droppable && stateCh && stateCh.readyState === 'open' ? stateCh : ctrl;
+          // input: unordered + reliable (seq-stamped) so a lost packet never blocks newer key states;
+          // state: unordered, no retransmit; everything else: ordered ctrl.
+          const ch = droppable && stateCh && stateCh.readyState === 'open' ? stateCh
+            : msg && msg.type === 'input' && inCh && inCh.readyState === 'open' ? inCh : ctrl;
           if (droppable && (ch.bufferedAmount || 0) > P2P_BUFFER_LIMIT) return;
           try {
             const raw = JSON.stringify(msg);
@@ -103,10 +129,12 @@
       },
       startRtc() {
         if (closed || pc || typeof window.RTCPeerConnection !== 'function') return;
+        if (icePending) { whenIce(() => { if (!closed && !pc) this.startRtc(); }); return; }
         setupPc();
         try {
-          attachChannel(pc.createDataChannel('ctrl', { ordered: true }), true);
-          attachChannel(pc.createDataChannel('state', { ordered: false, maxRetransmits: 0 }), false);
+          attachChannel(pc.createDataChannel('ctrl', { ordered: true }), 'ctrl');
+          attachChannel(pc.createDataChannel('state', { ordered: false, maxRetransmits: 0 }), 'state');
+          attachChannel(pc.createDataChannel('input', { ordered: false }), 'input');
           pc.createOffer()
             .then((offer) => pc && pc.setLocalDescription(offer).then(() => offer))
             .then((offer) => { if (!closed && pc) relaySend({ type: 'rtc', kind: 'offer', sdp: offer }); })
@@ -115,7 +143,9 @@
       },
       handleRtc(msg) {
         if (closed || !msg || typeof window.RTCPeerConnection !== 'function') return;
-        if (msg.kind === 'offer' && !isHost && msg.sdp) {
+        if (msg.kind === 'offer' && !isHost && msg.sdp && !pc && icePending) {
+          whenIce(() => { if (!closed) this.handleRtc(msg); });
+        } else if (msg.kind === 'offer' && !isHost && msg.sdp) {
           if (!pc) setupPc();
           pc.setRemoteDescription(msg.sdp)
             .then(() => flushIce())
@@ -147,7 +177,7 @@
       for (const cand of list) pc.addIceCandidate(cand).catch(() => {});
     }
     function dropPc() {
-      const old = pc; pc = null; ctrl = null; stateCh = null; pendingIce = [];
+      const old = pc; pc = null; ctrl = null; stateCh = null; inCh = null; pendingIce = [];
       if (link.transport !== 'relay') { link.transport = 'relay'; syncTransport(); }
       if (old) {
         old.onicecandidate = old.onconnectionstatechange = old.ondatachannel = null;
@@ -155,8 +185,9 @@
       }
       if (!closed && !relayAlive) link.close();
     }
-    function attachChannel(ch, isCtrl) {
-      if (isCtrl) ctrl = ch; else stateCh = ch;
+    function attachChannel(ch, kind) {
+      const isCtrl = kind === 'ctrl';
+      if (kind === 'ctrl') ctrl = ch; else if (kind === 'state') stateCh = ch; else inCh = ch;
       ch.onopen = () => {
         if (closed) { try { ch.close(); } catch {} return; }
         if (isCtrl) { link.transport = 'p2p'; syncTransport(); }
@@ -172,12 +203,13 @@
           ctrl = null; link.transport = 'relay'; syncTransport();
           if (!closed && !relayAlive) link.close();
         }
-        if (!isCtrl && stateCh === ch) stateCh = null;
+        if (kind === 'state' && stateCh === ch) stateCh = null;
+        if (kind === 'input' && inCh === ch) inCh = null;
       };
       ch.onerror = () => {};
     }
     function setupPc() {
-      pc = new window.RTCPeerConnection({ iceServers: ICE_SERVERS });
+      pc = new window.RTCPeerConnection({ iceServers });
       pc.onicecandidate = (ev) => {
         if (!closed && ev.candidate) relaySend({ type: 'rtc', kind: 'ice', candidate: ev.candidate });
       };
@@ -189,7 +221,7 @@
         pc.ondatachannel = (ev) => {
           const ch = ev.channel;
           if (!ch) return;
-          attachChannel(ch, ch.label !== 'state');
+          attachChannel(ch, ch.label === 'state' ? 'state' : ch.label === 'input' ? 'input' : 'ctrl');
         };
       }
     }
@@ -197,7 +229,7 @@
   }
   function close() {
     attempt++; clearDeadline(); pending = null;
-    stateSeq = 0; lastInputKey = ''; lastInputAt = -Infinity;
+    stateSeq = 0; inputSeq = 0; lastInputKey = ''; lastInputAt = -Infinity;
     if (stopRecovery) { stopRecovery(); stopRecovery = null; }
     room.links.clear();
     Object.assign(room, { peer: null, role: '', code: '', active: false, ping: null, transport: '' });
@@ -244,6 +276,10 @@
       } else if (slot >= 0 && msg.type === 'input' && room.active) {
         const link = room.links.get(slot);
         if (!link || link.conn !== conn) return;
+        if (Number.isInteger(msg.seq)) {
+          if (link.inSeq != null && msg.seq <= link.inSeq) return; // late/duplicate packet from the unordered channel
+          link.inSeq = msg.seq;
+        }
         link.input = cleanInput(msg.input); link.last = performance.now();
       }
     });
@@ -260,6 +296,7 @@
   }
   async function open(code, mode, handlers) {
     close();
+    refreshIce();
     const token = attempt, host = !code;
     room.role = host ? 'host' : 'guest';
     const fail = (reason) => {
@@ -429,7 +466,7 @@
     const key = JSON.stringify(data);
     if (key === lastInputKey && now - lastInputAt < INPUT_HEARTBEAT_MS) return;
     lastInputKey = key; lastInputAt = now;
-    write(pending, { type: 'input', input: data });
+    write(pending, { type: 'input', input: data, seq: ++inputSeq });
   }
   function inputs() {
     const out = {}, now = performance.now();
@@ -442,5 +479,5 @@
     else if (room.role === 'guest' && pending && room.code) write(pending, { type: 'ping', t });
   }
   const valid = (code) => code.length === 5 && [...code].every((c) => alphabet.includes(c));
-  PH.rooms = { room, open, close, broadcast, congested, relaying, input, inputs, ping, valid, sendLobby: (data) => { if (pending && !room.active) write(pending, { ...data, type: 'lobby' }); } };
+  PH.rooms = { room, open, close, iceServers: () => iceServers, broadcast, congested, relaying, input, inputs, ping, valid, sendLobby: (data) => { if (pending && !room.active) write(pending, { ...data, type: 'lobby' }); } };
 })();
