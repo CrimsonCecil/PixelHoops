@@ -9,7 +9,7 @@
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/fusion-pixel-12px-proportional-sc@5/index.css">
 <script>
-window.__V__ = (Date.parse(document.lastModified) || Date.now()).toString(36) + '-single-line-scoreboards';
+window.__V__ = (Date.parse(document.lastModified) || Date.now()).toString(36) + '-single-line-timed-scoreboards';
 document.write('<link rel="stylesheet" href="style.css?v=' + window.__V__ + '">');
 </script>
 <script>window.__API_BASE__='https://pixelhoops-api.cecilcai322.workers.dev';</script>
@@ -24,7 +24,7 @@ document.write('<link rel="stylesheet" href="style.css?v=' + window.__V__ + '">'
   <div id="hud" class="hidden">
     <div id="scorebar" class="scoreboard">
       <div class="team t0"><span class="tname" id="n0">蓝队</span><span class="tscore" id="s0" data-testid="score-0">0</span></div>
-      <div class="clock"><span id="clock" data-testid="shot-clock">24</span></div>
+      <div class="clock"><span id="game-clock" class="hidden" data-testid="game-clock"></span><span id="clock" data-testid="shot-clock">24</span></div>
       <div class="team t1"><span class="tscore" id="s1" data-testid="score-1">0</span><span class="tname" id="n1">红队</span></div>
     </div>
     <div id="trainbar" class="scoreboard hidden"></div>

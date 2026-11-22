@@ -69,7 +69,7 @@ button.primary:hover { background: #ffdf70; }
 :is(#scorebar, #sb5, #trainbar, #b5-head) { --u: min(2px, calc(100vw / 480)); --fs-xs: calc(var(--scorebar-body) + 2px); --fs-sm: calc(var(--scorebar-body) + 3px); --fs-md: calc(var(--scorebar-body) + 6px); --fs-lg: calc(var(--scorebar-body) + 10px); position: absolute; top: 0; left: 50%; transform: translateX(-50%); display: flex; align-items: stretch; width: calc(var(--scorebar-body) * 22 + 140px); max-width: calc(100% - 8px); height: var(--scorebar-height); line-height: 1.2; border: calc(var(--u) * 1) solid var(--ink); background: var(--ink); gap: calc(var(--u) * 1); }
 .scoreboard .team { min-width: 0; flex: 1; }
 .scoreboard .team .tname { min-width: 0; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; align-content: center; }
-.scoreboard .clock { flex-shrink: 0; }
+.scoreboard .clock { flex-shrink: 0; flex-direction: row; gap: calc(var(--u) * 3); }
 .scoreboard .tscore { flex-shrink: 0; }
 .team { display: flex; align-items: center; background: var(--panel); }
 .tname { font-size: var(--fs-sm); padding: 0 calc(var(--u) * 5); white-space: nowrap; min-width: calc(var(--u) * 58); text-align: center; }
@@ -78,7 +78,8 @@ button.primary:hover { background: #ffdf70; }
 .tscore { font-size: var(--fs-lg); min-width: calc(var(--u) * 24); text-align: center; padding: calc(var(--u) * 1) calc(var(--u) * 3); font-variant-numeric: tabular-nums; }
 .clock { background: #0b0e1e; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: calc(var(--u) * 1) calc(var(--u) * 5); min-width: calc(var(--u) * 40); }
 #clock { font-size: var(--fs-lg); color: var(--gold); font-variant-numeric: tabular-nums; line-height: 1.2; }
-#clock.low { color: var(--red); }
+#game-clock { font-size: var(--fs-xs); color: var(--muted); white-space: nowrap; }
+#clock.low, #game-clock.low { color: var(--red); }
 .clock small { font-size: var(--fs-xs); color: var(--muted); white-space: nowrap; line-height: 1.2; }
 #notice { position: absolute; top: calc(var(--u) * 34); left: 50%; transform: translateX(-50%); background: var(--red); color: #2a0606; font-size: var(--fs-sm); padding: calc(var(--u) * 1.5) calc(var(--u) * 5); border: calc(var(--u) * 1) solid var(--ink); white-space: nowrap; }
 #hint { position: absolute; bottom: calc(var(--u) * 4); left: 50%; transform: translateX(-50%); font-size: var(--fs-xs); color: var(--text); background: rgba(10, 12, 28, 0.82); border: calc(var(--u) * 1) solid var(--ink); padding: calc(var(--u) * 1.5) calc(var(--u) * 5); white-space: nowrap; }

@@ -1359,6 +1359,13 @@
     const ft = G.phase === 'ft' ? G.ft : null;
     const c = !ft && CFG.shotClock > 0 ? String(Math.max(0, Math.ceil(G.shotClock))) : '--';
     if (c !== lastClock) { lastClock = c; $('clock').textContent = c; $('clock').classList.toggle('low', CFG.shotClock > 0 && G.shotClock <= 5); }
+    const timed = G.glen > 0 && !train;
+    show('game-clock', timed);
+    if (timed) {
+      const gc = Math.max(0, Math.ceil(G.gclock || 0)), text = Math.floor(gc / 60) + ':' + String(gc % 60).padStart(2, '0'), el = $('game-clock');
+      if (el.textContent !== text) el.textContent = text;
+      el.classList.toggle('low', gc <= 10);
+    }
     const teamOff = t3 && !!local && local.tm === G.off;
     show('notice', G.needClear && G.phase === 'live' && G.ball.state === 'held' && (t3 ? teamOff : G.players[G.off].ctrl !== 'cpu'));
     $('notice').classList.toggle('ping', G.time - (G.clearPing || -9) < 0.45);

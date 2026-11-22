@@ -9,7 +9,8 @@ const output = process.env.SCOREBOARD_OUTPUT;
 const reference = process.env.SCOREBOARD_REFERENCE;
 const label = process.env.SCOREBOARD_LABEL || 'after';
 const modes = ['cpu', '2p', 't3', 't5', 'king', 'train', 'train-def', 'online', 'online-t3',
-  'replay-cpu', 'replay-2p', 'replay-t3', 'replay-t5', 'replay-train', 't5-box', 'cpu-highlight', 't3-highlight', 't5-highlight'];
+  'replay-cpu', 'replay-2p', 'replay-t3', 'replay-t5', 'replay-train', 't5-box', 'cpu-highlight', 't3-highlight', 't5-highlight',
+  'cpu-timed', '2p-timed', 'online-timed'];
 
 (async () => {
   const browser = await chromium.launch({ headless: true });
@@ -18,7 +19,8 @@ const modes = ['cpu', '2p', 't3', 't5', 'king', 'train', 'train-def', 'online', 
   const sourceFiles = new Map();
   try {
     for (const mode of modes) {
-      const gameMode = mode.startsWith('replay-') ? mode.slice(7) : mode === 'online-t3' ? 't3' : mode === 'online' ? 'cpu' : mode.split('-')[0];
+      const gameMode = mode.startsWith('replay-') ? mode.slice(7) : mode === 'online-t3' ? 't3' : mode.startsWith('online') ? 'cpu' : mode.split('-')[0];
+      const timed = mode.endsWith('-timed');
       const page = await browser.newPage({ viewport: { width: 1568, height: 900 } });
       const errors = [];
       page.on('pageerror', (e) => errors.push(e.message));
@@ -41,23 +43,35 @@ const modes = ['cpu', '2p', 't3', 't5', 'king', 'train', 'train-def', 'online', 
       await page.evaluate(() => window.advanceTime(0));
       if (gameMode !== 'cpu') await page.getByTestId('mode-' + gameMode).click();
       if (mode.startsWith('online')) {
-        if (mode === 'online') await page.getByTestId('mode-online').click();
-        await page.evaluate(() => {
+        if (gameMode === 'cpu') await page.getByTestId('mode-online').click();
+        await page.evaluate((timed) => {
           PH.rooms.open = (code, mode, handlers) => {
+            window.scoreboardRoomState = handlers.state;
             Object.assign(PH.rooms.room, { role: 'guest', active: true });
             handlers.joined(0);
-            handlers.start({ mode, arch0: 'wemby', arch1: 'sga', target: 21, clock: 24, diff: 1, fb: 'simple',
+            handlers.start({ mode, arch0: 'wemby', arch1: 'sga', target: 21, clock: 24, glen: timed ? 180 : 0, diff: 1, fb: 'simple',
               slots: ['wemby', 'curry', 'lebron', 'sga', 'durant', 'jokic'].map((arch, i) => ({ arch, role: i ? 'cpu' : 'human' })) });
           };
-        });
+        }, timed);
         await page.locator('#room-code').fill('ABCDE');
         await page.locator('#btn-room-join').click();
       } else {
+        if (timed) await page.locator('[data-opt="glen"] [data-v="180"]').evaluate(e => e.click());
         await page.getByTestId('btn-start').click();
         if (mode === 'king') await page.getByTestId('king-go').click();
       }
       await page.evaluate(() => { PH.game.introEnd(); window.advanceTime(4100); });
       await page.evaluate(() => { for (let i = 0; i < 24; i++) window.advanceTime(0); });
+      if (!reference && timed) {
+        const before = await page.evaluate(() => PH.game.G.gclock);
+        await page.evaluate((online) => {
+          const G = PH.game.G;
+          if (online) window.scoreboardRoomState({ ...G, gclock: G.gclock - 2.2,
+            players: G.players.map(p => ({ ...p, oppId: p.opp ? p.opp.id : -1 })) });
+          window.advanceTime(2200);
+        }, mode.startsWith('online'));
+        assert(await page.evaluate(() => PH.game.G.gclock) < before, `game clock did not count down: ${mode}`);
+      }
       if (gameMode === 'train') {
         if (mode === 'train-def') await page.getByTestId('tr-role-def').click();
         await page.locator('#tr-fold').click();
@@ -171,6 +185,16 @@ const modes = ['cpu', '2p', 't3', 't5', 'king', 'train', 'train-def', 'online', 
         };
         const m = await measure();
         if (!reference) check(m);
+        if (!reference && !mode.startsWith('replay-') && !mode.startsWith('t5')) {
+          const clock = page.getByTestId('game-clock');
+          assert.equal(await clock.isVisible(), timed, `game-clock visibility: ${mode}/${width}`);
+          if (timed) {
+            const expected = await page.evaluate(() => { const t = Math.ceil(PH.game.G.gclock); return Math.floor(t / 60) + ':' + String(t % 60).padStart(2, '0'); });
+            assert.equal(await clock.textContent(), expected, `wrong game countdown: ${mode}/${width}`);
+            const positions = await page.evaluate(() => ['game-clock', 'clock'].map(id => { const r = document.getElementById(id).getBoundingClientRect(); return r.y + r.height / 2; }));
+            assert(Math.abs(positions[0] - positions[1]) < 1, 'timed clocks are not on one line');
+          }
+        }
         metrics.push({ width, ...m });
         if (output) await page.screenshot({ path: path.join(output, `scoreboard_${mode}_${label}_${width}.png`) });
         if (!reference && !mode.startsWith('train') && !mode.startsWith('replay-')) {
@@ -208,7 +232,7 @@ const modes = ['cpu', '2p', 't3', 't5', 'king', 'train', 'train-def', 'online', 
     }
     if (output) fs.writeFileSync(path.join(output, `scoreboard_${label}_metrics.json`), JSON.stringify(metrics, null, 2));
     for (const m of metrics) console.log(m.mode.startsWith('replay-') && !reference ? `${m.mode} ${m.width}: no scoreboard; score in bottom controls` : `${m.mode} ${m.width}: card max ${Math.max(...m.fonts.cards.map((t) => t.size)).toFixed(2)}px; scoreboard min ${Math.min(...m.fonts.bar.map((t) => t.size)).toFixed(2)}px; ${m.bar.width.toFixed(2)} × ${m.bar.height.toFixed(2)}px`);
-    console.log(reference ? `Recorded ${metrics.length} reference scenes.` : `PASS: ${metrics.length} scenes across ${modes.length} modes; no prefixes/targets, single-line equal dimensions, attached 5V5 shot tabs, no playback scoreboard, font hierarchy, bounds, top edge, text fit, HUD non-overlap, long names, highlight visibility, empty/error playback, and no browser errors`);
+    console.log(reference ? `Recorded ${metrics.length} reference scenes.` : `PASS: ${metrics.length} scenes across ${modes.length} modes; counting-down timed duel clocks, no prefixes/targets, single-line equal dimensions, attached 5V5 shot tabs, no playback scoreboard, font hierarchy, bounds, top edge, text fit, HUD non-overlap, long names, highlight visibility, empty/error playback, and no browser errors`);
   } finally {
     await browser.close();
   }
