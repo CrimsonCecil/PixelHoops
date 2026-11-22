@@ -5,7 +5,7 @@ const { EventEmitter } = require('node:events');
 
 function client({ relay = false, peerFails = false } = {}) {
   let now = 0;
-  const timers = new Map(), doc = new EventEmitter(), win = new EventEmitter(), peers = [], events = [], sockets = [];
+  const timers = new Map(), doc = new EventEmitter(), win = new EventEmitter(), peers = [], events = [], sockets = [], messages = [];
   for (const target of [doc, win]) {
     target.addEventListener = target.on.bind(target);
     target.removeEventListener = target.off.bind(target);
@@ -40,13 +40,13 @@ function client({ relay = false, peerFails = false } = {}) {
   const rooms = win.PH.rooms;
   const open = (host = false) => rooms.open(host ? '' : 'ABCDE', 'online', {
     error: (message) => events.push(message), joined: () => events.push('joined'), start: () => events.push('start'), ready: () => events.push('ready'),
-    reserve: (mode, links) => links.has(1) ? -1 : 1, change: () => {}, state: () => events.push('state')
+    reserve: (mode, links) => links.has(1) ? -1 : 1, change: () => {}, state: () => events.push('state'), message: (msg, slot) => messages.push({ ...msg, senderSlot: slot })
   });
   const next = () => {
     const [id, timer] = [...timers].sort((a, b) => a[1].delay - b[1].delay)[0];
     timers.delete(id); timer.fn();
   };
-  return { rooms, peers, events, sockets, timers, doc, win, open, next, time: (ms) => { now = ms; } };
+  return { rooms, peers, events, sockets, messages, timers, doc, win, open, next, time: (ms) => { now = ms; } };
 }
 
 (async () => {
@@ -61,6 +61,16 @@ function client({ relay = false, peerFails = false } = {}) {
   assert.equal(c.timers.size, 0);
   assert.equal(c.rooms.room.active, true);
   console.log('PASS: normal join/start, empty data, deadline cleanup, active match survives signaling loss');
+
+  c = client(); await c.open(); c.peers[0].emit('open'); c.peers[0].conn.emit('open');
+  c.peers[0].conn.emit('data', { type: 'joined', slot: 1 });
+  c.peers[0].conn.emit('data', { type: 'lobby', ready: true });
+  assert.equal(c.messages[0].ready, true);
+  c.rooms.sendLobby({ ready: true }); assert.equal(c.events.at(-1), 'lobby');
+  c.rooms.room.active = true;
+  c.peers[0].conn.emit('data', { type: 'lobby', ready: false });
+  assert.equal(c.messages.length, 1); c.rooms.close();
+  console.log('PASS: P2P pre-match lobby forwarding stops once the match is active');
 
   for (const resume of ['timer', 'visibilitychange', 'pageshow']) {
     c = client(); await c.open(); c.peers[0].emit('open'); c.time(16000);
@@ -130,7 +140,10 @@ function client({ relay = false, peerFails = false } = {}) {
   c.sockets[0].receive({ type: 'relay-ready' }); assert.equal(c.rooms.room.peer, null);
   assert.equal(c.sockets[0].sent[0].type, 'join');
   c.sockets[0].receive(null); c.sockets[0].receive({ type: 'joined', slot: 1 });
+  c.sockets[0].receive({ type: 'lobby', ready: true }); assert.equal(c.messages[0].ready, true);
+  c.rooms.sendLobby({ ready: true }); assert.equal(c.sockets[0].sent.at(-1).type, 'lobby');
   c.sockets[0].receive({ type: 'start', config: {} }); c.sockets[0].receive({ type: 'state', state: {} });
+  c.sockets[0].receive({ type: 'lobby', ready: false }); assert.equal(c.messages.length, 1);
   c.rooms.input({ mx: 1 }); assert.equal(c.sockets[0].sent.at(-1).type, 'input');
   const large = 'x'.repeat(94 * 1024);
   c.sockets[0].receive({ type: 'state', state: large }); assert.equal(c.events.at(-1), 'state');
@@ -166,7 +179,11 @@ function client({ relay = false, peerFails = false } = {}) {
   c.sockets[0].receive({ from: 7, msg: { type: 'join', mode: 'online' } });
   assert.equal(c.rooms.room.links.size, 1);
   assert.equal(c.sockets[0].sent[0].to, 7); assert.equal(c.sockets[0].sent[0].msg.type, 'joined');
+  c.sockets[0].receive({ from: 7, msg: { type: 'lobby', slot: 5, ready: true } });
+  assert.equal(c.messages[0].senderSlot, 1, 'host assigns the sender slot rather than trusting the payload');
+  assert.equal(c.messages[0].ready, true);
   c.rooms.room.active = true;
+  c.sockets[0].receive({ from: 7, msg: { type: 'lobby', ready: false } }); assert.equal(c.messages.length, 1);
   c.sockets[0].receive({ from: 7, msg: { type: 'input', input: { mx: 1 } } });
   assert.equal(c.rooms.inputs()[1].mx, 1);
   c.rooms.broadcast({ type: 'state', state: {} }); assert.equal(c.sockets[0].sent.at(-1).msg.type, 'state');

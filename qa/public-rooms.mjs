@@ -53,6 +53,14 @@ await contract('Worker/D1', async (method, path, data) => {
   assert.equal(response.headers.get('Access-Control-Allow-Origin'), '*');
   return { status: response.status, body: await response.json() };
 }, sqlite);
+let relayRouted = false;
+const relayEnv = { DB: d1, ROOMS: { idFromName: (code) => code, get: (code) => ({ fetch: () => {
+  assert.equal(code, 'ABCDE'); relayRouted = true; return new Response('relay');
+} }) } };
+assert.equal((await worker.fetch(new Request('http://local/api/rooms/ABCDE/ws?role=host', { headers: { Upgrade: 'websocket' } }), relayEnv)).status, 200);
+assert.equal(relayRouted, true, 'relay upgrade must route before the directory code handler');
+assert.equal((await worker.fetch(new Request('http://local/api/rooms/ABCDE/ws?role=host'), relayEnv)).status, 426);
+console.log('PASS Worker router: room-directory HTTP and relay WebSocket routes coexist');
 sqlite.close();
 
 const dir = mkdtempSync(join(tmpdir(), 'pixelhoops-room-contract-'));
