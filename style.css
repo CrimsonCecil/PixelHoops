@@ -56,6 +56,7 @@ body { display: flex; align-items: center; justify-content: center; }
   font-size: var(--fs-xs); line-height: 1; letter-spacing: .06em;
 }
 #replay-badge span { width: max(6px, calc(var(--u) * 4)); aspect-ratio: 1; border-radius: 50%; background: #ff443b; flex-shrink: 0; }
+#replay-badge svg { display: block; width: max(16px, calc(var(--u) * 10)); flex: none; }
 #replay-badge:not(.hidden) ~ #hud5 #bcol50 { visibility: hidden; }
 @media (prefers-reduced-motion: reduce) {
   #replay-wipe { background: rgb(12 16 34 / var(--cover)); }
