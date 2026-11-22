@@ -696,7 +696,7 @@
   // ---------- V4.4 5V5 即时回放（顶翻）：team5 没有回放，这里自己录帧 + 播放 ----------
   // 录：包住 PH.T5.tick，每个逻辑帧后录一份画面快照（位置 / 姿势 / 倒地字段 / 球 / 粒子），保留 6 秒
   // 触发：game.js 接触帧写 G.thruMk；死球 / 发球时播放，进球后先留一拍（活球里不打断比赛，5s 内没死球就作废）
-  // 播放：暂停 team5 tick；接触前后 0.35s 慢放 ×0.25（0.8s 内 ×0.5，其余 ×0.8）；镜头对准接触点、推近；上下黑边 + REPLAY 标；A/B/X/Y 跳过
+  // 播放：暂停 team5 tick；接触前后 0.35s 慢放 ×0.25（0.8s 内 ×0.5，其余 ×0.8）；镜头对准接触点、推近；上下黑边；A/B/X/Y 跳过
   const RPL = (function () {
     // 只在真的在画 5V5 时播（rT = 最近一次 render 的比赛时间）；无画面的批量模拟（t5sim 等）不进回放
     const S = { rT: null, on: false, view: null, buf: [], mk: null, seen: null, rt: 0, age: 0, i: 0, cam: null, prev: null };
@@ -752,12 +752,8 @@
       return () => { Gm.players.forEach((p, i) => { const o = sv[i]; for (const k of KP) p[k] = o[k]; p.pose = o.pose; p.ghosts = o.ghosts; p.action = o.action; }); for (const k of KB) Gm.ball[k] = sb[k]; F.parts = sp; F.rings = sr; F.shake = sk; F.flash = sfl; F.confetti = scf; F.scoreFx = ssf; };
     }
     function hud() {
-      const bh = 14, e = S.rt - S.q.t, slow = Math.abs(e) < 0.35;
+      const bh = 14;
       ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, bh); ctx.fillRect(0, H - bh, W, bh);
-      const x = 8, y = H - bh - 16; ctx.fillStyle = 'rgba(10,8,30,0.82)'; ctx.fillRect(x, y, 86, 13);
-      if (((S.age * 2.5) | 0) % 2 === 0) { ctx.fillStyle = '#ff3b2f'; ctx.fillRect(x + 4, y + 4, 5, 5); }
-      ctx.font = FONT; ctx.textBaseline = 'top'; text('REPLAY' + (slow ? ' ×0.25' : ''), x + 13, y, '#ffffff');
-      const s = S.q.k === 'fall' ? '顶翻' : '顶退'; text(s, W - 8 - Math.ceil(ctx.measureText(s).width), y, '#ffb02a');
     }
     return Object.assign(S, { rec, tick, swap, hud, start, stop, reset, S });
   })();

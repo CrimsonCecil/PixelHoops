@@ -3,7 +3,7 @@
   const PH = window.PH, GM = PH.game, G = GM.G, R = PH.render, CFG = GM.CFG, TR = G.train;
   const $ = (id) => document.getElementById(id);
   const stage = $('stage'), canvas = $('game'), replayWipe = $('replay-wipe');
-  const wipeTitle = replayWipe.querySelector('strong'), wipeSubtitle = replayWipe.querySelector('span');
+  const wipeTitle = replayWipe.querySelector('strong');
   const replayTitle = wipeTitle.textContent;
   const opts = { format: 'duel', opponent: 'cpu', get mode() { return this.format === 'duel' ? this.opponent : this.format; }, diff: 1, target: 21, clock: 24, glen: 0, fouls: 'on', arch0: GM.ROSTER[(Math.random() * GM.ROSTER.length) | 0], arch1: 'random', fb: 'simple', info: 'show', intro: 'on', home: 'LAL', away: 'BOS', qlen: 300, side: 0, ktarget: 21, kreveal: 'hide' };
   const lobbyRoles = { human: '你', cpu: '电脑', waiting: '等待玩家' };
@@ -2068,11 +2068,8 @@
     const title = foulLabel || replayTitle;
     const cover = foulLabel ? GM.replayFlow.wipeCover(progress) : GM.replayFlow.cover(replay);
     if (cover !== lastWipeCover) { replayWipe.style.setProperty('--cover', cover); lastWipeCover = cover; }
-    if (title !== lastWipeTitle) {
-      wipeTitle.textContent = title;
-      wipeSubtitle.classList.toggle('hidden', title !== replayTitle);
-      lastWipeTitle = title;
-    }
+    if (title !== lastWipeTitle) { wipeTitle.textContent = title; lastWipeTitle = title; }
+    show('replay-badge', !!replay?.view && !paused && !PH.tapeView.open);
     if (PH.tapeView.open) { PH.tapeView.render(dt); return; }
     // Keep the last frame on screen until the wipe covers the change in position.
     if (!paused && (foulLabel && progress < 0.5 || andOne && replay.wipeIn < 0.5)) return;
