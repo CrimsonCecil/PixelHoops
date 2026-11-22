@@ -223,6 +223,11 @@ function client({ relay = true, rtc = false, bcBus = null } = {}) {
   assert.equal(hCtrl.sent.length, 0);
   host.rooms.broadcast({ type: 'state', state: { x: 2, audio: [['play', 'swish']] } });
   assert.equal(hCtrl.sent.length, 1);
+  // Match restart keeps stateSeq monotonic so late unordered P2P snapshots cannot block new match frames
+  const seqBeforeRestart = hState.sent[0].seq;
+  host.rooms.broadcast({ type: 'start', config: { mode: 'online' } });
+  host.rooms.broadcast({ type: 'state', state: { x: 3 } });
+  assert.ok(hState.sent[1].seq > seqBeforeRestart, 'stateSeq remains monotonic across match restarts');
   // Fallback back to relay if P2P ctrl closes while relay is still alive (guest 2)
   host.sockets[0].receive({ type: 'peer-open', id: 2 });
   await new Promise((r) => setImmediate(r));

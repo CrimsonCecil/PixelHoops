@@ -290,7 +290,6 @@
   }
   function broadcast(msg) {
     if (msg?.type === 'start') {
-      stateSeq = 0;
       for (const link of room.links.values()) link.conn.resetFlow?.();
     }
     const out = msg?.type === 'state' && msg.seq == null ? { ...msg, seq: ++stateSeq } : msg;
@@ -401,7 +400,7 @@
           const rtt = Math.round(performance.now() - msg.t);
           if (rtt >= 0 && rtt < 60000) room.ping = rtt;
         }
-        else if (msg.type === 'start') { lastStateSeq = 0; lastInputKey = ''; lastInputAt = -Infinity; room.active = true; handlers.start(msg.config); }
+        else if (msg.type === 'start') { lastInputKey = ''; lastInputAt = -Infinity; room.active = true; handlers.start(msg.config); }
         else if (msg.type === 'state' && room.active) {
           if (conn.transport === 'relay' && Number.isInteger(msg.seq)) write(conn, { type: 'ack', seq: msg.seq });
           if (Number.isInteger(msg.seq) && msg.seq <= lastStateSeq) {
