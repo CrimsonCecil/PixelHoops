@@ -204,6 +204,13 @@ function client({ relay = false, peerFails = false } = {}) {
   assert.equal(c.timers.size, 0); assert.equal(c.doc.listenerCount('visibilitychange'), 0);
   c = client({ relay: true }); await c.open(true); c.peers[0].emit('open'); c.sockets[0].opened();
   c.sockets[0].close(4001); assert.deepEqual(c.events, ['ready']); c.rooms.close();
+  c = client({ relay: true }); await c.open(true); c.peers[0].emit('open');
+  for (let i = 0; i < 4; i++) { c.sockets[i].close(1006); c.next(); }
+  assert.equal(c.sockets.length, 5); c.sockets[4].opened();
+  assert.deepEqual(c.events, ['ready']); c.rooms.close();
+  c = client({ relay: true, peerFails: true }); await c.open(true);
+  for (let i = 0; i < 4; i++) { c.sockets[i].close(1006); if (i < 3) c.next(); }
+  assert.deepEqual(c.events, ['房间中继重连失败。']);
   c = client({ relay: true, peerFails: true }); await c.open(); assert.equal(c.sockets.length, 1);
   c.sockets[0].opened(); c.sockets[0].receive({ type: 'relay-ready' }); c.sockets[0].receive({ type: 'reject' });
   assert.deepEqual(c.events, ['房间已满、已开赛或比赛模式不同。']);

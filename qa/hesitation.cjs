@@ -232,9 +232,9 @@ for (const [hand, dir, kind, side, nextHand] of [
 // The post-up key and the original direction-first dribble still work.
 {
   const { p, key, step } = fixture();
-  key('KeyQ'); step(30);
+  key('KeyU'); step(30);
   assert(p.post && !p.action);
-  key('KeyQ', false); step();
+  key('KeyU', false); step();
   key('KeyD'); key('KeyL'); step();
   assert(p.action.kind !== 'hesi');
 }
