@@ -4325,6 +4325,10 @@
     else armTo(T2, lx >= -0.05 ? 1 : -1, lx, ly, lz, Hh);
     for (const k of K) T[k] = lerp(T[k], T2[k], w);
   }
+  function heldLayTarget(pl) {
+    const b = G.ball, sh = b.state === 'held' ? G.players[b.holder] : null, a = sh?.action;
+    return sh && TM(sh) !== TM(pl) && a?.type === 'layup' && !a.inSteps && !a.released && !a.V.floater ? b : null;
+  }
   function armTo(T, side, bx, by, bz, Hh) {
     const sx = side * 0.21 * Hh, sy = Math.sin(T.lean) * 0.48 * Hh, sz = 0.76 * Hh + Math.cos(T.lean) * 0.48 * Hh - 0.03;
     const vx = bx * Hh - sx, vy = by * Hh - sy, vz = bz * Hh - sz, r = Math.hypot(vx, vy, vz) || 1;
@@ -5534,7 +5538,11 @@
     else if (a && a.inSteps && a.v === 'euro' && pl.speed > 1) tf = Math.atan2(pl.vy, pl.vx) * 0.5 + hA * 0.5;
     else if (a && a.postFake) { tf = hA + Math.PI + a.side * 0.35 * Math.sin(Math.PI * a.t / a.T); snap = true; }
     else if (a && (a.type === 'shot' || a.type === 'fake' || a.type === 'layup' || a.type === 'dunk')) tf = hA;
-    else if (a && (a.type === 'block' || a.type === 'steal')) { const tx = opp.hasBall ? opp.x : b.x, ty = opp.hasBall ? opp.y : b.y; if (!pl.hasBall && Math.hypot(tx - pl.x, ty - pl.y) > (opp.hasBall ? 0.45 : 1.0)) tf = Math.atan2(ty - pl.y, tx - pl.x); }
+    else if (a && (a.type === 'block' || a.type === 'steal')) {
+      const lay = a.type === 'block' && !a.bst && !a.verticalArm ? heldLayTarget(pl) : null;
+      const target = lay || (opp.hasBall ? opp : b);
+      if (!pl.hasBall && Math.hypot(target.x - pl.x, target.y - pl.y) > (lay || opp.hasBall ? 0.45 : 1.0)) tf = Math.atan2(target.y - pl.y, target.x - pl.x);
+    }
     else if (pl.post) tf = hA + Math.PI;
     else if (pl.hasBall) tf = pl.speed > 1.2 ? Math.atan2(pl.vy, pl.vx) : hA;
     else if ((opp.hasBall && !opp.off) || b.state === 'shot' || pl.dummy) { const tx = opp.hasBall ? opp.x : b.x, ty = opp.hasBall ? opp.y : b.y; if (opp.hasBall || Math.hypot(tx - pl.x, ty - pl.y) > 1.0) tf = Math.atan2(ty - pl.y, tx - pl.x); }
@@ -5829,6 +5837,7 @@
       else { const rise = clamp((ba ? ba.t : t) / 0.12, 0, 1); set(Object.assign(lg, { lean: 0, aRp: lerp(1.2, 3.0, rise), aRe: lerp(0.8, 0.05, rise), aRq: 0.05, aLp: lerp(1.2, 2.6, rise), aLe: lerp(0.8, 0.2, rise), aLq: 0.15 })); }
       // 盖帽 / 抢板：手伸向球（IK），离球越近越贴
       const bb = G.ball;
+      if (ba && !st && heldLayTarget(pl)) ikBall(pl, T, 1);
       if (ba && !pl.hasBall && (bb.state === 'loose' || bb.state === 'shot') && !(st === 'swat' && ht > 0.12) && !(st === 'facial' && ht > 0.15)) ikBall(pl, T, ba.rodSecond ? 1 : ba.reb || st === 'catch' || (!st && bb.state === 'loose') ? 2 : 1);
       if (ba && ba.ikB && G.time - ba.ikB.t < 0.3) { const Q = ba.ikB, Hh = pl.h / 1.95, fx = Math.cos(pl.face), fy = Math.sin(pl.face), dx = Q.x - pl.x, dy = Q.y - pl.y, lx = (dx * fy - dy * fx) / Hh; armTo(T, lx >= -0.05 ? 1 : -1, lx, (dx * fx + dy * fy) / Hh, (Q.z - pl.z) / Hh, Hh); }
     }

@@ -6,3 +6,11 @@ compatibility_date = "2025-01-01"
 binding = "DB"
 database_name = "pixelhoops-db"
 database_id = "d98e7312-ab35-4a37-bd87-6f9517c59c12"
+
+[[durable_objects.bindings]]
+name = "ROOMS"
+class_name = "RoomRelay"
+
+[[migrations]]
+tag = "v1-room-relay"
+new_sqlite_classes = ["RoomRelay"]
