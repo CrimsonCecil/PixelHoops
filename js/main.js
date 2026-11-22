@@ -2065,7 +2065,7 @@
     const progress = screen === 'play' && !paused && !replay ? GM.replayFlow.foulProgress(G.banner) : 1;
     const foulLabel = progress < 1 ? G.banner.text : '';
     const andOne = replay?.q?.andOne;
-    const title = foulLabel || (andOne ? (andOne === 3 ? '三加一' : '二加一') : replayTitle);
+    const title = foulLabel || replayTitle;
     const cover = foulLabel ? GM.replayFlow.wipeCover(progress) : GM.replayFlow.cover(replay);
     if (cover !== lastWipeCover) { replayWipe.style.setProperty('--cover', cover); lastWipeCover = cover; }
     if (title !== lastWipeTitle) {
