@@ -385,6 +385,24 @@
       G.focus.cy = lerpNum(from.focus.cy, to.focus.cy, t);
     }
   }
+  function syncGuestTakeover(pl) {
+    if (pl.tkOn > 0 && pl.tkT && GM.TKD[pl.tkT]) {
+      if (!pl.rBase) {
+        const D = GM.TKD[pl.tkT];
+        pl.rBase = pl.r;
+        const r = Object.assign({}, pl.rBase);
+        for (const [k] of GM.ATTRS) {
+          if (typeof r[k] !== 'number' || k === 'bw') continue;
+          const cap = k === 'ft' || k === 'drawFoul' ? 1 : 0.99;
+          r[k] = Math.min(cap, r[k] + (D.keys.includes(k) ? 20 : 5) / 99);
+        }
+        pl.r = r;
+      }
+    } else if (pl.rBase) {
+      pl.r = pl.rBase;
+      pl.rBase = null;
+    }
+  }
   function roomState(state) {
     if (!state || !Array.isArray(state.players) || state.players.length !== G.players.length) return;
     if (G.intro) GM.introEnd();
@@ -394,6 +412,7 @@
     for (let i = 0; i < G.players.length; i++) {
       const p = state.players[i];
       Object.assign(G.players[i], p, { opp: G.players[p.oppId] || null, ring: G.mode === 't3' && i === localSlot });
+      syncGuestTakeover(G.players[i]);
     }
     const to = captureNetPose();
     const dtMs = netInterp ? Math.max(16, Math.min(120, now - netInterp.at)) : 34;
