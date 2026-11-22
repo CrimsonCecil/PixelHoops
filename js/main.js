@@ -1741,7 +1741,7 @@
     const canScroll = (e) => isScrollBox(e) && (dy > 0 ? e.scrollTop + e.clientHeight < e.scrollHeight - 1 : e.scrollTop > 1);
     const sel = NAV_SCROLL[root.id], target = sel && root.querySelector(sel);
     // Explicit detail panes own the gesture even at their scroll boundaries.
-    if (isScrollBox(target)) return target;
+    if (isScrollBox(target) && target.scrollHeight > target.clientHeight) return target;
     const focused = root.querySelector('.pf');
     if (root.id === 'menu' && focused) for (const e of focused.querySelectorAll('*')) if (canScroll(e)) return e;
     for (let e = focused; e && e !== root; e = e.parentElement) if (canScroll(e)) return e;
