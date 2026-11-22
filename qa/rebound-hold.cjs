@@ -61,12 +61,12 @@ for (const mode of ['1V1', '3V3', '5V5']) {
   console.log(`PASS ${mode}: keyboard, Y/X and right-stick held through rebound for 1s; release + fresh press shoots`);
 }
 
-for (const mode of ['1V1', '3V3']) for (const binding of ['LT/Y', 'LB/Y', 'L/J', 'Q/J']) {
+for (const mode of ['1V1', '3V3']) for (const binding of ['LT/Y', 'LB/Y', 'L/J', 'U/J']) {
   const { G, p, key, pads, step, grab } = fixture(mode);
   const pad = binding.endsWith('/Y');
   const contact = down => {
     if (pad) pads[0].buttons[binding === 'LT/Y' ? 6 : 4].pressed = down;
-    else key(down, binding === 'L/J' ? 'KeyL' : 'KeyQ');
+    else key(down, binding === 'L/J' ? 'KeyL' : 'KeyU');
   };
   const rebound = down => { if (pad) pads[0].buttons[3].pressed = down; else key(down); };
   contact(true);
