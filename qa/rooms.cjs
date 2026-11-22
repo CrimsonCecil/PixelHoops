@@ -125,9 +125,10 @@ function client({ relay = true, rtc = false } = {}) {
   const statesBefore = c.events.filter((e) => e === 'state').length;
   c.sockets[0].receive({ type: 'state', seq: 5, state: { t: 5 } });
   c.sockets[0].receive({ type: 'state', seq: 4, state: { t: 4 } }); // stale -> dropped
+  c.sockets[0].receive({ type: 'state', seq: 4, state: { t: 4, audio: [['play', 'swish']] } }); // stale with audio -> audio still delivered
   c.sockets[0].receive({ type: 'state', seq: 5, state: { t: 5 } }); // duplicate -> dropped
   c.sockets[0].receive({ type: 'state', seq: 6, state: { t: 6 } }); // newer -> accepted
-  assert.equal(c.events.filter((e) => e === 'state').length - statesBefore, 2);
+  assert.equal(c.events.filter((e) => e === 'state').length - statesBefore, 3);
   c.rooms.close();
 
   c = client(); await c.open(true); c.sockets[0].opened();

@@ -403,8 +403,23 @@
       pl.rBase = null;
     }
   }
+  function playRoomAudio(audio) {
+    if (!Array.isArray(audio)) return;
+    const localPl = G.players[localSlot];
+    const localTeam = localPl ? (localPl.tm ?? localPl.id) : null;
+    for (const event of audio) {
+      if (!Array.isArray(event)) continue;
+      const [type, name, voice, mode] = event;
+      if (type === 'play') PH.audio.play(name);
+      else if (type === 'intercept') PH.audio.play(GM.t5.interceptionStyle(name, localTeam).sfx);
+      else if (type === 'rebound') { if (name === localTeam) PH.audio.play('rebound'); }
+      else if (type === 'vo') PH.audio.vo(name, voice, mode);
+    }
+  }
   function roomState(state) {
-    if (!state || !Array.isArray(state.players) || state.players.length !== G.players.length) return;
+    if (!state) return;
+    if (!Array.isArray(state.players)) { playRoomAudio(state.audio); return; }
+    if (state.players.length !== G.players.length) return;
     if (G.intro) GM.introEnd();
     const now = performance.now();
     const from = netInterp ? captureNetPose() : null;
@@ -422,16 +437,7 @@
     const localPl = G.players[localSlot];
     const localTeam = localPl ? (localPl.tm ?? localPl.id) : null;
     if (G.mode === 't3') GM.t5.localizeInterception(localTeam);
-    if (Array.isArray(state.audio)) {
-      for (const event of state.audio) {
-        if (!Array.isArray(event)) continue;
-        const [type, name, voice, mode] = event;
-        if (type === 'play') PH.audio.play(name);
-        else if (type === 'intercept') PH.audio.play(GM.t5.interceptionStyle(name, localTeam).sfx);
-        else if (type === 'rebound') { if (name === localTeam) PH.audio.play('rebound'); }
-        else if (type === 'vo') PH.audio.vo(name, voice, mode);
-      }
-    }
+    playRoomAudio(state.audio);
   }
   function roomAction(join) {
     const field = $('room-code'), code = field.value.trim().toUpperCase(), mode = opts.mode;

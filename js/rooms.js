@@ -311,10 +311,11 @@
         }
         else if (msg.type === 'start') { lastStateSeq = 0; lastInputKey = ''; lastInputAt = -Infinity; room.active = true; handlers.start(msg.config); }
         else if (msg.type === 'state' && room.active) {
-          if (Number.isInteger(msg.seq)) {
-            if (msg.seq <= lastStateSeq) return;
-            lastStateSeq = msg.seq;
+          if (Number.isInteger(msg.seq) && msg.seq <= lastStateSeq) {
+            if (Array.isArray(msg.state?.audio) && msg.state.audio.length) handlers.state({ audio: msg.state.audio });
+            return;
           }
+          if (Number.isInteger(msg.seq)) lastStateSeq = msg.seq;
           handlers.state(msg.state);
         }
         else if (msg.type === 'lobby' && !room.active) handlers.message?.(msg);
