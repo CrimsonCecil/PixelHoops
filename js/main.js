@@ -3,6 +3,8 @@
   const PH = window.PH, GM = PH.game, G = GM.G, R = PH.render, CFG = GM.CFG, TR = G.train;
   const $ = (id) => document.getElementById(id);
   const stage = $('stage'), canvas = $('game'), replayWipe = $('replay-wipe');
+  const wipeTitle = replayWipe.querySelector('strong'), wipeSubtitle = replayWipe.querySelector('span');
+  const replayTitle = wipeTitle.textContent;
   const opts = { format: 'duel', opponent: 'cpu', get mode() { return this.format === 'duel' ? this.opponent : this.format; }, diff: 1, target: 21, clock: 24, glen: 0, fouls: 'on', arch0: GM.ROSTER[(Math.random() * GM.ROSTER.length) | 0], arch1: 'random', fb: 'simple', info: 'show', intro: 'on', home: 'LAL', away: 'BOS', qlen: 300, side: 0, ktarget: 21, kreveal: 'hide' };
   const lobbyRoles = { human: '你', cpu: '电脑', waiting: '等待玩家' };
   const lobby3 = ['curry', 'lebron', 'jokic', 'edwards', 'durant', 'giannis'].map((arch, i) => ({ arch, role: i === 0 ? 'human' : i % 3 === 2 ? 'waiting' : 'cpu' }));
@@ -1341,7 +1343,7 @@
       d.style.opacity = f.t > 1 ? String(Math.max(0, 1 - (f.t - 1) / 0.3)) : '1';
     }
   }
-  function hud() {
+  function hud(foulWipe) {
     frameN++;
     stage.classList.toggle('replay', !!(G.replay?.view && screen === 'play'));
     if (frameN % 30 === 0) { const hp = PH.input.pads().length > 0; if (hp !== hasPad) { hasPad = hp; show('padtag', hp); hintKey = ''; } }
@@ -1409,7 +1411,7 @@
       d.style.left = Math.max(40, Math.min(R.W - 40, p.x)) * scale + 'px'; d.style.top = Math.min(R.H - 6, p.y + 0.45 * p.s + 10) * scale + 'px';
     }
     drawFloats();
-    const b = G.banner, be = $('banner');
+    const b = !foulWipe && G.banner, be = $('banner');
     if (b) { if (be.classList.contains('hidden') || be.firstElementChild.textContent !== b.text) { be.classList.remove('hidden'); be.style.animation = 'none'; void be.offsetWidth; be.style.animation = ''; } be.firstElementChild.textContent = b.text; be.firstElementChild.style.color = b.color; be.lastElementChild.textContent = b.sub; be.style.borderLeftColor = b.color; be.classList.toggle('top', !!b.top); }
     else be.classList.add('hidden');
     const hr = G.hero, he = $('hero');
@@ -2055,18 +2057,29 @@
   // 浏览器要求用户操作后才能出声：第一次点击 / 按键时启动音乐（主菜单就有音乐）
   const musKick = () => { if (PH.audio.ensure()) { PH.audio.startMusic(); musicPick(); } };
   window.addEventListener('pointerdown', musKick, true); window.addEventListener('keydown', musKick, true);
-  let lastReplayCover = 0;
+  let lastWipeCover = 0, lastWipeTitle = replayTitle;
   function draw(dt) {
     PH.audio.setPaused((screen === 'play' || screen === 'play5') && paused);
     musicPick();
-    if (PH.tapeView.open) { PH.tapeView.render(dt); return; }
     const r5 = PH.render5.rpl, replay = screen === 'play' ? G.replay : screen === 'play5' && r5.on ? r5 : null;
-    const cover = GM.replayFlow.cover(replay);
-    if (cover !== lastReplayCover) { replayWipe.style.setProperty('--cover', cover); lastReplayCover = cover; }
+    const progress = screen === 'play' && !paused && !replay ? GM.replayFlow.foulProgress(G.banner) : 1;
+    const foulLabel = progress < 1 ? G.banner.text : '';
+    const andOne = replay?.q?.andOne;
+    const title = foulLabel || (andOne ? (andOne === 3 ? '三加一' : '二加一') : replayTitle);
+    const cover = foulLabel ? GM.replayFlow.wipeCover(progress) : GM.replayFlow.cover(replay);
+    if (cover !== lastWipeCover) { replayWipe.style.setProperty('--cover', cover); lastWipeCover = cover; }
+    if (title !== lastWipeTitle) {
+      wipeTitle.textContent = title;
+      wipeSubtitle.classList.toggle('hidden', title !== replayTitle);
+      lastWipeTitle = title;
+    }
+    if (PH.tapeView.open) { PH.tapeView.render(dt); return; }
+    // Keep the last frame on screen until the wipe covers the change in position.
+    if (!paused && (foulLabel && progress < 0.5 || andOne && replay.wipeIn < 0.5)) return;
     if (screen === 'play5') { PH.render5.render(PH.T5.T, manual ? 0.05 : 1 / Math.max(30, fps)); hud5(); cutin(); return; }
     const hint = screen === 'play' && G.mode === 't3' && !G.replay?.view ? $('hint') : null;
     const hintY = hint?.offsetHeight ? hint.offsetTop / scale : undefined;
-    R.render(G, dt, hintY); hud(); cutin(); talkBox();
+    R.render(G, dt, hintY); hud(!!foulLabel); cutin(); talkBox();
     const dbg = $('debug');
     if (debug) { dbg.classList.remove('hidden'); dbg.textContent = 'FPS ' + fps.toFixed(0) + ' · ' + G.phase + ' · 进攻 ' + G.off + ' · 球 ' + G.ball.state; } else dbg.classList.add('hidden');
   }

@@ -51,12 +51,12 @@
     g.gain.setValueAtTime(vol || 0.2, t); g.gain.exponentialRampToValueAtTime(0.001, t + dur);
     o.connect(g).connect(dest || sfxGain); o.start(t); o.stop(t + dur + 0.02);
   }
-  function noise(dur, vol, freq, q, t0, f2, type) {
+  function noise(dur, vol, freq, q, t0, f2, type, dest) {
     const t = t0 || ac.currentTime, s = ac.createBufferSource(), f = ac.createBiquadFilter(), g = ac.createGain();
     s.buffer = noiseBuf; s.loop = true; f.type = type || 'bandpass'; f.frequency.setValueAtTime(freq, t); f.Q.value = q || 1;
     if (f2) f.frequency.exponentialRampToValueAtTime(f2, t + dur);
     g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.001, t + dur);
-    s.connect(f).connect(g).connect(arguments[7] || sfxGain); s.start(t); s.stop(t + dur + 0.02);
+    s.connect(f).connect(g).connect(dest || sfxGain); s.start(t); s.stop(t + dur + 0.02);
   }
   const SFX = {
     badge: () => { tone(880, 0.09, 'square', 0.12, 0, 1320); tone(1320, 0.16, 'triangle', 0.16, 0.08, 1760); },
@@ -77,12 +77,14 @@
     buzzer: () => { tone(196, 0.7, 'sawtooth', 0.22); tone(198, 0.7, 'square', 0.12); },
     whistle: () => { tone(2300, 0.22, 'square', 0.1); tone(2350, 0.22, 'sine', 0.1); },
     foulWhistle: () => {
-      const now = ac.currentTime;
+      const now = ac.currentTime, gain = ac.createGain();
+      gain.gain.value = 1.3;
+      gain.connect(sfxGain);
       for (const [delay, dur] of [[0, 0.125], [0.155, 0.18]]) {
         const t = now + delay;
-        tone(2750, dur, 'sine', 0.29, t, 3100);
-        tone(3120, dur, 'triangle', 0.15, t, 3260);
-        noise(dur, 0.14, 3050, 4, t, 3400);
+        tone(2750, dur, 'sine', 0.29, t, 3100, gain);
+        tone(3120, dur, 'triangle', 0.15, t, 3260, gain);
+        noise(dur, 0.14, 3050, 4, t, 3400, 'bandpass', gain);
       }
     },
     squeak: () => { tone(1900, 0.07, 'sine', 0.07, 0, 2600); },
