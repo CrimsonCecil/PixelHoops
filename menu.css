@@ -204,10 +204,6 @@ button.pick.fighter-pick { width:100%; min-height:260px; height:auto; display:fl
 .front-entries b { font-size:26px; margin:0 0 9px; }
 .front-entries span { font-size:13px; color:var(--front-muted); }
 .front-entries em { margin-left:auto; color:var(--front-gold); font-size:28px; font-style:normal; }
-.front-utility { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-top:16px; }
-.front-utility button { text-align:left; padding:18px; }
-.front-utility strong { display:block; font-size:16px; margin-bottom:8px; }
-.front-utility span { color:var(--front-muted); font-size:12px; }
 .front-tools { display:flex; gap:24px; margin-top:24px; }
 #menu .front-tools button { flex:none; font-size:12px; padding:4px 0; background:none; border:0; box-shadow:none; color:var(--front-muted); min-height:24px; }
 .front-page { width:100%; max-width:1420px; max-height:none; overflow:visible; margin:0 auto; padding:20px 0; background:none; border:0; box-shadow:none; }
@@ -319,7 +315,6 @@ button.pick.fighter-pick .pk-c { font-size:11px; color:var(--fighter-color); }
   #menu .front-entries button { min-height:88px; padding:16px; gap:16px; }
   .front-entries b { font-size:22px; }
   .front-entries small { font-size:30px; }
-  .front-utility button { padding:12px; }
   .front-tools { margin-top:14px; }
   .duel-lineup { gap:38px; }
   #menu button.pick.fighter-pick { padding:12px; min-height:270px; grid-template-columns:36% minmax(0,64%); }
@@ -351,9 +346,6 @@ button.pick.fighter-pick .pk-c { font-size:11px; color:var(--fighter-color); }
   #menu .front-entries button { min-height:80px; padding:14px; }
   .front-entries b { font-size:20px; }
   .front-entries span { font-size:11px; }
-  .front-utility { gap:10px; margin-top:12px; }
-  .front-utility strong { font-size:14px; }
-  .front-utility span { font-size:10px; }
   .front-footer > span:last-child { display:none; }
   .front-footer { font-size:9px; padding:8px 0; }
   .front-lobby-head h2 { font-size:26px; }
