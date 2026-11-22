@@ -1737,10 +1737,14 @@
   const NAV_SCROLL = { picker: '#pk-detail', help: '#help-body', tune: '#tn-body', train: '#tr-body', over5: '#o5-box', over: '', king: '', pause: '', menu: '' };
   const NAV_TABS = { help: '#help-tabs', tune: '#tn-cats', train: '#tr-tabs', over5: '#o5-tabs' };
   function scrollBox(root, dy) {
-    const canScroll = (e) => e && e.getClientRects().length && /auto|scroll/.test(getComputedStyle(e).overflowY) && (dy > 0 ? e.scrollTop + e.clientHeight < e.scrollHeight - 1 : e.scrollTop > 1);
+    const isScrollBox = (e) => e && e.getClientRects().length && /auto|scroll/.test(getComputedStyle(e).overflowY);
+    const canScroll = (e) => isScrollBox(e) && (dy > 0 ? e.scrollTop + e.clientHeight < e.scrollHeight - 1 : e.scrollTop > 1);
     const sel = NAV_SCROLL[root.id], target = sel && root.querySelector(sel);
-    if (canScroll(target)) return target;
-    for (let e = root.querySelector('.pf'); e && e !== root; e = e.parentElement) if (canScroll(e)) return e;
+    // Explicit detail panes own the gesture even at their scroll boundaries.
+    if (isScrollBox(target)) return target;
+    const focused = root.querySelector('.pf');
+    if (root.id === 'menu' && focused) for (const e of focused.querySelectorAll('*')) if (canScroll(e)) return e;
+    for (let e = focused; e && e !== root; e = e.parentElement) if (canScroll(e)) return e;
     if (canScroll(root)) return root;
     if (root.id === 'menu') return null;
     for (const e of root.querySelectorAll('*')) if (canScroll(e)) return e;
