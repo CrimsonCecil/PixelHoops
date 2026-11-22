@@ -309,7 +309,7 @@
     $('menu-status').textContent = text; show('menu-status', !!text);
   }
   function roomStatus() {
-    if (room.role === 'host' && room.code) menuStatus('房间号 ' + room.code + ' · 已加入 ' + room.links.size + ' 人');
+    if (room.role === 'host' && room.code) menuStatus('公开房间 · ' + (1 + room.links.size) + ' 人在房间 · 选好球星后点击准备');
     else if (!room.role) menuStatus('');
   }
   const NET_STATE = ['time', 'phase', 'phaseT', 'score', 'stats', 'target', 'shotClock', 'glen', 'gclock', 'sd', 'mp', 'needClear', 'off', 'winner',
@@ -409,13 +409,13 @@
       $('menu-foot').textContent = '先到 ' + opts.target + ' 分获胜 · ' + clkS + ' · 点击切换身份，无人位置电脑补齐。';
       return;
     }
-    $('lab-p1').textContent = opts.mode === '2p' ? '玩家 1' : '你的球员';
-    $('lab-p2').textContent = opts.mode === '2p' ? '玩家 2' : tr ? '假人体型' : '对手';
+    $('lab-p1').textContent = online ? (guest ? '房主' : '你 · 房主') : opts.mode === '2p' ? '玩家 1' : '你的球员';
+    $('lab-p2').textContent = online ? (guest ? '你 · 球友' : '球友') : opts.mode === '2p' ? '玩家 2' : tr ? '假人体型' : '对手';
     $('btn-start').textContent = tr ? '进入训练场' : '开始比赛';
     $('menu-foot').textContent = tr ? '训练场：无比分无时限，可设置假人防守方式，比赛中按 Tab 开关训练参数面板。' : online ? '建房间并分享房间号，对手加入后由房主开始 · ' + opts.target + ' 分制 · ' + clkS + '。' : '规则：先到 ' + opts.target + ' 分（领先 2 分胜）· ' + clkS + ' · ' + lenS + ' · 失分方球权，抢断需出三分线。';
     if (kg) { const sv = kingSaved(); $('btn-start').textContent = sv ? '继续闯关 · 第 ' + (sv.stage + 1) + ' 关' : '开始闯关'; $('menu-foot').textContent = '斗牛之王：选好你的球员，连赢五位越来越强的对手 · 每关先到 ' + (sv ? sv.target : opts.ktarget) + ' 分（领先 2 分胜）· ' + clkS + ' · 三次重来机会。'; kingLadderView(); }
     const a = GM.ARCH[opts.arch0];
-    pickBtn('pick0', opts.arch0); pickBtn('pick1', opts.arch1);
+    pickBtn('pick0', opts.arch0); pickBtn('pick1', online && room.role === 'host' && !room.links.has(1) ? 'random' : opts.arch1);
     $('arch-desc').textContent = a.full + '：' + a.desc + (a.skill ? '。必杀技「' + a.skill.name + '」，条件和效果见“更换”。' : '。');
   }
   document.querySelectorAll('#menu .seg button, #set-rules .seg button').forEach((b) => b.addEventListener('click', () => {
@@ -1713,7 +1713,7 @@
   $('btn-pause5').addEventListener('click', () => setPause(true));
 
   // ---------- 手柄菜单导航 ----------
-  const NAV_SEL = 'button, select, input[type=range], #room-code';
+  const NAV_SEL = 'button, select, input:not([type=hidden])';
   const navList = (root) => Array.prototype.filter.call(root.querySelectorAll(NAV_SEL), (b) => b.offsetParent !== null && !b.disabled && !b.hasAttribute('data-nonav'));
   const navPri = (root) => Array.prototype.find.call(root.querySelectorAll('button.primary'), (b) => b.offsetParent !== null);
   const trainPanelOn = () => screen === 'play' && G.mode === 'train' && panelOpen && !paused && !G.replay && !$('train').classList.contains('hidden');
@@ -1789,7 +1789,7 @@
     const list = navList(root), b = list.find((el) => el.classList.contains('pf')) || navPri(root) || list[0];
     if (!b) { if (list[0]) navSet(root, list[0]); return true; }
     if (b.tagName === 'SELECT') { navAdjust(b, 1); return true; }
-    if (b.id === 'room-code') { b.focus(); return true; }
+    if (isTextInput(b)) { b.focus(); return true; }
     if (b.type === 'range') return true;
     const idx = list.indexOf(b); b.click(); navRefocus(root, list, idx, b);
     return true;

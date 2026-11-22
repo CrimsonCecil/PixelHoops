@@ -26,7 +26,11 @@ def main():
             page.route('**/*', lambda r: r.continue_() if r.request.url.startswith(url.rsplit('/', 1)[0] + '/') else r.abort())
             page.goto(url)
             page.wait_for_function("!!window.advanceTime")
+            page.get_by_test_id('home-solo').click()
+            page.get_by_test_id('solo-1v1').click()
             page.locator('#pick0').click()
+            page.locator('#front-player-detail').click()
+            page.get_by_test_id('pkt-all').click()
             page.locator('[data-pos="SF"]').click()
             grid = page.locator('#pk-grid')
             for roster in ('1V1 forwards', '1V1 full roster', '3V3 full roster'):
@@ -39,8 +43,10 @@ def main():
                     page.locator('[data-pos="SF"]').click()
                 elif roster == '1V1 full roster':
                     page.locator('#pk-cancel').click()
-                    page.get_by_test_id('mode-t3').click()
+                    page.locator('#front-back').click()
+                    page.get_by_test_id('solo-t3').click()
                     page.locator('#pick3-0').click()
+                    page.locator('#front-player-detail').click()
             grid.evaluate("""grid => {
                 grid.querySelector('.pf')?.classList.remove('pf');
                 grid.querySelector('.pkc').classList.add('pf');
