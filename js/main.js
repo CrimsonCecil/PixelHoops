@@ -390,6 +390,11 @@
     startDemo(); camShift();
   }
   let lastArch = null;
+  function scoreboardName(i, name) {
+    const el = $('n' + i);
+    el.dataset.fullName = name;
+    el.textContent = name.replace(/^(?:你|电脑|在线|玩家\s*[12]|第\s*\d+\s*关)\s*·\s*/, '');
+  }
   function launchRoomMatch(config, slot) {
     tuneClose();
     PH.audio.ensure(); PH.audio.play('start'); PH.audio.startMusic();
@@ -406,9 +411,9 @@
     for (const id of ['menu', 'picker', 'pause', 'over', 'help', 'shotcard', 'trainbar', 'btn-panel', 'train']) show(id, false);
     show('hud', true); show('scorebar', true); show('touch', isTouch); show('tbpass', config.mode === 't3');
     show('btn-restart', room.role !== 'guest'); show('btn-again', room.role !== 'guest'); show('btn-cam', true);
-    for (let i = 0; i < 2; i++) $('n' + i).textContent = config.mode === 't3' ? (i ? '客队' : '主队') : (i === slot ? '你 · ' : '在线 · ') + G.players[i].arch.name;
+    for (let i = 0; i < 2; i++) scoreboardName(i, config.mode === 't3' ? (i ? '客队' : '主队') : (i === slot ? '你 · ' : '在线 · ') + G.players[i].arch.name);
     $('btn-restart').textContent = '重新开始'; $('btn-resume').textContent = '继续比赛';
-    hintKey = ''; cardId = -1; lastClock = ''; lastTB2 = ''; lastS0 = lastS1 = -1; pcards();
+    hintKey = ''; cardId = -1; lastClock = ''; lastS0 = lastS1 = -1; pcards();
   }
   // ---------- 斗牛之王：按能力梯度连挑五人，电脑难度逐关递增（界面只显示对手特色称号，不显示 AI 等级） ----------
   const KING_BANDS = [[70, 77], [78, 83], [84, 88], [89, 93], [94, 99]];
@@ -598,11 +603,10 @@
     panelOpen = tr && !narrow(); show('train', panelOpen); stage.classList.toggle('panel', panelOpen); camShift();
     if (tr) { trTab = 'dummy'; buildPanel(); }
     const p = G.players;
-    $('n0').textContent = (opts.mode === '2p' ? '玩家 1 · ' : '你 · ') + p[0].arch.name;
-    $('n1').textContent = (kg ? '第 ' + (KR.stage + 1) + ' 关 · ' : opts.mode === '2p' ? '玩家 2 · ' : '电脑 · ') + p[1].arch.name;
-    $('target').textContent = '先到 ' + G.target + ' 分';
+    scoreboardName(0, (opts.mode === '2p' ? '玩家 1 · ' : '你 · ') + p[0].arch.name);
+    scoreboardName(1, (kg ? '第 ' + (KR.stage + 1) + ' 关 · ' : opts.mode === '2p' ? '玩家 2 · ' : '电脑 · ') + p[1].arch.name);
     $('btn-restart').textContent = tr ? '重置训练' : '重新开始'; $('btn-resume').textContent = tr ? '继续训练' : '继续比赛';
-    hintKey = ''; cardId = -1; lastClock = ''; lastTB2 = ''; pcards();
+    hintKey = ''; cardId = -1; lastClock = ''; pcards();
   }
   function setPause(on) { if (screen === 'play5') { if (PH.T5.T.phase === 'over') return; if (PH.box5.isOpen()) { PH.box5.close(); b5Pause = false; } } else if (screen !== 'play' || G.phase === 'over') return; paused = on; clearPf(); setView('main'); show('pause', on); if (!on) show('help', false); }
   // 设置菜单：一级（主菜单：比赛规则/显示/声音/调参台；比赛中：继续/镜头/显示/声音/调参台/说明/重开/退出），二级（比赛规则/显示/声音/镜头）
@@ -1212,7 +1216,7 @@
   $('tr-body').addEventListener('change', (e) => {
     const sk = e.target.getAttribute && e.target.getAttribute('data-sel'), v = e.target.value;
     if (sk === 'cpuarch') copyArch(G.players[1], v);
-    else if (sk === 'myarch') { copyArch(G.players[0], v); $('n0').textContent = '你 · ' + GM.ARCH[v].name; }
+    else if (sk === 'myarch') { copyArch(G.players[0], v); scoreboardName(0, '你 · ' + GM.ARCH[v].name); }
     if (sk) { PH.audio.play('ui'); buildPanel(); }
     if (e.target.blur) e.target.blur(); });
   $('tr-body').addEventListener('click', (e) => {
@@ -1223,7 +1227,7 @@
       else if (seg === 'dummy') { const was = TR.dummy; TR.dummy = v; GM.applyTrain(); if (was === 'none' || v === 'stand' || v === 'hands') GM.placeDummy(); }
       else if (seg === 'diff') G.diff = +v;
       else if (seg === 'cpuarch') { copyArch(G.players[1], v); }
-      else if (seg === 'myarch') { copyArch(G.players[0], v); $('n0').textContent = '你 · ' + GM.ARCH[v].name; }
+      else if (seg === 'myarch') { copyArch(G.players[0], v); scoreboardName(0, '你 · ' + GM.ARCH[v].name); }
       else if (seg === 'stam') TR.infStam = v === '1';
       PH.audio.play('ui'); buildPanel(); return;
     }
@@ -1243,7 +1247,7 @@
   const floatsEl = $('floats'), fpool = [];
   for (let i = 0; i < 6; i++) { const d = document.createElement('div'); d.style.display = 'none'; floatsEl.appendChild(d); fpool.push(d); }
   const cues = [0, 1].map(() => { const d = document.createElement('div'); d.className = 'cue'; d.style.display = 'none'; floatsEl.appendChild(d); return d; });
-  let lastTB2 = '', hintKey = '', overShown = false, lastS0 = -1, lastS1 = -1, lastClock = '', cardId = -1, frameN = 0, lastTB = '';
+  let hintKey = '', overShown = false, lastS0 = -1, lastS1 = -1, lastClock = '', cardId = -1, frameN = 0, lastTB = '';
   function who(id) { return G.mode === '2p' ? '玩家 ' + (id + 1) : G.players[id].ctrl === 'cpu' ? (G.players[id].dummy ? '假人' : '电脑') : '你'; }
   function shotCard() {
     const L = G.lastShot, el = $('shotcard');
@@ -1355,14 +1359,19 @@
     const ft = G.phase === 'ft' ? G.ft : null;
     const c = !ft && CFG.shotClock > 0 ? String(Math.max(0, Math.ceil(G.shotClock))) : '--';
     if (c !== lastClock) { lastClock = c; $('clock').textContent = c; $('clock').classList.toggle('low', CFG.shotClock > 0 && G.shotClock <= 5); }
-    { const gl = G.glen > 0 && G.mode !== 'train', gc = Math.ceil(G.gclock || 0), tt = ft ? '罚球 ' + ft.index + '/' + ft.total : G.sd ? '加时 · 下一球胜' : (gl ? Math.floor(gc / 60) + ':' + String(gc % 60).padStart(2, '0') + ' · ' : '') + (G.mp >= 0 ? '赛点' : '先到 ' + G.target + ' 分');
-      if (tt !== lastTB2) { lastTB2 = tt; const el = $('target'); el.textContent = tt; el.classList.toggle('mp', !ft && (G.mp >= 0 || !!G.sd)); el.classList.toggle('low', !ft && gl && gc <= 10); } }
+    const timed = G.glen > 0 && !train;
+    show('game-clock', timed);
+    if (timed) {
+      const gc = Math.max(0, Math.ceil(G.gclock || 0)), text = Math.floor(gc / 60) + ':' + String(gc % 60).padStart(2, '0'), el = $('game-clock');
+      if (el.textContent !== text) el.textContent = text;
+      el.classList.toggle('low', gc <= 10);
+    }
     const teamOff = t3 && !!local && local.tm === G.off;
     show('notice', G.needClear && G.phase === 'live' && G.ball.state === 'held' && (t3 ? teamOff : G.players[G.off].ctrl !== 'cpu'));
     $('notice').classList.toggle('ping', G.time - (G.clearPing || -9) < 0.45);
     if (train && frameN % 12 === 0) {
       const S = TR.stats, t = TR.role === 'def' ? '自由训练 · 练防守 · 电脑得分 <b>' + G.score[1] + '</b>' : '自由训练 · 出手 <b>' + S.n + '</b> 命中 <b>' + S.made + '</b> 命中率 <b>' + (S.n ? Math.round((S.made / S.n) * 100) + '%' : '—') + '</b>';
-      if (t !== lastTB) { lastTB = t; $('trainbar').innerHTML = t; }
+      if (t !== lastTB) { lastTB = t; $('trainbar').innerHTML = '<span>' + t + '</span>'; }
       if (panelOpen && trTab === 'stats') statsDyn();
     }
     // 操作提示
@@ -1522,7 +1531,7 @@
     if (G.mode === 't3') { renderBox3(); return; }
     const P = G.players.map((pl, i) => Object.assign(bxStat(i), { ftAbility: A99(pl.r.ft) })), cols = VIEWS[BX.view].concat(BX.adv ? ADVC : []), cat = BX.view !== 'box';
     if (!cat && G.fouls) cols.splice(3, 0, 'FT', 'PF');
-    const nm = [$('n0').textContent, $('n1').textContent], cw = cat ? VIEWS[BX.view].map((k) => catWin(k, P)) : null;
+    const nm = [0, 1].map((i) => $('n' + i).dataset.fullName), cw = cat ? VIEWS[BX.view].map((k) => catWin(k, P)) : null;
     let h = '<thead><tr><th class="pcol">球员</th>' + cols.map((k) => '<th title="' + C[k][3] + '">' + C[k][0] + '</th>').join('') + (cat ? '<th class="cw">胜项</th>' : '') + '</tr></thead><tbody>';
     for (const i of [0, 1]) {
       const p = P[i];
@@ -1613,7 +1622,7 @@
     for (; lv < 2; lv++) {
       hd.classList.toggle('sbt1', lv === 1); hd.classList.toggle('sbt2', lv === 2);
       const r = sb.getBoundingClientRect();
-      if ((!ra || r.left >= ra.left + cardWidth + u * 3) && (!rb || r.right <= rb.right - cardWidth - u * 3)) break;
+      if ((!ra || r.bottom <= ra.top || r.left >= ra.left + cardWidth + u * 3) && (!rb || r.bottom <= rb.top || r.right <= rb.right - cardWidth - u * 3)) break;
     }
     hd.classList.toggle('sbt1', lv === 1); hd.classList.toggle('sbt2', lv === 2);
     // 换人提示放在比分条正下方

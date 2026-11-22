@@ -9,7 +9,7 @@
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/fusion-pixel-12px-proportional-sc@5/index.css">
 <script>
-    window.__V__ = (Date.parse(document.lastModified) || Date.now()).toString(36) + '-room-relay-ready';
+window.__V__ = (Date.parse(document.lastModified) || Date.now()).toString(36) + '-single-line-timed-scoreboards';
 document.write('<link rel="stylesheet" href="style.css?v=' + window.__V__ + '">');
 </script>
 <script>window.__API_BASE__='https://pixelhoops-api.cecilcai322.workers.dev';</script>
@@ -22,12 +22,12 @@ document.write('<link rel="stylesheet" href="style.css?v=' + window.__V__ + '">'
   </div>
 
   <div id="hud" class="hidden">
-    <div id="scorebar">
+    <div id="scorebar" class="scoreboard">
       <div class="team t0"><span class="tname" id="n0">蓝队</span><span class="tscore" id="s0" data-testid="score-0">0</span></div>
-      <div class="clock"><span id="clock" data-testid="shot-clock">24</span><small id="target">先到 21 分</small></div>
+      <div class="clock"><span id="game-clock" class="hidden" data-testid="game-clock"></span><span id="clock" data-testid="shot-clock">24</span></div>
       <div class="team t1"><span class="tscore" id="s1" data-testid="score-1">0</span><span class="tname" id="n1">红队</span></div>
     </div>
-    <div id="trainbar" class="hidden"></div>
+    <div id="trainbar" class="scoreboard hidden"></div>
     <div id="notice" class="hidden">先把球带出三分线</div>
     <div id="hint"></div>
     <div id="bpops" data-testid="badge-pops"><div class="bcol p0" id="bcol0"></div><div class="bcol p1" id="bcol1"></div></div>
@@ -39,9 +39,9 @@ document.write('<link rel="stylesheet" href="style.css?v=' + window.__V__ + '">'
     </div>
   </div>
   <div id="hud5" class="hidden" data-testid="hud5">
-    <div id="sb5">
+    <div id="sb5" class="scoreboard">
       <div class="t5t" id="h5t0"><span class="t5n" id="h5n0"></span><span class="t5s" id="h5s0" data-testid="t5-score-0">0</span></div>
-      <div class="t5m"><span id="h5q">第1节</span><span id="h5c" data-testid="t5-clock">5:00</span><span id="h5sc" data-testid="t5-shot">24</span></div>
+      <div class="t5m"><span id="h5q">第1节</span><span id="h5c" data-testid="t5-clock">5:00</span><span class="shot-tab" id="h5sc" data-testid="t5-shot">24</span></div>
       <div class="t5t r" id="h5t1"><span class="t5s" id="h5s1" data-testid="t5-score-1">0</span><span class="t5n" id="h5n1"></span></div>
     </div>
     <div id="pc50" class="pcard p0 hidden" data-testid="pcard5-0"></div>
@@ -271,9 +271,10 @@ document.write('<link rel="stylesheet" href="style.css?v=' + window.__V__ + '">'
     </div>
   </div>
 
+  <div class="b5head scoreboard" id="b5-head"></div>
   <div id="box5" class="overlay hidden" data-testid="box5">
     <div class="panel b5panel">
-      <div class="b5top"><div class="b5head" id="b5-head"></div><button id="b5-close" data-testid="b5-close">关闭</button></div>
+      <div class="b5top"><button id="b5-close" data-testid="b5-close">关闭</button></div>
       <div class="b5tabs" id="b5-tabs"></div>
       <div class="b5body" id="b5-body"></div>
     </div>

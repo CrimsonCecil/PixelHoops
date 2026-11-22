@@ -64,15 +64,22 @@ button.primary:hover { background: #ffdf70; }
 
 /* HUD */
 #hud { position: absolute; inset: 0; pointer-events: none; }
-#scorebar { position: absolute; top: calc(var(--u) * 4); left: 50%; transform: translateX(-50%); display: flex; align-items: stretch; border: calc(var(--u) * 1) solid var(--ink); background: var(--ink); gap: calc(var(--u) * 1); }
+#stage { --scorebar-body: var(--fs-xs); --scorebar-height: calc((var(--scorebar-body) + 10px) * 1.5 + 8px); }
+#scorebar { position: absolute; top: 0; left: 50%; transform: translateX(-50%); display: flex; align-items: stretch; border: calc(var(--u) * 1) solid var(--ink); background: var(--ink); gap: calc(var(--u) * 1); }
+:is(#scorebar, #sb5, #trainbar, #b5-head) { --u: min(2px, calc(100vw / 480)); --fs-xs: calc(var(--scorebar-body) + 2px); --fs-sm: calc(var(--scorebar-body) + 3px); --fs-md: calc(var(--scorebar-body) + 6px); --fs-lg: calc(var(--scorebar-body) + 10px); position: absolute; top: 0; left: 50%; transform: translateX(-50%); display: flex; align-items: stretch; width: calc(var(--scorebar-body) * 22 + 140px); max-width: calc(100% - 8px); height: var(--scorebar-height); line-height: 1.2; border: calc(var(--u) * 1) solid var(--ink); background: var(--ink); gap: calc(var(--u) * 1); }
+.scoreboard .team { min-width: 0; flex: 1; }
+.scoreboard .team .tname { min-width: 0; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; align-content: center; }
+.scoreboard .clock { flex-shrink: 0; flex-direction: row; gap: calc(var(--u) * 3); }
+.scoreboard .tscore { flex-shrink: 0; }
 .team { display: flex; align-items: center; background: var(--panel); }
 .tname { font-size: var(--fs-sm); padding: 0 calc(var(--u) * 5); white-space: nowrap; min-width: calc(var(--u) * 58); text-align: center; }
 .t0 .tname { background: #2459b8; align-self: stretch; display: flex; align-items: center; justify-content: center; }
 .t1 .tname { background: #a82a2a; align-self: stretch; display: flex; align-items: center; justify-content: center; }
 .tscore { font-size: var(--fs-lg); min-width: calc(var(--u) * 24); text-align: center; padding: calc(var(--u) * 1) calc(var(--u) * 3); font-variant-numeric: tabular-nums; }
 .clock { background: #0b0e1e; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: calc(var(--u) * 1) calc(var(--u) * 5); min-width: calc(var(--u) * 40); }
-#clock { font-size: var(--fs-lg); color: var(--gold); font-variant-numeric: tabular-nums; line-height: 1; }
-#clock.low { color: var(--red); }
+#clock { font-size: var(--fs-lg); color: var(--gold); font-variant-numeric: tabular-nums; line-height: 1.2; }
+#game-clock { font-size: var(--fs-xs); color: var(--muted); white-space: nowrap; }
+#clock.low, #game-clock.low { color: var(--red); }
 .clock small { font-size: var(--fs-xs); color: var(--muted); white-space: nowrap; line-height: 1.2; }
 #notice { position: absolute; top: calc(var(--u) * 34); left: 50%; transform: translateX(-50%); background: var(--red); color: #2a0606; font-size: var(--fs-sm); padding: calc(var(--u) * 1.5) calc(var(--u) * 5); border: calc(var(--u) * 1) solid var(--ink); white-space: nowrap; }
 #hint { position: absolute; bottom: calc(var(--u) * 4); left: 50%; transform: translateX(-50%); font-size: var(--fs-xs); color: var(--text); background: rgba(10, 12, 28, 0.82); border: calc(var(--u) * 1) solid var(--ink); padding: calc(var(--u) * 1.5) calc(var(--u) * 5); white-space: nowrap; }
@@ -167,8 +174,10 @@ kbd.x { background: #4aa3ff; color: #06162e; box-shadow: 0 calc(var(--u) * 1) 0 
 button.pf { outline: calc(var(--u) * 1) solid var(--gold); outline-offset: 1px; filter: brightness(1.25); position: relative; z-index: 2; }
 #banner { animation: pop 0.22s steps(4) both; }
 @keyframes pop { 0% { transform: translate(-50%, -50%) scale(1.6); } 100% { transform: translate(-50%, -50%) scale(1); } }
-#trainbar { position: absolute; top: calc(var(--u) * 4); left: 50%; transform: translateX(-50%); background: rgba(10, 12, 28, 0.86); border: calc(var(--u) * 1) solid var(--ink); font-size: var(--fs-sm); padding: calc(var(--u) * 2) calc(var(--u) * 6); white-space: nowrap; }
+#trainbar { font-size: var(--fs-sm); padding: 0 calc(var(--u) * 4); align-items: center; justify-content: center; text-align: center; }
+#trainbar > span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 #trainbar b { color: var(--gold); font-weight: normal; }
+#trainbar b { font-size: var(--fs-lg); }
 
 #shotcard { position: absolute; left: calc(var(--u) * 4); top: calc(var(--u) * 34); width: calc(var(--u) * 112); min-width: 190px; background: #0c0f22; border: calc(var(--u) * 1) solid var(--ink); border-left: calc(var(--u) * 3) solid var(--gold); padding: calc(var(--u) * 3) calc(var(--u) * 4); font-size: var(--fs-xs); pointer-events: none; z-index: 5; }
 #shotcard .sc-h { font-size: var(--fs-sm); display: flex; justify-content: space-between; gap: 6px; }
@@ -218,7 +227,7 @@ button.pf { outline: calc(var(--u) * 1) solid var(--gold); outline-offset: 1px; 
 #train > .seg { flex: 0 0 auto; margin-bottom: calc(var(--u) * 3); }
 #tr-body { min-height: 0; }
 #stage.panel #hint { left: calc(var(--u) * 4); right: calc(min(46%, 400px) + var(--u) * 10); transform: none; white-space: normal; line-height: 1.5; }
-#stage.panel #trainbar { left: calc((100% - min(46%, 400px)) / 2); }
+#stage.panel #trainbar { left: 50%; }
 #banner { top: 76%; padding: calc(var(--u) * 1.5) calc(var(--u) * 6.75); }
 #banner b { font-size: var(--fs-lg); }
 #stage.panel #banner { left: calc((100% - min(46%, 400px)) / 2); }
@@ -664,7 +673,15 @@ table.bx tr.b3s td.pcol { padding-left: 38px; }
 /* ---------- 5V5 球队模式 ---------- */
 #hud5 { position: absolute; inset: 0; pointer-events: none; }
 #hud5 .pcard { width: var(--pc5-width, auto); }
-#sb5 { position: absolute; top: calc(var(--u) * 4); left: 50%; transform: translateX(-50%); display: flex; align-items: stretch; border: calc(var(--u) * 1) solid var(--ink); background: var(--ink); gap: calc(var(--u) * 1); }
+#sb5 { position: absolute; top: 0; left: 50%; transform: translateX(-50%); display: flex; align-items: stretch; border: calc(var(--u) * 1) solid var(--ink); background: var(--ink); gap: calc(var(--u) * 1); }
+@media (max-width: 1000px) {
+  #hud:has(.scoreboard:not(.hidden)) .pcard, #hud5 .pcard { top: calc(var(--scorebar-height) + 4px); }
+}
+.scoreboard .t5t { min-width: 0; flex: 1; }
+.scoreboard .t5n { min-width: 0; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.scoreboard .t5m { flex-shrink: 0; position: relative; }
+.scoreboard #h5c, .scoreboard .t5c { font-size: var(--fs-lg); }
+.scoreboard .shot-tab { position: absolute; top: calc(100% + var(--u)); left: 50%; transform: translateX(-50%); background: #0b0e1e; color: var(--gold); border: var(--u) solid var(--ink); padding: 0 calc(var(--u) * 3); min-width: 2.4em; text-align: center; font-size: var(--fs-xs); line-height: 1.5; white-space: nowrap; }
 .t5t { display: flex; align-items: center; background: var(--panel); border-bottom: calc(var(--u) * 1.5) solid var(--tc, #888); position: relative; }
 .t5t.ball::after { content: ''; position: absolute; top: calc(var(--u) * 1.5); width: calc(var(--u) * 3); height: calc(var(--u) * 3); background: #ee7f30; border: calc(var(--u) * 0.5) solid var(--ink); }
 .t5t:not(.r).ball::after { right: calc(var(--u) * 1.5); } .t5t.r.ball::after { left: calc(var(--u) * 1.5); }
@@ -672,10 +689,9 @@ table.bx tr.b3s td.pcol { padding-left: 38px; }
 .t5t.me .t5n { color: var(--gold); }
 .t5s { font-size: var(--fs-lg); min-width: calc(var(--u) * 22); text-align: center; padding: calc(var(--u) * 1) calc(var(--u) * 3); font-variant-numeric: tabular-nums; background: #0b0e1e; }
 .t5m { display: flex; align-items: center; gap: calc(var(--u) * 3); background: #0b0e1e; padding: 0 calc(var(--u) * 4); font-variant-numeric: tabular-nums; }
-#h5q { font-size: var(--fs-xs); color: var(--muted); white-space: nowrap; }
-#h5c { font-size: var(--fs-md); color: var(--text); min-width: calc(var(--u) * 20); text-align: center; }
-#h5sc { font-size: var(--fs-md); color: var(--gold); min-width: calc(var(--u) * 11); text-align: center; border-left: calc(var(--u) * 0.5) solid var(--line); padding-left: calc(var(--u) * 2.5); }
-#h5sc.low { color: var(--red); }
+#h5q, .t5q { font-size: var(--fs-xs); color: var(--muted); white-space: nowrap; }
+#h5c, .t5c { font-size: var(--fs-md); color: var(--text); min-width: calc(var(--u) * 20); text-align: center; }
+.scoreboard .shot-tab.low { color: var(--red); }
 #hud5 #sb5 { transition: opacity .35s; }
 #hud5.tiphide #sb5 { opacity: 0; }
 #topbtns5 { position: absolute; bottom: calc(var(--u) * 4); right: calc(var(--u) * 4); pointer-events: auto; opacity: 0.8; }
@@ -747,10 +763,12 @@ button.pick .pk-5 { grid-column: 2 / 4; color: var(--gold); opacity: 0.85; lette
 
 #box5 { z-index: 22; }
 #box5 .b5panel { width: calc(var(--u) * 452); padding: calc(var(--u) * 4) calc(var(--u) * 6); display: flex; flex-direction: column; overflow: hidden; max-height: 100%; background: #10132a; }
-.b5top { display: flex; align-items: center; justify-content: space-between; gap: calc(var(--u) * 4); }
+.b5top { display: flex; align-items: center; justify-content: flex-end; gap: calc(var(--u) * 4); }
 .b5head { display: flex; align-items: baseline; gap: calc(var(--u) * 4); font-size: var(--fs-md); white-space: nowrap; }
 .b5head b { font-weight: normal; font-size: var(--fs-lg); color: var(--text); font-variant-numeric: tabular-nums; }
 .b5head em { font-style: normal; font-size: var(--fs-xs); color: var(--muted); }
+#b5-head { z-index: 23; }
+#stage:has(#box5.hidden) #b5-head { display: none; }
 .b5top button { font-size: var(--fs-xs); padding: calc(var(--u) * 1) calc(var(--u) * 4); min-height: 0; }
 .b5tabs { display: flex; gap: calc(var(--u) * 1); border-bottom: calc(var(--u) * 0.5) solid var(--line); margin: calc(var(--u) * 2) 0 calc(var(--u) * 2); flex-wrap: wrap; }
 .b5tabs button { background: transparent; box-shadow: none; border: 0; border-bottom: calc(var(--u) * 1.5) solid transparent; color: var(--muted); font-size: var(--fs-sm); padding: calc(var(--u) * 1.5) calc(var(--u) * 5); min-height: 0; margin-bottom: calc(var(--u) * -0.5); white-space: nowrap; }
@@ -907,13 +925,12 @@ td.b5cn { color: var(--muted); font-size: var(--fs-xs) !important; }
 @media (max-width: 700px) { .agrp { grid-template-columns: 1fr; } }
 
 /* V4.3 5V5 比分条在顶部正中：窄屏时先缩队名、再只留比分和时间，保证不压左右信息卡 */
-#hud5.sbt1 .t5n { min-width: 0; padding: 0 calc(var(--u) * 2); font-size: var(--fs-xs); }
+#hud5.sbt1 .t5n { min-width: 0; padding: 0 calc(var(--u) * 2); }
 #hud5.sbt1 .t5s { min-width: calc(var(--u) * 16); padding: calc(var(--u) * 0.5) calc(var(--u) * 2); }
 #hud5.sbt1 .t5m { gap: calc(var(--u) * 2); padding: 0 calc(var(--u) * 2); }
-#hud5.sbt2 .t5n { display: none; }
-#hud5.sbt2 .t5s { min-width: calc(var(--u) * 13); padding: calc(var(--u) * 0.5) calc(var(--u) * 1.5); font-size: var(--fs-md); }
+#hud5.sbt2 .t5n { min-width: 0; padding: 0 calc(var(--u) * 1); }
+#hud5.sbt2 .t5s { min-width: calc(var(--u) * 13); padding: calc(var(--u) * 0.5) calc(var(--u) * 1.5); }
 #hud5.sbt2 .t5m { gap: calc(var(--u) * 1.5); padding: 0 calc(var(--u) * 1.5); }
-#hud5.sbt2 #h5q { display: none; }
 
 /* V4.5 调参台：左侧大类 + 右侧小类分段（可折叠）+ 搜索 / 模式筛选 + 说明栏 */
 #tune { width: min(62%, 640px); }
