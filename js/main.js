@@ -268,7 +268,7 @@
     el.className = 'pick t' + TT[a.tier]; el.innerHTML = '<canvas class="pkf" width="32" height="32"></canvas><span class="pk-n">' + a.name + ' <small>' + a.ovr + '</small></span>' + (t3 ? positionBadge(a) : '<span class="pk-s">' + (a.skill ? '必杀技 · ' + a.skill.name : a.pos + ' · ' + GM.TIERS[a.tier]) + '</span><span class="pk-c">更换</span>');
     if (!t3) {
       el.classList.add('fighter-pick');
-      el.innerHTML = '<span class="fighter-figure"><span class="fighter-number">' + a.num + '</span><canvas class="fighter-body" width="240" height="300" aria-label="' + a.full + '全身像"></canvas><span class="fighter-ring"></span></span><span class="fighter-info"><span class="fighter-label">' + (side ? 'P2 / 对手' : 'P1 / 你') + '</span><span class="fighter-name"><span><span class="pk-n">' + a.name + '</span><span class="fighter-full">' + a.full + '</span></span><strong>' + a.ovr + '<small>总评</small></strong></span><span class="pk-s">' + a.pos + ' · ' + listedHeight(a) + ' 米 · #' + a.num + '</span><span class="fighter-stats">' + [['three','三分'],['mid','中投'],['lay','上篮'],['dunk','扣篮'],['hnd','控球'],['spd','速度'],['def','防守'],['str','力量']].map(([k,n]) => '<span>' + n + '<b class="' + vcl(A99(a[k])) + '">' + A99(a[k]) + '</b><i style="--rating:' + A99(a[k]) + '%"></i></span>').join('') + '</span><span class="fighter-badges">' + bList(a, true).map(([k,t]) => '<span title="' + GM.BADGES[k].desc + '">' + bHex(k,t) + GM.BADGES[k].name + '</span>').join('') + '</span><span class="pk-c">选择球星 →</span></span>';
+      el.innerHTML = '<span class="fighter-figure"><span class="fighter-number">' + a.num + '</span><canvas class="fighter-body" width="240" height="300" aria-label="' + a.full + '全身像"></canvas><span class="fighter-ring"></span></span><span class="fighter-info"><span class="fighter-label">' + (side ? 'P2 / ' : 'P1 / ') + $('lab-p' + (side + 1)).textContent + '</span><span class="fighter-name"><span><span class="pk-n">' + a.name + '</span><span class="fighter-full">' + a.full + '</span></span><strong>' + a.ovr + '<small>总评</small></strong></span><span class="pk-s">' + a.pos + ' · ' + listedHeight(a) + ' 米 · #' + a.num + '</span><span class="fighter-stats">' + [['three','三分'],['mid','中投'],['lay','上篮'],['dunk','扣篮'],['hnd','控球'],['spd','速度'],['def','防守'],['str','力量']].map(([k,n]) => '<span>' + n + '<b class="' + vcl(A99(a[k])) + '">' + A99(a[k]) + '</b><i style="--rating:' + A99(a[k]) + '%"></i></span>').join('') + '</span><span class="fighter-badges">' + bList(a, true).map(([k,t]) => '<span title="' + GM.BADGES[k].desc + '">' + bHex(k,t) + GM.BADGES[k].name + '</span>').join('') + '</span><span class="pk-c">选择球星 →</span></span>';
       R.playerPreview(el.querySelector('canvas'), a, side);
     } else {
       const cv = el.querySelector('canvas'); cv.classList.add('team-body'); cv.width = 90; cv.height = 130;
@@ -1736,11 +1736,13 @@
   }
   const NAV_SCROLL = { picker: '#pk-detail', help: '#help-body', tune: '#tn-body', train: '#tr-body', over5: '#o5-box', over: '', king: '', pause: '', menu: '' };
   const NAV_TABS = { help: '#help-tabs', tune: '#tn-cats', train: '#tr-tabs', over5: '#o5-tabs' };
-  function scrollBox(root) {
-    const canScroll = (e) => e && e.offsetParent !== null && e.scrollHeight > e.clientHeight + 4 && /auto|scroll/.test(getComputedStyle(e).overflowY);
+  function scrollBox(root, dy) {
+    const canScroll = (e) => e && e.getClientRects().length && /auto|scroll/.test(getComputedStyle(e).overflowY) && (dy > 0 ? e.scrollTop + e.clientHeight < e.scrollHeight - 1 : e.scrollTop > 1);
     const sel = NAV_SCROLL[root.id], target = sel && root.querySelector(sel);
     if (canScroll(target)) return target;
+    for (let e = root.querySelector('.pf'); e && e !== root; e = e.parentElement) if (canScroll(e)) return e;
     if (canScroll(root)) return root;
+    if (root.id === 'menu') return null;
     for (const e of root.querySelectorAll('*')) if (canScroll(e)) return e;
     return null;
   }
@@ -1819,7 +1821,7 @@
     if (k.lb || k.rl) navTab(root, -1); else if (k.rb || k.rr) navTab(root, 1);
     if (k.px && root.id === 'tune') { const cur = root.querySelector('.pf'), row = cur && cur.closest('[data-row]'), rs = row && row.querySelector('[data-rs]'); if (rs) rs.click(); }
     const now = performance.now(), dt = Math.min(60, now - rsT || 16); rsT = now;
-    const r = PH.input.rstick(); if (r.y) { const sb = scrollBox(root); if (sb) sb.scrollTop += r.y * dt * 1.1; }
+    const r = PH.input.rstick(); if (r.y) { const sb = scrollBox(root, r.y); if (sb) sb.scrollTop += r.y * dt * 1.1; }
   }
   const isTextInput = (el) => !!(el && ((el.tagName === 'INPUT' && el.type !== 'range') || el.tagName === 'TEXTAREA'));
   // Native Tab/pointer focus and controller focus must activate the same control.
