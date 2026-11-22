@@ -56,6 +56,9 @@
 .front-direct div { display:flex; gap:10px; margin:14px 0; }
 .front-direct input { min-width:0; width:50%; }
 .front-direct small { font-size:12px; }
+#front-invite { margin:12px 0; padding-top:12px; }
+#front-invite p { font-size:13px; line-height:1.8; }
+#front-invite-code { color:#ffda79; font-size:19px; user-select:all; }
 #front-create { border:2px solid #d4b368; padding:25px; margin-top:15px; background:#17253c; }
 #front-create label { display:block; margin:15px 0; font-size:15px; }
 #front-create input,#front-create select { margin-left:18px; max-width:65%; }

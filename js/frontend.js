@@ -80,6 +80,8 @@
     $('front-ready').textContent = ready[localId()] ? '已准备 · 点击取消' : '我准备好了';
     $('front-ready').classList.toggle('on', !!ready[localId()]);
     $('front-ready-state').textContent = r.code ? (r.role === 'host' && !r.links.size ? '等待球友加入…' : (r.role === 'host' ? members() : remoteMembers).map((s) => (s === 0 ? '房主' : '球友 ' + s) + (ready[s] ? ' ✓ 已准备' : ' · 选择中')).join('　')) : '';
+    $('front-invite').classList.toggle('hidden', !r.code);
+    $('front-invite-code').textContent = r.code;
     $('btn-start').disabled = !canStart();
     for (let i = 0; i < 2; i++) $('pick' + i).disabled = !allowed(i, null);
     ctx.lobby.forEach((s, i) => { $('pick3-' + i).disabled = !allowed(i < 3 ? 0 : 1, i); $('role3-' + i).disabled = !!r.role && (r.role !== 'host' || r.links.has(i) || i === 0); });
@@ -133,7 +135,7 @@
         <details class="front-direct"><summary>朋友直连 / 大厅不可用时使用</summary><div><input id="front-direct-code" maxlength="5" placeholder="朋友的直连码" aria-label="朋友的直连码"><select id="front-direct-mode" aria-label="直连比赛形式"><option value="online">1V1</option><option value="t3">3V3</option></select><button id="front-direct-join">直连加入</button></div><small>通常无需直连码，点击公开房间即可。</small></details>
       </section>`);
     $('menu').querySelector('.menu-panel').insertAdjacentHTML('afterbegin', '<header class="front-select-head"><button id="front-back">← 返回</button><div><h2 id="front-select-title"></h2><small id="front-room-info"></small></div><b>选择球星</b></header>');
-    $('btn-start').insertAdjacentHTML('beforebegin', '<p id="front-ready-state" role="status"></p><button id="front-ready" class="hidden"></button>');
+    $('btn-start').insertAdjacentHTML('beforebegin', '<details id="front-invite" class="front-direct hidden"><summary>邀请朋友（可选直连）</summary><p>直连码 <strong id="front-invite-code"></strong> · 朋友在大厅下方打开「朋友直连」，选择相同比赛形式即可加入。</p></details><p id="front-ready-state" role="status"></p><button id="front-ready" class="hidden"></button>');
     $('front-solo').onclick = () => go('solo'); $('front-online').onclick = () => { previous = 'lobby'; go('lobby'); };
     $('front-back').onclick = () => leave(previous);
     $('menu').addEventListener('click', (e) => {
