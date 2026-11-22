@@ -3,7 +3,7 @@
   const PH = (window.PH = window.PH || {});
   const keys = {}, latch = {};
   const MAPS = [
-    { up: ['KeyW'], down: ['KeyS'], left: ['KeyA'], right: ['KeyD'], sprint: ['ShiftLeft'], a1: ['KeyJ', 'Space'], a2: ['KeyK'], a3: ['KeyL'], post: ['KeyQ'] },
+    { up: ['KeyW'], down: ['KeyS'], left: ['KeyA'], right: ['KeyD'], sprint: ['ShiftLeft'], a1: ['KeyJ', 'Space'], a2: ['KeyK'], a3: ['KeyL'], post: ['KeyU'] },
     { up: ['ArrowUp'], down: ['ArrowDown'], left: ['ArrowLeft'], right: ['ArrowRight'], sprint: ['Numpad0', 'ShiftRight'], a1: ['Numpad1', 'Comma'], a2: ['Numpad2', 'Period'], a3: ['Numpad3', 'Slash'], post: ['KeyO'] },
   ];
   const SOLO_EXTRA = { up: ['ArrowUp'], down: ['ArrowDown'], left: ['ArrowLeft'], right: ['ArrowRight'] };
@@ -91,8 +91,8 @@
     const l = Math.hypot(o.mx, o.my); if (l > 1) { o.mx /= l; o.my /= l; }
     return o;
   }
-  // V3.9 5V5：原始按键（Xbox 默认布局，完全对照 2K）。键盘镜像：WASD=左摇杆 方向键=右摇杆 J/空格=X K=A L=B I=Y Q=LT E=RB R=LB 左Shift=RT
-  const K5 = { X: ['KeyJ', 'Space'], A: ['KeyK'], B: ['KeyL'], Y: ['KeyI'], LT: ['KeyQ'], RB: ['KeyE'], LB: ['KeyR'], RT: ['ShiftLeft'] };
+  // V3.9 5V5：原始按键（Xbox 默认布局，完全对照 2K）。键盘镜像：WASD=左摇杆 方向键=右摇杆 J/空格=X K=A L=B I=Y U=LT E=RB R=LB 左Shift=RT
+  const K5 = { X: ['KeyJ', 'Space'], A: ['KeyK'], B: ['KeyL'], Y: ['KeyI'], LT: ['KeyU'], RB: ['KeyE'], LB: ['KeyR'], RT: ['ShiftLeft'] };
   function read5() {
     const o = { lx: 0, ly: 0, rx: 0, ry: 0, A: false, B: false, X: false, Y: false, LB: false, RB: false, LT: false, RT: false, hesi: held(['KeyH']), menu: false, view: false, dU: false, dD: false, dL: false, dR: false, pad: false };
     if (held(['KeyA'])) o.lx -= 1; if (held(['KeyD'])) o.lx += 1; if (held(['KeyW'])) o.ly += 1; if (held(['KeyS'])) o.ly -= 1;

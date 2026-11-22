@@ -205,7 +205,7 @@
   // ---------- 主渲染（V3.9：画面里的人和球都是 1V1 引擎的对象，只做坐标换算） ----------
   const PI2 = Math.PI / 2;
   const GLYPH = { A: '#3cb04a', B: '#e0403a', X: '#3a7be0', Y: '#e8c030', LT: '#8a8a96' };
-  const KEYL = { A: 'K', B: 'L', X: 'J', Y: 'I', LT: 'Q' };
+  const KEYL = { A: 'K', B: 'L', X: 'J', Y: 'I', LT: 'U' };
   let saved = null, last2k = '';
   // V3.9e 篮架等场馆物件用世界坐标画：转播镜头 PJ = R.proj；2K 镜头先把世界坐标转到镜头坐标再投影。HV = 镜头前方（世界坐标），用来分篮筐前后半圈
   let PJ = null, HV = [0, 1], K2 = false;
