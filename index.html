@@ -249,6 +249,7 @@ document.write('<link rel="stylesheet" href="menu.css?v=' + window.__V__ + '">')
         <button id="btn-close" data-testid="btn-close">特写镜头 开</button>
         <button id="btn-hz" data-testid="btn-hz">热区显示 开</button>
         <button id="btn-stamina" data-testid="btn-stamina">体力条 开</button>
+        <button id="btn-netstat" data-testid="btn-netstat">帧数与延迟 开</button>
         <button class="primary" data-back="1" data-testid="set-back-disp">返回</button>
       </div>
     </div>
@@ -318,6 +319,7 @@ document.write('<link rel="stylesheet" href="menu.css?v=' + window.__V__ + '">')
     <input id="tape-scrub" aria-label="录像进度" type="range" min="0" max="1" step="0.001" style="width:100%">
     <div class="actions"><button id="tape-play">播放</button><button id="tape-back">−5秒</button><button id="tape-forward">+5秒</button><button id="tape-prev">上一帧</button><button id="tape-next">下一帧</button><button id="tape-speed">1×</button><button id="tape-exit">返回录像</button></div>
   </div>
+  <div id="netstat" data-testid="netstat" aria-live="off"><span id="netstat-fps">60 FPS</span><span class="netstat-sep">·</span><span id="netstat-ping">PING --</span></div>
   <div id="debug" class="hidden"></div>
 </div>
 <script>

@@ -3,7 +3,7 @@
   const PH = window.PH, GM = PH.game, G = GM.G, R = PH.render, CFG = GM.CFG, TR = G.train;
   const $ = (id) => document.getElementById(id);
   const stage = $('stage'), canvas = $('game'), replayWipe = $('replay-wipe');
-  const opts = { format: 'duel', opponent: 'cpu', get mode() { return this.format === 'duel' ? this.opponent : this.format; }, diff: 1, target: 21, clock: 24, glen: 0, fouls: 'on', arch0: GM.ROSTER[(Math.random() * GM.ROSTER.length) | 0], arch1: 'random', fb: 'simple', info: 'show', intro: 'on', home: 'LAL', away: 'BOS', qlen: 300, side: 0, ktarget: 21, kreveal: 'hide' };
+  const opts = { format: 'duel', opponent: 'cpu', get mode() { return this.format === 'duel' ? this.opponent : this.format; }, diff: 1, target: 21, clock: 24, glen: 0, fouls: 'on', arch0: GM.ROSTER[(Math.random() * GM.ROSTER.length) | 0], arch1: 'random', fb: 'simple', info: 'show', intro: 'on', netstat: 'on', home: 'LAL', away: 'BOS', qlen: 300, side: 0, ktarget: 21, kreveal: 'hide' };
   const lobbyRoles = { human: '你', cpu: '电脑', waiting: '等待玩家' };
   const lobby3 = ['curry', 'lebron', 'jokic', 'edwards', 'durant', 'giannis'].map((arch, i) => ({ arch, role: i === 0 ? 'human' : i % 3 === 2 ? 'waiting' : 'cpu' }));
   const rooms = PH.rooms, room = rooms.room;
@@ -362,8 +362,9 @@
         if (screen === 'play' && left != null && G.mode === 't3') G.players[left].ctrl = 'cpu';
         if (screen === 'play' && left != null && G.mode !== 't3') { toMenu(); menuStatus('对手已断开连接。'); }
         if (screen === 'menu' && room.role) { roomStatus(); PH.frontend.changed(); refreshMenu(); }
+        if (left == null && room.links.size) { pingAt = performance.now(); rooms.ping(); }
       },
-      joined: (slot) => { roomSlot = slot; menuStatus('已加入房间 · 选好球星后点击准备'); PH.frontend.joined(); refreshMenu(); },
+      joined: (slot) => { roomSlot = slot; menuStatus('已加入房间 · 选好球星后点击准备'); PH.frontend.joined(); refreshMenu(); pingAt = performance.now(); rooms.ping(); },
       message: (msg, slot) => PH.frontend.message(msg, slot),
       start: (config) => {
         if (!config || config.mode !== mode || (mode === 't3' && (!Array.isArray(config.slots) || config.slots.length !== 6 || !config.slots.every((s) => GM.ARCH[s.arch])))) return;
@@ -679,6 +680,7 @@
     $('btn-close').textContent = '特写镜头 ' + (G.vopt.close ? '开' : '关');
     $('btn-hz').textContent = '热区显示 ' + (G.vopt.hz !== false ? '开' : '关');
     $('btn-stamina').textContent = '体力条 ' + (G.vopt.stamina !== false ? '开' : '关');
+    $('btn-netstat').textContent = '帧数与延迟 ' + (opts.netstat !== 'off' ? '开' : '关');
     $('btn-vo').textContent = '球员配音 ' + (PH.audio.voOn ? '开' : '关');
   }
   function togglePanel(on) { if (screen !== 'play' || G.mode !== 'train') return; panelOpen = on == null ? !panelOpen : on; show('train', panelOpen); stage.classList.toggle('panel', panelOpen); camShift(); if (panelOpen) buildPanel(); }
@@ -936,6 +938,7 @@
   $('btn-close').addEventListener('click', () => { G.vopt.close = !G.vopt.close; saveV(); });
   $('btn-hz').addEventListener('click', () => { G.vopt.hz = G.vopt.hz === false; saveV(); });
   $('btn-stamina').addEventListener('click', () => { G.vopt.stamina = G.vopt.stamina === false; saveV(); });
+  $('btn-netstat').addEventListener('click', () => { opts.netstat = opts.netstat === 'off' ? 'on' : 'off'; setLabels(); updateNetstat(true); });
   $('btn-vo').addEventListener('click', () => { PH.audio.setVo(!PH.audio.voOn); saveV(); });
   function skipReplay() { if (screen === 'play' && !paused && G.replay && G.replay.age >= REPLAY_MIN) G.replay.skip = true; }
   canvas.addEventListener('pointerdown', skipReplay);
@@ -2130,10 +2133,29 @@
   // 浏览器要求用户操作后才能出声：第一次点击 / 按键时启动音乐（主菜单就有音乐）
   const musKick = () => { if (PH.audio.ensure()) { PH.audio.startMusic(); musicPick(); } };
   window.addEventListener('pointerdown', musKick, true); window.addEventListener('keydown', musKick, true);
-  let lastReplayCover = 0;
+  let lastReplayCover = 0, netstatAt = 0, pingAt = 0, lastFpsText = '', lastPingText = '', lastPingCls = '';
+  function updateNetstat(force) {
+    const now = performance.now();
+    if ((room.role === 'host' && room.links.size) || (room.role === 'guest' && room.code)) {
+      if (now - pingAt >= 2000) { pingAt = now; rooms.ping(); }
+    }
+    const on = opts.netstat !== 'off';
+    show('netstat', on);
+    if (!on) return;
+    if (!force && now - netstatAt < 250) return;
+    netstatAt = now;
+    const fpsText = Math.round(fps) + ' FPS';
+    const p = room.ping;
+    const pingText = p != null ? 'PING ' + p + 'ms' : 'PING --';
+    const pingCls = p == null ? '' : p < 60 ? 'good' : p < 120 ? 'warn' : 'bad';
+    if (fpsText !== lastFpsText) { $('netstat-fps').textContent = fpsText; lastFpsText = fpsText; }
+    if (pingText !== lastPingText) { $('netstat-ping').textContent = pingText; lastPingText = pingText; }
+    if (pingCls !== lastPingCls) { $('netstat-ping').className = pingCls; lastPingCls = pingCls; }
+  }
   function draw(dt) {
     PH.audio.setPaused((screen === 'play' || screen === 'play5') && paused);
     musicPick();
+    updateNetstat(false);
     const r5 = PH.render5.rpl, replay = screen === 'play' ? G.replay : screen === 'play5' && r5.on ? r5 : null;
     show('replay-badge', !!replay?.view && !paused && !PH.tapeView.open);
     if (PH.tapeView.open) { PH.tapeView.render(dt); return; }
