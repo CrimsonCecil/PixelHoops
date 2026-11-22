@@ -1910,7 +1910,7 @@
     else if (!$('picker').classList.contains('hidden')) { if (pb || esc) closePicker(false); else if (pa || ok) { const b = $('picker').querySelector('.pf'); if (b && b.hasAttribute('data-pk') && b.getAttribute('data-pk') === pkSel) closePicker(true); else navClick(); } }
     else if (screen === 'menu' && !$('pause').classList.contains('hidden')) { if (setV !== 'main' && (esc || pb)) setView('main'); else if (esc || pb) menuSet(false); else if (pa || ok) navClick(); }
     else if (screen === 'menu' && !$('qvol').classList.contains('hidden') && (esc || pb)) qvOpen(false);
-    else if (screen === 'menu') { if (esc || pb) PH.frontend.back(); else if (ps) startMatch(false); else if (pa || ok) navClick(); }
+    else if (screen === 'menu') { if (ps) startMatch(false); else if (esc || pb) PH.frontend.back(); else if (pa || ok) navClick(); }
     else if (screen === 'king') { if (ok || ps) kingOk(); else if (esc || pb) toMenu(); else if (pa) navClick(); }
     else if (screen === 'play5') {
       // 手柄十字键下（只认十字键，不认左摇杆）= 换人页；View = 数据面板；键盘 Tab = 数据面板、B / 4 = 换人页
