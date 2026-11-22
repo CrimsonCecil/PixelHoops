@@ -1029,7 +1029,7 @@
     ['fxTrailAlpha', 'pace', '冲刺残影 强度', 0.14, 0, 0.3, 0.01, '透明度：0 关闭，仅绘制冲刺球员身后的淡残影'],
     ['fxTrailCount', 'pace', '冲刺残影 数量', 3, 0, 5, 1, '层：0 关闭，复用已绘制的球员图像'],
     ['fxTrailSpacing', 'pace', '冲刺残影 间隔', 0.055, 0.025, 0.1, 0.005, '秒：沿最近的移动路径采样'],
-    ['fxHeightK', 'pace', '球员身高差 放大', 1.55, 1, 3.4, 0.05, '越大高个和矮个的身高差画得越明显（倍数）；手和头跟着骨架变，高个封盖点也略高'],
+    ['fxHeightK', 'pace', '球员身高差 放大', 1.55, 1, 3.4, 0.05, '越大高个和矮个的身高差画得越明显（倍数）；只改画面，盖帽/抢断判定仍按真实身高臂展'],
     // V4.6 高光特效 / 回放 / 镜头（原写死，默认值不变）
     ['fxT1Hit', 'pace', '高光轻档 顿帧', 0, 0, 0.6, 0.01, '秒'],
     ['fxT1Slow', 'pace', '高光轻档 慢动作', 0, 0, 3, 0.05, '秒'],
@@ -8593,7 +8593,7 @@
     for (const [field, [label, note]] of Object.entries(STYLE_DISPLAY)) BLOCK_DISPLAY['ps' + prefix + field] = ['个性·' + name + ' ' + label, note];
   }
   if (TU) {
-    TU.reg(TDEF.map((d) => ({ k: 'l1_' + d[0], g: d[1], label: d[2], v: d[3], min: d[4], max: d[5], step: d[6], note: d[7], display: BLOCK_DISPLAY[d[0]], mode: d[8] || 'num', tmp: !!d[9], ...(d[0] === 'stLift' || d[0] === 'stReach' || /^(euroTempo|euroBeat|manu|aiCommit|aiProbeRange|aiBurst|aiChain|vc)/.test(d[0]) ? { wide: false } : {}), ...(/^manu/.test(d[0]) ? { cat: 'fin', sub: '上篮变体', gm: 'both' } : {}), ...(/^vc/.test(d[0]) ? { cat: 'fin', sub: '扣篮', gm: 'both' } : {}), ...(/^ai(Commit|ProbeRange|Burst|Chain)/.test(d[0]) ? { cat: 'drib', sub: '连招', gm: 'both' } : {}), ...(/^(alley|selfAlley)/.test(d[0]) ? { cat: 'fin', sub: '上篮', gm: 'both' } : {}) })));
+    TU.reg(TDEF.map((d) => ({ k: 'l1_' + d[0], g: d[1], label: d[2], v: d[3], min: d[4], max: d[5], step: d[6], note: d[7], display: BLOCK_DISPLAY[d[0]], mode: d[8] || 'num', tmp: !!d[9], ...(d[0] === 'stLift' || d[0] === 'stReach' || d[0] === 'fxHeightK' || /^(euroTempo|euroBeat|manu|aiCommit|aiProbeRange|aiBurst|aiChain|vc)/.test(d[0]) ? { wide: false } : {}), ...(/^manu/.test(d[0]) ? { cat: 'fin', sub: '上篮变体', gm: 'both' } : {}), ...(/^vc/.test(d[0]) ? { cat: 'fin', sub: '扣篮', gm: 'both' } : {}), ...(/^ai(Commit|ProbeRange|Burst|Chain)/.test(d[0]) ? { cat: 'drib', sub: '连招', gm: 'both' } : {}), ...(/^(alley|selfAlley)/.test(d[0]) ? { cat: 'fin', sub: '上篮', gm: 'both' } : {}) })));
     TU.reg(RDEF.map((d) => ({ k: 'l1_' + d[0], g: 'rules', label: d[1], v: CFG_DEF[d[0]], min: d[2], max: d[3], step: d[4], note: d[5], display: RULE_DISPLAY[d[0]], mode: d[6] || 'num' })));
     for (const d of RDEF) if (d[0] !== 'shotClock') Object.defineProperty(CFG, d[0], { enumerable: true, configurable: true, get: () => TU.get('l1_' + d[0]), set: (v) => { TU.set('l1_' + d[0], v); } });
     // 进攻时间是“本场”设置（比赛开始界面 / 5V5 会临时改），所以 CFG.shotClock 仍是普通字段，调参改动时同步过去
