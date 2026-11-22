@@ -134,7 +134,7 @@ th { color: var(--muted); }
 #netstat-ping.warn { color: var(--gold); }
 #netstat-ping.bad { color: var(--red); }
 #menu:not(.hidden) ~ #netstat { left: 50%; transform: translateX(-50%); bottom: 10px; }
-#stage.touch #netstat { bottom: auto; top: calc(var(--u) * 3); left: calc(var(--u) * 3); transform: none; }
+#stage.touch #netstat { bottom: auto; top: calc(var(--scorebar-height) + 4px); left: 50%; transform: translateX(-50%); }
 #stage.replay #netstat, #replay-badge:not(.hidden) ~ #netstat { opacity: 0; }
 @media (max-width: 700px), (max-height: 420px) {
   #menu:not(.hidden) ~ #netstat { left: auto; right: 8px; bottom: 8px; transform: none; }
