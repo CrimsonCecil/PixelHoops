@@ -1722,7 +1722,7 @@
   $('btn-pause5').addEventListener('click', () => setPause(true));
 
   // ---------- 手柄菜单导航 ----------
-  const NAV_SEL = 'button, select, input:not([type=hidden]), summary';
+  const NAV_SEL = 'button, a[href], select, input:not([type=hidden]), summary';
   const navList = (root) => Array.prototype.filter.call(root.querySelectorAll(NAV_SEL), (b) => b.offsetParent !== null && !b.disabled && !b.hasAttribute('data-nonav'));
   const navPri = (root) => Array.prototype.find.call(root.querySelectorAll('button.primary'), (b) => b.offsetParent !== null);
   const trainPanelOn = () => screen === 'play' && G.mode === 'train' && panelOpen && !paused && !G.replay && !$('train').classList.contains('hidden');
@@ -1737,8 +1737,11 @@
   const NAV_SCROLL = { picker: '#pk-detail', help: '#help-body', tune: '#tn-body', train: '#tr-body', over5: '#o5-box', over: '', king: '', pause: '', menu: '' };
   const NAV_TABS = { help: '#help-tabs', tune: '#tn-cats', train: '#tr-tabs', over5: '#o5-tabs' };
   function scrollBox(root) {
-    const sel = NAV_SCROLL[root.id]; if (sel) return root.querySelector(sel);
-    for (const e of root.querySelectorAll('*')) if (e.scrollHeight > e.clientHeight + 4 && /auto|scroll/.test(getComputedStyle(e).overflowY) && e.offsetParent !== null) return e;
+    const canScroll = (e) => e && e.offsetParent !== null && e.scrollHeight > e.clientHeight + 4 && /auto|scroll/.test(getComputedStyle(e).overflowY);
+    const sel = NAV_SCROLL[root.id], target = sel && root.querySelector(sel);
+    if (canScroll(target)) return target;
+    if (canScroll(root)) return root;
+    for (const e of root.querySelectorAll('*')) if (canScroll(e)) return e;
     return null;
   }
   let adj = { el: null, n: 0, t: 0, timer: 0 };
