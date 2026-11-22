@@ -197,12 +197,24 @@ function client({ relay = true, rtc = false } = {}) {
   assert.equal(hCtrl.sent.length, 0);
   host.rooms.broadcast({ type: 'state', state: { x: 2, audio: [['play', 'swish']] } });
   assert.equal(hCtrl.sent.length, 1);
-  // Fallback back to relay if P2P ctrl closes
+  // Fallback back to relay if P2P ctrl closes while relay is still alive (guest 2)
+  host.sockets[0].receive({ type: 'peer-open', id: 2 });
+  await new Promise((r) => setImmediate(r));
+  const hCtrl2 = host.pcs[1].channels.get('ctrl');
+  hCtrl2.open();
+  hCtrl2.close();
+  assert.equal(host.rooms.room.transport, 'p2p'); // guest 1 still on P2P
+  // If relay already closed (peer-close / ws.onclose), closing P2P ctrl releases slot & reports disconnect
+  host.sockets[0].receive({ type: 'peer-close', id: 1 });
+  assert.equal(host.rooms.room.links.has(1), true);
   hCtrl.close();
-  assert.equal(host.rooms.room.transport, 'relay');
-  assert.equal(host.rooms.relaying(), true);
+  assert.equal(host.rooms.room.links.has(1), false);
+  guest.sockets[0].close(1006);
+  assert.equal(guest.rooms.room.transport, 'p2p');
+  gCtrl.close();
+  assert.equal(guest.events.at(-1), '房间中继已断开（1006）。');
   host.rooms.close(); guest.rooms.close();
-  console.log('PASS: self-hosted WebRTC P2P upgrade, dual-channel routing, and relay fallback');
+  console.log('PASS: self-hosted WebRTC P2P upgrade, dual-channel routing, relay fallback, and dead-relay cleanup');
 
   // 8. Guest & host ping/pong RTT measurement
   c = client(); await c.open(); c.sockets[0].opened();

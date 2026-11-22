@@ -71,7 +71,7 @@
   }
   function createLink(relaySend, relayEnd, relayBuffered, isHost) {
     const listeners = new Map();
-    let pc = null, ctrl = null, stateCh = null, pendingIce = [], closed = false;
+    let pc = null, ctrl = null, stateCh = null, pendingIce = [], closed = false, relayAlive = true;
     const link = {
       open: false,
       transport: 'relay',
@@ -96,6 +96,10 @@
           } catch { /* Fall back to relay if DataChannel send fails. */ }
         }
         relaySend(msg);
+      },
+      detachRelay() {
+        relayAlive = false;
+        if (!closed && this.transport !== 'p2p') this.close();
       },
       startRtc() {
         if (closed || pc || typeof window.RTCPeerConnection !== 'function') return;
@@ -149,6 +153,7 @@
         old.onicecandidate = old.onconnectionstatechange = old.ondatachannel = null;
         try { old.close(); } catch { /* Ignore close errors. */ }
       }
+      if (!closed && !relayAlive) link.close();
     }
     function attachChannel(ch, isCtrl) {
       if (isCtrl) ctrl = ch; else stateCh = ch;
@@ -163,7 +168,10 @@
         link.emit('data', data);
       };
       ch.onclose = () => {
-        if (isCtrl && ctrl === ch) { ctrl = null; link.transport = 'relay'; syncTransport(); }
+        if (isCtrl && ctrl === ch) {
+          ctrl = null; link.transport = 'relay'; syncTransport();
+          if (!closed && !relayAlive) link.close();
+        }
         if (!isCtrl && stateCh === ch) stateCh = null;
       };
       ch.onerror = () => {};
@@ -366,7 +374,8 @@
           link.startRtc();
         } else if (msg?.type === 'peer-close') {
           const link = relayGuests.get(msg.id);
-          if (link && link.transport !== 'p2p') link.close();
+          relayGuests.delete(msg.id);
+          if (link) link.detachRelay();
         } else if (msg && Object.hasOwn(msg, 'from')) {
           const link = relayGuests.get(msg.from);
           if (!link) return;
@@ -381,11 +390,14 @@
         if (!host) {
           relayDone = true;
           relayError = event.code === 4404 ? '找不到该房间。' : '房间中继已断开（' + event.code + '）。';
-          if (conn && conn.transport === 'p2p' && conn.open) return;
+          if (conn) conn.detachRelay();
+          if (conn && conn.open) return;
           fail(relayError);
           return;
         }
-        for (const link of [...relayGuests.values()]) if (link.transport !== 'p2p') link.close();
+        const prev = [...relayGuests.values()];
+        relayGuests.clear();
+        for (const link of prev) link.detachRelay();
         if (!alive()) return;
         const fatal = event.code === 4001 || event.code === 4003;
         if (fatal || !room.active && relayRetries >= 3) {
