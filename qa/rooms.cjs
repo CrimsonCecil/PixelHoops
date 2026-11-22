@@ -205,16 +205,18 @@ function client({ relay = true, rtc = false } = {}) {
   hCtrl2.open();
   hCtrl2.close();
   assert.equal(host.rooms.room.transport, 'p2p'); // guest 1 still on P2P
-  // If relay already closed (peer-close / ws.onclose), closing P2P ctrl releases slot & reports disconnect
+  // If relay already closed (peer-close / ws.onclose), closing P2P ctrl releases slot & reports disconnect,
+  // and rooms.close() still closes detached P2P peer connections
   host.sockets[0].receive({ type: 'peer-close', id: 1 });
   assert.equal(host.rooms.room.links.has(1), true);
-  hCtrl.close();
-  assert.equal(host.rooms.room.links.has(1), false);
+  host.rooms.close();
+  assert.equal(host.pcs[0].connectionState, 'closed');
+  assert.equal(host.rooms.room.links.size, 0);
   guest.sockets[0].close(1006);
   assert.equal(guest.rooms.room.transport, 'p2p');
   gCtrl.close();
   assert.equal(guest.events.at(-1), '房间中继已断开（1006）。');
-  host.rooms.close(); guest.rooms.close();
+  guest.rooms.close();
   console.log('PASS: self-hosted WebRTC P2P upgrade, dual-channel routing, relay fallback, and dead-relay cleanup');
 
   // 8. Guest & host ping/pong RTT measurement

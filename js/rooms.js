@@ -417,7 +417,7 @@
       clearTimeout(relayTimer); clearTimeout(relayWatch);
       document.removeEventListener('visibilitychange', visibleRelay);
       const ws = relaySocket; relaySocket = null;
-      for (const link of [...relayGuests.values()]) link.close();
+      for (const link of new Set([...relayGuests.values(), ...Array.from(room.links.values(), (l) => l.conn)])) link.close();
       if (relayConn) relayConn.close();
       if (ws) ws.close();
     };
