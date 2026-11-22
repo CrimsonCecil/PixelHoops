@@ -12,13 +12,13 @@ export async function roomRequest(req, db, path, send) {
   if (!CODE.test(code) || !['PUT', 'DELETE'].includes(req.method)) return send(400, { error: 'bad room request' });
   let b;
   try { const raw = await req.text(); if (raw.length > 2048) throw Error(); b = JSON.parse(raw); } catch { return send(400, { error: 'bad body' }); }
-  if (!b || typeof b !== 'object' || !TOKEN.test(b.token)) return send(400, { error: 'bad token' });
+  if (!b || typeof b !== 'object' || typeof b.token !== 'string' || !TOKEN.test(b.token)) return send(400, { error: 'bad token' });
   if (req.method === 'DELETE') {
     await db.prepare('DELETE FROM rooms WHERE code=? AND token=?').bind(code, b.token).run();
     return send(200, { ok: true });
   }
   if (typeof b.name !== 'string' || !b.name.trim() || Array.from(b.name.trim()).length > 24 || !['online', 't3'].includes(b.mode) ||
-      !Number.isInteger(b.players) || !Number.isInteger(b.capacity) || b.players < 1 || b.capacity < 2 || b.players > b.capacity || b.capacity > (b.mode === 'online' ? 2 : 6)) return send(400, { error: 'bad room' });
+      !Number.isInteger(b.players) || !Number.isInteger(b.capacity) || b.players < 1 || b.capacity < (b.mode === 'online' ? 2 : 1) || b.players > b.capacity || b.capacity > (b.mode === 'online' ? 2 : 6)) return send(400, { error: 'bad room' });
   await db.prepare('DELETE FROM rooms WHERE updated<?').bind(now - TTL).run();
   const result = await db.prepare('INSERT INTO rooms VALUES (?,?,?,?,?,?,?) ON CONFLICT(code) DO UPDATE SET name=excluded.name,mode=excluded.mode,players=excluded.players,capacity=excluded.capacity,updated=excluded.updated WHERE rooms.token=excluded.token')
     .bind(code, b.token, b.name.trim(), b.mode, b.players, b.capacity, now).run();

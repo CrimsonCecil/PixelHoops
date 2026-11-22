@@ -24,6 +24,7 @@ async function contract(name, request, db) {
   assert.deepEqual((await request('GET', '')).body, { rooms: [] });
   assert.equal((await request('PUT', '/' + code, { ...data, mode: 't5' })).status, 400);
   assert.equal((await request('PUT', '/' + code, { ...data, token: 'short' })).status, 400);
+  assert.equal((await request('PUT', '/' + code, { ...data, token: [token] })).status, 400);
   assert.equal((await request('PUT', '/' + code, data)).status, 200);
   let rooms = (await request('GET', '')).body.rooms;
   assert.equal(rooms.length, 1); assert.equal(rooms[0].name, data.name);
@@ -35,6 +36,8 @@ async function contract(name, request, db) {
   assert.equal((await request('GET', '')).body.rooms.length, 0, 'full rooms are not joinable');
   await request('PUT', '/' + code, { ...data, mode: 't3', capacity: 6 });
   assert.equal((await request('GET', '')).body.rooms[0].capacity, 6);
+  await request('PUT', '/' + code, { ...data, mode: 't3', capacity: 1 });
+  assert.equal((await request('GET', '')).body.rooms.length, 0, 'no waiting human slots means no joinable listing');
   db.exec('UPDATE rooms SET updated=0');
   assert.equal((await request('GET', '')).body.rooms.length, 0, 'abandoned rooms expire');
   assert.equal((await request('PUT', '/' + code, { ...data, token: stranger })).status, 200, 'expired code can be reclaimed');

@@ -153,7 +153,7 @@ class H(BaseHTTPRequestHandler):
                 db.execute('DELETE FROM rooms WHERE code=? AND token=?', (code, b['token'])); db.commit()
                 return self._send(200, {'ok': True})
             name, mode, players, capacity = (b.get(k) for k in ('name', 'mode', 'players', 'capacity'))
-            if not isinstance(name, str) or not name.strip() or len(name.strip()) > 24 or mode not in ('online', 't3') or type(players) is not int or type(capacity) is not int or not 1 <= players <= capacity or not 2 <= capacity <= (2 if mode == 'online' else 6): return self._send(400, {'error': 'bad room'})
+            if not isinstance(name, str) or not name.strip() or len(name.strip()) > 24 or mode not in ('online', 't3') or type(players) is not int or type(capacity) is not int or not 1 <= players <= capacity or not (2 if mode == 'online' else 1) <= capacity <= (2 if mode == 'online' else 6): return self._send(400, {'error': 'bad room'})
             now = time.time()
             db.execute('DELETE FROM rooms WHERE updated<?', (now - 60,))
             cur = db.execute('INSERT INTO rooms VALUES (?,?,?,?,?,?,?) ON CONFLICT(code) DO UPDATE SET name=excluded.name,mode=excluded.mode,players=excluded.players,capacity=excluded.capacity,updated=excluded.updated WHERE rooms.token=excluded.token', (code, b['token'], name.strip(), mode, players, capacity, now))
