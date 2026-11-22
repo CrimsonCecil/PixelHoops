@@ -1713,7 +1713,7 @@
   $('btn-pause5').addEventListener('click', () => setPause(true));
 
   // ---------- 手柄菜单导航 ----------
-  const NAV_SEL = 'button, select, input:not([type=hidden])';
+  const NAV_SEL = 'button, select, input:not([type=hidden]), summary';
   const navList = (root) => Array.prototype.filter.call(root.querySelectorAll(NAV_SEL), (b) => b.offsetParent !== null && !b.disabled && !b.hasAttribute('data-nonav'));
   const navPri = (root) => Array.prototype.find.call(root.querySelectorAll('button.primary'), (b) => b.offsetParent !== null);
   const trainPanelOn = () => screen === 'play' && G.mode === 'train' && panelOpen && !paused && !G.replay && !$('train').classList.contains('hidden');
@@ -1810,6 +1810,13 @@
     const r = PH.input.rstick(); if (r.y) { const sb = scrollBox(root); if (sb) sb.scrollTop += r.y * dt * 1.1; }
   }
   const isTextInput = (el) => !!(el && ((el.tagName === 'INPUT' && el.type !== 'range') || el.tagName === 'TEXTAREA'));
+  // Native Tab/pointer focus and controller focus must activate the same control.
+  document.addEventListener('focusin', (e) => {
+    const root = navRoot(), el = e.target;
+    if (root && root.contains(el) && el.matches(NAV_SEL) && el.offsetParent !== null && !el.disabled) {
+      clearPf(); el.classList.add('pf');
+    }
+  });
   document.addEventListener('pointerdown', (e) => {
     const t = e.target && e.target.closest && e.target.closest(NAV_SEL);
     if (t && (t.closest('#pause') || t.closest('#tune'))) clearPf();

@@ -154,7 +154,7 @@
     $('front-direct-join').onclick = () => joinRoom($('front-direct-code').value.trim().toUpperCase(), $('front-direct-mode').value);
     // Text editing must not reach the global game shortcuts (P = Back, M = mute, arrows, Tab).
     for (const type of ['keydown', 'keyup']) $('menu').addEventListener(type, (e) => {
-      if (!e.target.matches('input,select')) return;
+      if (e.key !== 'Tab' && !e.target.matches('input,select')) return;
       e.stopPropagation();
       if (type === 'keydown' && e.key === 'Escape') e.target.blur();
       if (type === 'keydown' && e.key === 'Enter' && e.target.id === 'front-direct-code') { e.preventDefault(); $('front-direct-join').click(); }
