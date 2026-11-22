@@ -317,26 +317,110 @@
   const NET_STATE = ['time', 'phase', 'phaseT', 'score', 'stats', 'target', 'shotClock', 'glen', 'gclock', 'sd', 'mp', 'needClear', 'off', 'winner',
     'ball', 'banner', 'floats', 'fx', 'net', 'focus', 'camK', 'cz', 'cutin', 'hero', 'bpops', 'lastShot', 'hzV', 'clearOk', 'clearPing', 'ft'];
   const roomAudio = [];
+  let netInterp = null;
   function resetRoomAudio() {
     roomAudio.length = 0;
     GM.setAudioSink(room.role === 'host' && room.active ? (...event) => {
       if (room.links.size) roomAudio.push(event);
     } : null);
   }
+  function roundNet(v) {
+    if (typeof v === 'number') return Number.isFinite(v) ? (Number.isInteger(v) ? v : Math.round(v * 1000) / 1000) : 0;
+    if (!v || typeof v !== 'object') return v;
+    if (Array.isArray(v)) return v.map(roundNet);
+    const out = {};
+    for (const k in v) if (Object.hasOwn(v, k)) out[k] = roundNet(v[k]);
+    return out;
+  }
   function roomSnapshot() {
-    const state = Object.fromEntries(NET_STATE.map((key) => [key, G[key]]));
-    state.players = G.players.map(({ opp, arch, team, b5in, ...p }) => ({ ...p, oppId: opp ? opp.id : -1 }));
-    state.audio = roomAudio.splice(0);
-    return JSON.parse(JSON.stringify(state));
+    const state = {};
+    for (const key of NET_STATE) state[key] = roundNet(G[key]);
+    state.players = G.players.map(({ opp, arch, team, b5in, r, col, ai, prev, headScreen, rBase, ...p }) => {
+      const out = roundNet(p);
+      out.oppId = opp ? opp.id : -1;
+      return out;
+    });
+    if (roomAudio.length) state.audio = roomAudio.splice(0);
+    return state;
+  }
+  function captureNetPose() {
+    return {
+      phase: G.phase,
+      players: G.players.map((p) => ({ x: p.x, y: p.y, z: p.z, face: p.face, handX: p.handX, runPh: p.runPh, drib: p.drib, animT: p.animT })),
+      ball: G.ball ? { x: G.ball.x, y: G.ball.y, z: G.ball.z, spin: G.ball.spin } : null,
+      focus: G.focus ? { cx: G.focus.cx, cy: G.focus.cy } : null,
+    };
+  }
+  function lerpNum(a, b, t) { return Number.isFinite(a) && Number.isFinite(b) ? a + (b - a) * t : b; }
+  function lerpAngle(a, b, t) {
+    if (!Number.isFinite(a) || !Number.isFinite(b)) return b;
+    let d = (b - a) % (Math.PI * 2);
+    if (d > Math.PI) d -= Math.PI * 2;
+    else if (d < -Math.PI) d += Math.PI * 2;
+    return a + d * t;
+  }
+  function applyGuestInterp(now) {
+    if (!netInterp || netInterp.to.players.length !== G.players.length) return;
+    const t = Math.max(0, Math.min(1, (now - netInterp.at) / Math.max(16, netInterp.span)));
+    const { from, to } = netInterp;
+    for (let i = 0; i < G.players.length; i++) {
+      const p = G.players[i], a = from.players[i], b = to.players[i];
+      if (!a || !b) continue;
+      if (Math.hypot(b.x - a.x, b.y - a.y) > 2.5) {
+        p.x = b.x; p.y = b.y; p.z = b.z; p.face = b.face; p.handX = b.handX; p.runPh = b.runPh; p.drib = b.drib; p.animT = b.animT;
+      } else {
+        p.x = lerpNum(a.x, b.x, t); p.y = lerpNum(a.y, b.y, t); p.z = lerpNum(a.z, b.z, t);
+        p.face = lerpAngle(a.face, b.face, t); p.handX = lerpNum(a.handX, b.handX, t);
+        p.runPh = lerpNum(a.runPh, b.runPh, t); p.drib = lerpNum(a.drib, b.drib, t); p.animT = lerpNum(a.animT, b.animT, t);
+      }
+    }
+    if (G.ball && from.ball && to.ball) {
+      const a = from.ball, b = to.ball;
+      if (Math.hypot(b.x - a.x, b.y - a.y) > 4.5 || Math.abs(b.z - a.z) > 3) {
+        G.ball.x = b.x; G.ball.y = b.y; G.ball.z = b.z; G.ball.spin = b.spin;
+      } else {
+        G.ball.x = lerpNum(a.x, b.x, t); G.ball.y = lerpNum(a.y, b.y, t); G.ball.z = lerpNum(a.z, b.z, t); G.ball.spin = lerpNum(a.spin, b.spin, t);
+      }
+    }
+    if (G.focus && from.focus && to.focus && Math.hypot(to.focus.cx - from.focus.cx, to.focus.cy - from.focus.cy) < 4) {
+      G.focus.cx = lerpNum(from.focus.cx, to.focus.cx, t);
+      G.focus.cy = lerpNum(from.focus.cy, to.focus.cy, t);
+    }
+  }
+  function syncGuestTakeover(pl) {
+    if (pl.tkOn > 0 && pl.tkT && GM.TKD[pl.tkT]) {
+      if (!pl.rBase) {
+        const D = GM.TKD[pl.tkT];
+        pl.rBase = pl.r;
+        const r = Object.assign({}, pl.rBase);
+        for (const [k] of GM.ATTRS) {
+          if (typeof r[k] !== 'number' || k === 'bw') continue;
+          const cap = k === 'ft' || k === 'drawFoul' ? 1 : 0.99;
+          r[k] = Math.min(cap, r[k] + (D.keys.includes(k) ? 20 : 5) / 99);
+        }
+        pl.r = r;
+      }
+    } else if (pl.rBase) {
+      pl.r = pl.rBase;
+      pl.rBase = null;
+    }
   }
   function roomState(state) {
     if (!state || !Array.isArray(state.players) || state.players.length !== G.players.length) return;
     if (G.intro) GM.introEnd();
+    const now = performance.now();
+    const from = netInterp ? captureNetPose() : null;
     for (const key of NET_STATE) G[key] = state[key];
     for (let i = 0; i < G.players.length; i++) {
       const p = state.players[i];
       Object.assign(G.players[i], p, { opp: G.players[p.oppId] || null, ring: G.mode === 't3' && i === localSlot });
+      syncGuestTakeover(G.players[i]);
     }
+    const to = captureNetPose();
+    const dtMs = netInterp ? Math.max(16, Math.min(120, now - netInterp.at)) : 34;
+    const span = netInterp ? netInterp.span * 0.75 + dtMs * 0.25 : 34;
+    netInterp = from && from.phase === to.phase ? { from, to, at: now, span } : { from: to, to, at: now, span };
+    applyGuestInterp(now);
     const localPl = G.players[localSlot];
     const localTeam = localPl ? (localPl.tm ?? localPl.id) : null;
     if (G.mode === 't3') GM.t5.localizeInterception(localTeam);
@@ -434,7 +518,7 @@
   function startDemo() { GM.newGame({ mode: 'demo', arch0: 'curry', arch1: 'lebron', target: 11 }); }
   function toMenu() {
     tuneClose(); kingPark();
-    rooms.close(); resetRoomAudio(); syncBackgroundMatch(); PH.T3.stop(); localSlot = -1; matchConfig = null; menuStatus(''); refreshMenu();
+    rooms.close(); resetRoomAudio(); syncBackgroundMatch(); PH.T3.stop(); localSlot = -1; matchConfig = null; netInterp = null; menuStatus(''); refreshMenu();
     screen = 'menu'; paused = false; clearPf(); camOpen = false; camFromSet = false; show('campanel', false); pcards();
     show('menu', true); show('king', false); $('king-fx').innerHTML = ''; show('qvol', false); show('picker', false); show('cutin', false); show('hud', false); show('pause', false); show('over', false); show('help', false); show('touch', false); show('banner', false); show('train', false); show('shotcard', false); stage.classList.remove('panel');
     if (PH.T5) { PH.T5.stop(); PH.render5.restore(); } show('hud5', false); show('over5', false); show('tpicker', false); show('btn-cam', true); show('btn-disp', true); show('btn-box5', false); if (PH.box5 && PH.box5.isOpen()) PH.box5.close();
@@ -450,7 +534,7 @@
     PH.frontend.started();
     tuneClose();
     PH.audio.ensure(); PH.audio.play('start'); PH.audio.startMusic();
-    localSlot = slot; matchConfig = config; netFrame = 0;
+    localSlot = slot; matchConfig = config; netFrame = 0; netInterp = null;
     resetRoomAudio();
     if (config.mode === 't3') PH.T3.start({ ...config, local: slot, replay: !room.active });
     else { CFG.shotClock = config.clock; GM.newGame({ ...config, mode: '2p' }); }
@@ -2086,7 +2170,7 @@
     if (p) inputs[localSlot] = local;
     if (t3) { PH.T3.tick(DT, inputs); I.endTick(); }
     else GM.tick(DT, (pl) => inputs[pl.id] || GM.t5.zeroInp());
-    if (room.active && ++netFrame % 3 === 0 && room.links.size) rooms.broadcast({ type: 'state', state: roomSnapshot() });
+    if (room.active && ++netFrame % 2 === 0 && room.links.size && (roomAudio.length || !rooms.congested())) rooms.broadcast({ type: 'state', state: roomSnapshot() });
   }
   let bgTimer = null;
   function syncBackgroundMatch() {
@@ -2174,6 +2258,7 @@
     if (screen === 'play5') { PH.render5.render(PH.T5.T, manual ? 0.05 : 1 / Math.max(30, fps)); hud5(); cutin(); return; }
     const hint = screen === 'play' && G.mode === 't3' && !G.replay?.view ? $('hint') : null;
     const hintY = hint?.offsetHeight ? hint.offsetTop / scale : undefined;
+    if (room.role === 'guest' && room.active) applyGuestInterp(performance.now());
     R.render(G, dt, hintY); hud(!!foulLabel); cutin(); talkBox();
     const dbg = $('debug');
     if (debug) { dbg.classList.remove('hidden'); dbg.textContent = 'FPS ' + fps.toFixed(0) + ' · ' + G.phase + ' · 进攻 ' + G.off + ' · 球 ' + G.ball.state; } else dbg.classList.add('hidden');
