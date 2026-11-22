@@ -1362,7 +1362,7 @@
     $('notice').classList.toggle('ping', G.time - (G.clearPing || -9) < 0.45);
     if (train && frameN % 12 === 0) {
       const S = TR.stats, t = TR.role === 'def' ? '自由训练 · 练防守 · 电脑得分 <b>' + G.score[1] + '</b>' : '自由训练 · 出手 <b>' + S.n + '</b> 命中 <b>' + S.made + '</b> 命中率 <b>' + (S.n ? Math.round((S.made / S.n) * 100) + '%' : '—') + '</b>';
-      if (t !== lastTB) { lastTB = t; $('trainbar').innerHTML = t; }
+      if (t !== lastTB) { lastTB = t; $('trainbar').innerHTML = '<span>' + t + '</span>'; }
       if (panelOpen && trTab === 'stats') statsDyn();
     }
     // 操作提示

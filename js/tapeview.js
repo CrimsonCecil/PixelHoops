@@ -12,7 +12,14 @@
     if (!V.row) return;
     const f = frame(), s = f && f.s || {};
     $('tape-title').textContent = V.row.name;
-    $('tape-state').textContent = clock(V.t) + ' / ' + clock(duration()) + '　比分 ' + (s.score || []).join(' : ') + '　比赛时间 ' + clock(s.gclock) + '　' + (s.phase || '');
+    $('tape-state').textContent = clock(V.t) + ' / ' + clock(duration()) + '　' + (s.phase || '');
+    const m = V.row.tape.meta || {}, teams = m.mode === 't5' && PH.T5.T.tm;
+    for (let i = 0; i < 2; i++) {
+      $('tape-n' + i).textContent = teams ? teams[i].name : m.mode === 't3' ? (i ? '客队' : '主队') : m.players && m.players[i] || (i ? '客队' : '主队');
+      $('tape-s' + i).textContent = (s.score || [0, 0])[i];
+    }
+    $('tape-clock').textContent = clock(s.gclock);
+    $('tape-period').textContent = s.q ? '第' + s.q + '节' : '录像回放';
     $('tape-scrub').max = duration(); $('tape-scrub').value = V.t;
     $('tape-play').textContent = V.playing ? '暂停' : '播放'; $('tape-speed').textContent = V.speed + '×';
   }
@@ -28,7 +35,7 @@
   async function list() {
     const token = ++request;
     V.open = true; V.playing = false; V.row = null; V.enter();
-    show('tape-hud', false); show('tape-list', true);
+    show('tape-hud', false); show('tape-scorebar', false); show('tape-list', true);
     $('tape-rows').replaceChildren(); $('tape-list-status').textContent = '读取中…';
     try {
       const rows = await T.list(); if (token !== request) return;
@@ -62,13 +69,13 @@
   }
   async function load(key, t, play) {
     const token = ++request;
-    V.open = true; V.enter(); show('tape-list', true); $('tape-list-status').textContent = '读取中…';
+    V.open = true; V.enter(); show('tape-scorebar', false); show('tape-list', true); $('tape-list-status').textContent = '读取中…';
     try {
       const row = await T.get(key);
       if (token !== request) return;
       if (!row.tape.frames.length) throw new Error('录像没有画面');
       setup(row.tape); V.row = row; V.speed = 1; V.playing = !!play; seek(t);
-      show('tape-list', false); show('tape-hud', true);
+      show('tape-list', false); show('tape-hud', true); show('tape-scorebar', true);
     } catch (e) { if (token === request) $('tape-list-status').textContent = '播放失败：' + e.message; }
   }
   function render(dt) {
@@ -96,7 +103,7 @@
     }
     hud(); return true;
   }
-  function exit() { request++; V.open = false; V.row = null; V.playing = false; show('tape-list', false); show('tape-hud', false); V.leave(); }
+  function exit() { request++; V.open = false; V.row = null; V.playing = false; show('tape-list', false); show('tape-hud', false); show('tape-scorebar', false); V.leave(); }
   function keys(I) {
     if (I.sysPressed('Escape') || I.sysPressed('PadB')) { if (V.row) list(); else exit(); }
     else if (V.row) {

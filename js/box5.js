@@ -193,7 +193,7 @@
   function head() {
     const T = TT(), t0 = T.tm[0], t1 = T.tm[1], q = T.q <= 4 ? '第' + T.q + '节' : '加时' + (T.q > 5 ? T.q - 4 : '');
     const c = Math.max(0, T.gclock), cl = Math.floor(Math.ceil(c) / 60) + ':' + String(Math.ceil(c) % 60).padStart(2, '0');
-    return '<span style="color:' + t0.col.ui + '">' + esc(t0.name) + '</span><b>' + t0.score + '</b><em>' + q + ' ' + cl + '</em><b>' + t1.score + '</b><span style="color:' + t1.col.ui + '">' + esc(t1.name) + '</span>';
+    return '<span style="color:' + t0.col.ui + '">' + esc(t0.name) + '</span><b>' + t0.score + '</b><em><small>' + q + '</small> <span class="replay-clock">' + cl + '</span></em><b>' + t1.score + '</b><span style="color:' + t1.col.ui + '">' + esc(t1.name) + '</span>';
   }
   function render() {
     if (!S.open) return;
