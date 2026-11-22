@@ -216,6 +216,49 @@ function client({ relay = false, peerFails = false } = {}) {
   assert.deepEqual(c.events, ['房间已满、已开赛或比赛模式不同。']);
   console.log('PASS: independent host transport failures, relay reconnect, cancellation, PeerJS load failure, and room rejection');
 
+  // Input throttling (change-triggered + 100ms heartbeat) and stale state seq drop
+  c = client({ relay: true, peerFails: true }); await c.open();
+  c.sockets[0].opened(); c.sockets[0].receive({ type: 'relay-ready' });
+  c.sockets[0].receive({ type: 'joined', slot: 1 });
+  c.sockets[0].receive({ type: 'start', config: {} });
+  const sentBeforeInput = c.sockets[0].sent.length;
+  c.time(100); c.rooms.input({ mx: 1, my: 0 });
+  c.time(116); c.rooms.input({ mx: 1, my: 0 }); // unchanged within 100ms -> throttled
+  c.time(132); c.rooms.input({ mx: 0, my: 0 }); // changed -> immediate
+  c.time(240); c.rooms.input({ mx: 0, my: 0 }); // heartbeat >= 100ms -> sent
+  assert.equal(c.sockets[0].sent.length - sentBeforeInput, 3);
+  const statesBefore = c.events.filter((e) => e === 'state').length;
+  c.sockets[0].receive({ type: 'state', seq: 5, state: { t: 5 } });
+  c.sockets[0].receive({ type: 'state', seq: 4, state: { t: 4 } }); // stale -> dropped
+  c.sockets[0].receive({ type: 'state', seq: 5, state: { t: 5 } }); // duplicate -> dropped
+  c.sockets[0].receive({ type: 'state', seq: 6, state: { t: 6 } }); // newer -> accepted
+  assert.equal(c.events.filter((e) => e === 'state').length - statesBefore, 2);
+  c.rooms.close();
+
+  // Host state sequencing and bufferedAmount backpressure
+  c = client({ relay: true, peerFails: true }); await c.open(true); c.sockets[0].opened();
+  c.sockets[0].receive({ type: 'peer-open', id: 9 });
+  c.sockets[0].receive({ from: 9, msg: { type: 'join', mode: 'online' } });
+  c.rooms.room.active = true;
+  assert.equal(c.rooms.congested(), false);
+  c.rooms.broadcast({ type: 'state', state: { a: 1 } });
+  c.rooms.broadcast({ type: 'state', state: { a: 2 } });
+  assert.equal(c.sockets[0].sent.at(-2).msg.seq, 1);
+  assert.equal(c.sockets[0].sent.at(-1).msg.seq, 2);
+  const sentBeforeBackpressure = c.sockets[0].sent.length;
+  c.sockets[0].bufferedAmount = 80 * 1024;
+  assert.equal(c.rooms.congested(), true);
+  c.rooms.broadcast({ type: 'state', state: { a: 3 } }); // dropped under backpressure
+  assert.equal(c.sockets[0].sent.length, sentBeforeBackpressure);
+  c.rooms.broadcast({ type: 'state', state: { a: 4, audio: [['play', 'swish']] } }); // audio-bearing state preserved
+  assert.equal(c.sockets[0].sent.length, sentBeforeBackpressure + 1);
+  c.rooms.broadcast({ type: 'start', config: {} }); // control messages still sent
+  assert.equal(c.sockets[0].sent.length, sentBeforeBackpressure + 2);
+  c.sockets[0].bufferedAmount = 0;
+  assert.equal(c.rooms.congested(), false);
+  c.rooms.close();
+  console.log('PASS: input throttling, state seq ordering, and bufferedAmount backpressure');
+
   // Guest & host ping/pong RTT measurement
   c = client({ relay: true, peerFails: true }); await c.open(); c.sockets[0].opened();
   c.sockets[0].receive({ type: 'relay-ready' }); c.sockets[0].receive({ type: 'joined', slot: 1 });
