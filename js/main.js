@@ -36,7 +36,7 @@
   window.addEventListener('resize', layout);
   const narrow = () => window.innerWidth <= 700 || window.innerHeight <= 420;
   function camShift() {
-    if (screen === 'menu') G.camShift = narrow() ? 0 : -3.6;
+    if (screen === 'menu') G.camShift = narrow() ? 0 : 3.6;
     else G.camShift = 0; // 训练场参数面板开关不改镜头
   }
 
@@ -138,11 +138,12 @@
     const AG = attrGroups(a, a), bl = bList(a, true), have = {}; bl.forEach((x) => { have[x[0]] = x[1]; });
     if (pkTab === 'ov') {
       h += '<div class="pkov" data-testid="pk-ov">' + AG.map(([g, gs, v]) => '<div class="pko1"><span>' + g + '</span><b class="' + vcl(v) + '">' + v + '</b></div>').join('') + '</div>';
+      h += '<h4>关键属性</h4><div class="pka pk-key-attrs">' + [['three','三分'],['mid','中投'],['lay','上篮'],['dunk','扣篮'],['hnd','控球'],['spd','速度'],['def','外防'],['blk','盖帽'],['stl','抢断'],['str','力量'],['oreb','进攻篮板'],['dreb','防守篮板']].map(([k,n]) => bar(n, A99(a[k]), AT[k])).join('') + '</div>';
+      h += '<h4>全部徽章 · ' + bl.length + '</h4><div class="pkb pk-overview-badges">' + bl.map(([k,t]) => badgeHtml(k, false, t)).join('') + '</div>';
       { const F = GM.SF[a.form] || GM.SF.std, sp = F.sp <= 0.85 ? '极快' : F.sp <= 0.92 ? '快' : F.sp <= 1.04 ? '中等' : F.sp <= 1.15 ? '偏慢' : '慢', hi = F.blk <= 0.85 ? '高' : F.blk >= 1.1 ? '低' : '中'; h += '<p class="pkform">投篮包 <b>' + F.name + '</b>' + (a.lefty ? ' · 左手' : '') + ' · 出手 ' + sp + ' · 出手点 ' + hi + (F.two ? ' · 两段式' : ' · 一段式') + '</p>'; }
       { const K = GM.dunkPkg(a), N = { two: '双手', one: '单手', rimpull: '挂筐', reverse: '背扣', tomahawk: '战斧', poster: '隔扣', cock: '拉弓', windmill: '风车', '360': '360', glide: '滑翔', cradle: '摇篮', pump: '双抽', scissor: '剪刀腿', shaq: '大鲨鱼' }, L = Object.keys(N).filter((k) => K.S[k]).map((k) => N[k]);
         h += '<p class="pkform">扣篮包 <b>' + K.name + '</b> · ' + (L.length ? L.join(' / ') : '以上篮为主') + '</p>'; }
       { const ms = GM.moveSet({ r: a, arch: a }); h += '<p class="pkform">运球包 <b>' + ms.pk.name + '</b> · ' + ms.pk.desc + '</p>'; }
-      h += '<div class="pkbrow">' + (bl.length ? bl.map((x) => '<span class="tr' + x[1] + '" title="' + GM.BADGES[x[0]].name + '">' + bHex(x[0], x[1]) + '</span>').join('') : '<span class="none">无徽章</span>') + '</div>';
       if (a.skill) h += '<div class="pks' + (GM.TIPS['sk-' + key] ? ' tip" data-ptip="sk-' + key + '" data-tn="必杀技 · ' + a.skill.name + '"' : '"') + '><div class="pks-h"><b>必杀技 · ' + a.skill.name + (GM.TIPS['sk-' + key] ? IC.svg('play', 'tpl') : '') + '</b><span>' + a.skill.en + '</span></div><p><em>条件</em>' + a.skill.cond + '</p><p><em>效果</em>' + a.skill.eff + '</p></div>';
       else h += '<div class="pks none"><p>只有球星有必杀技。</p></div>';
     } else if (pkTab === 'at') {
@@ -165,7 +166,7 @@
   }
   function pkMark() { $('pk-grid').querySelectorAll('.pkc').forEach((b) => b.classList.toggle('on', b.getAttribute('data-pk') === pkSel)); }
   // V3.2：按球队筛选（全部 = 按档位分组）
-  let pkTeam = 'all';
+  let pkTeam = 'LEG';
   const pkPositions = new Set();
   const PK_POSITIONS = { PG: '控球后卫', SG: '得分后卫', SF: '小前锋', PF: '大前锋', C: '中锋' };
   function playerPositions(a) {
@@ -203,9 +204,10 @@
     pkFill(); PH.audio.play('ui');
   });
   function openPicker(side, slot = null) {
+    if (!PH.frontend.allowed(side, slot)) return;
     pkSide = side; pkSlot = slot; pkSel = slot === null ? (side ? opts.arch1 : opts.arch0) : lobby3[slot].arch;
     $('pk-title').textContent = slot === null ? (side ? (opts.mode === '2p' ? '选择玩家 2 的球员' : opts.mode === 'train' ? '选择训练对手' : '选择对手') : opts.mode === '2p' ? '选择玩家 1 的球员' : '选择你的球员') : '选择' + lobbySlotName(slot) + '的球员';
-    pkTeams(); pkPositionChips(); pkFill(); pkDetail(pkSel); clearPf(); show('picker', true);
+    pkTab = 'ov'; pkTeams(); pkPositionChips(); pkFill(); pkDetail(pkSel); clearPf(); show('picker', true);
     const cur = $('pk-grid').querySelector('.pkc.on'); if (cur) { cur.classList.add('pf'); cur.scrollIntoView({ block: 'nearest' }); }
     PH.audio.play('ui');
   }
@@ -214,6 +216,7 @@
     const id = pkSlot === null ? (pkSide ? 'pick1' : 'pick0') : 'pick3-' + pkSlot;
     pkSlot = null;
     show('picker', false); clearPf(); refreshMenu(); PH.audio.play('ui');
+    if (ok) PH.frontend.selectionChanged();
     navSet($('menu'), $(id));
   }
   $('pk-grid').addEventListener('click', (e) => { const b = e.target.closest('.pkc'); if (!b) return; const k = b.getAttribute('data-pk'); if (k === pkSel && e.detail >= 2) { closePicker(true); return; } pkSel = k; pkMark(); pkDetail(k); PH.audio.play('ui'); });
@@ -221,14 +224,56 @@
   $('pk-grid').addEventListener('mouseleave', () => pkDetail(pkSel));
   $('pk-ok').addEventListener('click', () => closePicker(true));
   $('pk-cancel').addEventListener('click', () => closePicker(false));
-  $('pick0').addEventListener('click', () => openPicker(0));
-  $('pick1').addEventListener('click', () => openPicker(1));
+  $('pick0').addEventListener('click', () => inlineTarget(0));
+  $('pick1').addEventListener('click', () => inlineTarget(1));
+  let inlineSide = 0, inlineSlot = null;
+  function inlineTarget(side, slot = null) {
+    if (!PH.frontend.allowed(side, slot)) return;
+    inlineSide = side; inlineSlot = slot; renderInlinePicker();
+    $('front-roster').scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }
+  function renderInlinePicker() {
+    if (!$('front-roster')) return;
+    show('front-roster', opts.format !== 't5');
+    if (opts.format === 't5') return;
+    if (opts.format !== 't3') inlineSlot = null;
+    else if (inlineSlot === null) inlineSlot = 0;
+    if (!PH.frontend.allowed(inlineSide, inlineSlot)) { inlineSlot = opts.format === 't3' ? roomSlot : null; inlineSide = room.role === 'guest' ? 1 : 0; }
+    const current = inlineSlot === null ? (inlineSide ? opts.arch1 : opts.arch0) : lobby3[inlineSlot]?.arch;
+    $('front-roster-title').textContent = '选择球星 · ' + (inlineSlot === null ? (inlineSide ? '对手 / 玩家 2' : '你的球员') : lobbySlotName(inlineSlot));
+    pkTeams(); pkPositionChips();
+    $('front-teams').innerHTML = $('pk-teams').innerHTML.replace(/data-testid=/g, 'data-original-testid=');
+    $('front-positions').innerHTML = $('pk-positions').innerHTML;
+    const keys = GM.ROSTER.filter((k) => { const a = GM.ARCH[k]; return (pkTeam === 'all' || (pkTeam === 'rook' ? a.tier === 'rook' : a.team === pkTeam)) && (!pkPositions.size || playerPositions(a).some((p) => pkPositions.has(p))); });
+    $('front-grid').innerHTML = (inlineSide && inlineSlot === null && !room.role ? pkCard('random') : '') + keys.map(pkCard).join('') || '<p class="tnote">没有符合条件的球员，试试其他球队或位置。</p>';
+    $('front-grid').querySelectorAll('[data-testid]').forEach((e) => e.removeAttribute('data-testid'));
+    $('front-grid').querySelectorAll('.pkc').forEach((e) => { e.classList.toggle('on', e.dataset.pk === current); e.title = e.dataset.pk === 'random' ? '随机球星' : GM.ARCH[e.dataset.pk].full; const cv = e.querySelector('canvas'); if (cv) portrait(cv, GM.ARCH[e.dataset.pk], GM.TEAMS[inlineSide]); });
+    for (let i = 0; i < 2; i++) $('pick' + i).classList.toggle('on', inlineSlot === null && i === inlineSide);
+  }
+  function installInlinePicker() {
+    $('menu').querySelector('.menu-actions').insertAdjacentHTML('beforebegin', '<section id="front-roster" class="front-roster"><div class="front-target"><h3 id="front-roster-title">选择球星</h3><button id="front-player-detail">完整属性 / 技能说明</button></div><div id="front-teams" role="group" aria-label="球队筛选"></div><div id="front-positions" role="group" aria-label="位置筛选"></div><div id="front-grid" aria-label="可选球星"></div></section>');
+    $('front-teams').onclick = (e) => { const b = e.target.closest('[data-tm]'); if (b) { pkTeam = b.dataset.tm; renderInlinePicker(); } };
+    $('front-positions').onclick = (e) => { const b = e.target.closest('[data-pos]'); if (b) { const p = b.dataset.pos; if (pkPositions.has(p)) pkPositions.delete(p); else pkPositions.add(p); renderInlinePicker(); } };
+    $('front-grid').onclick = (e) => {
+      const b = e.target.closest('[data-pk]'); if (!b || !PH.frontend.allowed(inlineSide, inlineSlot)) return;
+      if (inlineSlot !== null) lobby3[inlineSlot].arch = b.dataset.pk; else opts[inlineSide ? 'arch1' : 'arch0'] = b.dataset.pk;
+      PH.frontend.selectionChanged(); refreshMenu(); PH.audio.play('ui');
+    };
+    $('front-player-detail').onclick = () => openPicker(inlineSide, inlineSlot);
+  }
   function pickBtn(id, key, side = id === 'pick0' ? 0 : 1, t3 = false) {
     const el = $(id);
-    if (key === 'random') { el.className = 'pick'; el.innerHTML = '<span class="pkf q">?</span><span class="pk-n">随机</span><span class="pk-s">任意球员</span><span class="pk-c">更换</span>'; return; }
+    if (key === 'random') { el.className = 'pick fighter-pick fighter-random'; el.innerHTML = '<span class="fighter-figure"><span class="fighter-question">?</span><span class="fighter-ring"></span></span><span class="fighter-info"><span class="fighter-label">P2 / 神秘对手</span><span class="pk-n">随机球星</span><span class="pk-s">让下一场对决充满惊喜</span><span class="pk-c">选择指定球星 →</span></span>'; return; }
     const a = GM.ARCH[key];
     el.className = 'pick t' + TT[a.tier]; el.innerHTML = '<canvas class="pkf" width="32" height="32"></canvas><span class="pk-n">' + a.name + ' <small>' + a.ovr + '</small></span>' + (t3 ? positionBadge(a) : '<span class="pk-s">' + (a.skill ? '必杀技 · ' + a.skill.name : a.pos + ' · ' + GM.TIERS[a.tier]) + '</span><span class="pk-c">更换</span>');
-    portrait(el.querySelector('canvas'), a, GM.TEAMS[side]);
+    if (!t3) {
+      el.classList.add('fighter-pick');
+      el.innerHTML = '<span class="fighter-figure"><span class="fighter-number">' + a.num + '</span><canvas class="fighter-body" width="240" height="300" aria-label="' + a.full + '全身像"></canvas><span class="fighter-ring"></span></span><span class="fighter-info"><span class="fighter-label">' + (side ? 'P2 / ' : 'P1 / ') + $('lab-p' + (side + 1)).textContent + '</span><span class="fighter-name"><span><span class="pk-n">' + a.name + '</span><span class="fighter-full">' + a.full + '</span></span><strong>' + a.ovr + '<small>总评</small></strong></span><span class="pk-s">' + a.pos + ' · ' + listedHeight(a) + ' 米 · #' + a.num + '</span><span class="fighter-stats">' + [['three','三分'],['mid','中投'],['lay','上篮'],['dunk','扣篮'],['hnd','控球'],['spd','速度'],['def','防守'],['str','力量']].map(([k,n]) => '<span>' + n + '<b class="' + vcl(A99(a[k])) + '">' + A99(a[k]) + '</b><i style="--rating:' + A99(a[k]) + '%"></i></span>').join('') + '</span><span class="fighter-badges">' + bList(a, true).map(([k,t]) => '<span title="' + GM.BADGES[k].desc + '">' + bHex(k,t) + GM.BADGES[k].name + '</span>').join('') + '</span><span class="pk-c">选择球星 →</span></span>';
+      R.playerPreview(el.querySelector('canvas'), a, side);
+    } else {
+      const cv = el.querySelector('canvas'); cv.classList.add('team-body'); cv.width = 90; cv.height = 130;
+      R.playerPreview(cv, a, side);
+    }
   }
   const lobbySlotName = (i) => (i < 3 ? '主队' : '客队') + ' ' + (i % 3 + 1) + ' 号位';
   function lobbySlotRole(i) {
@@ -250,21 +295,21 @@
   lobby3.forEach((slot, i) => {
     const side = i < 3 ? 0 : 1, team = $(side ? 'lobby3-away' : 'lobby3-home');
     team.insertAdjacentHTML('beforeend', '<div class="lobby3-slot"><button type="button" id="pick3-' + i + '"></button><button type="button" class="lobby3-role" id="role3-' + i + '"></button></div>');
-    $('pick3-' + i).addEventListener('click', () => openPicker(side, i));
+    $('pick3-' + i).addEventListener('click', () => inlineTarget(side, i));
     $('role3-' + i).addEventListener('click', () => {
       const roles = Object.keys(lobbyRoles), next = roles[(roles.indexOf(slot.role) + 1) % roles.length];
       if (next === 'human') {
         const prev = lobby3.findIndex((s) => s.role === 'human');
         if (prev >= 0) { lobby3[prev].role = 'cpu'; lobbySlotRole(prev); }
       }
-      slot.role = next; lobbySlotRole(i); roomStatus(); PH.audio.play('ui');
+      slot.role = next; lobbySlotRole(i); roomStatus(); PH.frontend.changed(); PH.audio.play('ui');
     });
   });
   function menuStatus(text) {
     $('menu-status').textContent = text; show('menu-status', !!text);
   }
   function roomStatus() {
-    if (room.role === 'host' && room.code) menuStatus('房间号 ' + room.code + ' · 已加入 ' + room.links.size + ' 人');
+    if (room.role === 'host' && room.code) menuStatus('公开房间 · ' + (1 + room.links.size) + ' 人在房间 · 选好球星后点击准备');
     else if (!room.role) menuStatus('');
   }
   const NET_STATE = ['time', 'phase', 'phaseT', 'score', 'stats', 'target', 'shotClock', 'glen', 'gclock', 'sd', 'mp', 'needClear', 'off', 'winner',
@@ -310,15 +355,16 @@
     menuStatus(join ? '正在加入房间…' : '正在建立房间…');
     roomSlot = -1;
     rooms.open(join ? code : '', mode, {
-      ready: (id) => { field.value = id; roomStatus(); refreshMenu(); },
+      ready: (id) => { field.value = id; roomStatus(); PH.frontend.changed(); refreshMenu(); },
       reserve: (requested, links) => requested !== mode ? -1 : mode === 't3'
         ? lobby3.findIndex((s, i) => s.role === 'waiting' && !links.has(i)) : links.has(1) ? -1 : 1,
       change: (left) => {
         if (screen === 'play' && left != null && G.mode === 't3') G.players[left].ctrl = 'cpu';
         if (screen === 'play' && left != null && G.mode !== 't3') { toMenu(); menuStatus('对手已断开连接。'); }
-        if (screen === 'menu' && room.role) { roomStatus(); refreshMenu(); }
+        if (screen === 'menu' && room.role) { roomStatus(); PH.frontend.changed(); refreshMenu(); }
       },
-      joined: (slot) => { roomSlot = slot; menuStatus('已加入房间 ' + code + (mode === 't3' ? ' · ' + lobbySlotName(slot) : '') + ' · 等待房主开始。'); refreshMenu(); },
+      joined: (slot) => { roomSlot = slot; menuStatus('已加入房间 · 选好球星后点击准备'); PH.frontend.joined(); refreshMenu(); },
+      message: (msg, slot) => PH.frontend.message(msg, slot),
       start: (config) => {
         if (!config || config.mode !== mode || (mode === 't3' && (!Array.isArray(config.slots) || config.slots.length !== 6 || !config.slots.every((s) => GM.ARCH[s.arch])))) return;
         launchRoomMatch(config, roomSlot);
@@ -337,7 +383,8 @@
     if (e.key === 'Enter') { e.preventDefault(); roomAction(true); }
   });
   function refreshMenu() {
-    document.querySelectorAll('#menu .seg, #set-rules .seg').forEach((seg) => {
+    queueMicrotask(() => { PH.frontend.refresh(); renderInlinePicker(); });
+    document.querySelectorAll('#menu .seg[data-opt], #set-rules .seg[data-opt]').forEach((seg) => {
       const k = seg.getAttribute('data-opt');
       seg.querySelectorAll('button').forEach((b) => {
         const on = String(opts[k]) === b.getAttribute('data-v');
@@ -345,7 +392,7 @@
       });
     });
     const tr = opts.mode === 'train', t5 = opts.mode === 't5', t3 = opts.mode === 't3', online = opts.mode === 'online', setup = !t3, guest = room.role === 'guest';
-    show('row-opponent', opts.format === 'duel');
+    show('row-opponent', opts.format === 'duel' && opts.opponent !== 'online');
     show('lobby3', t3); show('menu-rooms', t3 || online);
     show('arch-desc', setup);
     show('btn-start', !guest && (!online || room.role === 'host' && room.links.has(1)));
@@ -362,19 +409,20 @@
       $('menu-foot').textContent = '先到 ' + opts.target + ' 分获胜 · ' + clkS + ' · 点击切换身份，无人位置电脑补齐。';
       return;
     }
-    $('lab-p1').textContent = opts.mode === '2p' ? '玩家 1' : '你的球员';
-    $('lab-p2').textContent = opts.mode === '2p' ? '玩家 2' : tr ? '假人体型' : '对手';
+    $('lab-p1').textContent = online ? (guest ? '房主' : '你 · 房主') : opts.mode === '2p' ? '玩家 1' : '你的球员';
+    $('lab-p2').textContent = online ? (guest ? '你 · 球友' : '球友') : opts.mode === '2p' ? '玩家 2' : tr ? '假人体型' : '对手';
     $('btn-start').textContent = tr ? '进入训练场' : '开始比赛';
     $('menu-foot').textContent = tr ? '训练场：无比分无时限，可设置假人防守方式，比赛中按 Tab 开关训练参数面板。' : online ? '建房间并分享房间号，对手加入后由房主开始 · ' + opts.target + ' 分制 · ' + clkS + '。' : '规则：先到 ' + opts.target + ' 分（领先 2 分胜）· ' + clkS + ' · ' + lenS + ' · 失分方球权，抢断需出三分线。';
     if (kg) { const sv = kingSaved(); $('btn-start').textContent = sv ? '继续闯关 · 第 ' + (sv.stage + 1) + ' 关' : '开始闯关'; $('menu-foot').textContent = '斗牛之王：选好你的球员，连赢五位越来越强的对手 · 每关先到 ' + (sv ? sv.target : opts.ktarget) + ' 分（领先 2 分胜）· ' + clkS + ' · 三次重来机会。'; kingLadderView(); }
     const a = GM.ARCH[opts.arch0];
-    pickBtn('pick0', opts.arch0); pickBtn('pick1', opts.arch1);
+    pickBtn('pick0', opts.arch0); pickBtn('pick1', online && room.role === 'host' && !room.links.has(1) ? 'random' : opts.arch1);
     $('arch-desc').textContent = a.full + '：' + a.desc + (a.skill ? '。必杀技「' + a.skill.name + '」，条件和效果见“更换”。' : '。');
   }
-  document.querySelectorAll('#menu .seg button, #set-rules .seg button').forEach((b) => b.addEventListener('click', () => {
+  document.querySelectorAll('#menu .seg[data-opt] button, #set-rules .seg[data-opt] button').forEach((b) => b.addEventListener('click', () => {
     const k = b.parentElement.getAttribute('data-opt'), v = b.getAttribute('data-v');
     opts[k] = k === 'diff' || k === 'target' || k === 'clock' || k === 'glen' || k === 'qlen' || k === 'side' || k === 'ktarget' ? +v : v; if (k === 'fb') { cardId = -1; }
     if (k === 'format' || k === 'opponent') { rooms.close(); menuStatus(''); }
+    if (room.role) PH.frontend.selectionChanged();
     PH.audio.play('ui'); refreshMenu();
   }));
 
@@ -387,7 +435,7 @@
     screen = 'menu'; paused = false; clearPf(); camOpen = false; camFromSet = false; show('campanel', false); pcards();
     show('menu', true); show('king', false); $('king-fx').innerHTML = ''; show('qvol', false); show('picker', false); show('cutin', false); show('hud', false); show('pause', false); show('over', false); show('help', false); show('touch', false); show('banner', false); show('train', false); show('shotcard', false); stage.classList.remove('panel');
     if (PH.T5) { PH.T5.stop(); PH.render5.restore(); } show('hud5', false); show('over5', false); show('tpicker', false); show('btn-cam', true); show('btn-disp', true); show('btn-box5', false); if (PH.box5 && PH.box5.isOpen()) PH.box5.close();
-    startDemo(); camShift();
+    PH.frontend.reset(); startDemo(); camShift();
   }
   let lastArch = null;
   function scoreboardName(i, name) {
@@ -396,6 +444,7 @@
     el.textContent = name.replace(/^(?:你|电脑|在线|玩家\s*[12]|第\s*\d+\s*关)\s*·\s*/, '');
   }
   function launchRoomMatch(config, slot) {
+    PH.frontend.started();
     tuneClose();
     PH.audio.ensure(); PH.audio.play('start'); PH.audio.startMusic();
     localSlot = slot; matchConfig = config; netFrame = 0;
@@ -565,6 +614,7 @@
   }
   function kingOk() { const b = $('king-panel').querySelector('.actions .primary'); if (b) b.click(); }
   function startMatch(same, go) {
+    if (screen === 'menu' && !PH.frontend.canStart()) return;
     if (room.role === 'guest') return;
     if (opts.mode === 'king' && !go) { tuneClose(); kingGo(same); return; }
     if (opts.mode === 't3' || opts.mode === 'online') {
@@ -1672,7 +1722,7 @@
   $('btn-pause5').addEventListener('click', () => setPause(true));
 
   // ---------- 手柄菜单导航 ----------
-  const NAV_SEL = 'button, select, input[type=range], #room-code';
+  const NAV_SEL = 'button, a[href], select, input:not([type=hidden]), summary';
   const navList = (root) => Array.prototype.filter.call(root.querySelectorAll(NAV_SEL), (b) => b.offsetParent !== null && !b.disabled && !b.hasAttribute('data-nonav'));
   const navPri = (root) => Array.prototype.find.call(root.querySelectorAll('button.primary'), (b) => b.offsetParent !== null);
   const trainPanelOn = () => screen === 'play' && G.mode === 'train' && panelOpen && !paused && !G.replay && !$('train').classList.contains('hidden');
@@ -1686,9 +1736,18 @@
   }
   const NAV_SCROLL = { picker: '#pk-detail', help: '#help-body', tune: '#tn-body', train: '#tr-body', over5: '#o5-box', over: '', king: '', pause: '', menu: '' };
   const NAV_TABS = { help: '#help-tabs', tune: '#tn-cats', train: '#tr-tabs', over5: '#o5-tabs' };
-  function scrollBox(root) {
-    const sel = NAV_SCROLL[root.id]; if (sel) return root.querySelector(sel);
-    for (const e of root.querySelectorAll('*')) if (e.scrollHeight > e.clientHeight + 4 && /auto|scroll/.test(getComputedStyle(e).overflowY) && e.offsetParent !== null) return e;
+  function scrollBox(root, dy) {
+    const isScrollBox = (e) => e && e.getClientRects().length && /auto|scroll/.test(getComputedStyle(e).overflowY);
+    const canScroll = (e) => isScrollBox(e) && (dy > 0 ? e.scrollTop + e.clientHeight < e.scrollHeight - 1 : e.scrollTop > 1);
+    const sel = NAV_SCROLL[root.id], target = sel && root.querySelector(sel);
+    // Explicit detail panes own the gesture even at their scroll boundaries.
+    if (isScrollBox(target) && target.scrollHeight > target.clientHeight) return target;
+    const focused = root.querySelector('.pf');
+    if (root.id === 'menu' && focused) for (const e of focused.querySelectorAll('*')) if (canScroll(e)) return e;
+    for (let e = focused; e && e !== root; e = e.parentElement) if (canScroll(e)) return e;
+    if (canScroll(root)) return root;
+    if (root.id === 'menu') return null;
+    for (const e of root.querySelectorAll('*')) if (canScroll(e)) return e;
     return null;
   }
   let adj = { el: null, n: 0, t: 0, timer: 0 };
@@ -1748,7 +1807,7 @@
     const list = navList(root), b = list.find((el) => el.classList.contains('pf')) || navPri(root) || list[0];
     if (!b) { if (list[0]) navSet(root, list[0]); return true; }
     if (b.tagName === 'SELECT') { navAdjust(b, 1); return true; }
-    if (b.id === 'room-code') { b.focus(); return true; }
+    if (isTextInput(b)) { b.focus(); return true; }
     if (b.type === 'range') return true;
     const idx = list.indexOf(b); b.click(); navRefocus(root, list, idx, b);
     return true;
@@ -1766,9 +1825,16 @@
     if (k.lb || k.rl) navTab(root, -1); else if (k.rb || k.rr) navTab(root, 1);
     if (k.px && root.id === 'tune') { const cur = root.querySelector('.pf'), row = cur && cur.closest('[data-row]'), rs = row && row.querySelector('[data-rs]'); if (rs) rs.click(); }
     const now = performance.now(), dt = Math.min(60, now - rsT || 16); rsT = now;
-    const r = PH.input.rstick(); if (r.y) { const sb = scrollBox(root); if (sb) sb.scrollTop += r.y * dt * 1.1; }
+    const r = PH.input.rstick(); if (r.y) { const sb = scrollBox(root, r.y); if (sb) sb.scrollTop += r.y * dt * 1.1; }
   }
   const isTextInput = (el) => !!(el && ((el.tagName === 'INPUT' && el.type !== 'range') || el.tagName === 'TEXTAREA'));
+  // Native Tab/pointer focus and controller focus must activate the same control.
+  document.addEventListener('focusin', (e) => {
+    const root = navRoot(), el = e.target;
+    if (root && root.contains(el) && el.matches(NAV_SEL) && el.offsetParent !== null && !el.disabled) {
+      clearPf(); el.classList.add('pf');
+    }
+  });
   document.addEventListener('pointerdown', (e) => {
     const t = e.target && e.target.closest && e.target.closest(NAV_SEL);
     if (t && (t.closest('#pause') || t.closest('#tune'))) clearPf();
@@ -1869,7 +1935,7 @@
     else if (!$('picker').classList.contains('hidden')) { if (pb || esc) closePicker(false); else if (pa || ok) { const b = $('picker').querySelector('.pf'); if (b && b.hasAttribute('data-pk') && b.getAttribute('data-pk') === pkSel) closePicker(true); else navClick(); } }
     else if (screen === 'menu' && !$('pause').classList.contains('hidden')) { if (setV !== 'main' && (esc || pb)) setView('main'); else if (esc || pb) menuSet(false); else if (pa || ok) navClick(); }
     else if (screen === 'menu' && !$('qvol').classList.contains('hidden') && (esc || pb)) qvOpen(false);
-    else if (screen === 'menu') { if (ps) startMatch(false); else if (pa || ok) navClick(); }
+    else if (screen === 'menu') { if (ps) startMatch(false); else if (esc || pb) PH.frontend.back(); else if (pa || ok) navClick(); }
     else if (screen === 'king') { if (ok || ps) kingOk(); else if (esc || pb) toMenu(); else if (pa) navClick(); }
     else if (screen === 'play5') {
       // 手柄十字键下（只认十字键，不认左摇杆）= 换人页；View = 数据面板；键盘 Tab = 数据面板、B / 4 = 换人页
@@ -2127,7 +2193,10 @@
   window.addEventListener('gamepadconnected', () => { hasPad = true; show('padtag', true); hintKey = ''; });
 
   function boot() {
-    layout(); R.init(canvas); PH.input.initTouch(document); refreshMenu(); renderHelp(); toMenu();
+    layout(); R.init(canvas); PH.input.initTouch(document);
+    PH.frontend.mount({ opts, room, rooms, lobby: lobby3, slot: () => roomSlot, redraw: refreshMenu, status: menuStatus, action: roomAction });
+    installInlinePicker();
+    refreshMenu(); renderHelp(); toMenu();
     requestAnimationFrame(frame);
     PH.tapeView.enter = () => { screen = 'tape'; paused = true; for (const id of ['menu', 'hud', 'hud5', 'pause', 'over', 'over5', 'touch', 'banner', 'train', 'talk', 'cutin']) show(id, false); };
     PH.tapeView.leave = toMenu;

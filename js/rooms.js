@@ -78,6 +78,8 @@
         room.links.set(slot, { conn, input: null, last: 0 });
         write(conn, { type: 'joined', slot });
         handlers.change();
+      } else if (slot >= 0 && !room.active && msg.type === 'lobby' && room.links.get(slot)?.conn === conn) {
+        handlers.message?.(msg, slot);
       } else if (slot >= 0 && msg.type === 'input' && room.active) {
         const link = room.links.get(slot);
         if (!link || link.conn !== conn) return;
@@ -158,6 +160,7 @@
         else if (msg.type === 'joined') { if (expired()) return; joined = true; room.code = code; clearDeadline(); handlers.joined(msg.slot); }
         else if (msg.type === 'start') { room.active = true; handlers.start(msg.config); }
         else if (msg.type === 'state' && room.active) handlers.state(msg.state);
+        else if (msg.type === 'lobby' && !room.active) handlers.message?.(msg);
       });
     };
     function startRelay() {
@@ -340,5 +343,5 @@
     return out;
   }
   const valid = (code) => code.length === 5 && [...code].every((c) => alphabet.includes(c));
-  PH.rooms = { room, open, close, broadcast, input, inputs, valid };
+  PH.rooms = { room, open, close, broadcast, input, inputs, valid, sendLobby: (data) => { if (pending && !room.active) write(pending, { ...data, type: 'lobby' }); } };
 })();

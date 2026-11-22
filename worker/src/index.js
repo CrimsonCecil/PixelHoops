@@ -5,6 +5,7 @@ const CORS = {
   'Access-Control-Allow-Methods': 'GET,PUT,POST,DELETE,OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type',
 };
+import { roomRequest } from './rooms.js';
 const ID_RE = /^[a-zA-Z0-9_-]{1,40}$/;
 const send = (code, obj) => new Response(code === 204 ? null : JSON.stringify(obj), {
   status: code,
@@ -34,6 +35,8 @@ export default {
       if (req.method !== 'GET' || req.headers.get('Upgrade')?.toLowerCase() !== 'websocket') return send(426, { error: 'websocket required' });
       return env.ROOMS.get(env.ROOMS.idFromName(room[1])).fetch(req);
     }
+    const roomResponse = await roomRequest(req, db, p, send);
+    if (roomResponse) return roomResponse;
     if (p === '/api/replays' && req.method === 'GET') {
       const rows = (await db.prepare('SELECT * FROM replays ORDER BY created DESC').all()).results;
       return send(200, { replays: rows.map(r => ({ ...r, meta: JSON.parse(r.meta) })) });

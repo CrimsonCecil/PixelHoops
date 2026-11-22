@@ -13,7 +13,7 @@ const modes = ['cpu', '2p', 't3', 't5', 'king', 'train', 'train-def', 'online', 
   'cpu-timed', '2p-timed', 'online-timed'];
 
 (async () => {
-  const browser = await chromium.launch({ headless: true });
+  const browser = await chromium.launch({ headless: true, ...(process.env.CHROME_PATH ? { executablePath: process.env.CHROME_PATH } : {}) });
   const metrics = [];
   const dimensions = new Map();
   const sourceFiles = new Map();
@@ -41,9 +41,17 @@ const modes = ['cpu', '2p', 't3', 't5', 'king', 'train', 'train-def', 'online', 
       await page.goto(base);
       await page.waitForFunction(() => !!window.advanceTime);
       await page.evaluate(() => window.advanceTime(0));
-      if (gameMode !== 'cpu') await page.getByTestId('mode-' + gameMode).click();
+      const modernMenu = await page.getByTestId('home-solo').count() > 0;
+      if (modernMenu) {
+        await page.getByTestId(mode.startsWith('online') ? 'home-online' : 'home-solo').click();
+        if (!mode.startsWith('online')) {
+          if (gameMode === 'train') await page.locator('.front-train').click();
+          else await page.getByTestId('solo-' + (['cpu', '2p'].includes(gameMode) ? '1v1' : gameMode)).click();
+          if (gameMode === '2p') await page.getByTestId('mode-2p').click();
+        }
+      } else if (gameMode !== 'cpu') await page.getByTestId('mode-' + gameMode).click();
       if (mode.startsWith('online')) {
-        if (gameMode === 'cpu') await page.getByTestId('mode-online').click();
+        if (!modernMenu && gameMode === 'cpu') await page.getByTestId('mode-online').click();
         await page.evaluate((timed) => {
           PH.rooms.open = (code, mode, handlers) => {
             window.scoreboardRoomState = handlers.state;
@@ -53,8 +61,15 @@ const modes = ['cpu', '2p', 't3', 't5', 'king', 'train', 'train-def', 'online', 
               slots: ['wemby', 'curry', 'lebron', 'sga', 'durant', 'jokic'].map((arch, i) => ({ arch, role: i ? 'cpu' : 'human' })) });
           };
         }, timed);
-        await page.locator('#room-code').fill('ABCDE');
-        await page.locator('#btn-room-join').click();
+        if (modernMenu) {
+          await page.locator('.front-direct summary:visible').click();
+          await page.locator('#front-direct-mode').selectOption(gameMode === 't3' ? 't3' : 'online');
+          await page.locator('#front-direct-code').fill('ABCDE');
+          await page.locator('#front-direct-join').click();
+        } else {
+          await page.locator('#room-code').fill('ABCDE');
+          await page.locator('#btn-room-join').click();
+        }
       } else {
         if (timed) await page.locator('[data-opt="glen"] [data-v="180"]').evaluate(e => e.click());
         await page.getByTestId('btn-start').click();
