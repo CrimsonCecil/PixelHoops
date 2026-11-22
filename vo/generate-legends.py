@@ -88,12 +88,15 @@ def generate(args):
     args.cache.mkdir(parents=True, exist_ok=True)
     manifest_path = root / "manifest.json"
     manifest = json.loads(manifest_path.read_text())
+    takes_path = root / "gemini-takes.json"
+    takes = json.loads(takes_path.read_text()) if takes_path.exists() else {}
     for key in args.keys:
         pack = manifest["voices"][key]
         sprite = bytearray()
         for entries in pack["lines"].values():
             for entry in entries:
-                pcm = synthesize(entry["t"], VOICES[key], args.cache, args.take, model=args.model)
+                take = takes.get(entry["f"], args.take) if args.take == 0 else args.take
+                pcm = synthesize(entry["t"], VOICES[key], args.cache, take, model=args.model)
                 clip = args.cache / entry["f"]
                 trim = "silenceremove=start_periods=1:start_threshold=-45dB:start_silence=0.05"
                 analysis = subprocess.run([
