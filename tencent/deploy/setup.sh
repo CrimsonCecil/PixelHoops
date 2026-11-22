@@ -12,7 +12,7 @@
 set -euo pipefail
 
 : "${API_DOMAIN:?set API_DOMAIN, e.g. pixelhoops-api.kccecil.com}"
-: "${EMAIL:?set EMAIL for Let's Encrypt}"
+: "${EMAIL:?set EMAIL for the TLS certificate}"
 REPO_URL="${REPO_URL:-https://github.com/CrimsonCecil/PixelHoops.git}"
 BRANCH="${BRANCH:-main}"
 WEB_DOMAIN="${WEB_DOMAIN:-}"
