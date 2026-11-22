@@ -180,7 +180,7 @@
       }
       const conn = relayConn;
       const validSocket = () => alive() && relaySocket === ws;
-      if (host) relayWatch = setTimeout(() => { if (validSocket() && !relayUp) ws.close(); }, 4000);
+      if (host) relayWatch = setTimeout(() => { if (validSocket() && !relayUp) ws.close(); }, 10000);
       ws.onopen = () => {
         if (!validSocket()) { ws.close(); return; }
         clearTimeout(relayWatch);
@@ -219,9 +219,12 @@
         }
         for (const link of [...relayGuests.values()]) link.close();
         if (!alive()) return;
-        if (relayRetries >= 3 || event.code === 4001 || event.code === 4003) {
+        const fatal = event.code === 4001 || event.code === 4003;
+        if (fatal || !p2pUp && relayRetries >= 3) {
           relayDone = true; hostFailure('房间中继重连失败。');
-        } else relayTimer = setTimeout(startRelay, 500 * 2 ** relayRetries++);
+        } else {
+          relayTimer = setTimeout(startRelay, Math.min(10000, 500 * 2 ** Math.min(relayRetries++, 5)));
+        }
       };
     }
     const visibleRelay = () => {
