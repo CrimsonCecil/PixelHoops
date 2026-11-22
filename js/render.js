@@ -2404,4 +2404,27 @@
   PH.render = { init: init, resize: resize, get W() { return W; }, get H() { return H; }, render: render, camera1Intro: camera1Intro, replayCamera: replayCamera, particleSize: particleSize, setTheme: setTheme, proj: proj, cam: cam, CAMV: CAMV, CAM_DEF: CAM_DEF, setCam: setCam, camTuned: camTuned, setCamTuned: setCamTuned, resetCamTuned: resetCamTuned, HOOP: HOOP, BOARD_Y: BOARD_Y, BALL_R: BALL_R, curCol: curCol,
     // 5V5 全场模式复用的绘制图元（不影响 1V1）
     drawCombos: drawCombos, drawScreenFx: drawScreenFx, drawMeter: (pl, hp) => drawMeter(pl, hp), drawPlayer: drawPlayer, sprintTrail: sprintTrail, drawHead: drawHead, drawBall: drawBall, shadow: shadow, ellipse: ellipse, ring: ring, brush: brush, getCtx: () => ctx, drawNameTag: curName, BAYER: BAYER };
+  const previewCache = new Map();
+  PH.render.playerPreview = function (target, arch, side) {
+    const key = arch.key + ':' + side;
+    if (!previewCache.has(key)) {
+      const saved = { ctx, W, H, cam: { ...cam }, view: { ...CAMV } }, image = document.createElement('canvas');
+      image.width = 360; image.height = 400;
+      try {
+        ctx = image.getContext('2d'); W = 360; H = 400;
+        setCam({ height: 1.2, dist: 6, zoom: 1.25, push: 0 }); cam.x = 0; cam.y = -5.5; cam.oy = 10;
+        const p = PH.game.t5.makePlayer(side, arch.key, 'human'); p.face = -Math.PI / 2; p.pose.lean = 0;
+        drawPlayer(p, {});
+        const pixels = ctx.getImageData(0, 0, W, H).data;
+        let x0 = W, y0 = H, x1 = -1, y1 = -1;
+        for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (pixels[(y * W + x) * 4 + 3]) { x0 = Math.min(x0, x); y0 = Math.min(y0, y); x1 = Math.max(x1, x); y1 = Math.max(y1, y); }
+        const crop = document.createElement('canvas'); crop.width = Math.max(1, x1 - x0 + 5); crop.height = Math.max(1, y1 - y0 + 5);
+        if (x1 >= x0) crop.getContext('2d').drawImage(image, x0 - 2, y0 - 2, crop.width, crop.height, 0, 0, crop.width, crop.height);
+        previewCache.set(key, crop);
+      } finally { ctx = saved.ctx; W = saved.W; H = saved.H; Object.assign(cam, saved.cam); Object.assign(CAMV, saved.view); }
+    }
+    const image = previewCache.get(key), c = target.getContext('2d'), s = Math.min(target.width / image.width, target.height / image.height);
+    c.clearRect(0, 0, target.width, target.height); c.imageSmoothingEnabled = false;
+    c.drawImage(image, (target.width - image.width * s) / 2, target.height - image.height * s, image.width * s, image.height * s);
+  };
 })();

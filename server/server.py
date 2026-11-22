@@ -8,7 +8,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import unquote
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
-DATA = os.path.join(ROOT, 'data'); os.makedirs(DATA, exist_ok=True)
+DATA = os.environ.get('PIXELHOOPS_DATA_DIR', os.path.join(ROOT, 'data')); os.makedirs(DATA, exist_ok=True)
 DB = os.path.join(DATA, 'tune.db')
 SEED = os.path.join(ROOT, 'seed_profiles.json')
 LOCK = threading.Lock()
@@ -17,6 +17,7 @@ db.execute('CREATE TABLE IF NOT EXISTS profiles (id TEXT PRIMARY KEY, name TEXT 
 db.execute('CREATE TABLE IF NOT EXISTS meta (k TEXT PRIMARY KEY, v TEXT)')
 db.execute('CREATE TABLE IF NOT EXISTS replays (id TEXT PRIMARY KEY, name TEXT UNIQUE NOT NULL, meta TEXT, size INT, created REAL)')
 db.execute('CREATE TABLE IF NOT EXISTS replay_chunks (id TEXT, seq INT, data TEXT, PRIMARY KEY(id,seq))')
+db.execute('CREATE TABLE IF NOT EXISTS rooms (code TEXT PRIMARY KEY, token TEXT NOT NULL, name TEXT NOT NULL, mode TEXT NOT NULL, players INTEGER NOT NULL, capacity INTEGER NOT NULL, updated REAL NOT NULL)')
 db.commit()
 
 def export():
@@ -63,6 +64,10 @@ class H(BaseHTTPRequestHandler):
     def do_OPTIONS(self): self._send(204, {})
     def do_GET(self):
         p = self._path()
+        if p == '/api/rooms':
+            with LOCK:
+                rows = db.execute('SELECT code,name,mode,players,capacity FROM rooms WHERE updated>? AND players<capacity ORDER BY updated DESC LIMIT 100', (time.time() - 60,)).fetchall()
+            return self._send(200, {'rooms': [dict(zip(('code', 'name', 'mode', 'players', 'capacity'), r)) for r in rows]})
         if p == '/api/replays' or p.startswith('/api/replays/'):
             with LOCK:
                 if p == '/api/replays':
@@ -82,6 +87,8 @@ class H(BaseHTTPRequestHandler):
             return self._send(200, {'history': [{'id': r[0], 'name': r[1], 'data': json.loads(r[2]), 'updated': r[3], 'op': r[4]} for r in rows]})
         self._send(404, {'error': 'not found'})
     def do_PUT(self):
+        if self._path().startswith('/api/rooms/'):
+            return self._room_write(False)
         if self._path().startswith('/api/replays/'):
             return self._replay_write(False)
         p = self._path(); m = re.match(r'^/api/profiles/([^/]+)$', p)
@@ -98,6 +105,8 @@ class H(BaseHTTPRequestHandler):
             db.execute('INSERT INTO history VALUES (?,?,?,?,?)', (m.group(1), name, js, now, 'put')); db.commit()
             return self._send(200, export())
     def do_DELETE(self):
+        if self._path().startswith('/api/rooms/'):
+            return self._room_write(True)
         if self._path().startswith('/api/replays/'):
             return self._replay_write(True)
         p = self._path(); m = re.match(r'^/api/profiles/([^/]+)$', p)
@@ -133,6 +142,24 @@ class H(BaseHTTPRequestHandler):
                     db.execute('INSERT OR REPLACE INTO replays VALUES (?,?,?,?,?)', (id, name, json.dumps(row['meta'], ensure_ascii=False), row['size'], row['created']))
                     db.executemany('INSERT INTO replay_chunks VALUES (?,?,?)', [(id, n // 900000, data[n:n+900000]) for n in range(0, len(data), 900000)])
             return self._send(200, {'ok': True} if delete else row)
+    def _room_write(self, delete):
+        code = self._path()[len('/api/rooms/'):]
+        if not re.fullmatch(r'[23456789ABCDEFGHJKMNPQRSTUVWXYZ]{5}', code): return self._send(400, {'error': 'bad code'})
+        try: b = self._body(2048)
+        except Exception: return self._send(400, {'error': 'bad body'})
+        if not isinstance(b, dict) or not isinstance(b.get('token'), str) or not re.fullmatch(r'[a-zA-Z0-9_-]{20,80}', b['token']): return self._send(400, {'error': 'bad token'})
+        with LOCK:
+            if delete:
+                db.execute('DELETE FROM rooms WHERE code=? AND token=?', (code, b['token'])); db.commit()
+                return self._send(200, {'ok': True})
+            name, mode, players, capacity = (b.get(k) for k in ('name', 'mode', 'players', 'capacity'))
+            if not isinstance(name, str) or not name.strip() or len(name.strip()) > 24 or mode not in ('online', 't3') or type(players) is not int or type(capacity) is not int or not 1 <= players <= capacity or not 2 <= capacity <= (2 if mode == 'online' else 6): return self._send(400, {'error': 'bad room'})
+            now = time.time()
+            db.execute('DELETE FROM rooms WHERE updated<?', (now - 60,))
+            cur = db.execute('INSERT INTO rooms VALUES (?,?,?,?,?,?,?) ON CONFLICT(code) DO UPDATE SET name=excluded.name,mode=excluded.mode,players=excluded.players,capacity=excluded.capacity,updated=excluded.updated WHERE rooms.token=excluded.token', (code, b['token'], name.strip(), mode, players, capacity, now))
+            db.commit()
+            return self._send(200, {'ok': True, 'ttl': 60}) if cur.rowcount else self._send(409, {'error': 'room already owned'})
+
     def do_POST(self):
         p = self._path()
         if p == '/api/freeze':
