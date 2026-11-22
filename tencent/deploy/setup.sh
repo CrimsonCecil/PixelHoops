@@ -7,6 +7,7 @@
 #           rewritten to call this same origin; set SELF_API=0 for the real front-end domain you do NOT want rewritten)
 #           REPO_URL=https://github.com/CrimsonCecil/PixelHoops.git  BRANCH=tencent-cloud
 #           TURN_MIN_PORT=49152 TURN_MAX_PORT=50000
+#           EXTRA_DOMAINS="ph-test.kccecil.com"   -> more server names on the same nginx + certificate (space separated)
 #
 # Safe to re-run: it never overwrites an existing TURN secret or the SQLite database.
 set -euo pipefail
@@ -16,6 +17,7 @@ set -euo pipefail
 REPO_URL="${REPO_URL:-https://github.com/CrimsonCecil/PixelHoops.git}"
 BRANCH="${BRANCH:-main}"
 WEB_DOMAIN="${WEB_DOMAIN:-}"
+EXTRA_DOMAINS="${EXTRA_DOMAINS:-}"
 TURN_MIN_PORT="${TURN_MIN_PORT:-49152}"
 TURN_MAX_PORT="${TURN_MAX_PORT:-50000}"
 APP_USER=pixelhoops
@@ -86,12 +88,15 @@ systemctl enable coturn && systemctl restart coturn
 
 say "7/8 nginx + TLS"
 DOMAINS=(-d "$API_DOMAIN"); NAMES="$API_DOMAIN"
-[ -n "$WEB_DOMAIN" ] && { DOMAINS+=(-d "$WEB_DOMAIN"); NAMES="$API_DOMAIN $WEB_DOMAIN"; }
+for d in $WEB_DOMAIN $EXTRA_DOMAINS; do
+  case " $NAMES " in *" $d "*) continue ;; esac   # skip duplicates (certbot rejects repeated -d)
+  DOMAINS+=(-d "$d"); NAMES="$NAMES $d"
+done
 sed -e "s|__NAMES__|$NAMES|" "$APP_DIR/app/tencent/deploy/nginx.conf.tpl" > /etc/nginx/sites-available/pixelhoops
 ln -sf /etc/nginx/sites-available/pixelhoops /etc/nginx/sites-enabled/pixelhoops
 rm -f /etc/nginx/sites-enabled/default
 nginx -t && systemctl reload nginx
-echo "DNS check: $API_DOMAIN -> $(dig +short "$API_DOMAIN" | tr '\n' ' ')   (this server: $PUBLIC_IP)"
+for d in $NAMES; do echo "DNS check: $d -> $(dig +short "$d" | tr '\n' ' ')   (this server: $PUBLIC_IP)"; done
 if certbot --nginx --non-interactive --agree-tos -m "$EMAIL" --redirect "${DOMAINS[@]}"; then echo "TLS ok"; else
   echo "!! certbot failed: DNS must point to $PUBLIC_IP and be DNS-only (grey cloud) in Cloudflare. Re-run this script after fixing."; fi
 
