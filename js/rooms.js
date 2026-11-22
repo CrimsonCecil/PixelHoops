@@ -3,7 +3,7 @@
   const PH = window.PH;
   const alphabet = '23456789ABCDEFGHJKMNPQRSTUVWXYZ', prefix = 'pixelhoops-v1-';
   const MAX_FRAME = 1024 * 1024;
-  const room = { peer: null, role: '', code: '', links: new Map(), active: false };
+  const room = { peer: null, role: '', code: '', links: new Map(), active: false, ping: null };
   let script, attempt = 0, pending = null, timeout, checkDeadline, stopRecovery;
 
   function clearDeadline() {
@@ -54,7 +54,7 @@
     if (stopRecovery) { stopRecovery(); stopRecovery = null; }
     const peer = room.peer;
     room.links.clear();
-    Object.assign(room, { peer: null, role: '', code: '', active: false });
+    Object.assign(room, { peer: null, role: '', code: '', active: false, ping: null });
     if (peer) peer.destroy();
   }
   function broadcast(msg) { for (const link of room.links.values()) write(link.conn, msg); }
@@ -66,6 +66,13 @@
     if (o.pass && ['chest', 'skip', 'bounce', 'lob', 'alley'].includes(input.passKind)) o.passKind = input.passKind;
     return o;
   }
+  function syncHostPing() {
+    let best = null;
+    for (const link of room.links.values()) {
+      if (Number.isFinite(link.ping)) best = best == null ? link.ping : Math.max(best, link.ping);
+    }
+    room.ping = best;
+  }
   function incoming(conn, handlers, token) {
     let slot = -1;
     const watch = setTimeout(() => { if (slot < 0) conn.close(); }, 10000);
@@ -75,9 +82,16 @@
         slot = room.active ? -1 : handlers.reserve(msg.mode, room.links);
         if (slot < 0) { write(conn, { type: 'reject' }); return; }
         clearTimeout(watch);
-        room.links.set(slot, { conn, input: null, last: 0 });
+        room.links.set(slot, { conn, input: null, last: 0, ping: null });
         write(conn, { type: 'joined', slot });
         handlers.change();
+      } else if (slot >= 0 && msg.type === 'ping' && room.links.get(slot)?.conn === conn && Number.isFinite(msg.t)) {
+        write(conn, { type: 'pong', t: msg.t });
+      } else if (slot >= 0 && msg.type === 'pong' && room.links.get(slot)?.conn === conn && Number.isFinite(msg.t)) {
+        const link = room.links.get(slot), rtt = Math.round(performance.now() - msg.t);
+        if (link && rtt >= 0 && rtt < 60000) { link.ping = rtt; syncHostPing(); }
+      } else if (slot >= 0 && !room.active && msg.type === 'lobby' && room.links.get(slot)?.conn === conn) {
+        handlers.message?.(msg, slot);
       } else if (slot >= 0 && msg.type === 'input' && room.active) {
         const link = room.links.get(slot);
         if (!link || link.conn !== conn) return;
@@ -88,6 +102,7 @@
       clearTimeout(watch);
       if (slot >= 0 && room.links.get(slot)?.conn === conn) {
         room.links.delete(slot);
+        syncHostPing();
         if (token === attempt) handlers.change(slot);
       }
     };
@@ -158,6 +173,12 @@
         else if (msg.type === 'joined') { if (expired()) return; joined = true; room.code = code; clearDeadline(); handlers.joined(msg.slot); }
         else if (msg.type === 'start') { room.active = true; handlers.start(msg.config); }
         else if (msg.type === 'state' && room.active) handlers.state(msg.state);
+        else if (msg.type === 'lobby' && !room.active) handlers.message?.(msg);
+        else if (msg.type === 'ping' && joined && Number.isFinite(msg.t)) write(conn, { type: 'pong', t: msg.t });
+        else if (msg.type === 'pong' && joined && Number.isFinite(msg.t)) {
+          const rtt = Math.round(performance.now() - msg.t);
+          if (rtt >= 0 && rtt < 60000) room.ping = rtt;
+        }
       });
     };
     function startRelay() {
@@ -339,6 +360,11 @@
     for (const [slot, link] of room.links) if (link.input && now - link.last < 500) out[slot] = link.input;
     return out;
   }
+  function ping() {
+    const t = performance.now();
+    if (room.role === 'host') { if (room.links.size) broadcast({ type: 'ping', t }); }
+    else if (room.role === 'guest' && pending && room.code) write(pending, { type: 'ping', t });
+  }
   const valid = (code) => code.length === 5 && [...code].every((c) => alphabet.includes(c));
-  PH.rooms = { room, open, close, broadcast, input, inputs, valid };
+  PH.rooms = { room, open, close, broadcast, input, inputs, ping, valid, sendLobby: (data) => { if (pending && !room.active) write(pending, { ...data, type: 'lobby' }); } };
 })();

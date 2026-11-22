@@ -10,13 +10,26 @@ module.exports = (async () => {
   ctx.window = ctx;
   vm.runInContext(fs.readFileSync(path.join(__dirname, '../js/audio.js'), 'utf8'), ctx);
   await new Promise(resolve => ctx.PH.audio.voWhenReady(resolve));
+  for (const [key, voice] of Object.entries({ tmac: 'charon', nash: 'puck', rip: 'iapetus', rodman: 'fenrir', bwallace: 'algenib', rallen: 'schedar', ginobili: 'zubenelgenubi', iverson: 'umbriel', carter: 'alnilam' })) {
+    const pack = manifest.voices[key];
+    assert.equal(pack.voice, voice);
+    const data = fs.readFileSync(path.join(__dirname, '../vo', pack.s));
+    let offset = 0;
+    for (const clip of Object.values(pack.lines).flat()) {
+      assert.equal(clip.o, offset);
+      assert(clip.n > 0 && Math.abs(clip.d - clip.n * 0.024) < 0.002);
+      offset += clip.n;
+    }
+    assert.equal(data.length, offset * 120);
+    assert.equal(pack.frames, offset);
+  }
   for (const [key, intro, reply] of [
     ['tmac', '半步就行。剩下的是出手。', '我不后仰，你也得先跟上。'],
     ['nash', '你盯我，顺下的那位谁管？', '你没跟出来？那这球我自己投。'],
     ['rip', '你跟我跑就好。一会儿还有一圈。', '我在肘区等你，别迟到。']
   ]) {
     const pack = manifest.voices[key], data = fs.readFileSync(path.join(__dirname, '../vo', pack.s));
-    assert.equal(pack.voice, 'zh-CN-YunxiNeural');
+    assert.equal(pack.voice, { tmac: 'charon', nash: 'puck', rip: 'iapetus' }[key]);
     assert.equal(pack.s, 'p/' + key + '.mp3');
     assert.equal(data.length, pack.frames * 120);
     const lines = Object.values(pack.lines).flat();

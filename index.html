@@ -9,8 +9,9 @@
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/fusion-pixel-12px-proportional-sc@5/index.css">
 <script>
-window.__V__ = (Date.parse(document.lastModified) || Date.now()).toString(36) + '-custom-domain-relay';
+window.__V__ = (Date.parse(document.lastModified) || Date.now()).toString(36) + '-arcade-a-restored-scroll-routing';
 document.write('<link rel="stylesheet" href="style.css?v=' + window.__V__ + '">');
+document.write('<link rel="stylesheet" href="menu.css?v=' + window.__V__ + '">');
 </script>
 <script>window.__API_BASE__='https://pixelhoops-api.kccecil.com';</script>
 </head>
@@ -122,12 +123,14 @@ document.write('<link rel="stylesheet" href="style.css?v=' + window.__V__ + '">'
         <button data-v="king" data-testid="mode-king">斗牛之王<small>五关闯关</small></button>
         <button data-v="train" data-testid="mode-train">训练<small>自由练习</small></button>
       </div>
-      <div class="row" id="row-opponent"><label>对手</label><div class="seg" data-opt="opponent"><button data-v="cpu" class="on" data-testid="mode-cpu">电脑</button><button data-v="2p" data-testid="mode-2p">本地双人</button><button data-v="online" data-testid="mode-online">在线</button></div></div>
+      <div class="row" id="row-opponent"><label>对手</label><div class="seg" data-opt="opponent"><button data-v="cpu" class="on" data-testid="mode-cpu">电脑</button><button data-v="2p" data-testid="mode-2p">本地双人</button></div></div>
       <div class="row" id="row-diff"><label>难度</label><div class="seg" data-opt="diff"><button data-v="0">简单</button><button data-v="1" class="on">普通</button><button data-v="2">困难</button></div></div>
       <div class="row hidden" id="row-teams"><label>对阵</label><div class="t5pair"><button class="pick t5b" id="team0" data-testid="pick-home"></button><button class="pick t5b" id="team1" data-testid="pick-away"></button></div></div>
       <div class="row hidden" id="row-side"><label>我控制</label><div class="seg" data-opt="side"><button data-v="0" class="on" data-testid="side-home">主队</button><button data-v="1" data-testid="side-away">客队</button><button data-v="-1" data-testid="side-watch">观战</button></div></div>
+      <div class="duel-lineup">
       <div class="row" id="row-p1"><label id="lab-p1">你的球员</label><button class="pick" id="pick0" data-testid="pick-p1"></button></div>
       <div class="row" id="row-p2"><label id="lab-p2">对手</label><button class="pick" id="pick1" data-testid="pick-p2"></button></div>
+      </div>
       <p class="desc" id="arch-desc"></p>
       <section id="lobby3" class="hidden" aria-labelledby="lobby3-title">
         <div class="lobby3-head"><h2 id="lobby3-title">半场阵容</h2><span>每队 3 人</span></div>
@@ -255,6 +258,7 @@ document.write('<link rel="stylesheet" href="style.css?v=' + window.__V__ + '">'
         <button id="btn-close" data-testid="btn-close">特写镜头 开</button>
         <button id="btn-hz" data-testid="btn-hz">热区显示 开</button>
         <button id="btn-stamina" data-testid="btn-stamina">体力条 开</button>
+        <button id="btn-netstat" data-testid="btn-netstat">帧数与延迟 开</button>
         <button class="primary" data-back="1" data-testid="set-back-disp">返回</button>
       </div>
     </div>
@@ -324,12 +328,13 @@ document.write('<link rel="stylesheet" href="style.css?v=' + window.__V__ + '">'
     <input id="tape-scrub" aria-label="录像进度" type="range" min="0" max="1" step="0.001" style="width:100%">
     <div class="actions"><button id="tape-play">播放</button><button id="tape-back">−5秒</button><button id="tape-forward">+5秒</button><button id="tape-prev">上一帧</button><button id="tape-next">下一帧</button><button id="tape-speed">1×</button><button id="tape-exit">返回录像</button></div>
   </div>
+  <div id="netstat" data-testid="netstat" aria-live="off"><span id="netstat-fps">60 FPS</span><span class="netstat-sep">·</span><span id="netstat-ping">PING --</span></div>
   <div id="debug" class="hidden"></div>
 </div>
 <script>
 ['tune', 'cfgstore', 'tape', 'ptype', 'render', 'input', 'audio', 'icons', 'roster',
  'measurements', 'r5', 'r2k', 'game', 'b5', 'team5', 'team3', 'rooms',
- 'render5', 'box5', 'tuneui', 'tapeview', 'main'].forEach(function (name) {
+ 'render5', 'box5', 'tuneui', 'tapeview', 'directory', 'frontend', 'main'].forEach(function (name) {
   document.write('<script src="js/' + name + '.js?v=' + window.__V__ + '"><\/script>');
 });
 </script>

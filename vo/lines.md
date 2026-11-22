@@ -1,15 +1,23 @@
 # 球员配音台词
 
-新增三位传奇使用 Edge TTS 的通用普通话男声 `zh-CN-YunxiNeural`，不模仿真人。
-复现：安装 `edge-tts` 和 FFmpeg 后运行 `python vo/generate-legends.py`。
+九位传奇均使用 Gemini `gemini-2.5-flash-preview-tts` 预设音色，不模仿真人。
+音色：tmac charon、nash puck、rip iapetus、rodman fenrir、bwallace algenib、
+rallen schedar、ginobili zubenelgenubi、iverson umbriel、carter alnilam。
+复现：安装 FFmpeg，设置环境变量 `GEMINI_API_KEY` 后运行 `python3 vo/generate-legends.py`。
+台词直接读取 manifest；原始响应缓存于仓库外 `~/.cache/pixelhoops-voice/gemini`，
+重跑复用缓存；`--keys` 选择球员，`--take` 选择重录版本，`--model` 选择模型
+（默认 Flash）。缓存按模型区分；`gemini-takes.json` 保存逐句审核选用的重录版本。
+API 请求间隔至少 8 秒；每分钟限额按 retryDelay 重试，每日限额或其他 HTTP 错误立即停止。
 每句独立转为 24kHz 单声道、40kbps MP3（无 ID3/Xing），按 120 字节帧拼接；
-清单的 `o` / `n` 是起始帧 / 帧数，每帧 24ms。生成器只更新这三位的条目。
+清单的 `o` / `n` 是起始帧 / 帧数，每帧 24ms。生成器只更新上述九位的条目，
+其中 ginobili / iverson / carter 只录制现有 intro / reply，不扩充事件。
+去除开头静音后用 loudnorm 测量响度，再施加固定增益，目标 -20.7 LUFS、峰值 -4 dB，
+避免短句单遍 loudnorm 异常衰减。目标补偿 MP3 编码后的响度偏差，参考 kobe sprite
+实测 -21.37 LUFS。九位均按此方式编码。
 原有音频在初始提交 e626e2c 中导入，未附生成脚本；orus、fenrir 等音色名
 对应 Gemini 音色，但仓库没有记录原始模型、提示词和生成参数。
-三份新 sprite 已经 faster-whisper tiny 自动识别为中文（未强制语言，
-tmac 0.998 / nash 0.999 / rip 0.998）；总时长分别为 22.968 / 24.792 / 22.920 秒。
 
-## 特雷西·麦克格雷迪（tmac，音色 zh-CN-YunxiNeural）
+## 特雷西·麦克格雷迪（tmac，音色 charon）
 
 - dom：半步就行。剩下的是出手。 ／ 节奏到了，这球我来。
 - taunt：半步的空当，就够了。 ／ 我不后仰，你也得先跟上。
@@ -18,7 +26,7 @@ tmac 0.998 / nash 0.999 / rip 0.998）；总时长分别为 22.968 / 24.792 / 22
 - win：今天的手感，刚刚好。
 - hurt：这一回合算你的，接着来。
 
-## 史蒂夫·纳什（nash，音色 zh-CN-YunxiNeural）
+## 史蒂夫·纳什（nash，音色 puck）
 
 - dom：你盯我，顺下的那位谁管？ ／ 球在走，机会就会来。
 - taunt：抬头看看，队友已经跑到了。 ／ 你没跟出来？那这球我自己投。
@@ -27,7 +35,7 @@ tmac 0.998 / nash 0.999 / rip 0.998）；总时长分别为 22.968 / 24.792 / 22
 - win：好球，是大家一起传出来的。
 - hurt：被你看穿了，我换个节奏。
 
-## 理查德·汉密尔顿（rip，音色 zh-CN-YunxiNeural）
+## 理查德·汉密尔顿（rip，音色 iapetus）
 
 - dom：你跟我跑就好。一会儿还有一圈。 ／ 跑到空位，接球就投。
 - taunt：别停下，我还在跑。 ／ 我在肘区等你，别迟到。
@@ -38,26 +46,26 @@ tmac 0.998 / nash 0.999 / rip 0.998）；总时长分别为 22.968 / 24.792 / 22
 
 事件：dunk 扣篮 / three 三分 / make 普通进球 / ankle 晃倒 / block 盖帽 / steal 抢断 / taunt 庆祝嘲讽 / miss 投丢自嘲 / dom 主宰 / win 获胜 / hurt 被打爆不服
 
-## 马努·基诺比利（ginobili，通用中文男声 zh-CN-YunxiNeural，非本人模仿）
+## 马努·基诺比利（ginobili，音色 zubenelgenubi，非本人模仿）
 
 - intro：盯着我的第一步。对，就那一步。
 - reply：你是跟上了，可惜跟的是上一步。
 
-## 阿伦·艾弗森（iverson，通用中文男声 zh-CN-YunxiNeural，非本人模仿）
+## 阿伦·艾弗森（iverson，音色 umbriel，非本人模仿）
 
 - intro：你看球？那我先走了。
 - reply：别急，第一下是拿来问你的。
 
-## 文斯·卡特（carter，通用中文男声 zh-CN-YunxiNeural，非本人模仿）
+## 文斯·卡特（carter，音色 alnilam，非本人模仿）
 
 - intro：别抬头太早。我还没起跳。
 - reply：刚才那圈？给看台看的。
 
-以上入场语音由 edge-tts 合成，ffmpeg loudnorm（-20 LUFS，峰值 -4 dB）处理后编码为 24kHz 单声道、40kbps CBR MP3（每帧 120 字节 / 24ms），逐句拼接至 vo/p/<key>.mp3；manifest 的 o/n 以帧计。
+以上入场语音由 Gemini TTS 合成，编码及响度处理同上。
 
 ### 三位传奇的比赛事件语音复用
 
-没有 Gemini API key，不重新合成比赛语音。`js/audio.js` 的 `VO_ALIAS` 为每个事件显式选择一条已审核的通用台词，不借用原球员姓名、绰号、球队、个人纪录或专属口头禅；原配音包及三位传奇自己的 intro/reply sprites 均不改动。
+比赛语音仍保留复用。`js/audio.js` 的 `VO_ALIAS` 为每个缺失事件显式选择一条已审核的通用台词，不借用原球员姓名、绰号、球队、个人纪录或专属口头禅；来源配音包不改动，三位传奇自己的 intro/reply 优先使用本次录制。
 
 | 球员 | 比赛语音来源 | 选择理由 | dunk 台词 |
 | --- | --- | --- | --- |
@@ -404,7 +412,7 @@ tmac 0.998 / nash 0.999 / rip 0.998）；总时长分别为 22.968 / 24.792 / 22
 - win：赢了！西班牙万岁！
 - hurt：哎，你太壮了。 ／ 等我长大再说。
 
-## 丹尼斯·罗德曼（rodman，音色 zh-CN-YunxiNeural；合成原创，不模仿真人）
+## 丹尼斯·罗德曼（rodman，音色 fenrir；合成原创，不模仿真人）
 
 - dunk：我把篮板抢到筐里去了！ ／ 我这头发，飞起来更亮！
 - three：我投三分，你还真敢放！ ／ 我今天连外线也要捡走！
@@ -421,7 +429,7 @@ tmac 0.998 / nash 0.999 / rip 0.998）；总时长分别为 22.968 / 24.792 / 22
 - reply：你看篮筐，我看球往哪弹。
 
 
-## 本·华莱士（bwallace，音色 zh-CN-YunjianNeural；合成原创，不模仿真人）
+## 本·华莱士（bwallace，音色 algenib；合成原创，不模仿真人）
 
 - dunk：我只需要这一下。 ／ 我拿到的位置，不会还你。
 - three：我空了，就敢投。 ／ 我也有你没防到的一手。
@@ -438,7 +446,7 @@ tmac 0.998 / nash 0.999 / rip 0.998）；总时长分别为 22.968 / 24.792 / 22
 - reply：要抢板？先从我背后出来。
 
 
-## 雷·阿伦（rallen，音色 zh-CN-YunyangNeural；合成原创，不模仿真人）
+## 雷·阿伦（rallen，音色 schedar；合成原创，不模仿真人）
 
 - dunk：我也能在篮筐上完成。 ／ 我选了更直接的两分。
 - three：我到位，球就到网里。 ／ 我只需要这半拍。
