@@ -36,7 +36,7 @@
   window.addEventListener('resize', layout);
   const narrow = () => window.innerWidth <= 700 || window.innerHeight <= 420;
   function camShift() {
-    if (screen === 'menu') G.camShift = narrow() ? 0 : -3.6;
+    if (screen === 'menu') G.camShift = narrow() ? 0 : 3.6;
     else G.camShift = 0; // 训练场参数面板开关不改镜头
   }
 
@@ -247,7 +247,7 @@
     const keys = GM.ROSTER.filter((k) => { const a = GM.ARCH[k]; return (pkTeam === 'all' || (pkTeam === 'rook' ? a.tier === 'rook' : a.team === pkTeam)) && (!pkPositions.size || playerPositions(a).some((p) => pkPositions.has(p))); });
     $('front-grid').innerHTML = (inlineSide && inlineSlot === null && !room.role ? pkCard('random') : '') + keys.map(pkCard).join('') || '<p class="tnote">没有符合条件的球员，试试其他球队或位置。</p>';
     $('front-grid').querySelectorAll('[data-testid]').forEach((e) => e.removeAttribute('data-testid'));
-    $('front-grid').querySelectorAll('.pkc').forEach((e) => { e.classList.toggle('on', e.dataset.pk === current); const cv = e.querySelector('canvas'); if (cv) portrait(cv, GM.ARCH[e.dataset.pk], GM.TEAMS[inlineSide]); });
+    $('front-grid').querySelectorAll('.pkc').forEach((e) => { e.classList.toggle('on', e.dataset.pk === current); e.title = e.dataset.pk === 'random' ? '随机球星' : GM.ARCH[e.dataset.pk].full; const cv = e.querySelector('canvas'); if (cv) portrait(cv, GM.ARCH[e.dataset.pk], GM.TEAMS[inlineSide]); });
     for (let i = 0; i < 2; i++) $('pick' + i).classList.toggle('on', inlineSlot === null && i === inlineSide);
   }
   function installInlinePicker() {
@@ -263,12 +263,12 @@
   }
   function pickBtn(id, key, side = id === 'pick0' ? 0 : 1, t3 = false) {
     const el = $(id);
-    if (key === 'random') { el.className = 'pick'; el.innerHTML = '<span class="pkf q">?</span><span class="pk-n">随机</span><span class="pk-s">任意球员</span><span class="pk-c">更换</span>'; return; }
+    if (key === 'random') { el.className = 'pick fighter-pick fighter-random'; el.innerHTML = '<span class="fighter-figure"><span class="fighter-question">?</span><span class="fighter-ring"></span></span><span class="fighter-info"><span class="fighter-label">P2 / 神秘对手</span><span class="pk-n">随机球星</span><span class="pk-s">让下一场对决充满惊喜</span><span class="pk-c">选择指定球星 →</span></span>'; return; }
     const a = GM.ARCH[key];
     el.className = 'pick t' + TT[a.tier]; el.innerHTML = '<canvas class="pkf" width="32" height="32"></canvas><span class="pk-n">' + a.name + ' <small>' + a.ovr + '</small></span>' + (t3 ? positionBadge(a) : '<span class="pk-s">' + (a.skill ? '必杀技 · ' + a.skill.name : a.pos + ' · ' + GM.TIERS[a.tier]) + '</span><span class="pk-c">更换</span>');
     if (!t3) {
       el.classList.add('fighter-pick');
-      el.innerHTML = '<canvas class="fighter-body" width="180" height="230" aria-label="' + a.full + '全身像"></canvas><span class="fighter-info"><span class="pk-n">' + a.full + ' <small>' + a.ovr + '</small></span><span class="pk-s">' + a.pos + ' · ' + listedHeight(a) + ' 米 · ' + a.num + ' 号</span><span class="fighter-stats">' + [['three','三分'],['mid','中投'],['dunk','扣篮'],['hnd','控球'],['spd','速度'],['def','防守']].map(([k,n]) => '<span>' + n + '<b class="' + vcl(A99(a[k])) + '">' + A99(a[k]) + '</b></span>').join('') + '</span><span class="fighter-badges">' + bList(a, true).map(([k,t]) => '<span title="' + GM.BADGES[k].desc + '">' + bHex(k,t) + GM.BADGES[k].name + '</span>').join('') + '</span><span class="pk-c">更换球星 →</span></span>';
+      el.innerHTML = '<span class="fighter-figure"><span class="fighter-number">' + a.num + '</span><canvas class="fighter-body" width="240" height="300" aria-label="' + a.full + '全身像"></canvas><span class="fighter-ring"></span></span><span class="fighter-info"><span class="fighter-label">' + (side ? 'P2 / 对手' : 'P1 / 你') + '</span><span class="fighter-name"><span><span class="pk-n">' + a.name + '</span><span class="fighter-full">' + a.full + '</span></span><strong>' + a.ovr + '<small>总评</small></strong></span><span class="pk-s">' + a.pos + ' · ' + listedHeight(a) + ' 米 · #' + a.num + '</span><span class="fighter-stats">' + [['three','三分'],['mid','中投'],['lay','上篮'],['dunk','扣篮'],['hnd','控球'],['spd','速度'],['def','防守'],['str','力量']].map(([k,n]) => '<span>' + n + '<b class="' + vcl(A99(a[k])) + '">' + A99(a[k]) + '</b><i style="--rating:' + A99(a[k]) + '%"></i></span>').join('') + '</span><span class="fighter-badges">' + bList(a, true).map(([k,t]) => '<span title="' + GM.BADGES[k].desc + '">' + bHex(k,t) + GM.BADGES[k].name + '</span>').join('') + '</span><span class="pk-c">选择球星 →</span></span>';
       R.playerPreview(el.querySelector('canvas'), a, side);
     } else {
       const cv = el.querySelector('canvas'); cv.classList.add('team-body'); cv.width = 90; cv.height = 130;
@@ -384,7 +384,7 @@
   });
   function refreshMenu() {
     queueMicrotask(() => { PH.frontend.refresh(); renderInlinePicker(); });
-    document.querySelectorAll('#menu .seg, #set-rules .seg').forEach((seg) => {
+    document.querySelectorAll('#menu .seg[data-opt], #set-rules .seg[data-opt]').forEach((seg) => {
       const k = seg.getAttribute('data-opt');
       seg.querySelectorAll('button').forEach((b) => {
         const on = String(opts[k]) === b.getAttribute('data-v');
@@ -418,7 +418,7 @@
     pickBtn('pick0', opts.arch0); pickBtn('pick1', online && room.role === 'host' && !room.links.has(1) ? 'random' : opts.arch1);
     $('arch-desc').textContent = a.full + '：' + a.desc + (a.skill ? '。必杀技「' + a.skill.name + '」，条件和效果见“更换”。' : '。');
   }
-  document.querySelectorAll('#menu .seg button, #set-rules .seg button').forEach((b) => b.addEventListener('click', () => {
+  document.querySelectorAll('#menu .seg[data-opt] button, #set-rules .seg[data-opt] button').forEach((b) => b.addEventListener('click', () => {
     const k = b.parentElement.getAttribute('data-opt'), v = b.getAttribute('data-v');
     opts[k] = k === 'diff' || k === 'target' || k === 'clock' || k === 'glen' || k === 'qlen' || k === 'side' || k === 'ktarget' ? +v : v; if (k === 'fb') { cardId = -1; }
     if (k === 'format' || k === 'opponent') { rooms.close(); menuStatus(''); }
