@@ -182,7 +182,7 @@ button.pick.fighter-pick { width:100%; min-height:260px; height:auto; display:fl
 .front-brand { color:#f6f1dc; font:24px var(--font); text-decoration:none; white-space:nowrap; }
 .front-brand i { color:var(--front-gold); font-style:normal; }
 #front-breadcrumb { color:var(--front-muted); font-size:12px; }
-.front-edition { color:var(--front-gold); font-size:12px; margin-right:150px; }
+.front-edition { color:var(--front-gold); font-size:12px; margin-right:276px; }
 .front-footer { order:2; display:flex; flex-shrink:0; justify-content:space-between; gap:16px; align-items:center; min-height:40px; margin-top:auto; border-top:1px solid var(--front-line); color:var(--front-muted); font-size:11px; }
 .front-footer kbd { background:#24344f; color:#dae4f6; padding:3px 5px; margin-right:5px; font:10px/1.2 monospace; border:0; box-shadow:none; min-width:0; }
 .front-footer kbd:not(:first-child) { margin-left:14px; }
@@ -335,6 +335,9 @@ button.pick.fighter-pick .pk-c { font-size:11px; color:var(--fighter-color); }
 }
 @media(max-height:620px) {
   .front-home { flex:1 0 auto; }
+}
+@media(max-width:700px),(max-height:420px) {
+  #front-breadcrumb,.front-edition { display:none; }
 }
 @media(max-width:600px) {
   #menu.overlay,#menu[data-view=select] { padding:0 4%; }
