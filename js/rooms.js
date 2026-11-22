@@ -2,9 +2,10 @@
 (function () {
   const PH = window.PH;
   const alphabet = '23456789ABCDEFGHJKMNPQRSTUVWXYZ', prefix = 'pixelhoops-v1-';
-  const MAX_FRAME = 1024 * 1024;
+  const MAX_FRAME = 1024 * 1024, STATE_BUFFER_LIMIT = 64 * 1024, INPUT_HEARTBEAT_MS = 100;
   const room = { peer: null, role: '', code: '', links: new Map(), active: false };
   let script, attempt = 0, pending = null, timeout, checkDeadline, stopRecovery;
+  let stateSeq = 0, lastInputKey = '', lastInputAt = -Infinity;
 
   function clearDeadline() {
     clearTimeout(timeout);
@@ -26,7 +27,20 @@
     }).catch((e) => { script = null; throw e; });
     return script;
   }
-  function write(conn, msg) { if (conn.open) conn.send(msg); }
+  function isStateMsg(msg) { return msg?.type === 'state' || msg?.msg?.type === 'state'; }
+  function connBuffered(conn) { return typeof conn?.buffered === 'function' ? conn.buffered() : (conn?.dataChannel?.bufferedAmount || 0); }
+  function write(conn, msg) {
+    if (!conn.open) return;
+    if (isStateMsg(msg) && connBuffered(conn) > STATE_BUFFER_LIMIT) return;
+    conn.send(msg);
+  }
+  function congested() {
+    if (!room.links.size) return false;
+    for (const link of room.links.values()) {
+      if (link.conn.open && connBuffered(link.conn) <= STATE_BUFFER_LIMIT) return false;
+    }
+    return true;
+  }
   function relayURL(code, role, secret) {
     const base = window.__API_BASE__;
     if (!base || /^__.*__$/.test(base)) return '';
@@ -39,10 +53,11 @@
       return url.href;
     } catch { return ''; }
   }
-  function relayLink(send, end) {
+  function relayLink(send, end, buffered = () => 0) {
     const listeners = new Map();
     return {
       open: false,
+      buffered,
       on(type, fn) { if (!listeners.has(type)) listeners.set(type, []); listeners.get(type).push(fn); return this; },
       emit(type, msg) { for (const fn of listeners.get(type) || []) fn(msg); },
       send(msg) { if (this.open) send(msg); },
@@ -51,13 +66,17 @@
   }
   function close() {
     attempt++; clearDeadline(); pending = null;
+    stateSeq = 0; lastInputKey = ''; lastInputAt = -Infinity;
     if (stopRecovery) { stopRecovery(); stopRecovery = null; }
     const peer = room.peer;
     room.links.clear();
     Object.assign(room, { peer: null, role: '', code: '', active: false });
     if (peer) peer.destroy();
   }
-  function broadcast(msg) { for (const link of room.links.values()) write(link.conn, msg); }
+  function broadcast(msg) {
+    const out = msg?.type === 'state' && msg.seq == null ? { ...msg, seq: ++stateSeq } : msg;
+    for (const link of room.links.values()) write(link.conn, out);
+  }
   function cleanInput(input) {
     if (!input || typeof input !== 'object') return null;
     const o = {};
@@ -154,20 +173,29 @@
         else if (url) { p2pDone = true; startRelay(); guestFailure(); }
         else fail('无法建立对等连接。');
       });
+      let lastStateSeq = 0;
       conn.on('data', (msg) => {
         if (!alive() || winner !== conn || !msg) return;
         if (msg.type === 'reject') fail('房间已满、已开赛或比赛模式不同。');
         else if (msg.type === 'joined') { if (expired()) return; joined = true; room.code = code; clearDeadline(); handlers.joined(msg.slot); }
-        else if (msg.type === 'start') { room.active = true; handlers.start(msg.config); }
-        else if (msg.type === 'state' && room.active) handlers.state(msg.state);
+        else if (msg.type === 'start') { lastStateSeq = 0; lastInputKey = ''; lastInputAt = -Infinity; room.active = true; handlers.start(msg.config); }
+        else if (msg.type === 'state' && room.active) {
+          if (Number.isInteger(msg.seq)) {
+            if (msg.seq <= lastStateSeq) return;
+            lastStateSeq = msg.seq;
+          }
+          handlers.state(msg.state);
+        }
         else if (msg.type === 'lobby' && !room.active) handlers.message?.(msg);
       });
     };
     function startRelay() {
       if (!url || !alive() || relaySocket || (!host && (winner || relayDone))) return;
       const send = (msg) => {
+        if (ws.readyState !== 1) return;
+        if (isStateMsg(msg) && (ws.bufferedAmount || 0) > STATE_BUFFER_LIMIT) return;
         const data = JSON.stringify(msg);
-        if (ws.readyState === 1 && new TextEncoder().encode(data).length <= MAX_FRAME) ws.send(data);
+        if (new TextEncoder().encode(data).length <= MAX_FRAME) ws.send(data);
       };
       let ws;
       try { ws = new window.WebSocket(url); } catch {
@@ -178,7 +206,7 @@
       }
       relaySocket = ws;
       if (!host) {
-        relayConn = relayLink(send, () => ws.close());
+        relayConn = relayLink(send, () => ws.close(), () => ws.bufferedAmount || 0);
         guestLink(relayConn);
       }
       const conn = relayConn;
@@ -204,7 +232,7 @@
           if (relayGuests.has(msg.id)) return;
           const link = relayLink((data) => send({ to: msg.id, msg: data }), () => {
             relayGuests.delete(msg.id); send({ to: msg.id, msg: { type: 'relay-close' } });
-          });
+          }, () => ws.bufferedAmount || 0);
           relayGuests.set(msg.id, link); incoming(link, handlers, token); link.open = true; link.emit('open');
         } else if (msg?.type === 'peer-close') relayGuests.get(msg.id)?.close();
         else if (msg && Object.hasOwn(msg, 'from')) relayGuests.get(msg.from)?.emit('data', msg.msg);
@@ -336,12 +364,19 @@
       else fail('无法加载在线服务，请检查网络。');
     }
   }
-  function input(data) { if (pending) write(pending, { type: 'input', input: data }); }
+  function input(data) {
+    if (!pending) return;
+    const now = performance.now();
+    const key = JSON.stringify(data);
+    if (key === lastInputKey && now - lastInputAt < INPUT_HEARTBEAT_MS) return;
+    lastInputKey = key; lastInputAt = now;
+    write(pending, { type: 'input', input: data });
+  }
   function inputs() {
     const out = {}, now = performance.now();
     for (const [slot, link] of room.links) if (link.input && now - link.last < 500) out[slot] = link.input;
     return out;
   }
   const valid = (code) => code.length === 5 && [...code].every((c) => alphabet.includes(c));
-  PH.rooms = { room, open, close, broadcast, input, inputs, valid, sendLobby: (data) => { if (pending && !room.active) write(pending, { ...data, type: 'lobby' }); } };
+  PH.rooms = { room, open, close, broadcast, congested, input, inputs, valid, sendLobby: (data) => { if (pending && !room.active) write(pending, { ...data, type: 'lobby' }); } };
 })();

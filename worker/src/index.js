@@ -33,7 +33,7 @@ export default {
     if (room) {
       if (!/^[23456789ABCDEFGHJKMNPQRSTUVWXYZ]{5}$/.test(room[1]) || !['host', 'guest'].includes(url.searchParams.get('role'))) return send(400, { error: 'bad room' });
       if (req.method !== 'GET' || req.headers.get('Upgrade')?.toLowerCase() !== 'websocket') return send(426, { error: 'websocket required' });
-      return env.ROOMS.get(env.ROOMS.idFromName(room[1])).fetch(req);
+      return env.ROOMS.get(env.ROOMS.idFromName(room[1]), { locationHint: 'apac' }).fetch(req);
     }
     const roomResponse = await roomRequest(req, db, p, send);
     if (roomResponse) return roomResponse;
