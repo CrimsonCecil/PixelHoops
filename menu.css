@@ -113,7 +113,7 @@ button.pick.fighter-pick { width:100%; min-height:260px; height:auto; display:fl
 #lobby3 .lobby3-team h3 { grid-column:1/-1; }
 #lobby3 .lobby3-slot { display:flex; flex-direction:column; min-width:0; }
 #lobby3 .lobby3-slot .pick { width:100%; display:flex; flex-direction:column; align-items:center; padding:8px; }
-#lobby3 .team-body { width:auto; height:130px; image-rendering:pixelated; }
+#lobby3 .team-body { width:auto; max-width:100%; height:130px; object-fit:contain; image-rendering:pixelated; }
 #lobby3 .lobby3-slot .pk-n { font-size:13px; white-space:normal; }
 #lobby3 .lobby3-role { width:100%; font-size:12px; }
 .front-target { display:flex; align-items:center; gap:10px; margin:12px 0; }
@@ -162,5 +162,8 @@ button.pick.fighter-pick { width:100%; min-height:260px; height:auto; display:fl
   .fighter-body { height:190px; }
   button.pick.fighter-pick { min-height:220px; }
   #front-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  #lobby3 .lobby3-teams { grid-template-columns:minmax(0,1fr); }
+  #lobby3 .lobby3-team { gap:6px; }
+  #lobby3 .lobby3-role { min-width:0; padding:8px 2px; }
   #front-create input,#front-create select { display:block; margin:10px 0; max-width:100%; width:100%; }
 }
