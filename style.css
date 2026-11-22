@@ -64,7 +64,11 @@ button.primary:hover { background: #ffdf70; }
 
 /* HUD */
 #hud { position: absolute; inset: 0; pointer-events: none; }
-#scorebar { position: absolute; top: calc(var(--u) * 4); left: 50%; transform: translateX(-50%); display: flex; align-items: stretch; border: calc(var(--u) * 1) solid var(--ink); background: var(--ink); gap: calc(var(--u) * 1); }
+#scorebar { position: absolute; top: 0; left: 50%; transform: translateX(-50%); display: flex; align-items: stretch; border: calc(var(--u) * 1) solid var(--ink); background: var(--ink); gap: calc(var(--u) * 1); }
+#scorebar, #sb5 { --u: min(2px, calc(100vw / 480)); --fs-xs: 12px; --fs-sm: 13px; --fs-md: 18px; --fs-lg: 24px; max-width: calc(100% - 8px); height: 42px; line-height: 1.1; }
+#scorebar .team { min-width: 0; }
+#scorebar .tname { min-width: 0; overflow: hidden; text-overflow: ellipsis; display: block; align-content: center; }
+#scorebar .clock { flex-shrink: 0; }
 .team { display: flex; align-items: center; background: var(--panel); }
 .tname { font-size: var(--fs-sm); padding: 0 calc(var(--u) * 5); white-space: nowrap; min-width: calc(var(--u) * 58); text-align: center; }
 .t0 .tname { background: #2459b8; align-self: stretch; display: flex; align-items: center; justify-content: center; }
@@ -664,7 +668,10 @@ table.bx tr.b3s td.pcol { padding-left: 38px; }
 /* ---------- 5V5 球队模式 ---------- */
 #hud5 { position: absolute; inset: 0; pointer-events: none; }
 #hud5 .pcard { width: var(--pc5-width, auto); }
-#sb5 { position: absolute; top: calc(var(--u) * 4); left: 50%; transform: translateX(-50%); display: flex; align-items: stretch; border: calc(var(--u) * 1) solid var(--ink); background: var(--ink); gap: calc(var(--u) * 1); }
+#sb5 { position: absolute; top: 0; left: 50%; transform: translateX(-50%); display: flex; align-items: stretch; border: calc(var(--u) * 1) solid var(--ink); background: var(--ink); gap: calc(var(--u) * 1); }
+@media (max-width: 1000px) {
+  #hud:has(#scorebar:not(.hidden)) .pcard, #hud5 .pcard { top: 46px; }
+}
 .t5t { display: flex; align-items: center; background: var(--panel); border-bottom: calc(var(--u) * 1.5) solid var(--tc, #888); position: relative; }
 .t5t.ball::after { content: ''; position: absolute; top: calc(var(--u) * 1.5); width: calc(var(--u) * 3); height: calc(var(--u) * 3); background: #ee7f30; border: calc(var(--u) * 0.5) solid var(--ink); }
 .t5t:not(.r).ball::after { right: calc(var(--u) * 1.5); } .t5t.r.ball::after { left: calc(var(--u) * 1.5); }
