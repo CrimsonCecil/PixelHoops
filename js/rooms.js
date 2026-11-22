@@ -3,6 +3,7 @@
   const PH = window.PH;
   const alphabet = '23456789ABCDEFGHJKMNPQRSTUVWXYZ';
   const MAX_FRAME = 1024 * 1024, RELAY_BUFFER_LIMIT = 8 * 1024, P2P_BUFFER_LIMIT = 32 * 1024, INPUT_HEARTBEAT_MS = 100;
+  const RELAY_MAX_INFLIGHT = 2, RELAY_ACK_TIMEOUT_MS = 600, LOCAL_PROBE_MS = 2000;
   const ICE_SERVERS = [{ urls: ['stun:stun.miwifi.com:3478', 'stun:stun.qq.com:3478', 'stun:stun.l.google.com:19302'] }];
   const room = { peer: null, role: '', code: '', links: new Map(), active: false, ping: null, transport: '' };
   let attempt = 0, pending = null, timeout, checkDeadline, stopRecovery;
@@ -37,6 +38,7 @@
     if (!room.links.size) return false;
     for (const link of room.links.values()) {
       if (!link.conn.open) continue;
+      if (typeof link.conn.relayCongested === 'function' && link.conn.relayCongested()) continue;
       const { amount, limit } = linkBuffer(link.conn);
       if (amount <= limit) return false;
     }
@@ -44,18 +46,19 @@
   }
   function relaying() {
     if (room.role === 'guest') return room.transport === 'relay';
-    for (const link of room.links.values()) if (link.conn.open && link.conn.transport !== 'p2p') return true;
+    for (const link of room.links.values()) if (link.conn.open && link.conn.transport === 'relay') return true;
     return false;
   }
   function syncTransport() {
     if (room.role === 'guest') { room.transport = pending?.open ? pending.transport : ''; return; }
-    let any = false, anyRelay = false;
+    let any = false, anyRelay = false, anyP2p = false;
     for (const link of room.links.values()) {
       if (!link.conn.open) continue;
       any = true;
-      if (link.conn.transport !== 'p2p') anyRelay = true;
+      if (link.conn.transport === 'relay') anyRelay = true;
+      else if (link.conn.transport === 'p2p') anyP2p = true;
     }
-    room.transport = !any ? '' : anyRelay ? 'relay' : 'p2p';
+    room.transport = !any ? '' : anyRelay ? 'relay' : anyP2p ? 'p2p' : 'local';
   }
   function relayURL(code, role, secret) {
     const base = window.__API_BASE__;
@@ -69,15 +72,31 @@
       return url.href;
     } catch { return ''; }
   }
-  function createLink(relaySend, relayEnd, relayBuffered, isHost) {
+  function createLink(relaySend, relayEnd, relayBuffered, isHost, localChannelName) {
     const listeners = new Map();
     let pc = null, ctrl = null, stateCh = null, pendingIce = [], closed = false, relayAlive = true;
+    let bc = null, localUp = false, localTimer = null;
+    const inFlight = [];
+    function pruneInFlight(now) {
+      while (inFlight.length && now - inFlight[0].at > RELAY_ACK_TIMEOUT_MS) inFlight.shift();
+    }
     const link = {
       open: false,
       transport: 'relay',
       on(type, fn) { if (!listeners.has(type)) listeners.set(type, []); listeners.get(type).push(fn); return this; },
       emit(type, msg) { for (const fn of listeners.get(type) || []) fn(msg); },
+      ackState(seq) {
+        if (!Number.isInteger(seq)) return;
+        while (inFlight.length && inFlight[0].seq <= seq) inFlight.shift();
+      },
+      resetFlow() { inFlight.length = 0; },
+      relayCongested() {
+        if (this.transport !== 'relay') return false;
+        pruneInFlight(performance.now());
+        return inFlight.length >= RELAY_MAX_INFLIGHT;
+      },
       bufferInfo() {
+        if (localUp && bc) return { amount: 0, limit: P2P_BUFFER_LIMIT };
         if (ctrl && ctrl.readyState === 'open') {
           const ch = stateCh && stateCh.readyState === 'open' ? stateCh : ctrl;
           return { amount: ch.bufferedAmount || 0, limit: P2P_BUFFER_LIMIT };
@@ -86,6 +105,9 @@
       },
       send(msg) {
         if (!this.open) return;
+        if (localUp && bc) {
+          try { bc.postMessage({ fromHost: isHost, msg }); return; } catch { dropLocal(); }
+        }
         if (ctrl && ctrl.readyState === 'open') {
           const droppable = isDroppableState(msg);
           const ch = droppable && stateCh && stateCh.readyState === 'open' ? stateCh : ctrl;
@@ -95,14 +117,27 @@
             if (new TextEncoder().encode(raw).length <= MAX_FRAME) { ch.send(raw); return; }
           } catch { /* Fall back to relay if DataChannel send fails. */ }
         }
+        const droppable = isDroppableState(msg);
+        if (droppable && this.relayCongested()) return;
+        if (msg?.type === 'state' && Number.isInteger(msg.seq)) {
+          const now = performance.now();
+          pruneInFlight(now);
+          inFlight.push({ seq: msg.seq, at: now });
+          if (inFlight.length > 16) inFlight.shift();
+        }
         relaySend(msg);
       },
       detachRelay() {
         relayAlive = false;
-        if (!closed && this.transport !== 'p2p') this.close();
+        if (!closed && this.transport === 'relay') this.close();
       },
       startRtc() {
-        if (closed || pc || typeof window.RTCPeerConnection !== 'function') return;
+        if (closed) return;
+        if (isHost && localChannelName && typeof window.BroadcastChannel === 'function' && !bc) {
+          startLocal(localChannelName);
+          relaySend({ type: 'rtc', kind: 'local-offer', ch: localChannelName });
+        }
+        if (localUp || pc || typeof window.RTCPeerConnection !== 'function') return;
         setupPc();
         try {
           attachChannel(pc.createDataChannel('ctrl', { ordered: true }), true);
@@ -114,7 +149,12 @@
         } catch { dropPc(); }
       },
       handleRtc(msg) {
-        if (closed || !msg || typeof window.RTCPeerConnection !== 'function') return;
+        if (closed || !msg) return;
+        if (msg.kind === 'local-offer' && !isHost && typeof msg.ch === 'string' && msg.ch && typeof window.BroadcastChannel === 'function') {
+          if (!bc) startLocal(msg.ch);
+          return;
+        }
+        if (localUp || typeof window.RTCPeerConnection !== 'function') return;
         if (msg.kind === 'offer' && !isHost && msg.sdp) {
           if (!pc) setupPc();
           pc.setRemoteDescription(msg.sdp)
@@ -135,12 +175,57 @@
         closed = true;
         const wasOpen = this.open;
         this.open = false;
+        if (localUp && bc) { try { bc.postMessage({ fromHost: isHost, ctrl: 'close' }); } catch {} }
+        dropLocal();
         dropPc();
         relayEnd();
         syncTransport();
         if (wasOpen) this.emit('close');
       }
     };
+    function upgradeTransport(next) {
+      if (closed || link.transport === next) return;
+      link.transport = next;
+      inFlight.length = 0;
+      syncTransport();
+      if (link.open) link.send({ type: 'ping', t: performance.now() });
+    }
+    function dropLocal() {
+      clearTimeout(localTimer); localTimer = null;
+      const old = bc; bc = null;
+      const wasUp = localUp; localUp = false;
+      if (old) { old.onmessage = null; try { old.close(); } catch {} }
+      if (wasUp && link.transport === 'local') {
+        link.transport = ctrl && ctrl.readyState === 'open' ? 'p2p' : 'relay';
+        syncTransport();
+        if (!closed && link.transport === 'relay' && !relayAlive) link.close();
+      }
+    }
+    function startLocal(name) {
+      try { bc = new window.BroadcastChannel(name); } catch { return; }
+      bc.onmessage = (ev) => {
+        const d = ev?.data;
+        if (closed || !d || d.fromHost === isHost) return;
+        if (d.ctrl === 'ack' && isHost) {
+          clearTimeout(localTimer); localTimer = null;
+          localUp = true;
+          try { bc.postMessage({ fromHost: true, ctrl: 'ready' }); } catch {}
+          dropPc();
+          upgradeTransport('local');
+        } else if (d.ctrl === 'ready' && !isHost) {
+          clearTimeout(localTimer); localTimer = null;
+          localUp = true;
+          dropPc();
+          upgradeTransport('local');
+        } else if (d.ctrl === 'close') {
+          link.close();
+        } else if (localUp && link.open && d.msg && typeof d.msg === 'object') {
+          link.emit('data', d.msg);
+        }
+      };
+      if (!isHost) { try { bc.postMessage({ fromHost: false, ctrl: 'ack' }); } catch {} }
+      localTimer = setTimeout(() => { if (!localUp) dropLocal(); }, LOCAL_PROBE_MS);
+    }
     function flushIce() {
       if (!pc || !pendingIce.length) return;
       const list = pendingIce.splice(0);
@@ -148,18 +233,18 @@
     }
     function dropPc() {
       const old = pc; pc = null; ctrl = null; stateCh = null; pendingIce = [];
-      if (link.transport !== 'relay') { link.transport = 'relay'; syncTransport(); }
+      if (link.transport === 'p2p') { link.transport = localUp ? 'local' : 'relay'; syncTransport(); }
       if (old) {
         old.onicecandidate = old.onconnectionstatechange = old.ondatachannel = null;
         try { old.close(); } catch { /* Ignore close errors. */ }
       }
-      if (!closed && !relayAlive) link.close();
+      if (!closed && !relayAlive && link.transport === 'relay') link.close();
     }
     function attachChannel(ch, isCtrl) {
       if (isCtrl) ctrl = ch; else stateCh = ch;
       ch.onopen = () => {
-        if (closed) { try { ch.close(); } catch {} return; }
-        if (isCtrl) { link.transport = 'p2p'; syncTransport(); }
+        if (closed || localUp) { try { ch.close(); } catch {} return; }
+        if (isCtrl) upgradeTransport('p2p');
       };
       ch.onmessage = (ev) => {
         if (closed || !link.open || typeof ev.data !== 'string') return;
@@ -169,8 +254,9 @@
       };
       ch.onclose = () => {
         if (isCtrl && ctrl === ch) {
-          ctrl = null; link.transport = 'relay'; syncTransport();
-          if (!closed && !relayAlive) link.close();
+          ctrl = null;
+          if (link.transport === 'p2p') { link.transport = localUp ? 'local' : 'relay'; syncTransport(); }
+          if (!closed && !relayAlive && link.transport === 'relay') link.close();
         }
         if (!isCtrl && stateCh === ch) stateCh = null;
       };
@@ -203,6 +289,10 @@
     Object.assign(room, { peer: null, role: '', code: '', active: false, ping: null, transport: '' });
   }
   function broadcast(msg) {
+    if (msg?.type === 'start') {
+      stateSeq = 0;
+      for (const link of room.links.values()) link.conn.resetFlow?.();
+    }
     const out = msg?.type === 'state' && msg.seq == null ? { ...msg, seq: ++stateSeq } : msg;
     for (const link of room.links.values()) write(link.conn, out);
   }
@@ -234,6 +324,8 @@
         syncTransport();
         write(conn, { type: 'joined', slot });
         handlers.change();
+      } else if (slot >= 0 && msg.type === 'ack' && room.links.get(slot)?.conn === conn && Number.isInteger(msg.seq)) {
+        conn.ackState?.(msg.seq);
       } else if (slot >= 0 && msg.type === 'ping' && room.links.get(slot)?.conn === conn && Number.isFinite(msg.t)) {
         write(conn, { type: 'pong', t: msg.t });
       } else if (slot >= 0 && msg.type === 'pong' && room.links.get(slot)?.conn === conn && Number.isFinite(msg.t)) {
@@ -311,6 +403,7 @@
         }
         else if (msg.type === 'start') { lastStateSeq = 0; lastInputKey = ''; lastInputAt = -Infinity; room.active = true; handlers.start(msg.config); }
         else if (msg.type === 'state' && room.active) {
+          if (conn.transport === 'relay' && Number.isInteger(msg.seq)) write(conn, { type: 'ack', seq: msg.seq });
           if (Number.isInteger(msg.seq) && msg.seq <= lastStateSeq) {
             if (Array.isArray(msg.state?.audio) && msg.state.audio.length) handlers.state({ audio: msg.state.audio });
             return;
@@ -366,7 +459,8 @@
             (data) => send({ to: msg.id, msg: data }),
             () => { relayGuests.delete(msg.id); send({ to: msg.id, msg: { type: 'relay-close' } }); },
             () => ws.bufferedAmount || 0,
-            true
+            true,
+            'ph-room-' + code + '-' + secret.slice(0, 12) + '-' + msg.id
           );
           relayGuests.set(msg.id, link);
           incoming(link, handlers, token);

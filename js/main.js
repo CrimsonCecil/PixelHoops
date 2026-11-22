@@ -2177,19 +2177,31 @@
     const stride = rooms.relaying() ? 3 : 2;
     if (room.active && ++netFrame % stride === 0 && room.links.size && (roomAudio.length || !rooms.congested())) rooms.broadcast({ type: 'state', state: roomSnapshot() });
   }
-  let bgTimer = null;
+  let bgTimer = null, bgWorker = null;
   function syncBackgroundMatch() {
     clearInterval(bgTimer); bgTimer = null;
+    if (bgWorker) { bgWorker.terminate(); bgWorker = null; }
     if (!document.hidden || room.role !== 'host' || !room.active) return;
     let then = performance.now(), carry = 0;
-    bgTimer = setInterval(() => {
+    const stepBg = () => {
       const now = performance.now();
       if (!paused && !manual) {
         carry += Math.min(0.25, (now - then) / 1000);
         while (carry >= DT) { tickMatch(); carry -= DT; }
       }
       then = now;
-    }, 33);
+    };
+    if (typeof Worker === 'function' && typeof Blob === 'function' && typeof URL?.createObjectURL === 'function') {
+      try {
+        const blob = new Blob(['setInterval(() => postMessage(0), 16);'], { type: 'application/javascript' });
+        const url = URL.createObjectURL(blob);
+        bgWorker = new Worker(url);
+        URL.revokeObjectURL(url);
+        bgWorker.onmessage = stepBg;
+        return;
+      } catch { /* Fall back to setInterval when Worker creation is unavailable. */ }
+    }
+    bgTimer = setInterval(stepBg, 33);
   }
   function step(n) { for (let i = 0; i < n; i++) tickMatch(); }
   function frame(ts) {
@@ -2237,7 +2249,8 @@
     netstatAt = now;
     const fpsText = Math.round(fps) + ' FPS';
     const p = room.ping;
-    const pingText = p != null ? 'PING ' + p + 'ms' : 'PING --';
+    const tag = room.transport === 'local' ? '本地 ' : room.transport === 'p2p' ? 'P2P ' : room.transport === 'relay' ? '中继 ' : '';
+    const pingText = p != null ? tag + p + 'ms' : (tag ? tag + '--' : 'PING --');
     const pingCls = p == null ? '' : p < 60 ? 'good' : p < 120 ? 'warn' : 'bad';
     if (fpsText !== lastFpsText) { $('netstat-fps').textContent = fpsText; lastFpsText = fpsText; }
     if (pingText !== lastPingText) { $('netstat-ping').textContent = pingText; lastPingText = pingText; }

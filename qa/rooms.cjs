@@ -3,9 +3,9 @@ const fs = require('node:fs');
 const vm = require('node:vm');
 const { EventEmitter } = require('node:events');
 
-function client({ relay = true, rtc = false } = {}) {
+function client({ relay = true, rtc = false, bcBus = null } = {}) {
   let now = 0;
-  const timers = new Map(), doc = new EventEmitter(), win = new EventEmitter(), events = [], sockets = [], messages = [], pcs = [];
+  const timers = new Map(), doc = new EventEmitter(), win = new EventEmitter(), events = [], sockets = [], messages = [], pcs = [], bcs = [];
   for (const target of [doc, win]) {
     target.addEventListener = target.on.bind(target);
     target.removeEventListener = target.off.bind(target);
@@ -37,6 +37,28 @@ function client({ relay = true, rtc = false } = {}) {
   }
   win.WebSocket = WebSocket;
   if (rtc) win.RTCPeerConnection = RTCPeerConnection;
+  if (bcBus) {
+    win.BroadcastChannel = class FakeBroadcastChannel {
+      constructor(name) {
+        this.name = name; this.closed = false; this.onmessage = null;
+        if (!bcBus.has(name)) bcBus.set(name, new Set());
+        bcBus.get(name).add(this);
+        bcs.push(this);
+      }
+      postMessage(data) {
+        if (this.closed) return;
+        const copy = JSON.parse(JSON.stringify(data));
+        for (const peer of bcBus.get(this.name) || []) {
+          if (peer !== this && !peer.closed) peer.onmessage?.({ data: copy });
+        }
+      }
+      close() {
+        if (this.closed) return;
+        this.closed = true;
+        bcBus.get(this.name)?.delete(this);
+      }
+    };
+  }
   if (relay) win.__API_BASE__ = 'https://relay.example';
   win.PH = {};
   const ctx = vm.createContext({ window: win, document: doc, URL, TextEncoder, performance: { now: () => now }, crypto: { getRandomValues: (a) => a }, Date: { now: () => now },
@@ -52,7 +74,7 @@ function client({ relay = true, rtc = false } = {}) {
     const [id, timer] = [...timers].sort((a, b) => a[1].delay - b[1].delay)[0];
     timers.delete(id); timer.fn();
   };
-  return { rooms, events, sockets, messages, pcs, timers, doc, win, open, next, time: (ms) => { now = ms; } };
+  return { rooms, events, sockets, messages, pcs, bcs, timers, doc, win, open, next, time: (ms) => { now = ms; } };
 }
 
 (async () => {
@@ -192,6 +214,9 @@ function client({ relay = true, rtc = false } = {}) {
   assert.equal(host.rooms.relaying(), false);
   assert.equal(guest.rooms.room.transport, 'p2p');
   // Regular state uses unreliable 'state' channel; audio-bearing state & ping use reliable 'ctrl' channel
+  assert.equal(hCtrl.sent.length, 1);
+  assert.equal(hCtrl.sent[0].type, 'ping');
+  hCtrl.sent.length = 0;
   host.rooms.room.active = true;
   host.rooms.broadcast({ type: 'state', state: { x: 1 } });
   assert.equal(hState.sent.length, 1);
@@ -243,4 +268,67 @@ function client({ relay = true, rtc = false } = {}) {
   c.sockets[0].receive({ type: 'peer-close', id: 7 });
   assert.equal(c.rooms.room.ping, null); c.rooms.close();
   console.log('PASS: guest and host ping/pong RTT tracking and disconnect cleanup');
+
+  // 9. Same-browser BroadcastChannel local upgrade bypasses relay & WebRTC
+  const bcBus = new Map();
+  const lHost = client({ rtc: true, bcBus }), lGuest = client({ rtc: true, bcBus });
+  await lHost.open(true); lHost.sockets[0].opened();
+  await lGuest.open(false); lGuest.sockets[0].opened();
+  lHost.sockets[0].receive({ type: 'peer-open', id: 1 });
+  lGuest.sockets[0].receive({ type: 'relay-ready' });
+  await new Promise((r) => setImmediate(r));
+  const localOffer = lHost.sockets[0].sent.find((m) => m.msg?.type === 'rtc' && m.msg.kind === 'local-offer');
+  assert.ok(localOffer, 'host sends local-offer via relay');
+  const lJoin = lGuest.sockets[0].sent.find((m) => m.type === 'join');
+  lHost.sockets[0].receive({ from: 1, msg: lJoin });
+  lGuest.sockets[0].receive(lHost.sockets[0].sent.find((m) => m.msg?.type === 'joined').msg);
+  lGuest.sockets[0].receive(localOffer.msg);
+  assert.equal(lHost.rooms.room.transport, 'local');
+  assert.equal(lGuest.rooms.room.transport, 'local');
+  assert.equal(lHost.rooms.relaying(), false);
+  assert.equal(lHost.pcs[0].connectionState, 'closed');
+  // Surviving relay disconnect on local transport, then closing cleanly via local-close
+  lHost.sockets[0].receive({ type: 'peer-close', id: 1 });
+  assert.equal(lHost.rooms.room.links.has(1), true);
+  lHost.rooms.close();
+  assert.equal(lHost.bcs[0].closed, true);
+  assert.equal(lGuest.bcs[0].closed, true);
+  lGuest.rooms.close();
+  console.log('PASS: same-browser BroadcastChannel local upgrade, RTC teardown, and clean close');
+
+  // 10. Relay in-flight ACK pacing prevents TCP queue buildup without blocking audio or deadlocking
+  const rHost = client(), rGuest = client();
+  await rHost.open(true); rHost.sockets[0].opened();
+  await rGuest.open(false); rGuest.sockets[0].opened();
+  rHost.sockets[0].receive({ type: 'peer-open', id: 1 });
+  rGuest.sockets[0].receive({ type: 'relay-ready' });
+  rHost.sockets[0].receive({ from: 1, msg: rGuest.sockets[0].sent.find((m) => m.type === 'join') });
+  rGuest.sockets[0].receive(rHost.sockets[0].sent.find((m) => m.msg?.type === 'joined').msg);
+  rHost.rooms.room.active = true; rGuest.rooms.room.active = true;
+  rHost.time(100);
+  const before = rHost.sockets[0].sent.length;
+  rHost.rooms.broadcast({ type: 'state', state: { f: 1 } });
+  rHost.rooms.broadcast({ type: 'state', state: { f: 2 } });
+  assert.equal(rHost.rooms.congested(), true);
+  rHost.rooms.broadcast({ type: 'state', state: { f: 3 } }); // dropped: 2 unacked in-flight
+  assert.equal(rHost.sockets[0].sent.length, before + 2);
+  rHost.rooms.broadcast({ type: 'state', state: { f: 4, audio: [['play', 'swish']] } }); // audio preserved
+  assert.equal(rHost.sockets[0].sent.length, before + 3);
+  // Guest receives frame 1 & 2 -> emits ack -> unblocks host
+  const sent1 = rHost.sockets[0].sent[before].msg;
+  const sent2 = rHost.sockets[0].sent[before + 1].msg;
+  rGuest.sockets[0].receive(sent1);
+  rGuest.sockets[0].receive(sent2);
+  const acks = rGuest.sockets[0].sent.filter((m) => m.type === 'ack');
+  assert.equal(acks.length, 2);
+  rHost.sockets[0].receive({ from: 1, msg: acks[1] });
+  rHost.rooms.broadcast({ type: 'state', state: { f: 5 } });
+  assert.equal(rHost.sockets[0].sent.length, before + 4);
+  // Timeout expiry after 600ms prevents deadlock if acks are lost
+  rHost.rooms.broadcast({ type: 'state', state: { f: 6 } });
+  assert.equal(rHost.rooms.congested(), true);
+  rHost.time(800);
+  assert.equal(rHost.rooms.congested(), false);
+  rHost.rooms.close(); rGuest.rooms.close();
+  console.log('PASS: relay in-flight ACK pacing caps queue, preserves audio, and expires cleanly');
 })().catch((err) => { console.error(err); process.exitCode = 1; });
