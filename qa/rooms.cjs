@@ -258,4 +258,30 @@ function client({ relay = false, peerFails = false } = {}) {
   assert.equal(c.rooms.congested(), false);
   c.rooms.close();
   console.log('PASS: input throttling, state seq ordering, and bufferedAmount backpressure');
+
+  // Guest & host ping/pong RTT measurement
+  c = client({ relay: true, peerFails: true }); await c.open(); c.sockets[0].opened();
+  c.sockets[0].receive({ type: 'relay-ready' }); c.sockets[0].receive({ type: 'joined', slot: 1 });
+  assert.equal(c.rooms.room.ping, null);
+  c.time(1000); c.rooms.ping();
+  const guestPing = c.sockets[0].sent.at(-1);
+  assert.equal(guestPing.type, 'ping'); assert.equal(guestPing.t, 1000);
+  c.time(1042); c.sockets[0].receive({ type: 'pong', t: 1000 });
+  assert.equal(c.rooms.room.ping, 42);
+  c.sockets[0].receive({ type: 'ping', t: 2500 });
+  assert.deepEqual(c.sockets[0].sent.at(-1), { type: 'pong', t: 2500 });
+  c.rooms.close(); assert.equal(c.rooms.room.ping, null);
+
+  c = client({ relay: true, peerFails: true }); await c.open(true); c.sockets[0].opened();
+  c.sockets[0].receive({ type: 'peer-open', id: 7 });
+  c.sockets[0].receive({ from: 7, msg: { type: 'join', mode: 'online' } });
+  c.time(2000); c.rooms.ping();
+  assert.deepEqual(c.sockets[0].sent.at(-1), { to: 7, msg: { type: 'ping', t: 2000 } });
+  c.time(2035); c.sockets[0].receive({ from: 7, msg: { type: 'pong', t: 2000 } });
+  assert.equal(c.rooms.room.ping, 35);
+  c.sockets[0].receive({ from: 7, msg: { type: 'ping', t: 3100 } });
+  assert.deepEqual(c.sockets[0].sent.at(-1), { to: 7, msg: { type: 'pong', t: 3100 } });
+  c.sockets[0].receive({ type: 'peer-close', id: 7 });
+  assert.equal(c.rooms.room.ping, null); c.rooms.close();
+  console.log('PASS: guest and host ping/pong RTT tracking and disconnect cleanup');
 })().catch((err) => { console.error(err); process.exitCode = 1; });
