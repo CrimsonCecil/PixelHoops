@@ -3,8 +3,9 @@ const base = process.env.QA_RELAY || 'http://127.0.0.1:8787';
 const alphabet = '23456789ABCDEFGHJKMNPQRSTUVWXYZ';
 const code = Array.from(require('node:crypto').randomBytes(5), (n) => alphabet[n % alphabet.length]).join('');
 const sockets = [];
-async function connect(role, room = code) {
-  const ws = new WebSocket(base.replace(/^http/, 'ws') + '/api/rooms/' + room + '/ws?role=' + role);
+const hostToken = require('node:crypto').randomBytes(32).toString('hex');
+async function connect(role, room = code, token = hostToken) {
+  const ws = new WebSocket(base.replace(/^http/, 'ws') + '/api/rooms/' + room + '/ws?role=' + role + (role === 'host' ? '&token=' + token : ''));
   sockets.push(ws);
   const queue = [], waiters = [];
   ws.addEventListener('message', (e) => { const msg = JSON.parse(e.data); if (waiters.length) waiters.shift()(msg); else queue.push(msg); });
@@ -23,6 +24,11 @@ async function connect(role, room = code) {
   console.log('PASS: route validation, Upgrade required, guest without host closes 4404');
   const host = await connect('host'), a = await connect('guest'), b = await connect('guest');
   const one = await host.next(), two = await host.next();
+  for (const token of ['', 'wrong', 'f'.repeat(64)]) {
+    const intruder = await connect('host', code, token);
+    assert.equal((await intruder.closed).code, 4003);
+    assert.equal(host.ws.readyState, 1);
+  }
   assert.equal(one.type, 'peer-open'); assert.equal(two.id, one.id + 1);
   a.send({ type: 'join' }); assert.deepEqual(await host.next(), { from: one.id, msg: { type: 'join' } });
   host.send({ to: one.id, msg: { type: 'joined' } }); assert.deepEqual(await a.next(), { type: 'joined' });
@@ -38,5 +44,9 @@ async function connect(role, room = code) {
   assert.deepEqual(await replacement.next(), { type: 'peer-open', id: one.id });
   a.send({ type: 'input' }); assert.deepEqual(await replacement.next(), { from: one.id, msg: { type: 'input' } });
   replacement.ws.close(); assert.equal((await a.closed).code, 4000);
+  const intruder = await connect('host', code, 'f'.repeat(64));
+  assert.equal((await intruder.closed).code, 4003);
+  const returning = await connect('host'); assert.equal(returning.ws.readyState, 1);
+  console.log('PASS: host claims reject missing/wrong tokens, protect disconnected rooms, and allow authenticated reconnects');
   console.log('PASS: host replacement preserves guests; host departure closes guests');
 })().catch((err) => { console.error(err); process.exitCode = 1; }).finally(() => { for (const ws of sockets) ws.close(); });

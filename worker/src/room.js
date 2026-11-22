@@ -19,12 +19,23 @@ export class RoomRelay {
     const [client, ws] = Object.values(new WebSocketPair());
     this.state.acceptWebSocket(ws);
     if (role === 'host') {
-      for (const old of this.sockets('host')) {
-        old.serializeAttachment({ role: 'closed' });
-        old.close(4001, 'Host replaced');
-      }
-      ws.serializeAttachment({ role });
-      for (const guest of this.sockets('guest')) this.send(ws, { type: 'peer-open', id: guest.deserializeAttachment().id });
+      const token = new URL(req.url).searchParams.get('token');
+      await this.state.blockConcurrencyWhile(async () => {
+        const claim = await this.state.storage.get('hostClaim');
+        const expired = claim?.lastSeen != null && !this.sockets('host').length && Date.now() - claim.lastSeen > 120000;
+        if (!/^[a-f0-9]{64}$/.test(token || '') || claim && claim.token !== token && !expired) {
+          ws.serializeAttachment({ role: 'closed' });
+          ws.close(4003, 'Unauthorized host');
+          return;
+        }
+        await this.state.storage.put('hostClaim', { token, lastSeen: null });
+        for (const old of this.sockets('host')) {
+          old.serializeAttachment({ role: 'closed' });
+          old.close(4001, 'Host replaced');
+        }
+        ws.serializeAttachment({ role });
+        for (const guest of this.sockets('guest')) this.send(ws, { type: 'peer-open', id: guest.deserializeAttachment().id });
+      });
     } else if (!this.sockets('host').length) {
       ws.serializeAttachment({ role: 'closed' });
       ws.close(4404, 'Room not found');
@@ -55,14 +66,19 @@ export class RoomRelay {
       }
     }
   }
-  webSocketClose(ws) {
+  async webSocketClose(ws) {
     const sender = ws.deserializeAttachment();
     ws.serializeAttachment({ role: 'closed' });
     if (sender?.role === 'host') {
-      for (const guest of this.sockets('guest')) {
-        guest.serializeAttachment({ role: 'closed' });
-        guest.close(4000, 'Host left');
-      }
+      await this.state.blockConcurrencyWhile(async () => {
+        if (this.sockets('host').length) return;
+        const claim = await this.state.storage.get('hostClaim');
+        if (claim) await this.state.storage.put('hostClaim', { ...claim, lastSeen: Date.now() });
+        for (const guest of this.sockets('guest')) {
+          guest.serializeAttachment({ role: 'closed' });
+          guest.close(4000, 'Host left');
+        }
+      });
     } else if (sender?.role === 'guest') {
       const host = this.sockets('host')[0];
       if (host) this.send(host, { type: 'peer-close', id: sender.id });
@@ -70,6 +86,6 @@ export class RoomRelay {
     try { ws.close(1000, 'Closed'); } catch { /* Already closed. */ }
   }
   webSocketError(ws) {
-    this.webSocketClose(ws);
+    return this.webSocketClose(ws);
   }
 }

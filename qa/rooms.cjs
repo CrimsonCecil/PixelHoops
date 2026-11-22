@@ -159,6 +159,8 @@ function client({ relay = false, peerFails = false } = {}) {
   c = client({ relay: true }); await c.open(true); c.peers[0].emit('open');
   c.sockets[0].opened(); c.peers[0].emit('error', { type: 'invalid-key' });
   assert.deepEqual(c.events, ['ready']); c.sockets[0].close(); c.next(); c.sockets[1].opened();
+  assert.match(new URL(c.sockets[0].url).searchParams.get('token'), /^[a-f0-9]{64}$/);
+  assert.equal(c.sockets[1].url, c.sockets[0].url);
   assert.equal(c.rooms.room.code, '22222'); assert.deepEqual(c.events, ['ready']); c.rooms.close();
   assert.equal(c.timers.size, 0); assert.equal(c.doc.listenerCount('visibilitychange'), 0);
   c = client({ relay: true }); await c.open(true); c.peers[0].emit('open'); c.sockets[0].opened();

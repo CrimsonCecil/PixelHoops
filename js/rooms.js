@@ -26,7 +26,7 @@
     return script;
   }
   function write(conn, msg) { if (conn.open) conn.send(msg); }
-  function relayURL(code, role) {
+  function relayURL(code, role, secret) {
     const base = window.__API_BASE__;
     if (!base || /^__.*__$/.test(base)) return '';
     try {
@@ -34,6 +34,7 @@
       if (!['http:', 'https:'].includes(url.protocol)) return '';
       url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
       url.searchParams.set('role', role);
+      if (secret) url.searchParams.set('token', secret);
       return url.href;
     } catch { return ''; }
   }
@@ -110,7 +111,8 @@
     window.addEventListener('pageshow', checkDeadline);
     timeout = setTimeout(() => fail('连接超时，请检查网络或房间号。'), 15000);
     if (host) code = Array.from(crypto.getRandomValues(new Uint8Array(5)), (n) => alphabet[n % alphabet.length]).join('');
-    const url = relayURL(code, host ? 'host' : 'guest');
+    const secret = host ? Array.from(crypto.getRandomValues(new Uint8Array(32)), (n) => n.toString(16).padStart(2, '0')).join('') : '';
+    const url = relayURL(code, host ? 'host' : 'guest', secret);
     let relaySocket = null, relayConn = null, fallbackTimer, relayTimer, relayWatch, relayRetries = 0;
     let winner = null, p2pUp = false, relayUp = false, p2pDone = false, relayDone = !url;
     const relayGuests = new Map();
