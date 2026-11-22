@@ -27,11 +27,14 @@
     }).catch((e) => { script = null; throw e; });
     return script;
   }
-  function isStateMsg(msg) { return msg?.type === 'state' || msg?.msg?.type === 'state'; }
+  function isDroppableState(msg) {
+    const s = msg?.type === 'state' ? msg : msg?.msg?.type === 'state' ? msg.msg : null;
+    return !!(s && !(Array.isArray(s.state?.audio) && s.state.audio.length));
+  }
   function connBuffered(conn) { return typeof conn?.buffered === 'function' ? conn.buffered() : (conn?.dataChannel?.bufferedAmount || 0); }
   function write(conn, msg) {
     if (!conn.open) return;
-    if (isStateMsg(msg) && connBuffered(conn) > STATE_BUFFER_LIMIT) return;
+    if (isDroppableState(msg) && connBuffered(conn) > STATE_BUFFER_LIMIT) return;
     conn.send(msg);
   }
   function congested() {
@@ -193,7 +196,7 @@
       if (!url || !alive() || relaySocket || (!host && (winner || relayDone))) return;
       const send = (msg) => {
         if (ws.readyState !== 1) return;
-        if (isStateMsg(msg) && (ws.bufferedAmount || 0) > STATE_BUFFER_LIMIT) return;
+        if (isDroppableState(msg) && (ws.bufferedAmount || 0) > STATE_BUFFER_LIMIT) return;
         const data = JSON.stringify(msg);
         if (new TextEncoder().encode(data).length <= MAX_FRAME) ws.send(data);
       };

@@ -2165,7 +2165,7 @@
     if (p) inputs[localSlot] = local;
     if (t3) { PH.T3.tick(DT, inputs); I.endTick(); }
     else GM.tick(DT, (pl) => inputs[pl.id] || GM.t5.zeroInp());
-    if (room.active && ++netFrame % 2 === 0 && room.links.size && !rooms.congested()) rooms.broadcast({ type: 'state', state: roomSnapshot() });
+    if (room.active && ++netFrame % 2 === 0 && room.links.size && (roomAudio.length || !rooms.congested())) rooms.broadcast({ type: 'state', state: roomSnapshot() });
   }
   let bgTimer = null;
   function syncBackgroundMatch() {

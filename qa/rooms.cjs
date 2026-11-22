@@ -250,8 +250,10 @@ function client({ relay = false, peerFails = false } = {}) {
   assert.equal(c.rooms.congested(), true);
   c.rooms.broadcast({ type: 'state', state: { a: 3 } }); // dropped under backpressure
   assert.equal(c.sockets[0].sent.length, sentBeforeBackpressure);
-  c.rooms.broadcast({ type: 'start', config: {} }); // control messages still sent
+  c.rooms.broadcast({ type: 'state', state: { a: 4, audio: [['play', 'swish']] } }); // audio-bearing state preserved
   assert.equal(c.sockets[0].sent.length, sentBeforeBackpressure + 1);
+  c.rooms.broadcast({ type: 'start', config: {} }); // control messages still sent
+  assert.equal(c.sockets[0].sent.length, sentBeforeBackpressure + 2);
   c.sockets[0].bufferedAmount = 0;
   assert.equal(c.rooms.congested(), false);
   c.rooms.close();
