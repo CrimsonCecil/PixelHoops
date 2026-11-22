@@ -4,6 +4,7 @@
   const esc = (v) => String(v).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   let ctx, view = 'home', previous = 'solo', roomName = '来一场像素斗牛', filter = 'all';
   let listTimer, generation = 0, roomsList = [], published = '', listBusy = false;
+  const synced = new Set();
   const labels = { duel: '1V1 · 半场斗牛', t3: '3V3 · 半场组队', t5: '5V5 · 全场比赛', king: '斗牛之王', train: '自由训练' };
   const fmt = () => ctx.opts.format === 't3' ? 't3' : 'online';
   const members = () => [0, ...ctx.room.links.keys()];
@@ -17,12 +18,12 @@
     if (first && first.offsetParent) first.focus({ preventScroll: true });
   }
   function leave(next) {
-    PH.directory.stop(); published = ''; ctx.rooms.close(); remoteMembers = []; ctx.status('');
+    PH.directory.stop(); published = ''; ctx.rooms.close(); synced.clear(); remoteMembers = []; ctx.status('');
     ctx.opts.opponent = 'cpu'; ctx.redraw(); go(next);
   }
   function choose(format, online = false) {
     ctx.opts.format = format; ctx.opts.opponent = online ? 'online' : 'cpu';
-    previous = online ? 'lobby' : 'solo'; remoteMembers = []; ctx.redraw(); go('select');
+    previous = online ? 'lobby' : 'solo'; synced.clear(); remoteMembers = []; ctx.redraw(); go('select');
   }
   function capacity() { return ctx.opts.format === 't3' ? 1 + ctx.lobby.filter((s, i) => i !== 0 && s.role === 'waiting').length : 2; }
   function publish() {
@@ -37,9 +38,12 @@
     if (ctx.room.role !== 'host') return;
     const list = members();
     ctx.rooms.broadcast({ type: 'lobby', name: roomName, arch0: ctx.opts.arch0, arch1: ctx.opts.arch1,
-      slots: ctx.lobby.map((s) => ({ ...s })), ready: Object.fromEntries(list.map((s) => [s, true])), members: list });
+      slots: ctx.lobby.map((s) => ({ ...s })), ready: Object.fromEntries(list.map((s) => [s, s === 0 || synced.has(s)])), members: list });
   }
-  function changed() { publish(); sync(); refresh(); }
+  function changed() {
+    for (const s of synced) if (!ctx.room.links.has(s)) synced.delete(s);
+    publish(); sync(); refresh();
+  }
   function selectionChanged() {
     if (ctx.room.role === 'guest') ctx.rooms.sendLobby({ arch: ctx.opts.format === 't3' ? ctx.lobby[ctx.slot()]?.arch : ctx.opts.arch1, ready: true });
     else sync();
@@ -49,7 +53,7 @@
   function message(msg, slot) {
     if (ctx.room.role === 'host') {
       if (GM.ARCH[msg.arch]) { if (ctx.opts.format === 't3') ctx.lobby[slot].arch = msg.arch; else ctx.opts.arch1 = msg.arch; }
-      sync(); ctx.redraw();
+      synced.add(slot); sync(); ctx.redraw(); refresh();
     } else {
       if (GM.ARCH[msg.arch0]) ctx.opts.arch0 = msg.arch0;
       if (GM.ARCH[msg.arch1]) ctx.opts.arch1 = msg.arch1;
@@ -67,7 +71,7 @@
   function canStart() {
     if (view !== 'select') return false;
     if (!ctx.room.role) return ctx.opts.opponent !== 'online';
-    return ctx.room.role === 'host' && ctx.room.links.size > 0;
+    return ctx.room.role === 'host' && ctx.room.links.size > 0 && [...ctx.room.links.keys()].every((s) => synced.has(s));
   }
   function refresh() {
     if (!ctx) return;
@@ -77,7 +81,7 @@
     $('menu').dataset.view = view; $('menu').dataset.format = ctx.opts.format;
     $('front-select-title').textContent = online ? roomName : labels[ctx.opts.format];
     $('front-room-info').textContent = r.code ? (r.role === 'host' ? '房主' : '球友') + ' · ' + count + ' 人在房间 · ' + (r.role === 'host' ? '选好球员即可开始' : '选好球员，等待房主开始') : '选择阵容，然后上场';
-    $('front-ready-state').textContent = r.code ? (r.role === 'host' && !r.links.size ? '等待球友加入…' : list.map((s) => (s === 0 ? '房主' : '球友 ' + s) + ' ✓ 已准备').join('　') + (r.role === 'guest' && list.length ? '　·　等待房主开始' : '')) : '';
+    $('front-ready-state').textContent = r.code ? (r.role === 'host' && !r.links.size ? '等待球友加入…' : list.map((s) => (s === 0 ? '房主' : '球友 ' + s) + (r.role !== 'host' || s === 0 || synced.has(s) ? ' ✓ 已准备' : ' · 加入中…')).join('　') + (r.role === 'guest' && list.length ? '　·　等待房主开始' : '')) : '';
     $('front-invite').classList.toggle('hidden', !r.code);
     $('front-invite-code').textContent = r.code;
     $('btn-start').disabled = !canStart();
