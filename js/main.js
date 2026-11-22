@@ -1613,7 +1613,7 @@
     for (; lv < 2; lv++) {
       hd.classList.toggle('sbt1', lv === 1); hd.classList.toggle('sbt2', lv === 2);
       const r = sb.getBoundingClientRect();
-      if ((!ra || r.left >= ra.left + cardWidth + u * 3) && (!rb || r.right <= rb.right - cardWidth - u * 3)) break;
+      if ((!ra || r.bottom <= ra.top || r.left >= ra.left + cardWidth + u * 3) && (!rb || r.bottom <= rb.top || r.right <= rb.right - cardWidth - u * 3)) break;
     }
     hd.classList.toggle('sbt1', lv === 1); hd.classList.toggle('sbt2', lv === 2);
     // 换人提示放在比分条正下方

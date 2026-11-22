@@ -64,10 +64,11 @@ button.primary:hover { background: #ffdf70; }
 
 /* HUD */
 #hud { position: absolute; inset: 0; pointer-events: none; }
+#hud, #hud5 { --scorebar-body: var(--fs-xs); --scorebar-height: calc(var(--scorebar-body) * 2.4 + 25px); }
 #scorebar { position: absolute; top: 0; left: 50%; transform: translateX(-50%); display: flex; align-items: stretch; border: calc(var(--u) * 1) solid var(--ink); background: var(--ink); gap: calc(var(--u) * 1); }
-#scorebar, #sb5 { --u: min(2px, calc(100vw / 480)); --fs-xs: 12px; --fs-sm: 13px; --fs-md: 18px; --fs-lg: 24px; max-width: calc(100% - 8px); height: 42px; line-height: 1.1; }
+#scorebar, #sb5 { --u: min(2px, calc(100vw / 480)); --fs-xs: calc(var(--scorebar-body) + 2px); --fs-sm: calc(var(--scorebar-body) + 3px); --fs-md: calc(var(--scorebar-body) + 6px); --fs-lg: calc(var(--scorebar-body) + 10px); width: max-content; max-width: calc(100% - 8px); height: var(--scorebar-height); line-height: 1.1; }
 #scorebar .team { min-width: 0; }
-#scorebar .tname { min-width: 0; overflow: hidden; text-overflow: ellipsis; display: block; align-content: center; }
+#scorebar .tname { min-width: 0; white-space: normal; overflow-wrap: anywhere; display: block; align-content: center; }
 #scorebar .clock { flex-shrink: 0; }
 .team { display: flex; align-items: center; background: var(--panel); }
 .tname { font-size: var(--fs-sm); padding: 0 calc(var(--u) * 5); white-space: nowrap; min-width: calc(var(--u) * 58); text-align: center; }
@@ -75,7 +76,7 @@ button.primary:hover { background: #ffdf70; }
 .t1 .tname { background: #a82a2a; align-self: stretch; display: flex; align-items: center; justify-content: center; }
 .tscore { font-size: var(--fs-lg); min-width: calc(var(--u) * 24); text-align: center; padding: calc(var(--u) * 1) calc(var(--u) * 3); font-variant-numeric: tabular-nums; }
 .clock { background: #0b0e1e; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: calc(var(--u) * 1) calc(var(--u) * 5); min-width: calc(var(--u) * 40); }
-#clock { font-size: var(--fs-lg); color: var(--gold); font-variant-numeric: tabular-nums; line-height: 1; }
+#clock { font-size: var(--fs-lg); color: var(--gold); font-variant-numeric: tabular-nums; line-height: 1.2; }
 #clock.low { color: var(--red); }
 .clock small { font-size: var(--fs-xs); color: var(--muted); white-space: nowrap; line-height: 1.2; }
 #notice { position: absolute; top: calc(var(--u) * 34); left: 50%; transform: translateX(-50%); background: var(--red); color: #2a0606; font-size: var(--fs-sm); padding: calc(var(--u) * 1.5) calc(var(--u) * 5); border: calc(var(--u) * 1) solid var(--ink); white-space: nowrap; }
@@ -670,8 +671,11 @@ table.bx tr.b3s td.pcol { padding-left: 38px; }
 #hud5 .pcard { width: var(--pc5-width, auto); }
 #sb5 { position: absolute; top: 0; left: 50%; transform: translateX(-50%); display: flex; align-items: stretch; border: calc(var(--u) * 1) solid var(--ink); background: var(--ink); gap: calc(var(--u) * 1); }
 @media (max-width: 1000px) {
-  #hud:has(#scorebar:not(.hidden)) .pcard, #hud5 .pcard { top: 46px; }
+  #hud:has(#scorebar:not(.hidden)) .pcard, #hud5 .pcard { top: calc(var(--scorebar-height) + 4px); }
 }
+#sb5 .t5t { min-width: 0; }
+#sb5 .t5n { min-width: 0; white-space: normal; overflow-wrap: anywhere; }
+#sb5 .t5m { flex-shrink: 0; }
 .t5t { display: flex; align-items: center; background: var(--panel); border-bottom: calc(var(--u) * 1.5) solid var(--tc, #888); position: relative; }
 .t5t.ball::after { content: ''; position: absolute; top: calc(var(--u) * 1.5); width: calc(var(--u) * 3); height: calc(var(--u) * 3); background: #ee7f30; border: calc(var(--u) * 0.5) solid var(--ink); }
 .t5t:not(.r).ball::after { right: calc(var(--u) * 1.5); } .t5t.r.ball::after { left: calc(var(--u) * 1.5); }
