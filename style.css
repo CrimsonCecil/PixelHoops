@@ -574,6 +574,7 @@ button.pick .pk-c { grid-row: 1 / 3; grid-column: 3; font-size: var(--fs-xs); co
 .pk-grid .pkc:is(.rating-gold, .rating-orange) .pko { text-shadow: var(--rating-glow); }
 .pcard em.tS { text-shadow: 0 0 4px rgba(93, 255, 138, 0.7); }
 .pk-grid .pkc.on { background: var(--blue); }
+.pk-grid .pkc.on .pko { color: #0b2a55; text-shadow: none; }
 .pkc .pkst { display: inline-block; margin-left: 0.3em; color: var(--tS); }
 .pk-tier { display: flex; align-items: center; gap: calc(var(--u) * 2); color: var(--tc, var(--gold)); border-bottom-color: color-mix(in srgb, var(--tc, var(--gold)) 50%, transparent); }
 .pk-tier i { font-style: normal; width: 1.5em; height: 1.5em; display: grid; place-items: center; background: var(--tc); color: #0a0c1c; clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%); }
