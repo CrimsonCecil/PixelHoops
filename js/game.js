@@ -4360,8 +4360,8 @@
     }
     switch (a.kind) {
       case 'uu': return [h0 * 0.12, 0.38 + 0.12 * Math.sin(PI * u), 1.0 - 0.2 * Math.sin(PI * u)];
-      case 'jab': return [h0 * 0.16, 0.24 + 0.08 * Math.sin(PI * u), 0.9 - 0.12 * Math.sin(PI * u)];
-      case 'jabgo': return [h0 * lerp(0.16, 0.34, s), lerp(0.24, 0.5, s), lerp(0.9, 0.1, Math.sin(PI * Math.min(1, u * 1.6)) * (u < 0.62 ? 1 : 0.6))];
+      case 'jab': return [h0 * 0.5, 0.04 * Math.sin(PI * u), 0.95 - 0.1 * Math.sin(PI * u)];
+      case 'jabgo': return [h0 * lerp(0.5, 0.34, s), lerp(0, 0.5, s), lerp(0.95, 0.1, Math.sin(PI * Math.min(1, u * 1.6)) * (u < 0.62 ? 1 : 0.6))];
       case 'cross': return [lerp(h0 * 0.36, h1 * 0.36, s), 0.38, 0.1 + 0.68 * ab(cs(PI * u))];
       case 'legs': return [lerp(h0 * 0.34, h1 * 0.34, s), 0.06 + 0.3 * ab(2 * u - 1), 0.1 + 0.62 * ab(cs(PI * u))];
       case 'behind': return [lerp(h0 * 0.34, h1 * 0.34, s), 0.25 - 0.58 * Math.sin(PI * u), 0.12 + 0.62 * ab(cs(PI * u))];
@@ -4562,6 +4562,8 @@
     float('假动作', pl, '#f6efe0');
   }
   // 合球：接球 / 假投后双手抱球（三威胁）。合球后只能运一次球，已运过再合球时再运球判二次运球、拖动中枢脚判走步
+  // 合球持球点（身体坐标，按身高缩放）：持球手一侧腰外，从身后镜头也能看到双手抱球
+  function gatherBall(pl) { return [(pl.hand || 1) * 0.5, 0, 0.95]; }
   function travelRule() { return G.travel !== false && G.mode !== 'train' && G.mode !== 'demo'; }
   function gatherOn(pl, dead) { pl.gather = true; pl.dribDead = !!dead && travelRule(); pl.gaT = 0; }
   function gatherOff(pl) { pl.gather = false; pl.dribDead = false; pl.gaT = 0; }
@@ -6138,7 +6140,7 @@
     } else if (pl.hasBall && pl.gather && !a && (an === 'run' || an === 'idle')) {
       // 合球：双手抱球护在持球手一侧腰前（三威胁）
       const Hh = pl.h / 1.95, sd = pl.hand || 1; set({ lean: T.lean + 0.14, lB: T.lB + 0.3, rB: T.rB + 0.3, lA: T.lA + 0.12, rA: T.rA + 0.12 });
-      armTo(T, 1, sd * 0.34 + 0.1, 0.14, 0.88, Hh); armTo(T, -1, sd * 0.34 - 0.1, 0.14, 0.88, Hh);
+      const g = gatherBall(pl); armTo(T, 1, g[0] + 0.1, g[1], g[2], Hh); armTo(T, -1, g[0] - 0.1, g[1], g[2], Hh);
     } else if (pl.hasBall && (an === 'run' || an === 'idle' || an === 'post')) {
       const u = Math.abs(Math.sin(pl.drib)), p = 0.34 + 0.3 * u, e = 0.25 + 0.6 * u, low = an === 'move' ? 0.2 : 0;
       if (pl.handX > 0) set({ aRp: p - low, aRe: e - low, aRq: 0.22 }); else set({ aLp: p - low, aLe: e - low, aLq: 0.22 });
@@ -6273,7 +6275,7 @@
           b.x = pl.x + fy * lx + fx * ly; b.y = pl.y - fx * lx + fy * ly; b.z = Math.max(0.13, bp[2] * Hh + (a.kind === 'stepback' && a.t / a.T > 0.45 ? pl.z : 0));
           const ph = Math.cos(Math.PI * (a.kind === 'inout' ? 1.5 : 1) * a.t / a.T); if (a.lastPh != null && a.lastPh * ph < 0 && b.z < 0.4) sfx('bounce'); a.lastPh = ph;
         } else if (pl.gather) {
-          const k = PH.rig(pl); b.x = (k.handL[0] + k.handR[0]) / 2 + fx * 0.05; b.y = (k.handL[1] + k.handR[1]) / 2 + fy * 0.05; b.z = (k.handL[2] + k.handR[2]) / 2;
+          const g = gatherBall(pl), lx = g[0] * Hh, ly = g[1] * Hh; b.x = pl.x + fy * lx + fx * ly; b.y = pl.y - fx * lx + fy * ly; b.z = pl.z + g[2] * Hh;
         } else {
           // 原地 / 跑动运球：球的水平位置跟着运球那只手（骨骼手的位置），换手时在两手之间过渡；被身体挡住就挡住
           const k = PH.rig(pl), w = clamp((pl.handX / 0.33 + 1) / 2, 0, 1), fw = pl.post ? 0.02 : 0.06;
