@@ -313,6 +313,7 @@ button.pick .pk-c { grid-row: 1 / 3; grid-column: 3; font-size: var(--fs-xs); co
 #room-code { min-width: 0; flex: 1; padding: 3px 7px; font: inherit; font-size: var(--fs-sm); color: var(--text); background: #0b1026; border: 1px solid var(--line); }
 #room-code:is(:focus-visible, .pf) { outline: 2px solid var(--gold); outline-offset: -1px; }
 .menu-status { margin: calc(var(--u) * 3) 0 0; color: var(--gold); font-size: var(--fs-xs); }
+.net-toast { position: fixed; left: 50%; top: 14%; transform: translateX(-50%); z-index: 1000; max-width: 90vw; padding: calc(var(--u) * 3) calc(var(--u) * 6); background: var(--panel-2); color: var(--gold); border: calc(var(--u) * 1) solid var(--ink); box-shadow: 0 calc(var(--u) * 2) 0 var(--ink); font-size: var(--fs-sm); text-align: center; pointer-events: none; }
 @media (max-width: 700px), (max-height: 420px) {
   #menu .menu-panel { width: min(100%, 420px); }
 }
@@ -1019,6 +1020,9 @@ select.pf, input.pf, .tn-row.pf, .sl.pf, .crow.pf, .mx.pf { outline: calc(var(--
 /* 主菜单右上角：快捷音量；主菜单按键区与二级设置子页 */
 #menutop { position: absolute; top: calc(var(--u) * 6); right: calc(var(--u) * 6); display: flex; gap: calc(var(--u) * 2); z-index: 2; }
 #menutop > button { font-size: var(--fs-xs); padding: calc(var(--u) * 1.5) calc(var(--u) * 3); display: inline-flex; align-items: center; gap: calc(var(--u) * 2); }
+#padchip { font-size: var(--fs-xs); color: var(--green); border: 1px solid currentColor; padding: calc(var(--u) * 1.5) calc(var(--u) * 3); background: rgba(10, 12, 28, 0.82); display: inline-flex; align-items: center; white-space: nowrap; }
+#padtoast { position: absolute; left: 50%; top: calc(var(--u) * 16); transform: translateX(-50%); z-index: 40; pointer-events: none; font-size: var(--fs-sm, var(--fs-xs)); color: var(--text); background: rgba(10, 12, 28, 0.92); border: calc(var(--u) * 1) solid var(--green); padding: calc(var(--u) * 2) calc(var(--u) * 6); white-space: nowrap; }
+#padtoast b { color: var(--green); font-weight: normal; }
 #btn-qvol .pxi { width: 16px; height: 16px; vertical-align: 0; }
 #btn-qvol span { min-width: 2.2em; text-align: left; font-variant-numeric: tabular-nums; }
 #qvol { position: absolute; top: calc(100% + var(--u) * 2); right: 0; width: 220px; display: flex; flex-direction: column; gap: 8px; padding: 10px 12px; background: var(--panel); border: calc(var(--u) * 1) solid var(--ink); box-shadow: 0 0 0 calc(var(--u) * 1) var(--line), calc(var(--u) * 3) calc(var(--u) * 3) 0 calc(var(--u) * 1) rgba(0, 0, 0, 0.5); }

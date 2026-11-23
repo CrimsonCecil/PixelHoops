@@ -3,7 +3,7 @@ const fs = require('node:fs');
 const vm = require('node:vm');
 const { EventEmitter } = require('node:events');
 
-function client({ relay = true, rtc = false, bcBus = null } = {}) {
+function client({ relay = true, rtc = false, bcBus = null, direct = false, ice = null } = {}) {
   let now = 0;
   const timers = new Map(), doc = new EventEmitter(), win = new EventEmitter(), events = [], sockets = [], messages = [], pcs = [], bcs = [];
   for (const target of [doc, win]) {
@@ -60,7 +60,8 @@ function client({ relay = true, rtc = false, bcBus = null } = {}) {
     };
   }
   if (relay) win.__API_BASE__ = 'https://relay.example';
-  win.PH = {};
+  win.PH = { TUNE: { reg() {}, get: (k) => (k === 'net_direct' ? +direct : undefined) } };
+  if (ice) win.fetch = async () => ({ ok: true, json: async () => ({ iceServers: ice }) });
   const ctx = vm.createContext({ window: win, document: doc, URL, TextEncoder, performance: { now: () => now }, crypto: { getRandomValues: (a) => a }, Date: { now: () => now },
     setTimeout: (fn, delay) => { const id = {}; timers.set(id, { fn, delay }); return id; },
     clearTimeout: (id) => timers.delete(id) });
@@ -68,7 +69,7 @@ function client({ relay = true, rtc = false, bcBus = null } = {}) {
   const rooms = win.PH.rooms;
   const open = (host = false) => rooms.open(host ? '' : 'ABCDE', 'online', {
     error: (message) => events.push(message), joined: () => events.push('joined'), start: () => events.push('start'), ready: () => events.push('ready'),
-    reserve: (mode, links) => links.has(1) ? -1 : 1, change: () => {}, state: () => events.push('state'), message: (msg, slot) => messages.push({ ...msg, senderSlot: slot })
+    reserve: (mode, links) => links.has(1) ? -1 : 1, change: (slot, reason) => { if (reason) events.push(reason); }, notice: (message) => events.push(message), state: () => events.push('state'), message: (msg, slot) => messages.push({ ...msg, senderSlot: slot })
   });
   const next = () => {
     const [id, timer] = [...timers].sort((a, b) => a[1].delay - b[1].delay)[0];
@@ -88,7 +89,7 @@ function client({ relay = true, rtc = false, bcBus = null } = {}) {
   c = client(); await c.open();
   c.sockets[0].opened(); c.sockets[0].receive({ type: 'relay-ready' });
   c.sockets[0].receive(null);
-  c.sockets[0].receive({ type: 'joined', slot: 1 });
+  c.sockets[0].receive({ type: 'joined', slot: 1, protocol: 1 });
   c.sockets[0].receive({ type: 'lobby', ready: true });
   assert.equal(c.messages[0].ready, true);
   c.rooms.sendLobby({ ready: true }); assert.equal(c.sockets[0].sent.at(-1).type, 'lobby');
@@ -119,6 +120,28 @@ function client({ relay = true, rtc = false, bcBus = null } = {}) {
   assert.deepEqual(c.events, ['房间已满、已开赛或比赛模式不同。']);
   console.log('PASS: 4404 missing room and room rejection');
 
+  for (const protocol of [undefined, 0, 2, '1']) {
+    const host = client(); await host.open(true); host.sockets[0].opened();
+    host.sockets[0].receive({ type: 'peer-open', id: 9 });
+    host.sockets[0].receive({ from: 9, msg: { type: 'join', mode: 'online', protocol } });
+    const reject = host.sockets[0].sent.at(-1).msg;
+    assert.deepEqual(reject, { type: 'reject', reason: 'version' });
+    assert.equal(host.rooms.room.links.size, 0, 'incompatible guest cannot reserve a slot');
+    const guest = client(); await guest.open(); guest.sockets[0].opened(); guest.sockets[0].receive({ type: 'relay-ready' });
+    assert.equal(guest.sockets[0].sent.find(m => m.type === 'join').protocol, 1);
+    guest.sockets[0].receive(reject);
+    assert.deepEqual(guest.events, ['版本不一致，请刷新页面后重试。']);
+    assert.equal(guest.timers.size, 0);
+    const reverse = client(); await reverse.open(); reverse.sockets[0].opened(); reverse.sockets[0].receive({ type: 'relay-ready' });
+    reverse.sockets[0].receive({ type: 'joined', slot: 1, protocol });
+    reverse.sockets[0].receive({ type: 'start', config: {} });
+    assert.deepEqual(reverse.events, ['版本不一致，请刷新页面后重试。']);
+    assert.equal(reverse.rooms.room.role, '');
+    assert.equal(reverse.timers.size, 0);
+    host.rooms.close();
+  }
+  console.log('PASS: missing/mismatched protocols reject before slot reservation; new guests reject legacy hosts before start and show refresh errors.');
+
   // 5. Host relay reconnect with same token and fatal/max-retry failure
   c = client(); await c.open(true); c.sockets[0].opened();
   assert.deepEqual(c.events, ['ready']);
@@ -136,7 +159,7 @@ function client({ relay = true, rtc = false, bcBus = null } = {}) {
   // 6. Host virtual links, sender slot isolation, frame size guard, input throttling, seq drop, 8KB relay backpressure
   c = client(); await c.open();
   c.sockets[0].opened(); c.sockets[0].receive({ type: 'relay-ready' });
-  c.sockets[0].receive({ type: 'joined', slot: 1 });
+  c.sockets[0].receive({ type: 'joined', slot: 1, protocol: 1 });
   c.sockets[0].receive({ type: 'start', config: {} });
   const sentBeforeInput = c.sockets[0].sent.length;
   c.time(100); c.rooms.input({ mx: 1, my: 0 });
@@ -155,7 +178,7 @@ function client({ relay = true, rtc = false, bcBus = null } = {}) {
 
   c = client(); await c.open(true); c.sockets[0].opened();
   c.sockets[0].receive({ type: 'peer-open', id: 9 });
-  c.sockets[0].receive({ from: 9, msg: { type: 'join', mode: 'online' } });
+  c.sockets[0].receive({ from: 9, msg: { type: 'join', mode: 'online', protocol: 1 } });
   c.sockets[0].receive({ from: 9, msg: { type: 'lobby', slot: 5, ready: true } });
   assert.equal(c.messages[0].senderSlot, 1);
   c.rooms.room.active = true;
@@ -249,9 +272,86 @@ function client({ relay = true, rtc = false, bcBus = null } = {}) {
   guest.rooms.close();
   console.log('PASS: self-hosted WebRTC P2P upgrade, dual-channel routing, relay fallback, and dead-relay cleanup');
 
+  // 7b. net_direct: the host's switch governs the room; it strips TURN on both peers
+  const TURN_ICE = [{ urls: ['stun:t.example:3478', 'turn:t.example:3478?transport=udp', 'turns:t.example:5349'], username: 'u', credential: 'c' }, { urls: 'turn:only.example' }];
+  for (const hostDirect of [false, true]) {
+    const h = client({ rtc: true, direct: hostDirect, ice: TURN_ICE }), g = client({ rtc: true, ice: TURN_ICE });
+    await h.open(true); await new Promise((r) => setImmediate(r)); h.sockets[0].opened();
+    await g.open(); await new Promise((r) => setImmediate(r)); g.sockets[0].opened(); g.sockets[0].receive({ type: 'relay-ready' });
+    h.sockets[0].receive({ type: 'peer-open', id: 1 });
+    await new Promise((r) => setImmediate(r));
+    const offer = h.sockets[0].sent.find((m) => m.msg?.type === 'rtc' && m.msg.kind === 'offer');
+    assert.equal(offer.msg.direct === true, hostDirect);
+    g.sockets[0].receive(offer.msg);
+    await new Promise((r) => setImmediate(r));
+    const urls = (pc) => pc.cfg.iceServers.flatMap((s) => [].concat(s.urls));
+    for (const pc of [h.pcs[0], g.pcs[0]]) {
+      assert.equal(urls(pc).some((u) => /^turns?:/.test(u)), !hostDirect);
+      assert.ok(urls(pc).includes('stun:t.example:3478'));
+    }
+    if (hostDirect) assert.equal(h.pcs[0].cfg.iceServers[0].username, 'u');
+    g.sockets[0].receive({ type: 'joined', slot: 1 });
+    assert.equal(g.rooms.room.direct, hostDirect);
+    h.rooms.close(); g.rooms.close();
+    assert.equal(g.rooms.room.direct, false);
+  }
+  console.log('PASS: net_direct strips TURN servers on host and guest; off keeps them');
+
+  // 7c. net_direct: the Worker only carries signaling; a failed direct connection fails both sides with 直连失败
+  const DIRECT_FAIL = /^直连失败/;
+  const directPair = async () => {
+    const h = client({ rtc: true, direct: true }), g = client({ rtc: true });
+    await h.open(true); await new Promise((r) => setImmediate(r)); h.sockets[0].opened();
+    await g.open(); await new Promise((r) => setImmediate(r)); g.sockets[0].opened(); g.sockets[0].receive({ type: 'relay-ready' });
+    h.sockets[0].receive({ type: 'peer-open', id: 1 });
+    await new Promise((r) => setImmediate(r));
+    g.sockets[0].receive(h.sockets[0].sent.find((m) => m.msg?.kind === 'offer').msg);
+    await new Promise((r) => setImmediate(r));
+    // The join went out over the Worker before the guest knew the room is direct-only: the host ignores it.
+    h.sockets[0].receive({ from: 1, msg: g.sockets[0].sent.find((m) => m.type === 'join') });
+    assert.equal(h.rooms.room.links.size, 0);
+    assert.ok(!h.sockets[0].sent.some((m) => m.msg && m.msg.type !== 'rtc'));
+    return { h, g };
+  };
+  let dp = await directPair();
+  const dhCtrl = dp.h.pcs[0].channels.get('ctrl'), dgCtrl = dp.g.pcs[0].emitDataChannel('ctrl', { ordered: true });
+  dhCtrl.open(); dgCtrl.open();
+  dhCtrl.receive(dgCtrl.sent.find((m) => m.type === 'join'));
+  dgCtrl.receive(dhCtrl.sent.find((m) => m.type === 'joined'));
+  assert.ok(dp.g.events.includes('joined'));
+  assert.equal(dp.h.rooms.room.links.size, 1);
+  assert.equal(dp.g.rooms.room.transport, 'p2p'); assert.equal(dp.g.rooms.room.direct, true);
+  // P2P drops mid-room while the Worker is still up: no relay fallback, both sides told
+  dp.h.rooms.room.active = true;
+  const before = dp.h.events.length;
+  dhCtrl.close();
+  assert.ok(DIRECT_FAIL.test(dp.h.events.at(-1)));
+  assert.equal(dp.h.events.length, before + 1); // via change(slot, reason) only, not notice too
+  const hFail = dp.h.sockets[0].sent.find((m) => m.msg?.kind === 'fail');
+  assert.ok(hFail); assert.ok(!dp.h.sockets[0].sent.some((m) => m.msg?.type === 'state'));
+  dp.g.sockets[0].receive(hFail.msg);
+  assert.ok(DIRECT_FAIL.test(dp.g.events.at(-1)));
+  assert.equal(dp.g.rooms.room.role, '');
+  dp.h.rooms.close();
+  // Direct never connects: host gives up after the direct timeout and tells the guest
+  dp = await directPair();
+  dp.h.next();
+  assert.ok(DIRECT_FAIL.test(dp.h.events.at(-1)));
+  dp.g.sockets[0].receive(dp.h.sockets[0].sent.find((m) => m.msg?.kind === 'fail').msg);
+  assert.ok(DIRECT_FAIL.test(dp.g.events.at(-1)));
+  dp.h.rooms.close();
+  // ICE fails on the guest first: guest shows 直连失败 and tells the host
+  dp = await directPair();
+  dp.g.pcs[0].connectionState = 'failed'; dp.g.pcs[0].onconnectionstatechange();
+  assert.ok(DIRECT_FAIL.test(dp.g.events.at(-1)));
+  dp.h.sockets[0].receive({ from: 1, msg: dp.g.sockets[0].sent.find((m) => m.kind === 'fail') });
+  assert.ok(DIRECT_FAIL.test(dp.h.events.at(-1)));
+  dp.h.rooms.close();
+  console.log('PASS: net_direct never relays game data; direct failure shows 直连失败 on host and guest');
+
   // 8. Guest & host ping/pong RTT measurement
   c = client(); await c.open(); c.sockets[0].opened();
-  c.sockets[0].receive({ type: 'relay-ready' }); c.sockets[0].receive({ type: 'joined', slot: 1 });
+  c.sockets[0].receive({ type: 'relay-ready' }); c.sockets[0].receive({ type: 'joined', slot: 1, protocol: 1 });
   assert.equal(c.rooms.room.ping, null);
   c.time(1000); c.rooms.ping();
   assert.equal(c.sockets[0].sent.at(-1).type, 'ping');
@@ -263,7 +363,7 @@ function client({ relay = true, rtc = false, bcBus = null } = {}) {
 
   c = client(); await c.open(true); c.sockets[0].opened();
   c.sockets[0].receive({ type: 'peer-open', id: 7 });
-  c.sockets[0].receive({ from: 7, msg: { type: 'join', mode: 'online' } });
+  c.sockets[0].receive({ from: 7, msg: { type: 'join', mode: 'online', protocol: 1 } });
   c.time(2000); c.rooms.ping();
   assert.deepEqual(c.sockets[0].sent.at(-1), { to: 7, msg: { type: 'ping', t: 2000 } });
   c.time(2035); c.sockets[0].receive({ from: 7, msg: { type: 'pong', t: 2000 } });
@@ -315,24 +415,24 @@ function client({ relay = true, rtc = false, bcBus = null } = {}) {
   rGuest.sockets[0].receive(rHost.sockets[0].sent.find((m) => m.msg?.type === 'joined').msg);
   rHost.rooms.room.active = true; rGuest.rooms.room.active = true;
   rHost.time(100);
-  const before = rHost.sockets[0].sent.length;
+  const beforePacing = rHost.sockets[0].sent.length;
   rHost.rooms.broadcast({ type: 'state', state: { f: 1 } });
   rHost.rooms.broadcast({ type: 'state', state: { f: 2 } });
   assert.equal(rHost.rooms.congested(), true);
   rHost.rooms.broadcast({ type: 'state', state: { f: 3 } }); // dropped: 2 unacked in-flight
-  assert.equal(rHost.sockets[0].sent.length, before + 2);
+  assert.equal(rHost.sockets[0].sent.length, beforePacing + 2);
   rHost.rooms.broadcast({ type: 'state', state: { f: 4, audio: [['play', 'swish']] } }); // audio preserved
-  assert.equal(rHost.sockets[0].sent.length, before + 3);
+  assert.equal(rHost.sockets[0].sent.length, beforePacing + 3);
   // Guest receives frame 1 & 2 -> emits ack -> unblocks host
-  const sent1 = rHost.sockets[0].sent[before].msg;
-  const sent2 = rHost.sockets[0].sent[before + 1].msg;
+  const sent1 = rHost.sockets[0].sent[beforePacing].msg;
+  const sent2 = rHost.sockets[0].sent[beforePacing + 1].msg;
   rGuest.sockets[0].receive(sent1);
   rGuest.sockets[0].receive(sent2);
   const acks = rGuest.sockets[0].sent.filter((m) => m.type === 'ack');
   assert.equal(acks.length, 2);
   rHost.sockets[0].receive({ from: 1, msg: acks[1] });
   rHost.rooms.broadcast({ type: 'state', state: { f: 5 } });
-  assert.equal(rHost.sockets[0].sent.length, before + 4);
+  assert.equal(rHost.sockets[0].sent.length, beforePacing + 4);
   // Timeout expiry after 600ms prevents deadlock if acks are lost
   rHost.rooms.broadcast({ type: 'state', state: { f: 6 } });
   assert.equal(rHost.rooms.congested(), true);
