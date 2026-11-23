@@ -557,7 +557,7 @@
     PH.frontend.started();
     tuneClose();
     PH.audio.ensure(); PH.audio.play('start'); PH.audio.startMusic();
-    localSlot = slot; matchConfig = config; netFrame = 0; netInterp = null; aiReset();
+    localSlot = slot; matchConfig = config; netFrame = 0; netInterp = null; aiReset(); skipReset();
     resetRoomAudio();
     if (config.mode === 't3') PH.T3.start({ ...config, local: slot, replay: !room.active });
     else { CFG.shotClock = config.clock; GM.newGame({ ...config, mode: '2p' }); }
@@ -2364,9 +2364,10 @@
     if (screen !== 'play' || !matchConfig || matchConfig.mode !== 'online' || !room.active || PH.tapeView.open) return '';
     return G.intro ? 'intro' : G.replay ? 'replay' : '';
   }
+  function skipReset(sc = '') { Object.assign(SKIP, { scene: sc, n: 0, mine: false, endIn: 0, resend: 0 }); SKIP.votes.clear(); }
   function skipSync() {
     const sc = skipScene();
-    if (sc !== SKIP.scene) Object.assign(SKIP, { scene: sc, n: 0, mine: false, endIn: 0, resend: 0 }), SKIP.votes.clear();
+    if (sc !== SKIP.scene) skipReset(sc);
     return sc;
   }
   function skipPress() {
