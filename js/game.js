@@ -4647,7 +4647,7 @@
     } else { pl.uuShot = null; pl.uuFake = null; }
     // 连续过人越往后越累：每多一招、每接上一段都加价；运球如丝 / 脚踝终结者 只让加出来的那部分放缓
     const chainX = (1 + K.cbStep * (pl.combo - 1)) * (1 + K.cbCost * pl.dcn) - 1, chainBg = Math.max(0, Math.min(bk(pl, 'tight', K.bgChainSt), bk(pl, 'ankle', K.bgChainSt)));
-    spendStamina(pl, CFG.moveCost * M.cost * (CBk ? 1.3 : 1) * (1 + chainX * chainBg) * bk(pl, 'tight', K.bgTightSt) * (tkIs(pl, 'hnd') ? 0.4 : 1) * (PS ? 1 : 1 + K.mvHndSt * lowHnd(hnd)) * stamK(pl)); pl.animT = 0; pl.cd = (MT + lerp(0.2, 0.02, clamp((hnd - 0.4) / 0.55, 0, 1))) * (ptIs(pl, 'playmaker') ? 0.9 : 1); pl.boost = kind === 'hesi' ? MT + 0.7 : 0.75;
+    spendStamina(pl, CFG.moveCost * M.cost * (CBk ? 1.3 : 1) * (1 + chainX * chainBg) * bk(pl, 'tight', K.bgTightSt) * (tkIs(pl, 'hnd') ? 0.4 : 1) * (isPostMove(kind) ? 1 : 1 + K.mvHndSt * lowHnd(hnd)) * stamK(pl)); pl.animT = 0; pl.cd = (MT + lerp(0.2, 0.02, clamp((hnd - 0.4) / 0.55, 0, 1))) * (ptIs(pl, 'playmaker') ? 0.9 : 1); pl.boost = kind === 'hesi' ? MT + 0.7 : 0.75;
     pl.lastMove = kind; pl.lastMv = mvx || kind; pl.lastMoveT = G.time; pl.post = false;
     pl.sk.probe = G.time;
     pl.postMove = isPostMove(kind) ? { kind: kind, t: G.time + MT, bite: false, side: Math.sign(dx * -hy + dy * hx) || openS } : null;
@@ -5064,7 +5064,7 @@
           // V4.3 扣篮对抗：差值用 finEdge（力量 / 扣篮 / 弹跳 / 体重 / 起跳速度 / 徽章 / 疲劳 对 盖帽 / 内防 / 臂展 / 弹跳 / 力量 / 站位时机）
           const dR = dunkR(pl, a.run0 || 0), edge = df.off ? 1 : finEdge(pl, df, a, true);
           const flashy = a.v === 'windmill' || a.v === '360' || a.v === 'cock' || a.v === 'cradle' || a.v === 'pump' || a.v === 'scissor', vk = flashy ? K.dkFlyK : a.v === 'two' || a.v === 'rimpull' || a.v === 'shaq' ? K.dkPowK : 1;
-          const prob0 = SK ? 1 : clamp(K.dkP0 + K.dkPR * dR - (flashy ? K.dkPFly : 0) - K.ctDkP * c * vk * clamp(K.dkC0 - K.dkCE * edge, lerp(0.05, K.dkCLo, lowHnd(dR)), 1.3) - heavyD - (a.bodyPen ? a.bodyPen + K.dkBodyD * clamp(distHoop(pl) - 1, 0, 1.5) : 0) - (pl.stam < ST.layLow ? K.dkLowSt : 0), K.dkMin, K.dkMax);
+          const prob0 = SK ? 1 : clamp(K.dkP0 + K.dkPR * dR - (flashy ? K.dkPFly : 0) - K.ctDkP * c * vk * clamp(K.dkC0 - K.dkCE * edge, Math.min(1.3, lerp(0.05, K.dkCLo, lowHnd(dR))), 1.3) - heavyD - (a.bodyPen ? a.bodyPen + K.dkBodyD * clamp(distHoop(pl) - 1, 0, 1.5) : 0) - (pl.stam < ST.layLow ? K.dkLowSt : 0), K.dkMin, K.dkMax);
           const prob = alleyProb(a, SK || !a.thru ? prob0 : thruProb(pl, a, prob0, true));
           a.edge = edge; if (a.v === 'poster') bpop(pl, 'poster');
           const info = { who: pl.id, name: a.alley ? '空接暴扣' : a.name, pts: 2, dist: distHoop(pl), contest: c, src: c > 0.04 ? ci.src : '', e: null, zone: 'lay', stamLow: pl.stam < ST.layLow, green: false, made: false, blocked: false, prob: prob, tl: '—', cl: c < 0.2 ? '空位' : c < 0.5 ? '轻微干扰' : '严重干扰', reason: '' };
