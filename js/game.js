@@ -789,14 +789,16 @@
     ['stDepth', 'def', '防守马步 下蹲深度', 1, 0.6, 1.2, 0.01, '倍率：只影响主动防守姿态的屈髋和屈膝'],
     ['stLean', 'def', '防守蹲姿 躯干前倾', 0.52, 0.35, 0.65, 0.01, '弧度：胸口前移到膝盖上方，保留低重心宽站姿'],
     ['stWidth', 'def', '防守马步 双脚宽度', 0.42, 0.3, 0.5, 0.01, '米：单脚离身体中线的距离，随身高缩放'],
+    ['stSlideHz', 'def', '螃蟹步 步频', 2.6, 1.2, 4, 0.05, '次/秒：一左一右算一次；独立循环动画，快于步频×步幅的移动由脚贴地滑补足'],
+    ['stSlideStride', 'def', '螃蟹步 步幅', 0.7, 0.3, 1, 0.01, '米：一个循环（一左一右）身体移动的距离，随身高缩放；更快的移动由脚贴地滑补足，不在地面钉脚'],
     ['stStep', 'def', '螃蟹步 步频距离', 0.42, 0.2, 0.6, 0.01, '米：用于移动速度到步频的换算；短步之外的位移由贴地滑行补足'],
     ['stHzMin', 'def', '防守滑步 最低步频', 1, 0.5, 1.5, 0.05, '次/秒：左右脚合计；极慢移动继续放缓，静止不迈步'],
     ['stHzMax', 'def', '防守滑步 最高步频', 2.4, 1.5, 3.2, 0.05, '次/秒：超过腿部步幅的移动由蹬地滑步承担，不改变移动速度'],
+    ['stReach', 'def', '螃蟹步 步幅', 0.3, 0.05, 0.5, 0.01, '米：每只脚离站位点最远能迈多远，随身高缩放；支撑脚踩实不动，超出步幅才拖地'],
+    ['stLift', 'def', '螃蟹步 抬脚高度', 0.07, 0, 0.15, 0.005, '米：膝盖随摆动脚垂直抬起；小步降低抬脚，超出触及范围才滑行'],
     ['gaHzMin', 'drib', '跑步 最低步频', 0.45, 0.2, 1.2, 0.05, '次/秒：标准身高的低速步频；持球和无球共用'],
     ['gaHzMax', 'drib', '跑步 最高步频', 2.8, 1.8, 3.5, 0.05, '次/秒：标准身高的全速步频；慢跑到冲刺连续增加'],
     ['gaHeight', 'drib', '跑步 身高步幅差异', 0.8, 0, 1.5, 0.05, '指数：越高步幅越长、步频越低；不影响移动速度'],
-    ['stReach', 'def', '螃蟹步 步幅', 0.3, 0.05, 0.5, 0.01, '米：每只脚离站位点最远能迈多远，随身高缩放；支撑脚踩实不动，超出步幅才拖地'],
-    ['stLift', 'def', '螃蟹步 抬脚高度', 0.07, 0, 0.15, 0.005, '米：膝盖随摆动脚垂直抬起；小步降低抬脚，超出触及范围才滑行'],
     ['drCrouch', 'drib', '跑动运球 速度下蹲', 0.32, 0, 0.5, 0.01, '弧度：速度越快膝盖越弯，冲刺最深；保留跑步摆腿'],
     ['drHeight', 'drib', '运球频率 身高差异', 1.8, 0, 3, 0.05, '指数：按实际模型身高缩放拍球频率，越矮越快；0 为无差异'],
     ['drTierS', 'drib', '冲刺运球 矮个界线', 1.91, 1.7, 2.1, 0.01, '米：模型身高低于此值为矮个，否则按中等或高个整档选择'],
@@ -5665,7 +5667,7 @@
     else if (pl.speed > 0.9) an = 'run';
     else an = 'idle';
     if (an !== pl.anim) { pl.anim = an; if (!a) pl.animT = 0; }
-    if (PH.gait && PH.gait.crab) PH.gait.crab(pl, dt, pl.stance ? poseTarget(pl) : pl.pose);
+    if (PH.gait && PH.gait.slide) PH.gait.slide(pl, dt);
     pl.animT += dt; pl.runPh += (PH.gait ? PH.gait.cad(pl) : pl.speed * 2.7) * dt;
     pl.gasp = Math.max(0, (pl.gasp || 0) - dt);
     if (pl.stam < 35 && G.phase !== 'over') {
@@ -5689,7 +5691,7 @@
     if (an === 'steal' && pl.stun > 0) a.footDone = true;
     if (an === 'steal' && !a.footDone && (!pl.stealFoot || pl.stealFoot.action !== a)) {
       const side = a.swipe < 0 ? 'L' : 'R', start = PH.rig(pl)['foot' + side].slice(), length = K.stlLungeStep * pl.h / 1.95;
-      const stance = Object.assign(Object.create(pl), { anim: 'def', action: null, stealFoot: null, crab: null, sq: 1, speed: 0 });
+      const stance = Object.assign(Object.create(pl), { anim: 'def', action: null, stealFoot: null, slide: null, sq: 1, speed: 0 });
       const home = PH.rig(stance, poseTarget(stance), false)['foot' + side], floor = pl.z + 0.06 * (1 + (pl.h / 1.95 - 1) * 1.7);
       pl.stealFoot = { action: a, side, start, end: [home[0] + Math.cos(pl.face) * length, home[1] + Math.sin(pl.face) * length, floor], pos: start.slice(), t: 0 };
     }
@@ -8643,11 +8645,13 @@
     stDepth: ['防守滑步 下蹲深度', '越大防守姿态越蹲得低；屈膝倍数，不改移速'],
     stLean: ['防守滑步 躯干前倾', '越大防守时上身越向前倾；弧度'],
     stWidth: ['防守滑步 站姿半宽', '越大防守时双脚站得越宽；米，随身高缩放'],
-    stStep: ['防守滑步 步频距离', '越大同速滑步迈脚越慢；米，不改移速'],
-    stHzMin: ['防守滑步 最低步频', '越大低速滑步迈脚越快；次/秒，静止不迈步'],
-    stHzMax: ['防守滑步 最高步频', '越大高速滑步迈脚越快；次/秒，不改移速'],
-    stReach: ['防守滑步 单脚步幅', '越大单脚越能迈远再拖地；米，随身高缩放'],
-    stLift: ['防守滑步 抬脚高度', '越大滑步时脚和膝盖抬得越高；米'],
+    stSlideHz: ['防守滑步 步频', '越大滑步时两脚交替越快；次/秒，不改移速'],
+    stSlideStride: ['防守滑步 步幅', '越大每一步跨得越开、脚越少打滑；米，随身高缩放'],
+    stStep: ['防守滑步 步频距离', '当前版本未使用，改了无效果'],
+    stHzMin: ['防守滑步 最低步频', '当前版本未使用，改了无效果'],
+    stHzMax: ['防守滑步 最高步频', '当前版本未使用，改了无效果'],
+    stReach: ['防守滑步 单脚步幅', '当前版本未使用，改了无效果'],
+    stLift: ['防守滑步 抬脚高度', '当前版本未使用，改了无效果'],
     gaHzMin: ['跑步 最低步频', '越大低速跑动迈脚越快；次/秒，不改移速'],
     gaHzMax: ['跑步 最高步频', '越大高速跑动迈脚越快；次/秒，不改移速'],
     gaHeight: ['跑步 身高步频差', '越大高个迈脚越慢、矮个越快；指数，0 = 无差异'],

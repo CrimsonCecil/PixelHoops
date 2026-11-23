@@ -28,7 +28,7 @@ for (const d of current.list()) {
   if (d.max !== before.max) maxChanges.push(`${d.k}: ${before.max} → ${d.max}`);
   if (d.label !== before.label || d.note !== before.note) {
     edited++;
-    assert(d.syn.includes(before.label), `${d.k}: old label searchable`);
+    assert(d.label === before.label || d.syn.includes(before.label), `${d.k}: old label searchable`);
     assert(validNote(d), `${d.k}: tip style`);
   }
 }
