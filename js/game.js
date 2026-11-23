@@ -4719,7 +4719,7 @@
     const q = inDir(pl, Object.assign({}, inp, { dx: B.x, dy: B.y, mx: B.x, my: B.y }), true);
     if (q.l <= 0.3 || (q.x * a.ix + q.y * a.iy) / q.l < 0.5) return false;
     let kind, mvx = null;
-    if (pl.post || inp.post || isPostMove(a.kind)) kind = postMoveOf(q);
+    if (pl.post) kind = postMoveOf(q);
     else {
       const df = OP(pl), dd = Math.hypot(df.x - pl.x, df.y - pl.y), h = q.h;
       const front = df.off ? -1 : ((df.x - pl.x) * h.x + (df.y - pl.y) * h.y) / (dd || 1);
