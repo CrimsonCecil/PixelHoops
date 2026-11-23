@@ -3,7 +3,7 @@ const fs = require('node:fs');
 const vm = require('node:vm');
 const { EventEmitter } = require('node:events');
 
-function client({ relay = true, rtc = false } = {}) {
+function client({ relay = true, rtc = false, direct = false, ice = null } = {}) {
   let now = 0;
   const timers = new Map(), doc = new EventEmitter(), win = new EventEmitter(), events = [], sockets = [], messages = [], pcs = [];
   for (const target of [doc, win]) {
@@ -38,7 +38,8 @@ function client({ relay = true, rtc = false } = {}) {
   win.WebSocket = WebSocket;
   if (rtc) win.RTCPeerConnection = RTCPeerConnection;
   if (relay) win.__API_BASE__ = 'https://relay.example';
-  win.PH = {};
+  win.PH = { TUNE: { reg() {}, get: (k) => (k === 'net_direct' ? +direct : undefined) } };
+  if (ice) win.fetch = async () => ({ ok: true, json: async () => ({ iceServers: ice }) });
   const ctx = vm.createContext({ window: win, document: doc, URL, TextEncoder, performance: { now: () => now }, crypto: { getRandomValues: (a) => a }, Date: { now: () => now },
     setTimeout: (fn, delay) => { const id = {}; timers.set(id, { fn, delay }); return id; },
     clearTimeout: (id) => timers.delete(id) });
@@ -218,6 +219,31 @@ function client({ relay = true, rtc = false } = {}) {
   assert.equal(guest.events.at(-1), '房间中继已断开（1006）。');
   guest.rooms.close();
   console.log('PASS: self-hosted WebRTC P2P upgrade, dual-channel routing, relay fallback, and dead-relay cleanup');
+
+  // 7b. net_direct: host strips TURN from its ICE config and tells the guest, who strips it too even with the switch off
+  const TURN_ICE = [{ urls: ['stun:t.example:3478', 'turn:t.example:3478?transport=udp', 'turns:t.example:5349'], username: 'u', credential: 'c' }, { urls: 'turn:only.example' }];
+  for (const hostDirect of [false, true]) {
+    const h = client({ rtc: true, direct: hostDirect, ice: TURN_ICE }), g = client({ rtc: true, ice: TURN_ICE });
+    await h.open(true); await new Promise((r) => setImmediate(r)); h.sockets[0].opened();
+    await g.open(); await new Promise((r) => setImmediate(r)); g.sockets[0].opened(); g.sockets[0].receive({ type: 'relay-ready' });
+    h.sockets[0].receive({ type: 'peer-open', id: 1 });
+    await new Promise((r) => setImmediate(r));
+    const offer = h.sockets[0].sent.find((m) => m.msg?.type === 'rtc' && m.msg.kind === 'offer');
+    assert.equal(offer.msg.direct === true, hostDirect);
+    g.sockets[0].receive(offer.msg);
+    await new Promise((r) => setImmediate(r));
+    const urls = (pc) => pc.cfg.iceServers.flatMap((s) => [].concat(s.urls));
+    for (const pc of [h.pcs[0], g.pcs[0]]) {
+      assert.equal(urls(pc).some((u) => /^turns?:/.test(u)), !hostDirect);
+      assert.ok(urls(pc).includes('stun:t.example:3478'));
+    }
+    if (hostDirect) assert.equal(h.pcs[0].cfg.iceServers[0].username, 'u');
+    g.sockets[0].receive({ type: 'joined', slot: 1 });
+    assert.equal(g.rooms.room.direct, hostDirect);
+    h.rooms.close(); g.rooms.close();
+    assert.equal(g.rooms.room.direct, false);
+  }
+  console.log('PASS: net_direct strips TURN servers on host and guest; off keeps them');
 
   // 8. Guest & host ping/pong RTT measurement
   c = client(); await c.open(); c.sockets[0].opened();

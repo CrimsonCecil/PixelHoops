@@ -25,9 +25,21 @@
       .catch(() => {})
       .then(() => { iceBusy = false; icePending = null; });
   }
+  // 调参台「联机 强制直连」（存进云端配置 C1 等）：开 = 不把 TURN 服务器交给 WebRTC，只走直连；直连不通时仍用 Worker 中继。
+  // 房主的开关随 offer 发给客人，所以房主开着就对整个房间生效。
+  if (PH.TUNE) PH.TUNE.reg([{ k: 'net_direct', cat: 'pace', sub: '联机', label: '联机 强制直连', v: 0, mode: 'bool', note: '开 = 联机不走 TURN 服务器，只尝试直连（P2P）；直连不通时退回 Worker 中继。房主开着就对整个房间生效' }]);
+  const forceDirect = () => !!(PH.TUNE && PH.TUNE.get('net_direct'));
+  function directIce(list) {
+    const out = [];
+    for (const s of list) {
+      const urls = (Array.isArray(s.urls) ? s.urls : [s.urls]).filter((u) => typeof u === 'string' && !/^turns?:/i.test(u));
+      if (urls.length) out.push({ ...s, urls });
+    }
+    return out;
+  }
   // Run fn now if no credential fetch is in flight, otherwise right after it settles (<= 3 s, never rejects).
   function whenIce(fn) { if (icePending) icePending.then(fn); else fn(); }
-  const room = { peer: null, role: '', code: '', links: new Map(), active: false, ping: null, transport: '', route: '' };
+  const room = { peer: null, role: '', code: '', links: new Map(), active: false, ping: null, transport: '', route: '', direct: false };
   let attempt = 0, pending = null, timeout, checkDeadline, stopRecovery;
   let stateSeq = 0, inputSeq = 0, lastInputKey = '', lastInputAt = -Infinity;
 
@@ -74,17 +86,20 @@
     if (room.role === 'guest') {
       room.transport = pending?.open ? pending.transport : '';
       room.route = room.transport === 'p2p' ? (pending.route || '') : '';
+      room.direct = !!(pending?.open && pending.direct);
       return;
     }
-    let any = false, anyRelay = false, anyTurn = false;
+    let any = false, anyRelay = false, anyTurn = false, direct = false;
     for (const link of room.links.values()) {
       if (!link.conn.open) continue;
       any = true;
+      if (link.conn.direct) direct = true;
       if (link.conn.transport !== 'p2p') anyRelay = true;
       else if (link.conn.route === 'turn') anyTurn = true;
     }
     room.transport = !any ? '' : anyRelay ? 'relay' : 'p2p';
     room.route = room.transport !== 'p2p' ? '' : anyTurn ? 'turn' : 'direct';
+    room.direct = direct;
   }
   function relayURL(code, role, secret) {
     const base = window.__API_BASE__;
@@ -105,6 +120,7 @@
       open: false,
       transport: 'relay',
       route: '',            // 'direct' | 'turn' | '' : which ICE path the data channel really uses (diagnostics only)
+      direct: false,        // net_direct: this peer connection was built without TURN servers
       on(type, fn) { if (!listeners.has(type)) listeners.set(type, []); listeners.get(type).push(fn); return this; },
       emit(type, msg) { for (const fn of listeners.get(type) || []) fn(msg); },
       bufferInfo() {
@@ -137,14 +153,14 @@
       startRtc() {
         if (closed || pc || typeof window.RTCPeerConnection !== 'function') return;
         if (icePending) { whenIce(() => { if (!closed && !pc) this.startRtc(); }); return; }
-        setupPc();
+        setupPc(forceDirect());
         try {
           attachChannel(pc.createDataChannel('ctrl', { ordered: true }), 'ctrl');
           attachChannel(pc.createDataChannel('state', { ordered: false, maxRetransmits: 0 }), 'state');
           attachChannel(pc.createDataChannel('input', { ordered: false }), 'input');
           pc.createOffer()
             .then((offer) => pc && pc.setLocalDescription(offer).then(() => offer))
-            .then((offer) => { if (!closed && pc) relaySend({ type: 'rtc', kind: 'offer', sdp: offer }); })
+            .then((offer) => { if (!closed && pc) relaySend(link.direct ? { type: 'rtc', kind: 'offer', sdp: offer, direct: true } : { type: 'rtc', kind: 'offer', sdp: offer }); })
             .catch(() => dropPc());
         } catch { dropPc(); }
       },
@@ -153,7 +169,7 @@
         if (msg.kind === 'offer' && !isHost && msg.sdp && !pc && icePending) {
           whenIce(() => { if (!closed) this.handleRtc(msg); });
         } else if (msg.kind === 'offer' && !isHost && msg.sdp) {
-          if (!pc) setupPc();
+          if (!pc) setupPc(forceDirect() || msg.direct === true);
           pc.setRemoteDescription(msg.sdp)
             .then(() => flushIce())
             .then(() => pc && pc.createAnswer())
@@ -235,8 +251,10 @@
       };
       ch.onerror = () => {};
     }
-    function setupPc() {
-      pc = new window.RTCPeerConnection({ iceServers });
+    function setupPc(direct) {
+      link.direct = !!direct;
+      syncTransport();
+      pc = new window.RTCPeerConnection({ iceServers: direct ? directIce(iceServers) : iceServers });
       pc.onicecandidate = (ev) => {
         if (!closed && ev.candidate) relaySend({ type: 'rtc', kind: 'ice', candidate: ev.candidate });
       };
@@ -259,7 +277,7 @@
     stateSeq = 0; inputSeq = 0; lastInputKey = ''; lastInputAt = -Infinity;
     if (stopRecovery) { stopRecovery(); stopRecovery = null; }
     room.links.clear();
-    Object.assign(room, { peer: null, role: '', code: '', active: false, ping: null, transport: '', route: '' });
+    Object.assign(room, { peer: null, role: '', code: '', active: false, ping: null, transport: '', route: '', direct: false });
   }
   function broadcast(msg) {
     const out = msg?.type === 'state' && msg.seq == null ? { ...msg, seq: ++stateSeq } : msg;
