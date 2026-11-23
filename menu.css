@@ -475,7 +475,7 @@ button.pick.fighter-pick .pk-c { font-size:11px; color:var(--fighter-color); }
 #menu[data-view=home] h1 { margin:0; font:clamp(48px,round(down,6.25vw,12px),120px)/1 var(--font); letter-spacing:0; text-shadow:6px 6px #111c30; white-space:nowrap; }
 #menu[data-view=home] h1 span { display:inline; margin-left:.25em; }
 #menu[data-view=home] h1::after { content:''; display:block; margin-top:24px; width:96px; height:6px; background:var(--front-gold); box-shadow:6px 6px #111c30; }
-#menu[data-view=home] .front-home-nav { position:absolute; right:4.5%; top:22%; width:36.25%; padding:0; }
+#menu[data-view=home] .front-home-nav { position:absolute; right:4.5%; bottom:6%; width:36.25%; padding:0; }
 #menu[data-view=home] .front-entries { display:grid; gap:clamp(16px,3.33cqh,30px); }
 #menu[data-view=home] .front-entries button {
   --entry-accent:var(--front-gold); position:relative; display:flex; align-items:center; gap:24px;
@@ -508,7 +508,7 @@ button.pick.fighter-pick .pk-c { font-size:11px; color:var(--fighter-color); }
   #menu[data-view=home] .front-intro { top:5%; left:6%; }
   #menu[data-view=home] h1 { font-size:clamp(36px,round(down,7vw,12px),48px); }
   #menu[data-view=home] h1::after { width:48px; height:3px; margin-top:16px; }
-  #menu[data-view=home] .front-home-nav { right:7%; top:30%; width:72%; }
+  #menu[data-view=home] .front-home-nav { right:7%; bottom:6%; width:72%; }
   #menu[data-view=home] .front-entries { gap:18px; }
   #menu[data-view=home] .front-entries button { min-height:76px; padding:20px 16px; }
   #menu[data-view=home] .front-entries b { font-size:24px; }
@@ -522,7 +522,7 @@ button.pick.fighter-pick .pk-c { font-size:11px; color:var(--fighter-color); }
   #menu[data-view=home] .front-intro { top:6%; }
   #menu[data-view=home] h1 { font-size:clamp(36px,round(down,4.5vw,12px),48px); }
   #menu[data-view=home] h1::after { margin-top:12px; height:3px; width:48px; }
-  #menu[data-view=home] .front-home-nav { top:20%; right:5%; width:43%; }
+  #menu[data-view=home] .front-home-nav { right:5%; bottom:calc(5% + 54px); width:43%; }
   #menu[data-view=home] .front-entries { gap:12px; }
   #menu[data-view=home] .front-entries button { min-height:58px; padding:14px; }
   #menu[data-view=home] .front-entries b { font-size:24px; }
@@ -534,7 +534,6 @@ button.pick.fighter-pick .pk-c { font-size:11px; color:var(--fighter-color); }
   #menu[data-view=home] .front-tools button { padding:7px 12px; font-size:12px; }
 }
 @container(max-height:320px) {
-  #menu[data-view=home] .front-home-nav { top:18%; }
   #menu[data-view=home] .front-entries { gap:8px; }
   #menu[data-view=home] .front-entries button { min-height:44px; padding:8px 14px; }
   #menu[data-view=home] .front-home-sub { margin-top:8px; }
