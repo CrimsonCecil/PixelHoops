@@ -1162,7 +1162,7 @@
   function fsFail() { if (FS.on && !fsEl()) FS.done = false; }
   for (const ev of ['fullscreenerror', 'webkitfullscreenerror']) document.addEventListener(ev, fsFail);
   // 没有键盘锁的浏览器（Firefox / Safari）按 Esc 只会退出全屏、收不到按键：比赛中退出全屏就当作暂停
-  for (const ev of ['fullscreenchange', 'webkitfullscreenchange']) document.addEventListener(ev, () => { if (!fsEl() && !paused) setPause(true); });
+  for (const ev of ['fullscreenchange', 'webkitfullscreenchange']) document.addEventListener(ev, () => { if (!fsEl() && !paused && !room.active) setPause(true); });
   for (const ev of ['pointerup', 'touchend', 'click', 'keydown']) window.addEventListener(ev, fsAuto, true);
   show('btn-fs', !!fsReq);
   $('btn-fs').addEventListener('click', () => {
