@@ -394,7 +394,7 @@ button.pick.fighter-pick .pk-c { font-size:11px; color:var(--fighter-color); }
 /* Approved F home: left court, stacked primary entries, then training and tools. */
 #menu .menu-panel .foot { display:none; }
 #menu[data-view=home] {
-  padding:0; overflow:hidden; outline:0;
+  padding:0; overflow:hidden; outline:0; container-type:size;
   background:linear-gradient(180deg,#0d1424b0,transparent 28%),linear-gradient(90deg,#0d14242b,#0d14243b 40%,#0d1424cf 57%,#0d1424f5 79%,#0d1424);
 }
 #menu[data-view=home] > :is(.front-top,.front-footer) { display:none; }
@@ -404,10 +404,10 @@ button.pick.fighter-pick .pk-c { font-size:11px; color:var(--fighter-color); }
 #menu[data-view=home] h1 span { display:inline; margin-left:.2em; }
 #menu[data-view=home] h1::after { content:''; display:block; margin-top:24px; width:72px; height:5px; background:var(--front-gold); }
 #menu[data-view=home] .front-home-nav { position:absolute; right:4.5%; top:36.4%; width:36.25%; padding:0; }
-#menu[data-view=home] .front-entries { display:grid; gap:clamp(16px,3.33vh,30px); }
+#menu[data-view=home] .front-entries { display:grid; gap:clamp(16px,3.33cqh,30px); }
 #menu[data-view=home] .front-entries button {
   --entry-accent:var(--front-gold); position:relative; display:flex; align-items:center; gap:24px;
-  min-height:clamp(76px,15.8vh,142px); padding:clamp(14px,1.625vw,26px) 18px;
+  min-height:clamp(76px,15.8cqh,142px); padding:clamp(14px,1.625vw,26px) 18px;
   background:#18243a99; border:0; border-bottom:2px solid #62738b; box-shadow:none; text-align:left;
   transition:transform .42s cubic-bezier(.2,.7,.25,1),background-color .42s,border-color .42s;
 }
@@ -422,10 +422,10 @@ button.pick.fighter-pick .pk-c { font-size:11px; color:var(--fighter-color); }
 #menu[data-view=home] .front-entries button:is(:focus-visible,.pf) em,
 #menu[data-view=home]:not(:has(button:is(:focus-visible,.pf))) .front-entries button:hover em { color:var(--entry-accent); }
 #menu[data-view=home] button:is(:focus-visible,.pf) { outline:0; filter:none; }
-#menu[data-view=home] .front-home-train { display:flex; align-items:center; gap:22px; width:max-content; max-width:100%; min-width:44%; min-height:clamp(52px,8.66vh,78px); margin-top:clamp(22px,3.8vh,34px); padding:12px 20px; border:1px solid #50617b; border-bottom:3px solid #536580; background:#19263c; box-shadow:0 5px #080f1d; font:clamp(18px,1.75vw,28px)/1.2 var(--font); transition:transform .42s,background-color .42s,border-color .42s; }
+#menu[data-view=home] .front-home-train { display:flex; align-items:center; gap:22px; width:max-content; max-width:100%; min-width:44%; min-height:clamp(52px,8.66cqh,78px); margin-top:clamp(22px,3.8cqh,34px); padding:12px 20px; border:1px solid #50617b; border-bottom:3px solid #536580; background:#19263c; box-shadow:0 5px #080f1d; font:clamp(18px,1.75vw,28px)/1.2 var(--font); transition:transform .42s,background-color .42s,border-color .42s; }
 #menu[data-view=home] .front-home-train em { font-size:inherit; }
 #menu[data-view=home] .front-tools { position:absolute; right:4%; bottom:5.1%; display:flex; gap:14px; margin:0; }
-#menu[data-view=home] .front-tools button { display:flex; align-items:center; justify-content:center; gap:13px; min-height:clamp(42px,6.44vh,58px); min-width:118px; padding:10px 24px; border:1px solid #596983; background:#1c2942; color:#f6f1dc; box-shadow:0 4px #070d19; font:clamp(14px,1.3125vw,21px)/1.2 var(--font); transition:transform .42s,background-color .42s,border-color .42s; }
+#menu[data-view=home] .front-tools button { display:flex; align-items:center; justify-content:center; gap:13px; min-height:clamp(42px,6.44cqh,58px); min-width:118px; padding:10px 24px; border:1px solid #596983; background:#1c2942; color:#f6f1dc; box-shadow:0 4px #070d19; font:clamp(14px,1.3125vw,21px)/1.2 var(--font); transition:transform .42s,background-color .42s,border-color .42s; }
 #menu[data-view=home] .front-tools span { display:inline; font-size:1em; }
 #menu[data-view=home] :is(.front-home-train,.front-tools button):is(:focus-visible,.pf),
 #menu[data-view=home]:not(:has(button:is(:focus-visible,.pf))) :is(.front-home-train,.front-tools button):hover { transform:translateY(-3px) scale(1.025); background-color:#263750; border-color:var(--front-gold); }
@@ -442,7 +442,7 @@ button.pick.fighter-pick .pk-c { font-size:11px; color:var(--fighter-color); }
   #menu[data-view=home] .front-tools { right:7%; bottom:5%; gap:12px; }
   #menu[data-view=home] .front-tools button { min-width:90px; padding:10px 16px; }
 }
-@media(max-height:500px) {
+@container(max-height:500px) {
   #menu[data-view=home] .front-intro { top:6%; }
   #menu[data-view=home] h1 { font-size:clamp(30px,4.5vw,52px); }
   #menu[data-view=home] h1::after { margin-top:12px; height:3px; width:48px; }
