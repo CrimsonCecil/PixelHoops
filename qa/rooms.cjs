@@ -66,7 +66,7 @@ function client({ relay = true, rtc = false } = {}) {
   c = client(); await c.open();
   c.sockets[0].opened(); c.sockets[0].receive({ type: 'relay-ready' });
   c.sockets[0].receive(null);
-  c.sockets[0].receive({ type: 'joined', slot: 1 });
+  c.sockets[0].receive({ type: 'joined', slot: 1, protocol: 1 });
   c.sockets[0].receive({ type: 'lobby', ready: true });
   assert.equal(c.messages[0].ready, true);
   c.rooms.sendLobby({ ready: true }); assert.equal(c.sockets[0].sent.at(-1).type, 'lobby');
@@ -97,6 +97,28 @@ function client({ relay = true, rtc = false } = {}) {
   assert.deepEqual(c.events, ['房间已满、已开赛或比赛模式不同。']);
   console.log('PASS: 4404 missing room and room rejection');
 
+  for (const protocol of [undefined, 0, 2, '1']) {
+    const host = client(); await host.open(true); host.sockets[0].opened();
+    host.sockets[0].receive({ type: 'peer-open', id: 9 });
+    host.sockets[0].receive({ from: 9, msg: { type: 'join', mode: 'online', protocol } });
+    const reject = host.sockets[0].sent.at(-1).msg;
+    assert.deepEqual(reject, { type: 'reject', reason: 'version' });
+    assert.equal(host.rooms.room.links.size, 0, 'incompatible guest cannot reserve a slot');
+    const guest = client(); await guest.open(); guest.sockets[0].opened(); guest.sockets[0].receive({ type: 'relay-ready' });
+    assert.equal(guest.sockets[0].sent.find(m => m.type === 'join').protocol, 1);
+    guest.sockets[0].receive(reject);
+    assert.deepEqual(guest.events, ['版本不一致，请刷新页面后重试。']);
+    assert.equal(guest.timers.size, 0);
+    const reverse = client(); await reverse.open(); reverse.sockets[0].opened(); reverse.sockets[0].receive({ type: 'relay-ready' });
+    reverse.sockets[0].receive({ type: 'joined', slot: 1, protocol });
+    reverse.sockets[0].receive({ type: 'start', config: {} });
+    assert.deepEqual(reverse.events, ['版本不一致，请刷新页面后重试。']);
+    assert.equal(reverse.rooms.room.role, '');
+    assert.equal(reverse.timers.size, 0);
+    host.rooms.close();
+  }
+  console.log('PASS: missing/mismatched protocols reject before slot reservation; new guests reject legacy hosts before start and show refresh errors.');
+
   // 5. Host relay reconnect with same token and fatal/max-retry failure
   c = client(); await c.open(true); c.sockets[0].opened();
   assert.deepEqual(c.events, ['ready']);
@@ -114,7 +136,7 @@ function client({ relay = true, rtc = false } = {}) {
   // 6. Host virtual links, sender slot isolation, frame size guard, input throttling, seq drop, 8KB relay backpressure
   c = client(); await c.open();
   c.sockets[0].opened(); c.sockets[0].receive({ type: 'relay-ready' });
-  c.sockets[0].receive({ type: 'joined', slot: 1 });
+  c.sockets[0].receive({ type: 'joined', slot: 1, protocol: 1 });
   c.sockets[0].receive({ type: 'start', config: {} });
   const sentBeforeInput = c.sockets[0].sent.length;
   c.time(100); c.rooms.input({ mx: 1, my: 0 });
@@ -133,7 +155,7 @@ function client({ relay = true, rtc = false } = {}) {
 
   c = client(); await c.open(true); c.sockets[0].opened();
   c.sockets[0].receive({ type: 'peer-open', id: 9 });
-  c.sockets[0].receive({ from: 9, msg: { type: 'join', mode: 'online' } });
+  c.sockets[0].receive({ from: 9, msg: { type: 'join', mode: 'online', protocol: 1 } });
   c.sockets[0].receive({ from: 9, msg: { type: 'lobby', slot: 5, ready: true } });
   assert.equal(c.messages[0].senderSlot, 1);
   c.rooms.room.active = true;
@@ -221,7 +243,7 @@ function client({ relay = true, rtc = false } = {}) {
 
   // 8. Guest & host ping/pong RTT measurement
   c = client(); await c.open(); c.sockets[0].opened();
-  c.sockets[0].receive({ type: 'relay-ready' }); c.sockets[0].receive({ type: 'joined', slot: 1 });
+  c.sockets[0].receive({ type: 'relay-ready' }); c.sockets[0].receive({ type: 'joined', slot: 1, protocol: 1 });
   assert.equal(c.rooms.room.ping, null);
   c.time(1000); c.rooms.ping();
   assert.equal(c.sockets[0].sent.at(-1).type, 'ping');
@@ -233,7 +255,7 @@ function client({ relay = true, rtc = false } = {}) {
 
   c = client(); await c.open(true); c.sockets[0].opened();
   c.sockets[0].receive({ type: 'peer-open', id: 7 });
-  c.sockets[0].receive({ from: 7, msg: { type: 'join', mode: 'online' } });
+  c.sockets[0].receive({ from: 7, msg: { type: 'join', mode: 'online', protocol: 1 } });
   c.time(2000); c.rooms.ping();
   assert.deepEqual(c.sockets[0].sent.at(-1), { to: 7, msg: { type: 'ping', t: 2000 } });
   c.time(2035); c.sockets[0].receive({ from: 7, msg: { type: 'pong', t: 2000 } });
