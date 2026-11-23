@@ -1983,9 +1983,11 @@
     const key = replay && I.sysAny(); // 先读键盘，避免把手柄导航连发当成新按键
     const button = I.pollPads(), padSlot = I.pressSlot();
     if (padSlot >= 0 && padSlot < 2 && padSlot !== inlineSide && screen === 'menu' && opts.mode === '2p' && $('menu').dataset.view === 'select' && $('picker').classList.contains('hidden')) {
-      const f = document.activeElement, pk = f && f.closest && f.closest('#front-grid [data-pk]') ? f.dataset.pk : null;
+      const f = document.activeElement, focused = f && f.closest && f.closest('#front-grid [data-pk]');
+      const cur = $('front-grid').querySelector('[data-pk].pf') || focused, pk = cur ? cur.getAttribute('data-pk') : null;
       inlineSide = padSlot; renderInlinePicker();
-      const again = pk && $('front-grid').querySelector('[data-pk="' + pk + '"]'); if (again) again.focus({ preventScroll: true });
+      const again = pk && $('front-grid').querySelector('[data-pk="' + pk + '"]');
+      if (again) { navSet($('menu'), again); if (focused) again.focus({ preventScroll: true }); }
     }
     if (PH.tapeView.open) { PH.tapeView.keys(I); return; }
     replaySaveState();
