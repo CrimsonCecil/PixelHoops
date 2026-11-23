@@ -4556,7 +4556,7 @@
       }
       float('背身假投', pl, '#f6efe0', 1); return;
     }
-    pl.action = { type: 'fake', t: 0, T: T, jf: !!jumped }; pl.animT = 0; if (pl.hasBall) gatherOn(pl, pl.catchDribbled);
+    pl.action = { type: 'fake', t: 0, T: T, jf: !!jumped }; pl.animT = 0; if (pl.hasBall) gatherOn(pl, pl.catchDribbled || pl.gaUsed);
     pl.uuFake = { until: G.time + T + K.uuWin, def: -1, bitUntil: -1 };
     pl.uuShot = null;
     float('假动作', pl, '#f6efe0');
@@ -4565,7 +4565,7 @@
   // 合球持球点（身体坐标，按身高缩放）：持球手一侧腰外，从身后镜头也能看到双手抱球
   function gatherBall(pl) { return [(pl.hand || 1) * 0.5, 0, 0.95]; }
   function travelRule() { return G.travel !== false && G.mode !== 'train' && G.mode !== 'demo'; }
-  function gatherOn(pl, dead) { pl.gather = true; pl.dribDead = !!dead && travelRule(); pl.gaT = 0; }
+  function gatherOn(pl, dead) { if (!dead) pl.gaUsed = false; pl.gather = true; pl.dribDead = !!dead && travelRule(); pl.gaT = 0; }
   function gatherOff(pl) { pl.gather = false; pl.dribDead = false; pl.gaT = 0; }
   function gaQ(pl, a, b) { return clamp(((a + b) / 2 - K.gaQMin) / Math.max(0.001, K.gaQMax - K.gaQMin), 0, 1); }
   function violation(pl, msg) {
@@ -4585,7 +4585,7 @@
     if (after && q.l > 0.3 && q.fwd > -0.3) {
       if (pl.dribDead && violation(pl, '二次运球')) return;
       const qg = gaQ(pl, pl.r.spd, pl.r.acc), T = K.gaGoT, sp = K.gaGoSp * lerp(K.gaGoLow, K.gaGoHigh, qg) * (1 - 0.3 * fat(pl));
-      gatherOff(pl); pl.catchDribbled = true;
+      gatherOff(pl); pl.catchDribbled = true; pl.gaUsed = true;
       const M = Object.assign({}, MV.jabgo, { sp, bite: MV.jabgo.bite * K.gaGoBite / 1.15 * lerp(0.7, 1.2, qg) });
       pl.action = { type: 'move', kind: 'jabgo', mv: 'jabgo', t: 0, T, sp, dx, dy, hx: h.x, hy: h.y, h0: pl.hand || 1, h1: pl.hand || 1, f0: pl.face, v0x: pl.vx, v0y: pl.vy, os: 0, sd: 0, cw: 0.6 };
       pl.face = Math.atan2(dy, dx); pl.lastMove = 'jabgo'; pl.lastMoveT = inputAt;
@@ -5653,7 +5653,7 @@
     else if (pl.passCatchT != null && pl.gaCatch !== pl.passCatchT) { pl.gaCatch = pl.passCatchT; if (!a) gatherOn(pl, false); }   // 传球接住（5V5 接球不走 pickup）
     else if (pl.gather && !a && G.phase === 'live') {
       if (!moving) pl.gaT = 0;
-      else if (!pl.dribDead) gatherOff(pl);
+      else if (!pl.dribDead) { gatherOff(pl); pl.gaUsed = true; }
       else { ctl = 0; pl.face = Math.atan2(inp.my, inp.mx); if ((pl.gaT += dt) > K.gaTravelT && violation(pl, '走步')) return; }
     }
     if (a && (a.type === 'move' || a.type === 'dive' || a.type === 'shot' && a.stride && a.stride.moving || (a.type === 'dunk' && !a.done) || a.inSteps)) { /* 脚本位移 */ }
