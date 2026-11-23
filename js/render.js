@@ -2285,7 +2285,18 @@
     if (cz) {
       let k = cz.k != null ? cz.k : Math.min(1, cz.t / 0.18) * Math.min(1, Math.max(0, cz.T - cz.t) / 0.4);
       k = k * k * (3 - 2 * k); const u = cz.u * k;
+      const c0x = cam.x, c0y = cam.y, c0z = cam.z;
       cam.x += (cz.x - cam.x) * 0.55 * k; cam.y += (cz.y - cam.y) * u; cam.z += (cz.z - cam.z) * u;
+      // 庆祝特写：推近后球员脚到头都要在画面里，否则退回到刚好装得下的位置
+      if (cz.px != null) {
+        const dx = cam.x - c0x, dy = cam.y - c0y, dz = cam.z - c0z;
+        const fits = () => { const f = proj(cz.px, cz.py, 0), h = proj(cz.px, cz.py, 2.2); return f.d > 1.5 && f.y <= H * 0.9 && h.y >= H * 0.05; };
+        if (!fits()) {
+          let lo = 0, hi = 1;
+          for (let i = 0; i < 8; i++) { const m = (lo + hi) / 2; cam.x = c0x + dx * m; cam.y = c0y + dy * m; cam.z = c0z + dz * m; if (fits()) lo = m; else hi = m; }
+          cam.x = c0x + dx * lo; cam.y = c0y + dy * lo; cam.z = c0z + dz * lo;
+        }
+      }
     }
     // 禁区推近（可关）：持球接近篮下时镜头沿纵向前推、机位压低。只用平滑过的 camK，不读球员实时位置，不做额外取景修正
     const pk = RP || cz || !CAMV.push ? 0 : (G.camK || 0);
