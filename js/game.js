@@ -6042,7 +6042,7 @@
     }
     if (PH.gait) PH.gait.post(pl, T, an, a);
     const IG0 = G.intro && !a && (an === 'run' || an === 'idle' || an === 'def') ? introWalk(pl) : null;
-    if (IG0) { const e = G.time - IG0.t0, o = celPose(IG0.ty, e), k = Math.min(1, e / 0.2, (IG0.T - e) / 0.2); for (const n in o) if (n[0] === 'a') T[n] = lerp(T[n], o[n], k); }
+    if (IG0) { const e = G.time - IG0.t0, o = celPose(IG0.ty, e), k = Math.min(1, e / 0.2, (IG0.T - e) / 0.2); const D = { aLf: 0, aRf: 0, reachL: 1, reachR: 1 }; for (const n in o) if (n[0] === 'a' || n in D) T[n] = lerp(T[n] ?? D[n] ?? 0, o[n], k); }
     const F = pl.foulRecoil, elapsed = F ? G.time - F.at : 1;
     if (elapsed >= 0 && elapsed < 0.36) {
       const w = clamp(Math.min(elapsed / 0.045, (0.36 - elapsed) / 0.26), 0, 1);
