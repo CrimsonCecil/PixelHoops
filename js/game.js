@@ -966,6 +966,7 @@
     ['dkBodyD', 'fin', '扣篮 身体对抗距离惩罚', 0.3, 0, 1, 0.01, '概率：被撞后离筐每远 1 米多扣'],
     ['dkLowSt', 'stam', '低体力 扣篮命中惩罚', 0.15, 0, 0.5, 0.01, '概率'],
     ['dkCLo', 'fin', '低扣篮能力 干扰折损保底', 0.6, 0, 1.3, 0.01, '比例：扣篮能力 0.70 以下时，对抗分再占优干扰惩罚也至少 × 这个，至 0.90 线性降到 0.05'],
+    ['dkCWeak', 'fin', '低扣篮能力 干扰放大', 4, 0, 8, 0.1, '比例：扣篮能力 0.70 以下时干扰值 ×(1 + 这个)，至 0.90 线性归零；防守人站好位举手时一般扣将扣不进'],
     ['dkMin', 'fin', '扣篮 命中下限', 0.06, 0, 0.5, 0.01, '概率'],
     ['dkMax', 'fin', '扣篮 命中上限', 0.99, 0.5, 1, 0.01, '概率'],
     // V4.6 电脑 AI：难度表 / 持球决策 / 防守反应（原写死，默认值不变）
@@ -5064,7 +5065,7 @@
           // V4.3 扣篮对抗：差值用 finEdge（力量 / 扣篮 / 弹跳 / 体重 / 起跳速度 / 徽章 / 疲劳 对 盖帽 / 内防 / 臂展 / 弹跳 / 力量 / 站位时机）
           const dR = dunkR(pl, a.run0 || 0), edge = df.off ? 1 : finEdge(pl, df, a, true);
           const flashy = a.v === 'windmill' || a.v === '360' || a.v === 'cock' || a.v === 'cradle' || a.v === 'pump' || a.v === 'scissor', vk = flashy ? K.dkFlyK : a.v === 'two' || a.v === 'rimpull' || a.v === 'shaq' ? K.dkPowK : 1;
-          const prob0 = SK ? 1 : clamp(K.dkP0 + K.dkPR * dR - (flashy ? K.dkPFly : 0) - K.ctDkP * c * vk * clamp(K.dkC0 - K.dkCE * edge, Math.min(1.3, lerp(0.05, K.dkCLo, lowHnd(dR))), 1.3) - heavyD - (a.bodyPen ? a.bodyPen + K.dkBodyD * clamp(distHoop(pl) - 1, 0, 1.5) : 0) - (pl.stam < ST.layLow ? K.dkLowSt : 0), K.dkMin, K.dkMax);
+          const prob0 = SK ? 1 : clamp(K.dkP0 + K.dkPR * dR - (flashy ? K.dkPFly : 0) - K.ctDkP * c * (1 + K.dkCWeak * lowHnd(dR)) * vk * clamp(K.dkC0 - K.dkCE * edge, Math.min(1.3, lerp(0.05, K.dkCLo, lowHnd(dR))), 1.3) - heavyD - (a.bodyPen ? a.bodyPen + K.dkBodyD * clamp(distHoop(pl) - 1, 0, 1.5) : 0) - (pl.stam < ST.layLow ? K.dkLowSt : 0), K.dkMin, K.dkMax);
           const prob = alleyProb(a, SK || !a.thru ? prob0 : thruProb(pl, a, prob0, true));
           a.edge = edge; if (a.v === 'poster') bpop(pl, 'poster');
           const info = { who: pl.id, name: a.alley ? '空接暴扣' : a.name, pts: 2, dist: distHoop(pl), contest: c, src: c > 0.04 ? ci.src : '', e: null, zone: 'lay', stamLow: pl.stam < ST.layLow, green: false, made: false, blocked: false, prob: prob, tl: '—', cl: c < 0.2 ? '空位' : c < 0.5 ? '轻微干扰' : '严重干扰', reason: '' };
@@ -8647,6 +8648,7 @@
     bgTightSt: ['运球如丝 耗体倍数', '越大运球如丝持有者运球招式耗体越多；金档倍数，1 = 无减耗'],
     bgHuCost: ['鱼跃徽章 耗体倍数', '越大鱼跃徽章持有者扑球耗体越多；金档倍数，1 = 无减耗'],
     bgMotorSt: ['永动机 耗体倍数', '越大永动机持有者冲刺等动作耗体越多；金档倍数，1 = 无减耗'],
+    dkCWeak: ['扣篮 低扣篮能力干扰放大', '越大扣篮能力一般的人被干扰时越难扣进；比例'],
     dkCLo: ['扣篮 低扣篮能力干扰保底', '越大扣篮能力一般的人被干扰时越难硬扣；干扰惩罚倍数下限'],
     mvHndSt: ['运球招式 低控球耗体加成', '越大控球差的人做运球招式越耗体；比例'],
     dunkAthPow: ['扣篮 起跳距离能力指数', '越大扣篮能力一般的人越难远距离起跳扣篮；指数'],
