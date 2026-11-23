@@ -360,7 +360,7 @@
       const lx = (pl.vx || 0) * fy - (pl.vy || 0) * fx, ly = (pl.vx || 0) * fx + (pl.vy || 0) * fy;
       const c = pl.slide || (pl.slide = { ph: 0, vx: 0, vy: 0 }), k = 1 - Math.exp(-12 * dt);
       c.vx += (lx - c.vx) * k; c.vy += (ly - c.vy) * k;
-      const v = Math.hypot(c.vx, c.vy), stride = tune('stSlideStride', 0.7) * Hh, hz = cl(v / stride, 1.2, Math.max(1.2, tune('stSlideHz', 2.6)));
+      const v = Math.hypot(c.vx, c.vy), stride = Math.max(0.1, tune('stSlideStride', 0.7)) * Hh, hz = cl(v / stride, 1.2, Math.max(1.2, tune('stSlideHz', 2.6)));
       const D = Math.min(stride, v / hz) / (v || 1);
       c.ph = (c.ph + hz * dt) % 1;
       // 急停变向时步幅平滑地换向，脚不会一下子从身前闪到身后
