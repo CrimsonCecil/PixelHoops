@@ -5786,7 +5786,7 @@
         flex: { lean: -0.12, aLp: 1.55, aLq: 1.55, aLe: 1.7 + 0.2 * w, aRp: 1.55, aRq: 1.55, aRe: 1.7 - 0.2 * w, lS: 0.3, rS: 0.3, lB: 0.45, rB: 0.45 },
         roar: { lean: -0.28 + 0.06 * w, aLp: 0.9, aLq: 1.7, aLe: 0.9, aRp: 0.9, aRq: 1.7, aRe: 0.9, lS: 0.32, rS: 0.32, lB: 0.5, rB: 0.5 },
         shimmy: { lean: 0.05, aLp: 0.9 + 0.45 * w2, aLq: 0.9, aLe: 1.3, aRp: 0.9 - 0.45 * w2, aRq: 0.9, aRe: 1.3, lB: 0.35 + 0.15 * w2, rB: 0.35 - 0.15 * w2 },
-        night: { lean: -0.08, aLp: 2.55, aLq: 0.15, aLe: 1.9, aRp: 2.55, aRq: 0.15, aRe: 1.9 },
+        night: { lean: -0.04, tilt: 0.24 + 0.03 * Math.sin(e * 3), aLp: 1.1, aLq: -1.3, aLe: 1.95, aRp: 2.0, aRq: 0.1, aRe: 2.05 },   // 库里晚安：双手合十贴在歪向一侧的脸旁
         toosmall: { lean: -0.05, aLp: 0.35, aLq: 0.9, aLe: 1.6, aRp: 1.1 + 0.35 * Math.abs(w2), aRq: 0.5, aRe: 0.25 },
         shush: { lean: -0.05, aLp: 0.25, aLq: 0.3, aLe: 0.2, aRp: 2.15, aRq: 0.05, aRe: 2.5 },
         chest: { lean: -0.1, aLp: 1.0 + 0.25 * Math.max(0, w2), aLq: 0.2, aLe: 2.3, aRp: 1.0 + 0.25 * Math.max(0, -w2), aRq: 0.2, aRe: 2.3 },
@@ -5805,7 +5805,7 @@
         robot: Object.assign({ lA: 0.2, rA: 0.2, lB: 0.4, rB: 0.4 }, ROBOT[Math.floor(e * 3.2) % ROBOT.length]),
         armwave: { lean: -0.04, tilt: 0.1 * Math.sin(e * 8 - 1.2), lB: 0.3 + 0.12 * Math.sin(e * 8), rB: 0.3 - 0.12 * Math.sin(e * 8), aLp: 1.57 + 0.35 * Math.sin(e * 8), aLq: 1.3, aLe: 0.75 * Math.sin(e * 8 + 1.1), aRp: 1.57 + 0.35 * Math.sin(e * 8 - 2.4), aRq: 1.3, aRe: 0.75 * Math.sin(e * 8 - 1.3) },
         griddy: { lean: 0.26, tilt: 0.1 * gs, yaw: 0.25 * gs, bob: 0.03 * Math.abs(gs), lA: 0.15 + 1.25 * gl, lB: 0.3 + 1.7 * gl, rA: 0.15 + 1.25 * gr, rB: 0.3 + 1.7 * gr, aLp: 0.5 - 0.95 * gs, aLq: 0.25, aLe: 1.5, aRp: 0.5 + 0.95 * gs, aRq: 0.25, aRe: 1.5 },
-        watch: { lean: -0.04, aLp: 1.35, aLq: 0.35, aLe: 1.45, aRp: 1.7 + 0.18 * Math.abs(w12), aRq: -0.2, aRe: 1.35 },
+        watch: { lean: 0.04, aLp: 1.25 + 0.08 * Math.abs(w12), aLq: -0.4, aLe: 1.95, aRp: 0.15, aRq: 0.2, aRe: 0.3 },   // 利拉德 Dame Time：一只手腕举到脸前看表，另一只手垂下
         crown: { lean: lerp(0, -0.14, up), aLp: lerp(1.0, 2.75, up), aLq: 0.55, aLe: lerp(1.0, 1.85 + 0.12 * Math.sin(e * 5), up), aRp: lerp(1.0, 2.75, up), aRq: 0.55, aRe: lerp(1.0, 1.85 + 0.12 * Math.sin(e * 5), up) } }[ty] || {};
   }
   function poseTarget(pl) {
