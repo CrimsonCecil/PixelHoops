@@ -2007,7 +2007,6 @@
   function hoopDir(p) { let x = HOOP.x - p.x, y = HOOP.y - p.y; const l = Math.hypot(x, y) || 1; return { x: x / l, y: y / l, l: l }; }
   // lvl：2=保留的关键提示（盖帽名称/规则），1=普通动作，0=详细反馈；普通动作不在局内显示。
   function float(text, pl, color, lvl) {
-    if (G.mode !== 'demo' && lvl !== 2) return;
     if (G.fb !== 'detail' && !lvl) return;
     const pid = pl.id != null ? pl.id : -1;
     if (G.fb !== 'detail' && pid >= 0) G.floats = G.floats.filter((f) => f.pid !== pid || f.t > 0.9);
