@@ -5211,7 +5211,7 @@
     const d = distHoop(pl);
     if (pl.hasBall) {
       if (G.phase !== 'live') return;
-      if (pl.recT > G.time && pl.landT && G.time - pl.landT < 0.6) return;
+      if (pl.recT > G.time && pl.landT && G.time - pl.landT < 0.6 * Math.max(1, landK(pl))) return;
       if (pr.a1 || pr.a2) {
         if (G.needClear) { G.clearPing = G.time; G.illId = pl.id; }
         if (cancelVariant) { startShot(pl, inp, 'a1', cancelVariant); return; }
@@ -5319,7 +5319,7 @@
   // 这一帧能不能直接响应 key（不能 = 按下的键进缓冲）
   function ibReady(pl, key) {
     if (pl.stun > 0 || pl.action || pl.z > 0.05) return false;
-    if (pl.hasBall) { if (key === 'a3') return pl.cd <= 0; return !(pl.recT > G.time && pl.landT && G.time - pl.landT < 0.6); } // 运球招式本来就不受落地硬直限制
+    if (pl.hasBall) { if (key === 'a3') return pl.cd <= 0; return !(pl.recT > G.time && pl.landT && G.time - pl.landT < 0.6 * Math.max(1, landK(pl))); } // 运球招式本来就不受落地硬直限制
     return pl.cd <= 0 || key === 'a1' && rodReady(pl);
   }
   // 持球动作里自己的键另有用途（蓄力出手 / 二次按键转身上篮 / 双击扣篮 / 运球连招自带缓存），这些时候不进缓冲
@@ -5451,7 +5451,7 @@
       const live = G.phase === 'live' && !G.ball.dead && !frozen;
       if (!live) { pl.ib = null; if (pr.a1 && !pl.hasBall) pl.jbuf = G.time; }
       else {
-        if (pl.z > 0.05 || (pl.hasBall && pl.recT > G.time && pl.landT && G.time - pl.landT < 0.6)) ibuf.hold(pl, G.time);
+        if (pl.z > 0.05 || (pl.hasBall && pl.recT > G.time && pl.landT && G.time - pl.landT < 0.6 * Math.max(1, landK(pl)))) ibuf.hold(pl, G.time);
         if (pl.ib) trackHesitation(pl, pl.ib.hesi, raw);
         // 缓存中的投篮键：记下松手时刻（实际按住时长 hd），执行时回放；5V5 接球前 team5 不把 X 传进来，直接读手柄/键盘的 X
         if (pl.ib && pl.ib.k === 'a1' && pl.ib.hd == null && !ibDown(pl, raw)) pl.ib.hd = G.time - pl.ib.t;
