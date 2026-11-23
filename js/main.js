@@ -1156,14 +1156,17 @@
   function fsAuto() {
     if (!FS.on || FS.done || !fsReq) return;
     FS.done = true;
-    try { fsEnter().catch(() => { FS.done = false; }); } catch (e) { FS.done = false; }
+    try { fsEnter().catch(fsFail); } catch (e) { fsFail(); }
   }
+  // 进入失败（不算用户操作的手柄按键等）就等下一次输入再试；带前缀的 WebKit 接口不返回 Promise，只发 error 事件
+  function fsFail() { if (FS.on && !fsEl()) FS.done = false; }
+  for (const ev of ['fullscreenerror', 'webkitfullscreenerror']) document.addEventListener(ev, fsFail);
   for (const ev of ['pointerup', 'touchend', 'click', 'keydown']) window.addEventListener(ev, fsAuto, true);
   show('btn-fs', !!fsReq);
   $('btn-fs').addEventListener('click', () => {
     FS.on = !FS.on; FS.done = true;
     try { localStorage.setItem('ph_autofs', FS.on ? 'on' : 'off'); } catch (e) { /* 隐私模式 */ }
-    if (FS.on) fsEnter().catch(() => {});
+    if (FS.on) fsEnter().catch(fsFail);
     else if (fsEl()) (document.exitFullscreen || document.webkitExitFullscreen).call(document);
     saveV();
   });
