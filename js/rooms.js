@@ -41,6 +41,26 @@
     const addr = (c && c.address) || line.split(' ')[4] || '';
     return addr.includes(':') ? 'IPv6' : 'IPv4';
   }
+  // Selected ICE pair from getStats(): route, our TURN leg's transport ('udp' | 'tcp' | 'tls', 'peer' when only the
+  // other side relays) and the ICE-level RTT in ms, so the HUD can tell a slow route from queueing in the game.
+  function routeInfo(stats) {
+    const cands = new Map(), pairs = []; let selId = '';
+    stats.forEach((r) => {
+      if (r.type === 'transport' && r.selectedCandidatePairId) selId = r.selectedCandidatePairId;
+      else if (r.type === 'local-candidate' || r.type === 'remote-candidate') cands.set(r.id, r);
+      else if (r.type === 'candidate-pair') pairs.push(r);
+    });
+    const pair = (selId && pairs.find((x) => x.id === selId)) || pairs.find((x) => x.nominated && x.state === 'succeeded');
+    if (!pair) return null;
+    const lc = cands.get(pair.localCandidateId), rc = cands.get(pair.remoteCandidateId);
+    const localRelay = !!lc && lc.candidateType === 'relay', remoteRelay = !!rc && rc.candidateType === 'relay';
+    const rtt = Number.isFinite(pair.currentRoundTripTime) ? Math.round(pair.currentRoundTripTime * 1000) : null;
+    return {
+      route: localRelay || remoteRelay ? 'turn' : 'direct',
+      proto: localRelay ? String(lc.relayProtocol || lc.protocol || '').toLowerCase() : remoteRelay ? 'peer' : '',
+      rtt,
+    };
+  }
   function directIce(list) {
     const out = [];
     for (const s of list) {
@@ -51,7 +71,7 @@
   }
   // Run fn now if no credential fetch is in flight, otherwise right after it settles (<= 3 s, never rejects).
   function whenIce(fn) { if (icePending) icePending.then(fn); else fn(); }
-  const room = { peer: null, role: '', code: '', links: new Map(), active: false, ping: null, transport: '', route: '', direct: false };
+  const room = { peer: null, role: '', code: '', links: new Map(), active: false, ping: null, transport: '', route: '', relayProto: '', iceRtt: null, direct: false };
   let attempt = 0, pending = null, timeout, checkDeadline, stopRecovery;
   let stateSeq = 0, inputSeq = 0, lastInputKey = '', lastInputAt = -Infinity;
 
@@ -103,19 +123,26 @@
     if (room.role === 'guest') {
       room.transport = pending?.open ? pending.transport : '';
       room.route = room.transport === 'p2p' ? (pending.route || '') : '';
+      room.relayProto = room.route === 'turn' ? (pending.relayProto || '') : '';
+      room.iceRtt = room.transport === 'p2p' ? pending.iceRtt ?? null : null;
       room.direct = !!(pending?.open && pending.direct);
       return;
     }
-    let any = false, anyRelay = false, anyTurn = false, direct = false;
+    let any = false, anyRelay = false, anyTurn = false, direct = false, proto = '', rtt = null;
     for (const link of room.links.values()) {
       if (!link.conn.open) continue;
       any = true;
       if (link.conn.direct) direct = true;
       if (link.conn.transport !== 'p2p') anyRelay = true;
-      else if (link.conn.route === 'turn') anyTurn = true;
+      else {
+        if (link.conn.route === 'turn') { anyTurn = true; if (!proto || link.conn.relayProto === 'tcp' || link.conn.relayProto === 'tls') proto = link.conn.relayProto || proto; }
+        if (Number.isFinite(link.conn.iceRtt)) rtt = rtt == null ? link.conn.iceRtt : Math.max(rtt, link.conn.iceRtt);
+      }
     }
     room.transport = !any ? '' : anyRelay ? 'relay' : 'p2p';
     room.route = room.transport !== 'p2p' ? '' : anyTurn ? 'turn' : 'direct';
+    room.relayProto = room.route === 'turn' ? proto : '';
+    room.iceRtt = room.transport === 'p2p' ? rtt : null;
     room.direct = direct;
   }
   function relayURL(code, role, secret) {
@@ -132,13 +159,15 @@
   }
   function createLink(relaySend, relayEnd, relayBuffered, isHost, direct = false) {
     const listeners = new Map();
-    let pc = null, ctrl = null, stateCh = null, inCh = null, pendingIce = [], closed = false, relayAlive = true, directTimer;
+    let pc = null, ctrl = null, stateCh = null, inCh = null, pendingIce = [], closed = false, relayAlive = true, directTimer, routeTimer;
     const pubLocal = new Set(), pubRemote = new Set();
     const directFail = () => DIRECT_FAIL + '（本机公网地址：' + iceFamilies(pubLocal) + '；对方：' + iceFamilies(pubRemote) + '）';
     const link = {
       open: false,
       transport: 'relay',
       route: '',            // 'direct' | 'turn' | '' : which ICE path the data channel really uses (diagnostics only)
+      relayProto: '',       // our TURN leg: 'udp' | 'tcp' | 'tls' | 'peer' (only the other side relays)
+      iceRtt: null,         // ICE-level RTT of the selected pair, ms
       direct: false,        // net_direct: P2P without TURN only; the Worker carries signaling, never game data
       delta: false,         // guest merges delta state snapshots (sent in its join)
       reason: '',           // why the link was failed (shown to the user)
@@ -224,6 +253,7 @@
       close() {
         if (!this.open && closed) return;
         closed = true;
+        clearTimeout(routeTimer);
         clearTimeout(directTimer);
         const wasOpen = this.open;
         this.open = false;
@@ -240,18 +270,16 @@
       if (closed || !cur || typeof cur.getStats !== 'function') return;
       cur.getStats().then((stats) => {
         if (closed || cur !== pc) return;
-        const cands = new Map(), pairs = []; let selId = '';
-        stats.forEach((r) => {
-          if (r.type === 'transport' && r.selectedCandidatePairId) selId = r.selectedCandidatePairId;
-          else if (r.type === 'local-candidate' || r.type === 'remote-candidate') cands.set(r.id, r);
-          else if (r.type === 'candidate-pair') pairs.push(r);
-        });
-        const pair = (selId && pairs.find((x) => x.id === selId)) || pairs.find((x) => x.nominated && x.state === 'succeeded');
-        if (!pair) return;
-        const lc = cands.get(pair.localCandidateId), rc = cands.get(pair.remoteCandidateId);
-        const route = (lc && lc.candidateType === 'relay') || (rc && rc.candidateType === 'relay') ? 'turn' : 'direct';
-        if (link.route !== route) { link.route = route; syncTransport(); }
+        const info = routeInfo(stats);
+        if (!info) return;
+        if (link.route === info.route && link.relayProto === info.proto && link.iceRtt === info.rtt) return;
+        link.route = info.route; link.relayProto = info.proto; link.iceRtt = info.rtt; syncTransport();
       }).catch(() => {});
+    }
+    function routeLoop() {
+      if (closed || !pc || typeof pc.getStats !== 'function') return;
+      probeRoute();
+      routeTimer = setTimeout(routeLoop, 2000);
     }
     function flushIce() {
       if (!pc || !pendingIce.length) return;
@@ -275,7 +303,7 @@
         if (closed) { try { ch.close(); } catch {} return; }
         if (isCtrl) {
           clearTimeout(directTimer);
-          link.transport = 'p2p'; syncTransport(); probeRoute(); setTimeout(probeRoute, 3000);
+          link.transport = 'p2p'; syncTransport(); clearTimeout(routeTimer); routeLoop();
           // Direct-only: the join sent over the Worker was ignored by the host, so say hello again over P2P.
           if (!isHost && link.direct && link.open) link.emit('open');
         }
@@ -325,7 +353,7 @@
     stateSeq = 0; inputSeq = 0; lastInputKey = ''; lastInputAt = -Infinity;
     if (stopRecovery) { stopRecovery(); stopRecovery = null; }
     room.links.clear();
-    Object.assign(room, { peer: null, role: '', code: '', active: false, ping: null, transport: '', route: '', direct: false });
+    Object.assign(room, { peer: null, role: '', code: '', active: false, ping: null, transport: '', route: '', relayProto: '', iceRtt: null, direct: false });
   }
   function broadcast(msg) {
     const out = msg?.type === 'state' && msg.seq == null ? { ...msg, seq: ++stateSeq } : msg;

@@ -431,6 +431,8 @@
     if (audio) copy.audio = audio;
     return copy;
   }
+  // TURN leg transport for the HUD: TCP/TLS means head-of-line blocking; 对方 = only the other player relays.
+  const netRelayProto = (proto) => proto === 'peer' ? '·对方' : proto ? '·' + proto.toUpperCase() : '';
   function captureNetPose() {
     return {
       phase: G.phase,
@@ -2399,8 +2401,9 @@
     const fpsText = Math.round(fps) + ' FPS';
     const p = room.ping;
     const via = room.direct ? (room.transport === 'p2p' ? ' P2P·强制直连' : room.transport ? ' 直连中…' : '')
-      : room.transport === 'p2p' ? (room.route === 'turn' ? ' P2P/TURN' : ' P2P') : room.transport === 'relay' ? ' 中继' : '';
-    const pingText = (p != null ? 'PING ' + p + 'ms' : 'PING --') + via;
+      : room.transport === 'p2p' ? (room.route === 'turn' ? ' P2P/TURN' + netRelayProto(room.relayProto) : ' P2P') : room.transport === 'relay' ? ' 中继' : '';
+    const ice = room.transport === 'p2p' && Number.isFinite(room.iceRtt) ? ' · ICE ' + room.iceRtt + 'ms' : '';
+    const pingText = (p != null ? 'PING ' + p + 'ms' : 'PING --') + via + ice;
     const pingCls = p == null ? '' : p < 60 ? 'good' : p < 120 ? 'warn' : 'bad';
     if (fpsText !== lastFpsText) { $('netstat-fps').textContent = fpsText; lastFpsText = fpsText; }
     if (pingText !== lastPingText) { $('netstat-ping').textContent = pingText; lastPingText = pingText; }
