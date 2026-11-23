@@ -111,6 +111,7 @@
     ['euroD', 'zone', '欧洲步第二步距离', 1.2, 0.6, 2.5, 0.05, '米：欧洲步第二步落到离筐约这么远'],
     ['euroTempo', 'zone', '欧洲步时长倍率', 1.8, 0.8, 4, 0.05, '倍率：越大越慢；两步与停顿一起缩放，保留小幅速度/加速能力差异；不改变空中出手时机'],
     ['euroBeat', 'zone', '欧洲步第一步落地停顿', 0.24, 0, 0.45, 0.01, '秒：第一步落地后压节奏，再迈第二步；受欧洲步时长倍率影响，0 为不停顿'],
+    ['euroStep1', 'zone', '欧洲步第一步时长倍率', 0.7, 0.3, 1.5, 0.05, '倍率：只乘在第一步（迈步 + 落地停顿）上，越小第一步越快；第二步与出手不变'],
     ['dunkMax', 'zone', '扣篮最远起跳', 3.2, 1.5, 5, 0.05, '米：扣篮起跳距离上限'],
     ['bkDunkDist', 'zone', '空中飞猪 额外起跳距离', 1, 0, 1.5, 0.05, '米：路线空旷的跑扣额外起跳距离'],
     ['bkDunkSpeed', 'zone', '空中飞猪 向筐速度', 1.8, 0.5, 5, 0.1, '米/秒：不需要冲刺或蓄力'],
@@ -3938,8 +3939,9 @@
       const tempo = K.euroTempo * lerp(1.1, 0.95, clamp((pl.r.spd + pl.r.acc) / 2, 0, 1));
       const beat = K.euroBeat * tempo, euroT = (len) => sT(len) * tempo;
       const w = clamp(s * 0.75, 0.55, 1.0);
-      push(x + h.x * s * 0.75 + lx * eS * w, y + h.y * s * 0.75 + ly * eS * w, euroT(s) + (GATHER_T + 0.02) * tempo + beat, 0.1, eS > 0 ? 'L' : 'R');
-      wp[0].hold = beat;
+      const f1 = K.euroStep1;
+      push(x + h.x * s * 0.75 + lx * eS * w, y + h.y * s * 0.75 + ly * eS * w, (euroT(s) + (GATHER_T + 0.02) * tempo + beat) * f1, 0.1, eS > 0 ? 'L' : 'R');
+      wp[0].hold = beat * f1;
       const d1 = Math.hypot(HOOP.x - x, HOOP.y - y), s2 = clamp(d1 - K.euroD, 0.6, P.L * 1.05);
       push(x + h.x * s2 * 0.8 - lx * eS * w * 1.25, y + h.y * s2 * 0.8 - ly * eS * w * 1.25, euroT(s2) + 0.04 * tempo, 0.1, eS > 0 ? 'R' : 'L');
     } else {
@@ -8234,6 +8236,7 @@
     euroD: ['欧洲步 第二步目标距离', '越大欧洲步第二步离筐越远、迈得越短；米'],
     euroTempo: ['欧洲步 时长倍数', '越大欧洲步脚步与停顿越慢；1 = 基准，不改空中出手时机'],
     euroBeat: ['欧洲步 首步落地停顿', '越大欧洲步第一步落地后停得越久；秒，再乘时长倍数'],
+    euroStep1: ['欧洲步 第一步时长倍数', '越大欧洲步第一步迈得越慢、落地停得越久；只管第一步，第二步和出手不变'],
     dunkMax: ['扣篮 最远起跳上限', '越大扣篮能从越远处起跳；米'],
     dunkMin: ['扣篮 最远起跳下限', '越大较弱扣将的起跳距离也能更远；米'],
     dunkBase: ['扣篮 起跳距离基数', '越大扣篮基础可起跳距离越远；米'],
@@ -8824,7 +8827,7 @@
     for (const [field, [label, note]] of Object.entries(STYLE_DISPLAY)) BLOCK_DISPLAY['ps' + prefix + field] = ['个性·' + name + ' ' + label, note];
   }
   if (TU) {
-    TU.reg(TDEF.map((d) => ({ k: 'l1_' + d[0], g: d[1], label: d[2], v: d[3], min: d[4], max: d[5], step: d[6], note: d[7], display: BLOCK_DISPLAY[d[0]], mode: d[8] || 'num', tmp: !!d[9], ...(d[0] === 'stLift' || d[0] === 'stReach' || /^(euroTempo|euroBeat|manu|aiCommit|aiProbeRange|aiBurst|aiChain|vc)/.test(d[0]) ? { wide: false } : {}), ...(/^manu/.test(d[0]) ? { cat: 'fin', sub: '上篮变体', gm: 'both' } : {}), ...(/^vc/.test(d[0]) ? { cat: 'fin', sub: '扣篮', gm: 'both' } : {}), ...(/^ai(Commit|ProbeRange|Burst|Chain)/.test(d[0]) ? { cat: 'drib', sub: '连招', gm: 'both' } : {}), ...(/^(alley|selfAlley)/.test(d[0]) ? { cat: 'fin', sub: '上篮', gm: 'both' } : {}) })));
+    TU.reg(TDEF.map((d) => ({ k: 'l1_' + d[0], g: d[1], label: d[2], v: d[3], min: d[4], max: d[5], step: d[6], note: d[7], display: BLOCK_DISPLAY[d[0]], mode: d[8] || 'num', tmp: !!d[9], ...(d[0] === 'stLift' || d[0] === 'stReach' || /^(euroTempo|euroBeat|euroStep1|manu|aiCommit|aiProbeRange|aiBurst|aiChain|vc)/.test(d[0]) ? { wide: false } : {}), ...(/^manu/.test(d[0]) ? { cat: 'fin', sub: '上篮变体', gm: 'both' } : {}), ...(/^vc/.test(d[0]) ? { cat: 'fin', sub: '扣篮', gm: 'both' } : {}), ...(/^ai(Commit|ProbeRange|Burst|Chain)/.test(d[0]) ? { cat: 'drib', sub: '连招', gm: 'both' } : {}), ...(/^(alley|selfAlley)/.test(d[0]) ? { cat: 'fin', sub: '上篮', gm: 'both' } : {}) })));
     TU.reg(RDEF.map((d) => ({ k: 'l1_' + d[0], g: 'rules', label: d[1], v: CFG_DEF[d[0]], min: d[2], max: d[3], step: d[4], note: d[5], display: RULE_DISPLAY[d[0]], mode: d[6] || 'num' })));
     for (const d of RDEF) if (d[0] !== 'shotClock') Object.defineProperty(CFG, d[0], { enumerable: true, configurable: true, get: () => TU.get('l1_' + d[0]), set: (v) => { TU.set('l1_' + d[0], v); } });
     // 进攻时间是“本场”设置（比赛开始界面 / 5V5 会临时改），所以 CFG.shotClock 仍是普通字段，调参改动时同步过去

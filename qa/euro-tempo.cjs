@@ -44,9 +44,9 @@ for (const [label, data] of profiles) {
     console.log(`${ref ? 'BEFORE' : 'AFTER'} ${label} Flagg (4.5m, 5m/s): plant1=${first.toFixed(3)} plant2=${second.toFixed(3)} release(ideal)=${release.toFixed(3)}; plant1->plant2=${(second - first).toFixed(3)} plant2->release=${a.ideal.toFixed(3)}`);
     if (ref) continue;
     assert.equal(a.wp.length, 2);
-    for (const key of ['euroTempo', 'euroBeat']) assert.equal(PH.TUNE.meta('l1_' + key).wide, false);
-    assert(first > 0.3 && second - first > 0.65, 'even C1 has human-paced steps and a readable beat');
-    assert(release - first >= 1 && release < 2, 'readable first-plant rhythm without excessively slow defaults');
+    for (const key of ['euroTempo', 'euroBeat', 'euroStep1']) assert.equal(PH.TUNE.meta('l1_' + key).wide, false);
+    assert(first > 0.15 && first < 0.45 && w.hold > 0.2 && second - first > 0.55, 'quick first step that still plants a readable beat');
+    assert(release - first >= 0.9 && release < 1.7, 'readable first-plant rhythm without excessively slow defaults');
     const shared = { p, a }, sharedPlan = gm._dbg.finPlan(p);
     const originalStepT = K.stepT, originalGatherT = K.gathT;
     K.stepT = 0.1; K.gathT = 0.04;
@@ -54,7 +54,7 @@ for (const [label, data] of profiles) {
     const scale = K.euroTempo * (1.1 - 0.15 * (shared.p.r.spd + shared.p.r.acc) / 2);
     K.stepT = 0.09; K.gathT = 0.03;
     const quicker = Q.buildSteps(shared.p, shared.a, sharedPlan, 'euro', 1);
-    assert(Math.abs(tuned[0].T - quicker[0].T - 0.02 * scale) < 1e-8, 'stepT and gathT directly control the first step even below former floors');
+    assert(Math.abs(tuned[0].T - quicker[0].T - 0.02 * scale * K.euroStep1) < 1e-8, 'stepT and gathT directly control the first step even below former floors');
     assert(Math.abs(tuned[1].T - quicker[1].T - 0.01 * scale) < 1e-8, 'stepT directly controls the second step even below former floor');
     K.stepT = originalStepT; K.gathT = originalGatherT;
     Object.assign(a, { st: first + w.hold / 3, si: 0 });
@@ -94,6 +94,12 @@ for (const [label, data] of profiles) {
     const slower = setup().a;
     assert(Math.abs(slower.wp[0].T / w.T - 1.2) < 1e-8, 'tempo scales whole ground rhythm');
     K.euroTempo = baseTempo;
+    const baseStep1 = K.euroStep1;
+    K.euroStep1 = baseStep1 * 0.5;
+    const quick1 = setup().a;
+    assert(Math.abs(quick1.wp[0].T / w.T - 0.5) < 1e-8 && Math.abs(quick1.wp[0].hold / w.hold - 0.5) < 1e-8, 'first-step factor scales the first stride and its beat');
+    assert(Math.abs(quick1.wp[1].T - a.wp[1].T) < 1e-8 && quick1.ideal === a.ideal, 'first-step factor leaves the second step and release alone');
+    K.euroStep1 = baseStep1;
     const empty = setup(); empty.a.wp = []; empty.a.meter = null;
     Q.stepUpdate(empty.p, empty.a, { a1: true }, 1 / 240);
     assert.equal(empty.a.inSteps, false, 'empty waypoint fallback still takes off');
@@ -113,4 +119,4 @@ for (const [label, data] of profiles) {
     assert.equal(K.euroTempo, PH.TUNE.meta('l1_euroTempo').v, 'invalid slider value falls back to default');
   }
 }
-console.log('PASS Euro tempo: defaults/fixture, bounded sliders, shared stepT/gathT without floors, planted pause, slow-motion rig carry, CPU bait/landing, zero beat, scaling and empty-waypoint fallback');
+console.log('PASS Euro tempo: defaults/fixture, bounded sliders, first-step factor, shared stepT/gathT without floors, planted pause, slow-motion rig carry, CPU bait/landing, zero beat, scaling and empty-waypoint fallback');
