@@ -225,6 +225,7 @@
     ['ctLayCapB', 'ct', '上篮 重干扰盖帽系数', 0.15, 0, 1, 0.01, '严重干扰时，盖帽能力每高于60一点，命中上限降低此比例；与内防系数叠加'],
     ['ctLayGreen', 'ct', '上篮 重干扰完美加成', 0.04, 0, 0.15, 0.01, '严重干扰时，完美出手只给命中上限加此概率，不能无视内防与盖帽'],
     ['ctLayLate', 'ct', '上篮 重干扰时机惩罚', 0.04, 0, 0.15, 0.01, '严重干扰非完美出手：命中上限再减此值×时机误差'],
+    ['ctLayVLate', 'ct', '上篮 重干扰很早 / 很晚惩罚', 0.1, 0, 0.3, 0.01, '严重干扰且出手很早 / 很晚（时机误差 0.5 → 1）：命中上限再减至多这个'],
     ['ctBlkE', 'ct', '被盖率 对抗斜率', 1.0, 0, 4, 0.05, '上篮 / 扣篮被盖率 × clamp(1 − 差值×此, 0.25, 1.8)'],
     ['ctBlkH', 'ct', '严重封堵 被盖倍率', 1.0, 1, 3, 0.05, '干扰 ≥ 0.5 时上篮被盖率再乘'],
     ['ctBlkD', 'ct', '双人封堵 被盖倍率', 1.2, 1, 3, 0.05, '双人封堵时上篮被盖率再乘'],
@@ -275,7 +276,7 @@
     ['cbWin', 'drib', '连续过人 衔接窗口', 0.35, 0.05, 1, 0.01, '秒：能取消前提前按、或收招后晚按，超过这个时间都不接招；方向联招也需在这个时间内输入'],
     ['cbFat', 'drib', '连续过人 疲劳衰减', 0.8, 0, 1, 0.01, '比例：疲劳度 1（体力 0）时 combo 加成 × (1 − 这个)；疲劳度 = (疲劳线 − 体力) ÷ 疲劳线'],
     ['cbCost', 'drib', '连续过人 体力递增', 0.2, 0, 1, 0.01, '比例：第 n 段体力消耗 × (1 + 这个 × n)，在每招递增之上'],
-    ['mvHndSt', 'drib', '低控球 运球招式耗体加成', 1, 0, 3, 0.05, '比例：控球 0.70 以下运球招式耗体 ×(1 + 这个)，至 0.90 线性归零'],
+    ['mvHndSt', 'drib', '低控球 运球招式耗体加成', 1, 0, 3, 0.05, '比例：控球 0.70 以下运球招式耗体 +这个 × 单招基础耗体（和连招递增相加，不连乘），至 0.90 线性归零'],
     ['cbStep', 'drib', '连续过人 每招体力递增', 0.5, 0, 2, 0.01, '比例：衔接窗口内换招接上的第 n 招体力消耗 × (1 + 这个 × (n − 1))，不封顶；运球如丝 / 脚踝终结者 按 bgChainSt 放缓'],
     ['mvFat', 'drib', '疲劳 位移衰减', 0.4, 0, 0.8, 0.01, '比例：疲劳度 1 时动作速度 × (1 − 这个)，动作时长另外 +25%，合起来位移 ≈ × (1 − 这个) × 1.25（原来 0.3 → 位移只少 12%，0.4 → 少 25%）；疲劳度 = (疲劳线 − 体力) ÷ 疲劳线'],
     // —— V4.2 AI 连续过人（ai 组）：电脑用同一套 combo（pl.dcn / cbWin），当前招还在做时按下一段走缓冲接上 ——
@@ -969,6 +970,7 @@
     ['dkLowSt', 'stam', '低体力 扣篮命中惩罚', 0.15, 0, 0.5, 0.01, '概率'],
     ['dkCLo', 'fin', '低扣篮能力 干扰折损保底', 0.6, 0, 1.3, 0.01, '比例：扣篮能力 0.70 以下时，对抗分再占优干扰惩罚也至少 × 这个，至 0.90 线性降到 0.05'],
     ['dkCWeak', 'fin', '低扣篮能力 干扰放大', 4, 0, 8, 0.1, '比例：扣篮能力 0.70 以下时干扰值 ×(1 + 这个)，至 0.90 线性归零；防守人站好位举手时一般扣将扣不进'],
+    ['dkCWeakC', 'fin', '低扣篮能力 干扰放大起点', 0.2, 0, 1, 0.01, '干扰值：只放大超过这个的部分；0.2 = 空位线，空位扣篮不吃低扣篮能力的额外惩罚'],
     ['dkMin', 'fin', '扣篮 命中下限', 0.06, 0, 0.5, 0.01, '概率'],
     ['dkMax', 'fin', '扣篮 命中上限', 0.99, 0.5, 1, 0.01, '概率'],
     // V4.6 电脑 AI：难度表 / 持球决策 / 防守反应（原写死，默认值不变）
@@ -3174,7 +3176,7 @@
       const cd = ctDef(pl, df), cc = cd === df ? ci.c : contestOf(pl, cd, 'in');
       const w = clamp((cc - K.ctLayCapStart) / Math.max(0.05, K.ctLayCapSpan), 0, 1);
       const cap = clamp(K.ctLayCap + K.ctLayCapR * (r - 0.7) - K.ctLayCapD * (cd.r.intD - 0.6), K.smMin, 1);
-      prob = Math.min(prob, 1 - w * (1 - cap) - (heavyLay && !green ? K.ctLayLate * Math.min(1, ae) : 0));
+      prob = Math.min(prob, 1 - w * (1 - cap) - (heavyLay && !green ? K.ctLayLate * Math.min(1, ae) + K.ctLayVLate * clamp((ae - 0.5) / 0.5, 0, 1) : 0));
     }
     if (kind === 'shot' && !V.hook && !SK) {
       const cs = a.catchShot;
@@ -3188,7 +3190,7 @@
     prob = alleyProb(a, clamp((prob + info.uuBonus) * (1 - movePenalty), K.smMin, 1)); pl.uuShot = null; pl.postFakeCount = 0;
     if (heavyLay) {
       const cap = K.ctLayCap + K.ctLayCapR * (r - 0.7) - K.ctLayCapD * (cd.r.intD - 0.6) - K.ctLayCapB * (cd.r.blk - 0.6);
-      prob = Math.min(prob, clamp(cap + (green ? K.ctLayGreen : -K.ctLayLate * Math.min(1, ae)), K.smMin, 1));
+      prob = Math.min(prob, clamp(cap + (green ? K.ctLayGreen : -K.ctLayLate * Math.min(1, ae) - K.ctLayVLate * clamp((ae - 0.5) / 0.5, 0, 1)), K.smMin, 1));
     }
     if (a.softSkill) prob = Math.min(K.lgCap, prob + (a.skill === 'tmac' ? K.lgTmacBonus : K.lgRipBonus) * (1 - c));
     if (kind === 'lay' && (a.farLsv || a.lsv === 'far') && !SK) prob *= clamp(K.lvFarP + K.lvFarLay * (pl.r.lay - 0.75), 0.25, 1);
@@ -4710,7 +4712,7 @@
     } else { pl.uuShot = null; pl.uuFake = null; }
     // 连续过人越往后越累：每多一招、每接上一段都加价；运球如丝 / 脚踝终结者 只让加出来的那部分放缓
     const chainX = (1 + K.cbStep * (pl.combo - 1)) * (1 + K.cbCost * pl.dcn) - 1, chainBg = Math.max(0, Math.min(bk(pl, 'tight', K.bgChainSt), bk(pl, 'ankle', K.bgChainSt)));
-    spendStamina(pl, CFG.moveCost * M.cost * (CBk ? 1.3 : 1) * (1 + chainX * chainBg) * bk(pl, 'tight', K.bgTightSt) * (tkIs(pl, 'hnd') ? 0.4 : 1) * (isPostMove(kind) ? 1 : 1 + K.mvHndSt * lowHnd(hnd)) * stamK(pl)); pl.animT = 0; pl.cd = (MT + lerp(0.2, 0.02, clamp((hnd - 0.4) / 0.55, 0, 1))) * (ptIs(pl, 'playmaker') ? 0.9 : 1); pl.boost = kind === 'hesi' ? MT + 0.7 : 0.75;
+    spendStamina(pl, CFG.moveCost * M.cost * (CBk ? 1.3 : 1) * (1 + chainX * chainBg + (isPostMove(kind) ? 0 : K.mvHndSt * lowHnd(hnd))) * bk(pl, 'tight', K.bgTightSt) * (tkIs(pl, 'hnd') ? 0.4 : 1) * stamK(pl)); pl.animT = 0; pl.cd = (MT + lerp(0.2, 0.02, clamp((hnd - 0.4) / 0.55, 0, 1))) * (ptIs(pl, 'playmaker') ? 0.9 : 1); pl.boost = kind === 'hesi' ? MT + 0.7 : 0.75;
     pl.lastMove = kind; pl.lastMv = mvx || kind; pl.lastMoveT = G.time; pl.post = false;
     pl.sk.probe = G.time;
     pl.postMove = isPostMove(kind) ? { kind: kind, t: G.time + MT, bite: false, side: Math.sign(dx * -hy + dy * hx) || openS } : null;
@@ -5127,7 +5129,7 @@
           // V4.3 扣篮对抗：差值用 finEdge（力量 / 扣篮 / 弹跳 / 体重 / 起跳速度 / 徽章 / 疲劳 对 盖帽 / 内防 / 臂展 / 弹跳 / 力量 / 站位时机）
           const dR = dunkR(pl, a.run0 || 0), edge = df.off ? 1 : finEdge(pl, df, a, true);
           const flashy = a.v === 'windmill' || a.v === '360' || a.v === 'cock' || a.v === 'cradle' || a.v === 'pump' || a.v === 'scissor', vk = flashy ? K.dkFlyK : a.v === 'two' || a.v === 'rimpull' || a.v === 'shaq' ? K.dkPowK : 1;
-          const prob0 = SK ? 1 : clamp(K.dkP0 + K.dkPR * dR - (flashy ? K.dkPFly : 0) - K.ctDkP * c * (1 + K.dkCWeak * lowHnd(dR)) * vk * clamp(K.dkC0 - K.dkCE * edge, Math.min(1.3, lerp(0.05, K.dkCLo, lowHnd(dR))), 1.3) - heavyD - (a.bodyPen ? a.bodyPen + K.dkBodyD * clamp(distHoop(pl) - 1, 0, 1.5) : 0) - (pl.stam < ST.layLow ? K.dkLowSt : 0), K.dkMin, K.dkMax);
+          const prob0 = SK ? 1 : clamp(K.dkP0 + K.dkPR * dR - (flashy ? K.dkPFly : 0) - K.ctDkP * (c + K.dkCWeak * lowHnd(dR) * Math.max(0, c - K.dkCWeakC)) * vk * clamp(K.dkC0 - K.dkCE * edge, Math.min(1.3, lerp(0.05, K.dkCLo, lowHnd(dR))), 1.3) - heavyD - (a.bodyPen ? a.bodyPen + K.dkBodyD * clamp(distHoop(pl) - 1, 0, 1.5) : 0) - (pl.stam < ST.layLow ? K.dkLowSt : 0), K.dkMin, K.dkMax);
           const prob = alleyProb(a, SK || !a.thru ? prob0 : thruProb(pl, a, prob0, true));
           a.edge = edge; if (a.v === 'poster') bpop(pl, 'poster');
           const info = { who: pl.id, name: a.alley ? '空接暴扣' : a.name, pts: 2, dist: distHoop(pl), contest: c, src: c > 0.04 ? ci.src : '', e: null, zone: 'lay', stamLow: pl.stam < ST.layLow, green: false, made: false, blocked: false, prob: prob, tl: '—', cl: c < 0.2 ? '空位' : c < 0.5 ? '轻微干扰' : '严重干扰', reason: '' };
@@ -8113,6 +8115,7 @@
     ctLayCapB: ['上篮 上限盖帽能力系数', '越大盖帽高于 0.6 越压低重扰上限、低于者越抬高；概率系数'],
     ctLayGreen: ['上篮 重扰完美上限加成', '越大严重干扰下完美上篮的命中上限越高；概率加成'],
     ctLayLate: ['上篮 重扰时机上限折损', '越大严重干扰且未进绿区的上篮命中上限越低；概率系数'],
+    ctLayVLate: ['上篮 重扰很早很晚折损', '越大严重干扰时出手很早 / 很晚的上篮越难进；概率'],
     ctBlkE: ['内线被盖 对抗差影响系数', '越大进攻占优者越难被盖、吃亏者越易被盖；系数'],
     ctBlkH: ['严重封堵 被盖倍数', '越大严重封堵的上篮越容易被盖；1 = 基准'],
     ctBlkD: ['双人封堵 被盖倍数', '越大双人封堵的上篮越容易被盖；1 = 基准'],
@@ -8711,6 +8714,7 @@
     bgHuCost: ['鱼跃徽章 耗体倍数', '越大鱼跃徽章持有者扑球耗体越多；金档倍数，1 = 无减耗'],
     bgMotorSt: ['永动机 耗体倍数', '越大永动机持有者冲刺等动作耗体越多；金档倍数，1 = 无减耗'],
     dkCWeak: ['扣篮 低扣篮能力干扰放大', '越大扣篮能力一般的人被干扰时越难扣进；比例'],
+    dkCWeakC: ['扣篮 低扣篮能力干扰放大起点', '越大空位 / 轻微干扰扣篮越稳：干扰值超过这个才被低扣篮能力放大；干扰值'],
     dkCLo: ['扣篮 低扣篮能力干扰保底', '越大扣篮能力一般的人被干扰时越难硬扣；干扰惩罚倍数下限'],
     mvHndSt: ['运球招式 低控球耗体加成', '越大控球差的人做运球招式越耗体；比例'],
     dunkAthPow: ['扣篮 起跳距离能力指数', '越大扣篮能力一般的人越难远距离起跳扣篮；指数'],
