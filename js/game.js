@@ -1044,6 +1044,7 @@
     ['fxT3Fl', 'pace', '高光重档 闪白', 0.3, 0, 1, 0.01, '强度'],
     ['fxWinSlowT', 'pace', '绝杀球 慢动作提前量', 0.32, 0, 1.5, 0.01, '秒：绝杀球入筐前多久开始慢放'],
     ['fxWinSlow', 'pace', '绝杀球 慢动作时长', 1, 0, 3, 0.05, '秒'],
+    ['celSig3', 'pace', '招牌庆祝 三分触发概率', 0.6, 0, 1, 0.05, '概率：有招牌庆祝的球星投进三分时做招牌动作；2+1、3+1、绝杀必出'],
     ['rpPre', 'pace', '回放 高光前长度', 2.6, 0.5, 8, 0.1, '秒'],
     ['rpPost', 'pace', '回放 高光后长度', 0.9, 0, 4, 0.1, '秒'],
     ['rpKeep', 'pace', '回放 录像保留', 12, 4, 30, 1, '秒'],
@@ -2133,7 +2134,7 @@
     const df = G.players[1 - id];
     G.stats[df.id].pf = (G.stats[df.id].pf || 0) + 1;
     G.ftTrips++; G.foulDrought = 0;
-    G.ft = { id, index: 1, total: made ? 1 : pts };
+    G.ft = { id, index: 1, total: made ? 1 : pts, and: made ? pts : 0 };
     G.cel = null; G.hlQ = null;
     sfx('foulWhistle');
     vo(G.players[id], made ? 'foulAndOne' : 'foulShot', 'pri');
@@ -2237,6 +2238,7 @@
       G.phase = 'dead'; G.phaseT = K.ftSetup;
       looseBall({ x: HOOP.x, y: HOOP.y, z: HOOP.z - 0.1 }, 0, -0.5, -3.2, s.shooter);
       b.dead = true; b.under = true;
+      if (s.made && F.and && G.mode !== 'train') { celStart(pl, null, F.and, 2, 'andone'); G.cel.ev = 'make'; }
     } else {
       G.phase = 'live';
       looseBall({ x: b.x, y: b.y, z: b.z }, rr(-1.2, 1.2), -rr(0.7, 2.1), rr(1.2, 2), s.shooter);
@@ -3178,19 +3180,27 @@
   }
   // 被打的一方回嘴：等对方那句说完再接（嘴硬 / 甩锅 / 自嘲）
   function vic(pl, ev, p) { if (!pl || pl.off || rnd() > (p || 0.75)) return; setTimeout(() => vo(pl, ev, 'q'), 60); }
-  // 庆祝动作：按球员性格挑
+  // 庆祝动作分四档：普通 / 中等 / 高级三档通用动作按进球精彩度（hype 档位）挑，同档内优先挑球员性格常做的（CELS）；
+  // 最高档是球星招牌庆祝（SIG_CEL），只有这名球星会做：2+1、3+1、绝杀必出，三分按 K.celSig3 概率出
+  const CEL_TIERS = [['point', 'clap', 'fist'], ['flex', 'chest', 'shimmy'], ['robot', 'armwave', 'griddy']];
+  const CEL_LV_T = [1.3, 1.5, 2.1, 2.1];
+  const SIG_CEL = { curry: 'night', lillard: 'watch', lebron: 'crown' };
+  const SIG_LED = { night: 'NIGHT NIGHT  晚安', watch: 'DAME TIME  看表', crown: 'THE KING  戴王冠', chalk: 'CHALK TOSS  撒镁粉' };
   const CELS = { tmac: ['cool', 'point'], nash: ['point', 'shrug'], rip: ['point', 'cool'], curry: ['night', 'shimmy', 'shrug'], lebron: ['roar', 'chest', 'toosmall'], shaq: ['flex', 'roar', 'shimmy'], kobe: ['shush', 'cool', 'point'], luka: ['shrug', 'point', 'toosmall'], giannis: ['flex', 'roar', 'chest'], kyrie: ['shush', 'cool', 'dance'],
     maxey: ['dance', 'shimmy'], sengun: ['flex', 'shrug'], white: ['cool', 'point'], bridges: ['cool', 'shrug'], herb: ['wag', 'chest'], kessler: ['flex', 'roar'], dybantsa: ['toosmall', 'dance'], peterson: ['shimmy', 'point'], gafford: ['flex', 'roar'], joe: ['point', 'cool'], boozer: ['chest', 'flex'], dosunmu: ['dance', 'point'], flemings: ['shimmy', 'dance'], mara: ['roar', 'flex'], peat: ['flex', 'chest'], karaban: ['point', 'shrug'], delarrea: ['dance', 'shimmy'] };
   for (const p of RXP) { if (p.cel && p.cel.length) CELS[p.key] = p.cel; if (p.hz) HZ_SIG[p.key] = p.hz; if (p.face) FACE[p.key] = p.face; if (p.dpk) DPK_OF[p.key] = p.dpk; }
   const HURTS = ['head', 'hips', 'complain'];
-  function celStart(pl, kind, pts, big) {
-    const L = CELS[pl.arch.key] || ['flex', 'point', 'dance', 'shrug', 'chest'];
-    let ty = L[Math.floor(rnd() * L.length)];
-    if (kind === 'dunk' && rnd() < 0.5) ty = ['flex', 'roar', 'chest'][Math.floor(rnd() * 3)];
-    if (pts === 3 && pl.arch.key === 'curry' && rnd() < 0.6) ty = 'night';
-    const d0 = kind === 'dunk' ? 0.55 : 0.75;
-    G.cel = { id: pl.id, ty: ty, hurt: HURTS[Math.floor(rnd() * HURTS.length)], t0: G.time + d0, T: big ? 1.7 : 1.3, cz: false, big: big };
-    G.phaseT = Math.max(G.phaseT, d0 + (big ? 1.7 : 1.3) + 0.9);
+  function celPick(pl, lv, why, pts) {
+    const sig = SIG_CEL[pl.arch.key];
+    if (sig && (why === 'andone' || why === 'win' || (pts === 3 && rnd() < K.celSig3))) return { ty: sig, lv: 3 };
+    if (why === 'andone' || why === 'win') lv = 2;
+    const L = CEL_TIERS[clamp(lv | 0, 0, 2)], own = (CELS[pl.arch.key] || []).filter((t) => L.includes(t));
+    return { ty: own.length && rnd() < 0.6 ? own[Math.floor(rnd() * own.length)] : L[Math.floor(rnd() * L.length)], lv: lv };
+  }
+  function celStart(pl, kind, pts, lv, why) {
+    const c = celPick(pl, lv, why, pts), d0 = why === 'andone' ? 0.3 : kind === 'dunk' ? 0.55 : 0.75, T = CEL_LV_T[c.lv];
+    G.cel = { id: pl.id, ty: c.ty, lv: c.lv, hurt: HURTS[Math.floor(rnd() * HURTS.length)], t0: G.time + d0, T: T, cz: false, big: c.lv >= 2 };
+    G.phaseT = Math.max(G.phaseT, d0 + T + 0.9);
   }
   const celOn = () => G.cel && G.phase === 'dead' && G.time >= G.cel.t0 && G.time < G.cel.t0 + G.cel.T;
   function celTick() {
@@ -3199,6 +3209,8 @@
     if (!C.cz && G.time >= C.t0) {
       C.cz = true; const p = G.players[C.id], o = OP(G.players[C.id]);
       if (G.mode !== 'demo' && G.vopt.close) G.cz = { x: (p.x * 2 + o.x) / 3, y: (p.y * 2 + o.y) / 3, z: 1.1, t: 0, T: C.T + 0.2, u: C.big ? 0.55 : 0.45 };
+      if (C.lv === 3) { led(SIG_LED[C.ty] || ISIG_CN[C.ty], p.team.css, C.T + 0.4); spawnConfetti(36, [p.team.css, '#ffd24a', '#ffffff'], 'burst'); flash('#ffd24a', 0.12); G.fx.cheer = Math.max(G.fx.cheer, 3.2); }
+      else if (C.lv === 2) { spawnConfetti(18, [p.team.css, '#ffd24a', '#ffffff'], 'burst'); G.fx.cheer = Math.max(G.fx.cheer, 2.4); }
       vo(p, C.ev === 'make' || (/^(dunk|three)$/.test(C.ev) && rnd() < 0.55) ? 'taunt' : C.ev, 'pri'); setTimeout(() => vo(o, C.vic || 'hurt', 'q'), 50);
     }
   }
@@ -3209,8 +3221,13 @@
     return o;
   }
   // 开场入场：双方从两侧边线走到开球站位 → 主角依次做招牌动作（镜头推近）→ 对话框互相垃圾话，空格 / 点击下一句，Esc 跳过
-  const ISIG = { lebron: 'chalk', curry: 'night', kobe: 'cool', shaq: 'flex', ginobili: 'step', iverson: 'cool', carter: 'flex', giannis: 'roar', luka: 'shrug', kyrie: 'shush', herb: 'wag', barkley: 'flex', yao: 'cool', mutombo: 'wag' };
-  const ISIG_CN = { step: '脚步点名', chalk: '撒镁粉', night: '晚安手势', shimmy: '抖肩', flex: '秀肌肉', roar: '仰天怒吼', chest: '捶胸', toosmall: 'Too Small', shush: '嘘声', cool: '抱臂冷视', point: '隔空点名', dance: '尬舞', shrug: '耸肩', wag: '摇手指' };
+  // 进场动作分四档：普通 / 中等 / 高级按球员档位（arch.tier：avg·rook / mid / star），最高档是只有这名球星才有的招牌进场（ISIG）
+  const ISIG = { lebron: 'chalk', curry: 'night', lillard: 'watch', mutombo: 'wag', ginobili: 'step' };
+  const INTRO_TIERS = [['wave', 'clap', 'fist'], ['raise', 'flex', 'chest'], ['hype', 'salute', 'spread']];
+  const introLv = (p) => ISIG[p.arch.key] ? 3 : p.arch.tier === 'star' ? 2 : p.arch.tier === 'mid' ? 1 : 0;
+  const INTRO_FX = [{ n: 6, cheer: 1.4, fl: 0 }, { n: 12, cheer: 1.8, fl: 0 }, { n: 22, cheer: 2.4, fl: 0.06 }, { n: 34, cheer: 3, fl: 0.1 }];
+  const ISIG_CN = { step: '脚步点名', chalk: '撒镁粉', night: '晚安手势', watch: '看表', crown: '戴王冠', shimmy: '抖肩', flex: '秀肌肉', roar: '仰天怒吼', chest: '捶胸', toosmall: 'Too Small', shush: '嘘声', cool: '抱臂冷视', point: '隔空点名', dance: '尬舞', shrug: '耸肩', wag: '摇手指',
+    wave: '挥手致意', salute: '敬礼致意', clap: '拍手', fist: '握拳', raise: '双臂高举', hype: '振臂煽动', spread: '展翅', robot: '机械舞', armwave: '电流波浪', griddy: '格里迪舞' };
   // 宿敌台词：[说话人, 语音事件, 序号] 全部走各球员原声语音包并同步显示对应字幕
   const TALK = {
     'kobe|tmac': [['tmac', 'dom', 0], ['kobe', 'taunt', 0], ['tmac', 'taunt', 0]],
@@ -3227,10 +3244,8 @@
     'kobe|kyrie': [['kyrie', 'taunt', 0], ['kobe', 'taunt', 0], ['kyrie', 'taunt', 3]] };
   // 入场走位时的造势动作（上半身），走到位后再做招牌动作
   const IWALK = { lebron: ['raise', 'wave'], curry: ['wave', 'shimmy'], kobe: ['wave', 'point'], shaq: ['raise', 'dance'], ginobili: ['point', 'wave'], iverson: ['cool', 'point'], carter: ['raise', 'flex'], giannis: ['chest', 'flex'], luka: ['wave', 'wag'], kyrie: ['point', 'wave'], herb: ['flex', 'chest'] };
-  Object.assign(ISIG, { tmac: 'cool', nash: 'point', rip: 'point' });
   Object.assign(IWALK, { tmac: ['wave', 'point'], nash: ['wave', 'point'], rip: ['point', 'wave'] });
   const IWA = 3.8;
-  Object.assign(ISIG, { rodman: 'shrug', bwallace: 'flex', rallen: 'cool' });
   Object.assign(IWALK, { rodman: ['wag', 'shrug'], bwallace: ['raise', 'flex'], rallen: ['wave', 'cool'] });
   // 非宿敌对局：按双方最强项套模板开场 + 回呛，最后用语音包里的真实嘲讽收尾
   const TSTAT = {
@@ -3289,9 +3304,11 @@
     const spots = ps.map((p) => ({ p: p, x: p.x, y: p.y, face: p.face }));
     spots.forEach((s, i) => { const sd = TM(s.p) === 0 ? -1 : 1; if (s.p.pose) delete s.p.pose.passHands; Object.assign(s.p, { x: sd * 7.1, y: clamp(s.y + 1.4 + (i % 3) * 0.35, 0.5, 12.5), face: sd < 0 ? 0 : Math.PI, vx: 0, vy: 0, speed: 0 }); });
     const t0 = G.time;
-    const sigOf = (p) => ISIG[p.arch.key] || (CELS[p.arch.key] || ['flex'])[0], walk = [];
-    for (const s of spots) { const p = s.p, star = p === fa || p === fb; s.w0 = t0 + (TM(p) === TM(fa) ? 0 : IWA); s.w1 = s.w0 + IWA;
-      (star ? [(IWALK[p.arch.key] || ['wave'])[0], sigOf(p)] : ['wave']).forEach((ty, j) => walk.push({ id: p.id, ty: ty, t0: s.w0 + (star ? 0.3 + j * 1.75 : 0.9 + (p.id % 3) * 0.3), T: 1.6, fx: false, sig: star && j === 1, vo: star && j === 0, voAt: s.w0 + (p === fa ? 0.25 : 0), voDone: false })); }
+    const walk = [];
+    for (const s of spots) { const p = s.p, star = p === fa || p === fb, lv = introLv(p), L = INTRO_TIERS[Math.min(lv, 2)], ent = lv === 3 ? ISIG[p.arch.key] : L[Math.floor(rnd() * L.length)];
+      let pre = (IWALK[p.arch.key] || ['wave'])[0]; if (pre === ent) pre = ent === 'wave' ? 'raise' : 'wave';
+      s.w0 = t0 + (TM(p) === TM(fa) ? 0 : IWA); s.w1 = s.w0 + IWA;
+      (star ? [pre, ent] : [ent]).forEach((ty, j) => { const main = !star || j === 1; walk.push({ id: p.id, ty: ty, lv: main ? lv : -1, t0: s.w0 + (star ? 0.3 + j * 1.75 : 0.9 + (p.id % 3) * 0.3), T: 1.6, fx: false, sig: star && j === 1, vo: star && j === 0, voAt: s.w0 + (p === fa ? 0.25 : 0), voDone: false }); }); }
     const foc0 = { x: fa.x, y: fa.y, u: G.mode === 't3' ? 0.08 : 0.3, mode: 'walk', snap: true };
     if (PH.audio && PH.audio.voPreload) PH.audio.voPreload([fa.arch.key, fb.arch.key]);
     G.intro = { t0: t0, duo: [fa.id, fb.id], walk: walk, spots: spots, lines: lines, li: -1, lt: 0, ld: 0, tT: t0 + 2 * IWA + 0.15, cam: foc0, foc: foc0, banner: G.banner, phaseT: G.phaseT,
@@ -3321,7 +3338,7 @@
     if (I.li < 0) for (const S of I.walk) {
       if (S.vo && !S.voDone && now >= (S.voAt != null ? S.voAt : S.t0)) { S.voDone = true; const p = plById(S.id); if (G.mode !== 'demo' && PH.audio && PH.audio.vo) { const speak = () => { if (G.intro !== I || I.li >= 0) return true; const it = PH.audio.vo(p.arch.key, 'walk', 'pri'); if (it && it.f) I.usedVo.add(it.f); if (it && it.d && p.id === I.duo[1]) I.tT = Math.max(I.tT, G.time + it.d + 0.2); return it; }; if (!speak() && PH.audio.voWhenReady) PH.audio.voWhenReady(speak); } }
       if (S.ty === 'chalk' && !S.fx && now >= S.t0 + 0.42) { S.fx = true; const p = plById(S.id); burst(p.x, p.y, p.h + 0.45, 70, ['#ffffff', '#f4f1e8', '#e2ded2', '#fffbe9'], 2.3, 1.7, 1.1, 2); spawnConfetti(28, [p.team.css, '#ffd24a', '#ffffff'], 'burst'); }
-      else if (S.sig && !S.fx && now >= S.t0 + 0.35) { S.fx = true; const p = plById(S.id); spawnConfetti(26, [p.team.css, '#ffd24a', '#ffffff', '#ff8a2a'], 'burst'); flash('#ffffff', 0.08); G.fx.cheer = Math.max(G.fx.cheer, 2.6); }
+      else if (S.lv >= 0 && !S.fx && now >= S.t0 + 0.35) { S.fx = true; const p = plById(S.id), X = INTRO_FX[S.lv]; spawnConfetti(X.n, [p.team.css, '#ffd24a', '#ffffff', '#ff8a2a'], 'burst'); if (X.fl) flash('#ffffff', X.fl); G.fx.cheer = Math.max(G.fx.cheer, X.cheer); if (S.lv === 3 && SIG_LED[S.ty]) led(SIG_LED[S.ty], p.team.css, 2.2); }
     }
     const curL = I.li >= 0 ? I.lines[I.li] : null;
     if (I.li < 0 ? now >= I.tT : (!curL || !curL.waitVo || now - I.lt >= 4) && now >= I.lt + I.ld) introNext();
@@ -3334,7 +3351,7 @@
       if (I.confettiT <= 0) { I.confettiT = 0.14; spawnConfetti(7, [sh.team.css, '#ffd24a', '#ffffff', '#5ee0ff', '#ff6b5e'], 'shower'); }
       if (I.shot !== sh.id) {
         I.shot = sh.id; I.snap = true;
-        banner(sh.arch.full, '入场 · ' + (ISIG_CN[(I.walk.find((S) => S.id === sh.id && S.ty === (ISIG[sh.arch.key] || S.ty)) || {}).ty] || '登场'), sh.team.css, 2.6);
+        banner(sh.arch.full, '入场 · ' + (ISIG_CN[(I.walk.find((S) => S.id === sh.id && S.lv >= 0) || {}).ty] || '登场'), sh.team.css, 2.6);
         led('NOW ENTERING  ' + sh.arch.full + '  震撼登场', sh.team.css, IWA);
         G.fx.cheer = 3.2; flash(sh.team.css, 0.12);
         spawnConfetti(48, [sh.team.css, '#ffd24a', '#ffffff', '#ff8a2a'], 'cannon');
@@ -3436,7 +3453,7 @@
     const poster = kind === 'dunk' && (/隔人/.test(name || '') || (pa && pa.v === 'poster' && pa.edge != null && !OP(G.players[id]).off && Math.hypot(OP(G.players[id]).x - pl.x, OP(G.players[id]).y - pl.y) < 1.6));
     const ev = win || clutch ? 'clutch' : poster ? 'poster' : hot && G.streak[id] === 3 ? 'hot' : kind === 'dunk' ? 'dunk' : pts === 3 ? 'three' : 'make';
     G.cel = null;
-    if (!andOne && !train && G.mode !== 'train' && !win && (tier >= 1 || hot || lsk || rnd() < 0.4)) { celStart(pl, kind, pts, tier >= 2 || !!lsk); G.cel.ev = ev; G.cel.vic = poster ? 'posterized' : null; }
+    if (!andOne && !train && G.mode !== 'train' && (win || tier >= 1 || hot || lsk || rnd() < 0.4)) { celStart(pl, kind, pts, lsk ? 2 : Math.max(Math.min(tier, 2), hot ? 1 : 0), win ? 'win' : null); G.cel.ev = ev; G.cel.vic = poster ? 'posterized' : null; }
     else if (!win) { vo(pl, ev); if (poster) vic(OP(G.players[id]), 'posterized'); }
     else vo(pl, 'clutch', 'pri');
   }
@@ -5701,8 +5718,16 @@
       if (Math.abs(pl.armS[0] - 1) + Math.abs(pl.armS[1] - 1) + Math.abs(pl.armSv[0]) + Math.abs(pl.armSv[1]) < 0.004 && G.time > (pl.armHold || 0)) pl.armS = null;
     }
   }
+  // 机械舞：每拍一个直角定格，身体左右顿转
+  const ROBOT = [
+    { yaw: 0.35, aLp: 1.57, aLq: 0, aLe: 1.57, aRp: 0.1, aRq: 1.5, aRe: 1.57 },
+    { yaw: -0.35, aLp: 0.1, aLq: 1.5, aLe: 1.57, aRp: 1.57, aRq: 0, aRe: 1.57 },
+    { yaw: 0.35, aLp: 1.57, aLq: 0, aLe: 0.05, aRp: 1.57, aRq: 0, aRe: 0.05, lB: 0.7, rB: 0.7 },
+    { yaw: -0.35, aLp: 1.57, aLq: 1.5, aLe: -1.4, aRp: 0.05, aRq: 0.1, aRe: 1.57 },
+    { yaw: 0, aLp: 2.9, aLq: 0.2, aLe: 0, aRp: 1.57, aRq: 1.5, aRe: 0, bob: -0.03 }];
   function celPose(ty, e) {
     const w = Math.sin(e * 10), w2 = Math.sin(e * 22), up = sm(clamp((e - 0.3) / 0.14, 0, 1));
+    const w8 = Math.sin(e * 8), w12 = Math.sin(e * 12), c14 = 0.5 + 0.5 * Math.cos(e * 14), pump = Math.abs(Math.sin(e * 7)), gs = Math.sin(e * 9), gl = Math.max(0, gs), gr = Math.max(0, -gs), sw = sm(clamp((e - 0.6) / 0.3, 0, 1));
     return {
         wave: { lean: -0.04, aLp: 0.3, aLq: 0.2, aLe: 0.4, aRp: 2.75, aRq: 0.35 + 0.3 * w, aRe: 0.35 },
         raise: { lean: -0.12, aLp: 2.75 + 0.15 * w, aLq: 0.45, aLe: 0.3, aRp: 2.75 - 0.15 * w, aRq: 0.45, aRe: 0.3 },
@@ -5719,7 +5744,17 @@
         shrug: { lean: -0.05, aLp: 0.8, aLq: 1.3, aLe: 1.5, aRp: 0.8, aRq: 1.3, aRe: 1.5 },
         wag: { lean: 0, aLp: 0.3, aLq: 0.4, aLe: 0.3, aRp: 2.3, aRq: 0.25 + 0.35 * w2, aRe: 0.3 },
         chalk: { lean: lerp(0.06, -0.26, up), aLp: lerp(1.1, 2.85, up), aLq: lerp(0.25, 0.6, up), aLe: lerp(2.1, 0.25, up), aRp: lerp(1.1, 2.85, up), aRq: lerp(0.25, 0.6, up), aRe: lerp(2.1, 0.25, up), lB: 0.35 * (1 - up), rB: 0.35 * (1 - up) },
-        cool: { lean: -0.1, aLp: 1.05, aLq: 0.05, aLe: 2.35, aRp: 1.0, aRq: 0.05, aRe: 2.35 } }[ty] || {};
+        cool: { lean: -0.1, aLp: 1.05, aLq: 0.05, aLe: 2.35, aRp: 1.0, aRq: 0.05, aRe: 2.35 },
+        clap: { lean: -0.04, aLp: 1.45, aLq: -0.3 + 0.85 * c14, aLe: 1.05, aRp: 1.45, aRq: -0.3 + 0.85 * c14, aRe: 1.05 },
+        fist: { lean: 0.12, lB: 0.5, rB: 0.5, lA: 0.22, rA: 0.22, aLp: 0.35, aLq: 0.3, aLe: 1.2, aRp: 2.8 - 1.2 * pump, aRq: 0.3, aRe: 0.3 + 1.6 * pump },
+        hype: { lean: -0.12, aLp: 2.0 + 0.85 * Math.max(0, w8), aLq: 0.5, aLe: 0.35, aRp: 2.0 + 0.85 * Math.max(0, -w8), aRq: 0.5, aRe: 0.35 },
+        spread: { lean: -0.16, aLp: 2.45 + 0.1 * w, aLq: 1.0, aLe: 0.1, aRp: 2.45 - 0.1 * w, aRq: 1.0, aRe: 0.1 },
+        salute: { lean: -0.06, aLp: 0.3, aLq: 0.25, aLe: 0.3, aRp: lerp(2.3, 1.9, sw), aRq: lerp(0.35, 1.35, sw), aRe: lerp(2.45, 0.15, sw) },
+        robot: Object.assign({ lA: 0.2, rA: 0.2, lB: 0.4, rB: 0.4 }, ROBOT[Math.floor(e * 3.2) % ROBOT.length]),
+        armwave: { lean: -0.04, tilt: 0.1 * Math.sin(e * 8 - 1.2), lB: 0.3 + 0.12 * Math.sin(e * 8), rB: 0.3 - 0.12 * Math.sin(e * 8), aLp: 1.57 + 0.35 * Math.sin(e * 8), aLq: 1.3, aLe: 0.75 * Math.sin(e * 8 + 1.1), aRp: 1.57 + 0.35 * Math.sin(e * 8 - 2.4), aRq: 1.3, aRe: 0.75 * Math.sin(e * 8 - 1.3) },
+        griddy: { lean: 0.26, tilt: 0.1 * gs, yaw: 0.25 * gs, bob: 0.03 * Math.abs(gs), lA: 0.15 + 1.25 * gl, lB: 0.3 + 1.7 * gl, rA: 0.15 + 1.25 * gr, rB: 0.3 + 1.7 * gr, aLp: 0.5 - 0.95 * gs, aLq: 0.25, aLe: 1.5, aRp: 0.5 + 0.95 * gs, aRq: 0.25, aRe: 1.5 },
+        watch: { lean: -0.04, aLp: 1.35, aLq: 0.35, aLe: 1.45, aRp: 1.7 + 0.18 * Math.abs(w12), aRq: -0.2, aRe: 1.35 },
+        crown: { lean: lerp(0, -0.14, up), aLp: lerp(1.0, 2.75, up), aLq: 0.55, aLe: lerp(1.0, 1.85 + 0.12 * Math.sin(e * 5), up), aRp: lerp(1.0, 2.75, up), aRq: 0.55, aRe: lerp(1.0, 1.85 + 0.12 * Math.sin(e * 5), up) } }[ty] || {};
   }
   function poseTarget(pl) {
     const T = { tilt: 0, lean: 0.06, lA: 0.12, lB: 0.25, lS: 0.06, rA: 0.12, rB: 0.25, rS: 0.06, aLp: 0.15, aLq: 0.14, aLe: 0.35, aRp: 0.15, aRq: 0.14, aRe: 0.35 };
@@ -7663,6 +7698,7 @@
     fxT3Fl: ['高光重档 闪白强度', '越大重档高光闪白越亮；透明度'],
     fxWinSlowT: ['绝杀 慢放提前量', '越大绝杀球越早在入筐前开始慢放；秒'],
     fxWinSlow: ['绝杀 慢动作时长', '越大绝杀球慢放持续越久；秒'],
+    celSig3: ['招牌庆祝 三分触发概率', '越大有招牌庆祝的球星（库里晚安、利拉德看表、詹姆斯戴王冠）投进三分越常做招牌动作；概率，2+1、3+1、绝杀必出'],
     rpPre: ['高光回放 事前长度', '越大回放包含高光前的画面越多；秒'],
     rpPost: ['高光回放 事后长度', '越大回放包含高光后的画面越多；秒'],
     rpKeep: ['回放 录像保留时间', '越大可回看的历史画面越长；秒'],
@@ -8608,7 +8644,7 @@
     TU.on((ks) => { if (!ks || ks.indexOf('l1_shotClock') >= 0) CFG.shotClock = TU.get('l1_shotClock'); syncK(); });
     syncK();
   }
-  PH.game = { ptIs: ptIs, ptOf: ptOf, ibuf: ibuf, t5: T5API, G: G, HZ: HZ, HZN: HZN, zoneOf: zoneOf, hzBase: hzBase, hzLvl: hzLvl, MVX: MVX, DPKG: DPKG, DPK_OF: DPK_OF, ST: ST, GW_OUT: K.gwOut, zones: zones, K: K, TDEF: TDEF, blkTier: blkTier, blkReact: blkReact, blkMove: blkMove, _qa: { finEdge: finEdge, blockBall: blockBall, greenWidth: greenWidth, ratingOf: ratingOf, SV: SV, LVR: LVR, startDunk: startDunk, startFinish: startFinish, finPlan: finPlan, contactAdv: contactAdv, bodyPow: bodyPow }, mobOf: mobOf, winnerNow: winnerNow, moveSet: moveSet, SF: SF, dunkPkg: dunkPkg, TKD: TKD, CB: CB, TIPS: TIPS, tipsStart: tipsStart, tipsStop: tipsStop, tkType: tkType, hcMod: hcMod, lookOf: lookOf, newGame: newGame, tick: tick, introStart: introStart, introTick: introTick, introPress: introPress, introEnd: introEnd, TALK: TALK, ISIG: ISIG, toText: toText, ARCH: ARCH, ATTRS: ATTRS, BADGES: BADGES, BADGE_TIER: BADGE_TIER, TIER_CN: TIER_CN, TIER_F: TIER_F, btier: btier, bk: bk, ba: ba, ROSTER: ROSTER, NBA: TEAMS_NBA, hasB: hasB, TEAMS: TEAMS, DIFF: DIFF, CFG: CFG, CFG_DEF: CFG_DEF, isThree: isThree, distHoop: distHoop, setupCheck: setupCheck, contestInfo: contestInfo,
+  PH.game = { ptIs: ptIs, ptOf: ptOf, ibuf: ibuf, t5: T5API, G: G, HZ: HZ, HZN: HZN, zoneOf: zoneOf, hzBase: hzBase, hzLvl: hzLvl, MVX: MVX, DPKG: DPKG, DPK_OF: DPK_OF, ST: ST, GW_OUT: K.gwOut, zones: zones, K: K, TDEF: TDEF, blkTier: blkTier, blkReact: blkReact, blkMove: blkMove, _qa: { finEdge: finEdge, blockBall: blockBall, greenWidth: greenWidth, ratingOf: ratingOf, SV: SV, LVR: LVR, startDunk: startDunk, startFinish: startFinish, finPlan: finPlan, contactAdv: contactAdv, bodyPow: bodyPow }, mobOf: mobOf, winnerNow: winnerNow, moveSet: moveSet, SF: SF, dunkPkg: dunkPkg, TKD: TKD, CB: CB, TIPS: TIPS, tipsStart: tipsStart, tipsStop: tipsStop, tkType: tkType, hcMod: hcMod, lookOf: lookOf, newGame: newGame, tick: tick, introStart: introStart, introTick: introTick, introPress: introPress, introEnd: introEnd, TALK: TALK, ISIG: ISIG, celStart: celStart, celPick: celPick, CEL_TIERS: CEL_TIERS, INTRO_TIERS: INTRO_TIERS, SIG_CEL: SIG_CEL, introLv: introLv, awardFreeThrows: awardFreeThrows, settleFreeThrow: settleFreeThrow, toText: toText, ARCH: ARCH, ATTRS: ATTRS, BADGES: BADGES, BADGE_TIER: BADGE_TIER, TIER_CN: TIER_CN, TIER_F: TIER_F, btier: btier, bk: bk, ba: ba, ROSTER: ROSTER, NBA: TEAMS_NBA, hasB: hasB, TEAMS: TEAMS, DIFF: DIFF, CFG: CFG, CFG_DEF: CFG_DEF, isThree: isThree, distHoop: distHoop, setupCheck: setupCheck, contestInfo: contestInfo,
     _dbg: { tkStart: tkStart, tkAdd: tkAdd, startShot: startShot, releaseShot: releaseShot, greenWidth: greenWidth, startMove: startMove, startBlock: startBlock, startFinish: startFinish, startDunk: startDunk, contestOf: contestOf, contestInfo: contestInfo, finPlan: finPlan }, TIERS: TIERS, grade: grade, DIMS: DIMS, applyTrain: applyTrain, applyMatchKits: applyMatchKits, placeDummy: placeDummy, trainReset: trainReset, giveBall: giveBall, newTrainStats: newTrainStats, styOf: styOf, styK: styK, STY_NAME: STY_NAME, seed: (s) => { seed = s | 1; } };
   PH.game.pokeCue = pokeCue;
   PH.game.hzCells = hzCells;
