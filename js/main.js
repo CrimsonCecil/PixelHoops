@@ -523,6 +523,9 @@
     show('btn-start', !guest && (!online || room.role === 'host' && room.links.has(1)));
     $('row-diff').classList.toggle('hidden', opts.mode !== 'cpu' && !t5 && !t3);
     const kg = opts.mode === 'king';
+    const startSlot = kg ? $('king-start') : $('menu').querySelector('.menu-actions');
+    if ($('btn-start').parentElement !== startSlot) startSlot.prepend($('btn-start'));
+    show('king-start', kg);
     show('row-p1', setup && !t5); show('row-p2', setup && !t5 && !kg); show('lobbyK', kg);
     for (const id of ['row-teams', 'row-side']) $(id).classList.toggle('hidden', !t5);
     const clkS = opts.clock ? opts.clock + ' 秒进攻' : '不限进攻';
@@ -538,7 +541,7 @@
     $('lab-p2').textContent = online ? (guest ? '你 · 球友' : '球友') : opts.mode === '2p' ? '玩家 2' : tr ? '假人体型' : '对手';
     $('btn-start').textContent = tr ? '进入训练场' : '开始比赛';
     $('menu-foot').textContent = tr ? '训练场：无比分无时限，可设置假人防守方式，比赛中按 Tab 开关训练参数面板。' : online ? '建房间并分享房间号，对手加入后由房主开始 · ' + opts.target + ' 分制 · ' + clkS + '。' : '规则：先到 ' + opts.target + ' 分（领先 2 分胜）· ' + clkS + ' · ' + lenS + ' · 失分方球权，抢断需出三分线。';
-    if (kg) { const sv = kingSaved(); $('btn-start').textContent = sv ? '继续闯关 · 第 ' + (sv.stage + 1) + ' 关' : '开始闯关'; $('menu-foot').textContent = '斗牛之王：选好你的球员，连赢五位越来越强的对手 · 每关先到 ' + (sv ? sv.target : opts.ktarget) + ' 分（领先 2 分胜）· ' + clkS + ' · 三次重来机会。'; kingLadderView(); }
+    if (kg) { const sv = kingSaved(); $('btn-start').textContent = sv ? '继续闯关' : '开始闯关'; $('menu-foot').textContent = ''; kingLadderView(); }
     const a = GM.ARCH[opts.arch0];
     pickBtn('pick0', opts.arch0); pickBtn('pick1', online && room.role === 'host' && !room.links.has(1) ? 'random' : opts.arch1);
     $('arch-desc').textContent = a.full + '：' + a.desc + (a.skill ? '。必杀技「' + a.skill.name + '」，条件和效果见“更换”。' : '。');
@@ -653,11 +656,20 @@
     const sv = kingSaved();
     if (sv) kingLadder = sv.ladder.slice();
     else if (!kingLadder || kingLadder.includes(opts.arch0)) kingRoll();
-    const tg = sv ? sv.tags : kingTags(kingLadder), at = sv ? sv.stage : -1, see = (i) => sv ? sv.open || i < at || i === at && sv.retry > 0 : opts.kreveal === 'show';
+    const at = sv ? sv.stage : 0, see = (i) => sv ? sv.open || i < at || i === at && sv.retry > 0 : opts.kreveal === 'show';
     $('lk-lives').innerHTML = kingLives(sv ? sv.lives : KING_LIVES);
     show('lk-quit', !!sv);
-    $('lk-list').innerHTML = kingLadder.map((k, i) => '<li class="lk-i s' + i + (i < at ? ' done' : i === at ? ' cur' : '') + '" data-testid="king-rung-' + (i + 1) + '"><em>' + (i + 1) + '</em><canvas width="32" height="32" data-k="' + k + '"></canvas><span class="lk-n">' + (see(i) ? GM.ARCH[k].name : '???') + '<small class="ktag">' + tg[i] + '</small></span>' + (i < at ? '<i class="lk-st">已击败</i>' : '') + '<b class="lk-o">' + (see(i) ? GM.ARCH[k].ovr : '??') + '</b></li>').join('');
-    $('lk-list').querySelectorAll('canvas').forEach((cv) => portrait(cv, GM.ARCH[cv.getAttribute('data-k')], GM.TEAMS[1]));
+    $('lk-list').innerHTML = kingLadder.map((k, i) => kingRung(k, i, see(i), at)).join('');
+    $('lk-list').querySelectorAll('canvas').forEach((cv) => R.playerPreview(cv, GM.ARCH[cv.getAttribute('data-k')], 1));
+  }
+  function kingRung(key, i, known, at) {
+    const a = GM.ARCH[key], current = i === at, done = i < at;
+    const silhouette = '<svg class="lk-mystery" viewBox="0 0 120 260" aria-hidden="true"><g class="lk-silhouette"><path d="M46 9H76V17H82V55H75V63H46V55H38V17H46Z"/><path d="M30 74H90L98 170H22Z"/><path d="M18 76H30L26 170H14ZM90 76H102L106 170H94ZM30 170H54V244H30ZM66 170H90V244H66Z"/></g><text x="60" y="140" text-anchor="middle">?</text></svg>';
+    return '<li class="lk-i s' + i + (done ? ' done' : current ? ' cur' : '') + (known ? ' revealed' : ' mystery') + '" data-testid="king-rung-' + (i + 1) + '"' + (current ? ' aria-current="step"' : '') + ' aria-label="' + (current ? '当前挑战：' : done ? '已击败：' : '待挑战：') + (known ? a.name : '神秘对手') + '">' +
+      (current ? '<span class="lk-arrow" aria-hidden="true">▼</span>' : '') +
+      '<span class="lk-figure">' + (known ? '<canvas width="180" height="320" data-k="' + key + '" aria-label="' + a.full + '全身像"></canvas>' : silhouette) + '</span>' +
+      (known ? '<span class="lk-name">' + a.name + '</span><b class="lk-rating">' + a.ovr + '</b>' : '') +
+      (done ? '<span class="lk-defeated" aria-hidden="true">✓</span>' : '') + '</li>';
   }
   const KING_LIVES = 3;
   const KING_AT = [AT_CLOSE, ['mid', '中投'], ['three', '三分'], ['fade', '后仰'], ['lay', '上篮'], ['flo', '抛投'], ['dunk', '扣篮'], ['post', '背打'], ['hnd', '控球'], ['spd', '速度'], ['str', '力量'], ['def', '外防'], ['intD', '内防'], ['stl', '抢断'], ['blk', '盖帽'], ['dreb', '篮板']];

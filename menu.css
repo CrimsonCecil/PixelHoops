@@ -1,4 +1,5 @@
 /* A / 街机球馆: the court keeps playing behind a quiet two-choice home. */
+.selection-lineup { display:contents; }
 #menu { --front-blue:#79adff; --front-ink:#10192c; }
 #menu.overlay { padding:0; overflow:auto; background:linear-gradient(90deg,rgba(5,10,20,.95),rgba(5,10,20,.74) 45%,rgba(5,10,20,.05) 80%); }
 #menu [data-view-panel] { display:none; }
@@ -460,4 +461,83 @@ button.pick.fighter-pick .pk-c { font-size:11px; color:var(--fighter-color); }
   #menu .menu-actions #btn-start, #menu .menu-actions #front-guest-wait { flex:1; min-width:140px; }
   #menu .menu-actions-sub { gap:8px; }
   #menu .menu-actions-sub button { padding:7px 9px; }
+}
+
+/* K6 / dark mist: the same player module, five ascending mystery silhouettes. */
+#menu[data-format=king] .selection-lineup { display:grid; grid-template-columns:minmax(0,.95fr) minmax(0,1.25fr); gap:24px; margin:12px 0 0; }
+#menu[data-format=king] .duel-lineup { grid-template-columns:minmax(0,1fr); max-width:none; margin:0; gap:0; }
+#menu[data-format=king] #pick0 { min-height:390px; padding:18px 22px 18px 10px; grid-template-columns:42% minmax(0,58%); border-top:3px solid var(--front-blue); background:linear-gradient(118deg,#243958,var(--front-panel) 65%); }
+#menu[data-format=king] .fighter-figure { padding:0 0 10px; }
+#menu[data-format=king] .fighter-body { height:350px; image-rendering:pixelated; }
+#menu[data-format=king] .fighter-number { font-size:145px; top:28px; }
+#menu[data-format=king] .fighter-ring { max-width:210px; }
+#menu[data-format=king] .fighter-info { justify-content:center; gap:10px; }
+#menu[data-format=king] .fighter-label { font-size:15px; }
+#menu[data-format=king] .fighter-name { align-items:center; }
+#menu[data-format=king] .fighter-name .pk-n { font-size:clamp(22px,2.1vw,32px); }
+#menu[data-format=king] .fighter-name strong { font-size:43px; }
+#menu[data-format=king] .fighter-pick .pk-s { font-size:13px; }
+#menu[data-format=king] .fighter-stats { gap:10px 16px; }
+#menu[data-format=king] .fighter-stats > span { font-size:14px; }
+#menu[data-format=king] .fighter-stats b { font-size:21px; }
+#menu[data-format=king] .fighter-stats i { height:4px; }
+#menu[data-format=king] .fighter-badges { max-height:62px; gap:7px; }
+#menu[data-format=king] .fighter-badges > span { font-size:11px; padding:0; border:0; }
+#menu[data-format=king] .fighter-badges .bhex { --bpk:1.5px; width:21px; height:23px; }
+#menu[data-format=king] #lobbyK { min-width:0; margin:0; padding:10px 12px 14px; border:1px solid var(--front-line); border-top:3px solid var(--front-gold); background:linear-gradient(125deg,#1d2d48,#172236); box-shadow:4px 4px #060b14; }
+#menu[data-format=king] .lk-head { height:28px; margin:0 0 16px; justify-content:flex-end; }
+#menu[data-format=king] #lk-lives { flex:none; }
+#menu[data-format=king] #lk-quit { font-size:11px; padding:4px 8px; }
+#menu[data-format=king] #lk-list { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); align-items:end; gap:9px; height:315px; padding:0; margin:0; }
+#menu[data-format=king] .lk-i { --boss:#a0b1ca; display:block; position:relative; min-width:0; height:242px; margin-bottom:calc(var(--s) * 14px); padding:0; border:1px solid #455773; background:#1d2b43; box-shadow:0 10px #10192b,0 11px #3b4f6c; }
+#menu[data-format=king] .lk-i.s2 { --boss:#83b8fb; }
+#menu[data-format=king] .lk-i.s3 { --boss:#b48ce7; }
+#menu[data-format=king] .lk-i.s4 { --boss:#ffdb65; }
+#menu[data-format=king] .lk-i.mystery:nth-child(n+3) { border-color:color-mix(in srgb,var(--boss) 50%,#344762); background:radial-gradient(ellipse at 50% 60%,color-mix(in srgb,var(--boss) 16%,transparent),transparent 75%),#142036; }
+#menu[data-format=king] .lk-i.cur { border-color:var(--front-gold); box-shadow:inset 0 0 0 1px #ffdc6533,0 10px #10192b,0 11px #3b4f6c; }
+#menu[data-format=king] .lk-arrow { position:absolute; z-index:2; left:50%; bottom:calc(100% + 7px); transform:translateX(-50%); font-size:24px; line-height:1; color:var(--front-gold); filter:drop-shadow(0 3px #090f1c); }
+#menu[data-format=king] .lk-figure { position:absolute; left:5%; right:5%; bottom:0; height:95%; display:flex; justify-content:center; align-items:flex-end; }
+#menu[data-format=king] .s0 .lk-figure { height:77%; }
+#menu[data-format=king] .s1 .lk-figure { height:84%; }
+#menu[data-format=king] .s2 .lk-figure { height:90%; }
+#menu[data-format=king] .s4 .lk-figure { height:100%; }
+#menu[data-format=king] .lk-figure canvas { width:100%; height:calc(100% - 34px); margin-bottom:34px; object-fit:contain; image-rendering:pixelated; }
+#menu[data-format=king] .lk-mystery { width:100%; height:100%; overflow:visible; }
+#menu[data-format=king] .lk-silhouette { fill:#53637d; }
+#menu[data-format=king] .lk-mystery text { fill:var(--boss); font:28px var(--font); opacity:.7; }
+#menu[data-format=king] .mystery:nth-child(n+3) .lk-silhouette { fill:#142239; stroke:var(--boss); stroke-width:.8px; }
+#menu[data-format=king] .s3 .lk-mystery { transform:scaleX(1.05); }
+#menu[data-format=king] .s4 .lk-mystery { transform:scaleX(1.1); filter:drop-shadow(0 0 5px #e5b54133); }
+#menu[data-format=king] .lk-i.mystery:nth-child(n+3)::after { content:''; position:absolute; pointer-events:none; left:8%; top:42%; width:3px; height:3px; background:var(--boss); box-shadow:7px -30px var(--boss),83px -15px var(--boss),75px 45px var(--boss); opacity:.45; }
+#menu[data-format=king] .lk-i.mystery.s3::after { box-shadow:7px -30px var(--boss),83px -15px var(--boss),75px 45px var(--boss),5px 70px var(--boss),84px 88px var(--boss),67px -70px var(--boss); }
+#menu[data-format=king] .lk-i.mystery.s4::after { box-shadow:7px -30px var(--boss),83px -15px var(--boss),75px 45px var(--boss),5px 70px var(--boss),84px 88px var(--boss),67px -70px var(--boss),20px -80px var(--boss),84px 15px var(--boss),0 12px var(--boss),16px 100px var(--boss); opacity:.8; }
+#menu[data-format=king] .lk-name { position:absolute; bottom:20px; left:3px; right:3px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:12px; text-align:center; }
+#menu[data-format=king] .lk-rating { position:absolute; bottom:3px; left:0; right:0; text-align:center; font-size:14px; color:var(--front-gold); }
+#menu[data-format=king] .lk-defeated { position:absolute; left:7px; top:6px; color:var(--front-gold); font-size:20px; }
+#menu[data-format=king] .lk-i.done { opacity:.5; }
+#menu[data-format=king] .king-start { display:flex; justify-content:center; margin:20px 0 18px; }
+#menu[data-format=king] #king-start #btn-start { width:min(100%,420px); min-height:56px; font-size:22px; padding:12px 24px; }
+#menu[data-format=king] #menu-foot { display:none; }
+@media(max-width:1100px) {
+  #menu[data-format=king] .selection-lineup { grid-template-columns:minmax(0,1fr); gap:18px; }
+  #menu[data-format=king] #pick0 { min-height:350px; }
+  #menu[data-format=king] .fighter-body { height:310px; }
+  #menu[data-format=king] #lk-list { height:295px; }
+  #menu[data-format=king] .lk-i { height:220px; }
+}
+@media(max-width:600px) {
+  #menu[data-format=king] #pick0 { padding:14px 16px 14px 6px; grid-template-columns:38% minmax(0,62%); min-height:330px; }
+  #menu[data-format=king] .fighter-body { height:290px; }
+  #menu[data-format=king] .fighter-name strong { font-size:34px; }
+  #menu[data-format=king] .fighter-stats { gap:9px; }
+  #menu[data-format=king] .fighter-stats > span { font-size:12px; }
+  #menu[data-format=king] .fighter-stats b { font-size:18px; }
+  #menu[data-format=king] #lobbyK { padding:8px 8px 14px; }
+  #menu[data-format=king] .lk-head { margin-bottom:18px; }
+  #menu[data-format=king] #lk-list { height:212px; gap:5px; }
+  #menu[data-format=king] .lk-i { height:157px; margin-bottom:calc(var(--s) * 9px); }
+  #menu[data-format=king] .lk-arrow { font-size:20px; }
+  #menu[data-format=king] .lk-i.mystery::after { display:none; }
+  #menu[data-format=king] .lk-name { font-size:9px; }
+  #menu[data-format=king] .lk-rating { font-size:12px; }
 }
