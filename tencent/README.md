@@ -130,7 +130,31 @@ API_DOMAIN=ph-test.kccecil.com WEB_DOMAIN=ph-test.kccecil.com EMAIL=你的邮箱
    （原来是 Worker 自定义域名，需要先在 Cloudflare 的 Worker 设置里把 `pixelhoops-api.kccecil.com` 这个自定义域名**解除绑定**，再加 A 记录。）
 3. 在服务器上用正式域名重新跑一次 `setup.sh`（`API_DOMAIN=pixelhoops-api.kccecil.com`），重新签证书。
 4. 验证：`curl https://pixelhoops-api.kccecil.com/api/turn`。
-5. 前端（`pixelhoops.kccecil.com`）仍在 Cloudflare，把本分支合并到 `main` 后重新 `wrangler deploy` 一次即可带上新的 `rooms.js`。
+5. 正式前端（`pixelhoops.kccecil.com`）也由这台腾讯云服务器提供；发布方式见下节，不需要运行 Wrangler。
+
+### 正式站跟随 `main`
+
+在已完成初次安装的腾讯云服务器上，以 root 从可信 checkout 安装同步脚本和 systemd 单元：
+
+```bash
+install -m 0755 tencent/deploy/sync-main.sh /usr/local/sbin/pixelhoops-sync-main
+install -m 0644 tencent/deploy/pixelhoops-sync-main.{service,timer} /etc/systemd/system/
+systemctl daemon-reload
+systemctl start pixelhoops-sync-main.service
+systemctl enable --now pixelhoops-sync-main.timer
+journalctl -u pixelhoops-sync-main.service -n 30 --no-pager
+```
+
+定时器每分钟检查 GitHub 的 `main`。脚本先准备完整版本，再切换 `/opt/pixelhoops/app`；只在后端代码或依赖变更时重启 Node 服务。发布后检查本机健康接口和两份游戏脚本；失败则切回。初次发布前的目录和上一个发布版本都保存在 `/opt/pixelhoops/releases/`，数据库和环境配置不变。启用后不要再用 `setup.sh` 发布代码。
+
+需要回滚时，先停用定时器（否则下次检查会重新发布 `main`），再运行：
+
+```bash
+sudo systemctl disable --now pixelhoops-sync-main.timer
+sudo /usr/local/sbin/pixelhoops-sync-main rollback
+```
+
+如需恢复首次同步前保留的版本，使用 `rollback-original`。
 
 切换后跑一次：
 
