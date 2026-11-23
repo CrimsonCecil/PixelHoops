@@ -36,7 +36,8 @@ function fixture(mode, overrides = {}) {
 for (const mode of ['2p', 't5']) {
   const checks = [
     ['sprint', 12 * 0.925 * dt, ({ step }) => step({ mx: 1, sprint: true })],
-    ['crossover', 9.6 * 0.925, ({ p, step }) => {
+    ['crossover', 9.6 * 0.925 * 1.25,   // 詹姆斯控球 0.85：低控球耗体加成 mvHndSt × 0.25
+    ({ p, step }) => {
       p.arch = { ...p.arch, key: 'qa' };
       p.speed = 2;
       step({ dx: 1, a3: true });

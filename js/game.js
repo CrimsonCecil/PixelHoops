@@ -117,6 +117,7 @@
     ['bkLane', 'zone', '空中飞猪 路线宽度', 0.9, 0.4, 2, 0.05, '米：防守人离向筐路线小于这个距离时不加成'],
     ['dunkMin', 'zone', '扣篮最近起跳', 1.1, 0.5, 2.5, 0.05, '米：扣篮起跳距离下限'],
     ['dunkBase', 'zone', '扣篮起跳距离基数', 0.6, 0, 2, 0.05, '米：起跳距离 = 基数 + 增益 × 扣篮/弹跳/速度 + 身高修正'],
+    ['dunkAthPow', 'zone', '扣篮起跳距离 扣篮能力指数', 1.5, 0.5, 3, 0.05, '指数：扣篮能力折算的起跳距离增益 ^ 这个；越大中等扣篮能力离筐越近才能起跳'],
     ['dunkAth', 'zone', '扣篮起跳距离增益', 2.4, 0, 4, 0.05, '米：顶级扣将满速时额外的起跳距离'],
     // V4.1 脚步分档与时长（原来写死在 buildSteps 里，默认值不变）：need = 当前离筐 − 目标起跳距离
     ['step0', 'zone', '0 步直接起跳阈值', 0.45, 0, 1.5, 0.05, '米：need 小于这个就收球直接起跳（不迈步，只往前带 0.12 米）'],
@@ -274,6 +275,7 @@
     ['cbWin', 'drib', '连续过人 衔接窗口', 0.35, 0.05, 1, 0.01, '秒：能取消前提前按、或收招后晚按，超过这个时间都不接招；方向联招也需在这个时间内输入'],
     ['cbFat', 'drib', '连续过人 疲劳衰减', 0.8, 0, 1, 0.01, '比例：疲劳度 1（体力 0）时 combo 加成 × (1 − 这个)；疲劳度 = (疲劳线 − 体力) ÷ 疲劳线'],
     ['cbCost', 'drib', '连续过人 体力递增', 0.2, 0, 1, 0.01, '比例：第 n 段体力消耗 × (1 + 这个 × n)，在每招递增之上'],
+    ['mvHndSt', 'drib', '低控球 运球招式耗体加成', 1, 0, 3, 0.05, '比例：控球 0.70 以下运球招式耗体 ×(1 + 这个)，至 0.90 线性归零'],
     ['cbStep', 'drib', '连续过人 每招体力递增', 0.5, 0, 2, 0.01, '比例：衔接窗口内换招接上的第 n 招体力消耗 × (1 + 这个 × (n − 1))，不封顶；运球如丝 / 脚踝终结者 按 bgChainSt 放缓'],
     ['mvFat', 'drib', '疲劳 位移衰减', 0.4, 0, 0.8, 0.01, '比例：疲劳度 1 时动作速度 × (1 − 这个)，动作时长另外 +25%，合起来位移 ≈ × (1 − 这个) × 1.25（原来 0.3 → 位移只少 12%，0.4 → 少 25%）；疲劳度 = (疲劳线 − 体力) ÷ 疲劳线'],
     // —— V4.2 AI 连续过人（ai 组）：电脑用同一套 combo（pl.dcn / cbWin），当前招还在做时按下一段走缓冲接上 ——
@@ -470,6 +472,8 @@
     ['akT1h', 'ankle', '急停 失重心阈值', 0.5, 0, 2, 0.01, '强度：急停低于这个只是失重心'],
     ['akT2', 'ankle', '踉跄 → 僵直 阈值', 0.62, 0, 2, 0.01, '强度'],
     ['akT3', 'ankle', '僵直 → 晃倒 阈值', 0.8, 0, 3, 0.01, '强度：超过这个晃倒'],
+    ['akTH', 'ankle', '普通运球 晃晕 / 晃飞门槛加成', 0.25, 0, 2, 0.01, '强度：控球 0.70 以下全额加到踉跄、僵直门槛，至 0.90 线性归零；背身转身和晃倒必杀不受影响'],
+    ['akReachH', 'ankle', '伸手落空 低控球必晃折扣', 0.6, 0, 1, 0.01, '比例：防守人伸手抢断时，控球 0.70 以下只有 (1 − 这个) 的概率必被晃，其余照常判定；至 0.90 线性归零'],
     ['akT3H', 'ankle', '普通运球 晃倒门槛加成', 0.4, 0, 2, 0.01, '强度：控球 0.70 以下全额加到晃倒门槛，至 0.90 线性归零；背身转身和晃倒必杀不受影响'],
     ['akOffM', 'ankle', '失重心 时长倍率', 1, 0, 4, 0.05, '倍率'],
     ['akDazeM', 'ankle', '踉跄 时长倍率', 1.2, 0, 4, 0.05, '倍率'],
@@ -963,6 +967,8 @@
     ['dkCE', 'fin', '扣篮 干扰对抗斜率', 1.8, 0, 5, 0.05, '比例'],
     ['dkBodyD', 'fin', '扣篮 身体对抗距离惩罚', 0.3, 0, 1, 0.01, '概率：被撞后离筐每远 1 米多扣'],
     ['dkLowSt', 'stam', '低体力 扣篮命中惩罚', 0.15, 0, 0.5, 0.01, '概率'],
+    ['dkCLo', 'fin', '低扣篮能力 干扰折损保底', 0.6, 0, 1.3, 0.01, '比例：扣篮能力 0.70 以下时，对抗分再占优干扰惩罚也至少 × 这个，至 0.90 线性降到 0.05'],
+    ['dkCWeak', 'fin', '低扣篮能力 干扰放大', 4, 0, 8, 0.1, '比例：扣篮能力 0.70 以下时干扰值 ×(1 + 这个)，至 0.90 线性归零；防守人站好位举手时一般扣将扣不进'],
     ['dkMin', 'fin', '扣篮 命中下限', 0.06, 0, 0.5, 0.01, '概率'],
     ['dkMax', 'fin', '扣篮 命中上限', 0.99, 0.5, 1, 0.01, '概率'],
     // V4.6 电脑 AI：难度表 / 持球决策 / 防守反应（原写死，默认值不变）
@@ -3800,7 +3806,7 @@
     const adv = 0;
     // 扣篮起跳距离：扣篮能力 × 爆发（弹跳/速度/加速），体重越大越难远距离起飞
     const ath = 0.6 * (pl.r.leap || pl.r.vert) + 0.25 * pl.r.spd + 0.15 * pl.r.acc, dR = dunkR(pl, run), dk = clamp((dR - 0.5) / 0.5, 0, 1);
-    const reach0 = dR < 0.5 ? 0 : clamp(K.dunkBase + K.dunkAth * dk * Math.pow(ath, 1.5) * (0.4 + 0.6 * run) + (pl.h - 1.95) * 1.2 - heavy * 0.6 + ba(pl, 'launch', K.bgLaunch) - 0.9 * fat(pl), K.dunkMin, K.dunkMax);
+    const reach0 = dR < 0.5 ? 0 : clamp(K.dunkBase + K.dunkAth * Math.pow(dk, K.dunkAthPow) * Math.pow(ath, 1.5) * (0.4 + 0.6 * run) + (pl.h - 1.95) * 1.2 - heavy * 0.6 + ba(pl, 'launch', K.bgLaunch) - 0.9 * fat(pl), K.dunkMin, K.dunkMax);
     const tko = d - K.stepN * L;
     const inside = pl.y < HOOP.y + 0.3 && (d > 0.45 || !!aerial);
     const back = pl.y >= HOOP.y + 0.3 && d > 0.45 && d < 6;
@@ -4647,7 +4653,7 @@
     } else { pl.uuShot = null; pl.uuFake = null; }
     // 连续过人越往后越累：每多一招、每接上一段都加价；运球如丝 / 脚踝终结者 只让加出来的那部分放缓
     const chainX = (1 + K.cbStep * (pl.combo - 1)) * (1 + K.cbCost * pl.dcn) - 1, chainBg = Math.max(0, Math.min(bk(pl, 'tight', K.bgChainSt), bk(pl, 'ankle', K.bgChainSt)));
-    spendStamina(pl, CFG.moveCost * M.cost * (CBk ? 1.3 : 1) * (1 + chainX * chainBg) * bk(pl, 'tight', K.bgTightSt) * (tkIs(pl, 'hnd') ? 0.4 : 1) * stamK(pl)); pl.animT = 0; pl.cd = (MT + lerp(0.2, 0.02, clamp((hnd - 0.4) / 0.55, 0, 1))) * (ptIs(pl, 'playmaker') ? 0.9 : 1); pl.boost = kind === 'hesi' ? MT + 0.7 : 0.75;
+    spendStamina(pl, CFG.moveCost * M.cost * (CBk ? 1.3 : 1) * (1 + chainX * chainBg) * bk(pl, 'tight', K.bgTightSt) * (tkIs(pl, 'hnd') ? 0.4 : 1) * (isPostMove(kind) ? 1 : 1 + K.mvHndSt * lowHnd(hnd)) * stamK(pl)); pl.animT = 0; pl.cd = (MT + lerp(0.2, 0.02, clamp((hnd - 0.4) / 0.55, 0, 1))) * (ptIs(pl, 'playmaker') ? 0.9 : 1); pl.boost = kind === 'hesi' ? MT + 0.7 : 0.75;
     pl.lastMove = kind; pl.lastMv = mvx || kind; pl.lastMoveT = G.time; pl.post = false;
     pl.sk.probe = G.time;
     pl.postMove = isPostMove(kind) ? { kind: kind, t: G.time + MT, bite: false, side: Math.sign(dx * -hy + dy * hx) || openS } : null;
@@ -4695,7 +4701,7 @@
       let bite = !!kySk; const k = (ptIs(df, 'lockdown') ? 0.9 : 1) * rdK * Math.pow(M.bite, K.akPkW) * (CBk ? Math.pow(CBk.bite, K.akCbW) : 1) * (rep ? K.akRep : 1) * (1 + K.akCombo * (pl.combo - 1)) * CFG.ankle * (PS ? 1 : bk(pl, 'ankle', K.akBdg)) * (PS ? 1 : bk(df, 'clamps', K.akClamp)) * (PS ? clamp(1 + 0.9 * pAdv, 0.5, 1.6) * (hasB(df, 'brick') ? 0.6 : 1) : K.akDef0 - K.akDef * df.r.def) * (1 - K.akPred * pred) * (1 - K.akFat * fat(pl)) * (1 + K.akFatD * fat(df)) * (1 - K.akAgD * (agil(df) - 0.5)) * (PS ? 1 : K.akHnd0 + K.akHnd * (X && X.str ? pl.r.str : hnd)) * (tkIs(pl, 'hnd') ? K.akTk : 1) * (PS ? PS.bite * (1.15 - 0.45 * df.r.intD) : 1)
         * (X && !CBk ? X.sit({ dd: dd, toMe: toMe, reach: !!(df.action && df.action.type === 'steal'), pw: Math.log(bodyPow(pl) / bodyPow(df)) }) : 1);
       if (rnd() < (PS ? Math.min(k * distF * Math.pow(mis, K.akMisW) * K.akMul, PS.cap * (1.2 - 0.5 * df.r.intD)) : k * distF * Math.pow(mis, K.akMisW) * K.akMul)) bite = true;
-      if (df.action && df.action.type === 'steal') { bite = true; mis = 1; }
+      if (df.action && df.action.type === 'steal' && (PS || rnd() >= K.akReachH * lowHnd(hnd))) { bite = true; mis = 1; }
       if (!bite && rdK < K.akReadK && dd < K.akReadD) { float('读到了', df, '#9aa3c0'); df.sqv = (df.sqv || 0) - 2.5; }
       df.biteMis = mis * (1 - K.akBmD + K.akBmD * distF);
       if (bite) {
@@ -4704,8 +4710,8 @@
           : (kind === 'hesi' ? K.akHesi : K.akCross + K.akCrossH * pl.r.hnd) * (df.stance ? K.akStS : 1) * (1 + K.akComboS * (pl.combo - 1)) * bk(pl, 'ankle', K.akBdgS) * (CBk ? CBk.stun : 1) * CFG.stunMul;
         // 四档：晃开（重心偏移）→ 晃晕（踉跄冒星）→ 晃飞（扑空转圈）→ 晃倒（坐地）
         const pw = df.stun * rr(1 - K.akPwR, 1 + K.akPwR) * (K.akPw0 + K.akPwM * df.biteMis) * (kySk ? K.akKyPw : 1) * (PS && !PS.dream ? 0.85 : 1);
-        const fallAt = K.akT3 + (PS || kySk ? 0 : K.akT3H * clamp((0.9 - hnd) / 0.2, 0, 1));
-        let tier = kind === 'hesi' && pw < K.akT1h ? 'off' : pw < K.akT1 ? 'off' : pw < K.akT2 ? 'daze' : pw < fallAt ? 'spin' : 'fall';
+        const lowH = PS || kySk ? 0 : lowHnd(hnd), fallAt = K.akT3 + K.akT3H * lowH, tH = K.akTH * lowH;
+        let tier = kind === 'hesi' && pw < K.akT1h + tH ? 'off' : pw < K.akT1 + tH ? 'off' : pw < K.akT2 + tH ? 'daze' : pw < Math.max(fallAt, K.akT2 + tH) ? 'spin' : 'fall';
         if (PS && !PS.dream && (tier === 'spin' || tier === 'fall')) tier = pAdv > 0.3 && tier === 'fall' ? 'spin' : 'daze';
         if (PS) scoutRec(pl, 'postspin', tier === 'off' ? 0.25 : 0.5);
         df.stunK = tier; df.stun *= tier === 'off' ? K.akOffM : tier === 'daze' ? K.akDazeM : tier === 'spin' ? K.akSpinM : K.akFallM; if (tier === 'fall') df.stun = Math.max(df.stun, K.akFallMin); if (kySk) df.stun = K.akKyStun;
@@ -5064,7 +5070,7 @@
           // V4.3 扣篮对抗：差值用 finEdge（力量 / 扣篮 / 弹跳 / 体重 / 起跳速度 / 徽章 / 疲劳 对 盖帽 / 内防 / 臂展 / 弹跳 / 力量 / 站位时机）
           const dR = dunkR(pl, a.run0 || 0), edge = df.off ? 1 : finEdge(pl, df, a, true);
           const flashy = a.v === 'windmill' || a.v === '360' || a.v === 'cock' || a.v === 'cradle' || a.v === 'pump' || a.v === 'scissor', vk = flashy ? K.dkFlyK : a.v === 'two' || a.v === 'rimpull' || a.v === 'shaq' ? K.dkPowK : 1;
-          const prob0 = SK ? 1 : clamp(K.dkP0 + K.dkPR * dR - (flashy ? K.dkPFly : 0) - K.ctDkP * c * vk * clamp(K.dkC0 - K.dkCE * edge, 0.05, 1.3) - heavyD - (a.bodyPen ? a.bodyPen + K.dkBodyD * clamp(distHoop(pl) - 1, 0, 1.5) : 0) - (pl.stam < ST.layLow ? K.dkLowSt : 0), K.dkMin, K.dkMax);
+          const prob0 = SK ? 1 : clamp(K.dkP0 + K.dkPR * dR - (flashy ? K.dkPFly : 0) - K.ctDkP * c * (1 + K.dkCWeak * lowHnd(dR)) * vk * clamp(K.dkC0 - K.dkCE * edge, Math.min(1.3, lerp(0.05, K.dkCLo, lowHnd(dR))), 1.3) - heavyD - (a.bodyPen ? a.bodyPen + K.dkBodyD * clamp(distHoop(pl) - 1, 0, 1.5) : 0) - (pl.stam < ST.layLow ? K.dkLowSt : 0), K.dkMin, K.dkMax);
           const prob = alleyProb(a, SK || !a.thru ? prob0 : thruProb(pl, a, prob0, true));
           a.edge = edge; if (a.v === 'poster') bpop(pl, 'poster');
           const info = { who: pl.id, name: a.alley ? '空接暴扣' : a.name, pts: 2, dist: distHoop(pl), contest: c, src: c > 0.04 ? ci.src : '', e: null, zone: 'lay', stamLow: pl.stam < ST.layLow, green: false, made: false, blocked: false, prob: prob, tl: '—', cl: c < 0.2 ? '空位' : c < 0.5 ? '轻微干扰' : '严重干扰', reason: '' };
@@ -5283,6 +5289,7 @@
     float(txt, pl, '#ff6b5e', 1); sfx('gasp');
   }
   function spendStamina(pl, cost) { pl.stam = Math.max(0, pl.stam - cost); }
+  function lowHnd(r) { return clamp((0.9 - r) / 0.2, 0, 1); }
   function stamK(pl) { return (1.25 - 0.65 * pl.r.sta) * bk(pl, 'motor', K.bgMotorSt); }
 
   // ---------- 输入缓冲（V3.9j）----------
@@ -8418,6 +8425,8 @@
     akT2: ['晃人 僵直门槛', '越小越轻的晃人也能让对手僵直；强度门槛'],
     akT3: ['晃人 倒地门槛', '越小越轻的晃人也能让对手倒地；强度门槛'],
     akT3H: ['', '越大普通低控球运球越难晃倒对手；强度加成'],
+    akTH: ['普通运球 低控球晃晕门槛', '越大低控球运球越难把对手晃晕 / 晃飞，多数只是晃开；强度加成'],
+    akReachH: ['伸手落空 低控球必晃折扣', '越大低控球持球人越难靠对手伸手落空必晃；比例'],
     akOffM: ['失重心 恢复时长倍数', '越大失重心后恢复越慢；1 = 基准'],
     akDazeM: ['踉跄 恢复时长倍数', '越大踉跄后恢复越慢；1 = 基准'],
     akSpinM: ['僵直 恢复时长倍数', '越大僵直后恢复越慢；1 = 基准'],
@@ -8644,6 +8653,10 @@
     bgTightSt: ['运球如丝 耗体倍数', '越大运球如丝持有者运球招式耗体越多；金档倍数，1 = 无减耗'],
     bgHuCost: ['鱼跃徽章 耗体倍数', '越大鱼跃徽章持有者扑球耗体越多；金档倍数，1 = 无减耗'],
     bgMotorSt: ['永动机 耗体倍数', '越大永动机持有者冲刺等动作耗体越多；金档倍数，1 = 无减耗'],
+    dkCWeak: ['扣篮 低扣篮能力干扰放大', '越大扣篮能力一般的人被干扰时越难扣进；比例'],
+    dkCLo: ['扣篮 低扣篮能力干扰保底', '越大扣篮能力一般的人被干扰时越难硬扣；干扰惩罚倍数下限'],
+    mvHndSt: ['运球招式 低控球耗体加成', '越大控球差的人做运球招式越耗体；比例'],
+    dunkAthPow: ['扣篮 起跳距离能力指数', '越大扣篮能力一般的人越难远距离起跳扣篮；指数'],
     dkLowSt: ['扣篮 低体力命中惩罚', '越大低体力扣篮越难进；直接扣除的命中概率'],
     stDepth: ['防守滑步 下蹲深度', '越大防守姿态越蹲得低；屈膝倍数，不改移速'],
     stLean: ['防守滑步 躯干前倾', '越大防守时上身越向前倾；弧度'],
