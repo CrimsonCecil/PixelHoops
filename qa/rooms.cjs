@@ -47,7 +47,7 @@ function client({ relay = true, rtc = false, direct = false, ice = null } = {}) 
   const rooms = win.PH.rooms;
   const open = (host = false) => rooms.open(host ? '' : 'ABCDE', 'online', {
     error: (message) => events.push(message), joined: () => events.push('joined'), start: () => events.push('start'), ready: () => events.push('ready'),
-    reserve: (mode, links) => links.has(1) ? -1 : 1, change: (slot, reason) => { if (reason) events.push(reason); }, notice: (message) => events.push(message), state: () => events.push('state'), message: (msg, slot) => messages.push({ ...msg, senderSlot: slot })
+    reserve: (mode, links) => links.has(1) ? -1 : 1, change: (slot, reason) => { if (reason) events.push(reason); }, notice: (message) => events.push(message), state: () => events.push('state'), message: (msg, slot) => messages.push({ ...msg, senderSlot: slot }), introDone: (msg, slot) => messages.push({ ...msg, senderSlot: slot })
   });
   const next = () => {
     const [id, timer] = [...timers].sort((a, b) => a[1].delay - b[1].delay)[0];
@@ -68,6 +68,8 @@ function client({ relay = true, rtc = false, direct = false, ice = null } = {}) 
   c.sockets[0].opened(); c.sockets[0].receive({ type: 'relay-ready' });
   c.sockets[0].receive(null);
   c.sockets[0].receive({ type: 'joined', slot: 1, protocol: 1 });
+  const beforeIntro = c.sockets[0].sent.length;
+  c.rooms.introDone(); assert.equal(c.sockets[0].sent.length, beforeIntro, 'no completion before a match');
   c.sockets[0].receive({ type: 'lobby', ready: true });
   assert.equal(c.messages[0].ready, true);
   c.rooms.sendLobby({ ready: true }); assert.equal(c.sockets[0].sent.at(-1).type, 'lobby');
@@ -77,6 +79,7 @@ function client({ relay = true, rtc = false, direct = false, ice = null } = {}) 
   assert.equal(c.messages.length, 1);
   assert.equal(c.timers.size, 0);
   assert.equal(c.rooms.room.active, true);
+  c.rooms.introDone(); assert.equal(c.sockets[0].sent.at(-1).type, 'introDone', 'guest completion uses relay');
   c.rooms.close();
   console.log('PASS: normal relay join/start, pre-match lobby forwarding, and deadline cleanup');
 
@@ -160,6 +163,12 @@ function client({ relay = true, rtc = false, direct = false, ice = null } = {}) 
   c.sockets[0].receive({ from: 9, msg: { type: 'lobby', slot: 5, ready: true } });
   assert.equal(c.messages[0].senderSlot, 1);
   c.rooms.room.active = true;
+  c.sockets[0].receive({ from: 9, msg: { type: 'introDone', slot: 5 } });
+  assert.equal(c.messages.at(-1).senderSlot, 1, 'completion uses authenticated sender slot');
+  const introMessages = c.messages.length;
+  c.sockets[0].receive({ type: 'peer-open', id: 10 });
+  c.sockets[0].receive({ from: 10, msg: { type: 'introDone' } });
+  assert.equal(c.messages.length, introMessages, 'unjoined peer cannot acknowledge an intro');
   assert.equal(c.rooms.relaying(), true);
   assert.equal(c.rooms.congested(), false);
   c.rooms.broadcast({ type: 'state', state: { a: 1 } });
@@ -216,6 +225,12 @@ function client({ relay = true, rtc = false, direct = false, ice = null } = {}) 
   assert.equal(guest.rooms.room.transport, 'p2p');
   // Regular state uses unreliable 'state' channel; audio-bearing state & ping use reliable 'ctrl' channel
   host.rooms.room.active = true;
+  guest.sockets[0].receive({ type: 'start', config: {} });
+  guest.rooms.introDone();
+  assert.equal(gCtrl.sent.at(-1).type, 'introDone', 'completion uses reliable P2P control channel');
+  hCtrl.receive(gCtrl.sent.at(-1));
+  assert.equal(host.messages.at(-1).type, 'introDone'); assert.equal(host.messages.at(-1).senderSlot, 1);
+  console.log('PASS: introDone uses relay and reliable P2P control with authenticated guest slots; no protocol bump');
   host.rooms.broadcast({ type: 'state', state: { x: 1 } });
   assert.equal(hState.sent.length, 1);
   assert.equal(hCtrl.sent.length, 0);
