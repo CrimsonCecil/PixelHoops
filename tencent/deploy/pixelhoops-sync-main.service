@@ -1,0 +1,9 @@
+[Unit]
+Description=Sync PixelHoops production from GitHub main
+Wants=network-online.target
+After=network-online.target pixelhoops.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/pixelhoops-sync-main
+TimeoutStartSec=5min
