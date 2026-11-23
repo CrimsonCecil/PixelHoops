@@ -22,6 +22,7 @@ document.write('<link rel="stylesheet" href="menu.css?v=' + window.__V__ + '">')
     <div class="wipe-brand"><strong>PIXEL HOOPS</strong><span>像素斗牛</span></div>
   </div>
   <div id="replay-badge" class="hidden" aria-hidden="true"><span></span>REPLAY</div>
+  <div id="padtoast" class="hidden" role="status" data-testid="padtoast"></div>
 
   <div id="hud" class="hidden">
     <div id="scorebar" class="scoreboard">
@@ -152,6 +153,7 @@ document.write('<link rel="stylesheet" href="menu.css?v=' + window.__V__ + '">')
       <p class="padtag hidden" id="padtag">已连接 Xbox 手柄：十字键 / 左摇杆选择，A 确认，B 返回，LB / RB 切页，右摇杆滚动</p>
     </div>
     <div id="menutop" data-testid="menutop">
+      <span id="padchip" class="hidden" data-testid="padchip"></span>
       <button id="btn-qvol" data-testid="btn-qvol" title="音量" aria-haspopup="true" aria-expanded="false"></button>
       <div id="qvol" class="hidden" data-testid="qvol">
         <label class="mx"><span>总音量</span><input type="range" min="0" max="100" step="1" id="qv-range" data-testid="qv-range"><b id="qv-val"></b></label>

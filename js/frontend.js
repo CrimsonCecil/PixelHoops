@@ -22,7 +22,7 @@
     ctx.opts.opponent = 'cpu'; ctx.redraw(); go(next);
   }
   function choose(format, online = false) {
-    ctx.opts.format = format; ctx.opts.opponent = online ? 'online' : 'cpu';
+    ctx.opts.format = format; ctx.opts.opponent = online ? 'online' : format === 'duel' && PH.input.pads().length >= 2 ? '2p' : 'cpu';
     previous = online ? 'lobby' : 'solo'; synced.clear(); remoteMembers = []; ctx.redraw(); go('select');
   }
   function capacity() { return ctx.opts.format === 't3' ? 1 + ctx.lobby.filter((s, i) => i !== 0 && s.role === 'waiting').length : 2; }

@@ -136,20 +136,22 @@
   }
   // 每帧轮询手柄的菜单按键（上下左右 / A / B / Menu）
   const navPrev = {}, navRep = {}, REPEAT = { PadUp: 1, PadDown: 1, PadLeft: 1, PadRight: 1 };
+  let pressSlot = -1; // 本帧新按下按键的手柄序号（0 = 手柄 1 = 玩家 1，1 = 手柄 2 = 玩家 2）
   function pollPads() {
     const cur = {}, nextButtons = {}, now = performance.now();
     let pressed = false;
-    for (const gp of pads()) {
+    pressSlot = -1;
+    pads().forEach((gp, slot) => {
       const blk = blockedPad[gp.index];
       if (blk) for (const i in blk) if (!gpBtn(gp, +i)) delete blk[i];
       const prev = padPrev[gp.index] || [], buttons = nextButtons[gp.index] = gp.buttons.map((b) => b.pressed);
-      if (buttons.some((b, i) => b && !prev[i])) pressed = true;
+      if (buttons.some((b, i) => b && !prev[i])) { pressed = true; pressSlot = slot; }
       const B = (i) => buttons[i], ax = gp.axes[0] || 0, ay = gp.axes[1] || 0, rx = gp.axes[2] || 0;
       if (B(12) || ay < -0.6) cur.PadUp = true; if (B(13) || ay > 0.6) cur.PadDown = true; if (B(14) || ax < -0.6) cur.PadLeft = true; if (B(15) || ax > 0.6) cur.PadRight = true;
       if (B(0)) cur.PadA = true; if (B(1)) cur.PadB = true; if (B(9)) cur.PadStart = true; if (B(8)) cur.PadBack = true;
       if (B(2)) cur.PadX = true; if (B(3)) cur.PadY = true; if (B(4)) cur.PadLB = true; if (B(5)) cur.PadRB = true;
       if (rx < -0.6) cur.PadRLeft = true; if (rx > 0.6) cur.PadRRight = true;
-    }
+    });
     for (const k of ['PadUp', 'PadDown', 'PadLeft', 'PadRight', 'PadA', 'PadB', 'PadStart', 'PadBack', 'PadX', 'PadY', 'PadLB', 'PadRB', 'PadRLeft', 'PadRRight']) {
       if (cur[k] && !navPrev[k]) { sys[k] = true; navRep[k] = now + 380; }
       else if (cur[k] && REPEAT[k] && now >= navRep[k]) { sys[k] = true; navRep[k] = now + 85; }
@@ -215,5 +217,5 @@
     });
   }
 
-  PH.input = { read: read, read3: read3, read5: read5, endTick: endTick, flush: flush, blockRebound: blockRebound, sysPressed: sysPressed, sysAny: sysAny, clearSys: clearSys, initTouch: initTouch, pollPads: pollPads, rstick: rstick, lock: lock, pads: pads, keys: keys, touch: touch };
+  PH.input = { read: read, read3: read3, read5: read5, endTick: endTick, flush: flush, blockRebound: blockRebound, sysPressed: sysPressed, sysAny: sysAny, clearSys: clearSys, initTouch: initTouch, pollPads: pollPads, pressSlot: () => pressSlot, rstick: rstick, lock: lock, pads: pads, keys: keys, touch: touch };
 })();

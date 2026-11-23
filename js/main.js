@@ -14,7 +14,7 @@
   if (isTouch) document.getElementById('stage').classList.add('touch');
   const DT = 1 / 60;
   const REPLAY_MIN = 1;
-  let panelOpen = true, hasPad = false;
+  let panelOpen = true, hasPad = false, padN = 0, padIds = [], padToastT = 0;
 
   function layout() {
     // 铺满窗口：逻辑高度固定 270、宽度随窗口比例延展（16:9 ~ 64:27）；比 16:9 更窄时宽度固定 480、高度延展（到 4:3）
@@ -240,7 +240,7 @@
     else if (inlineSlot === null) inlineSlot = 0;
     if (!PH.frontend.allowed(inlineSide, inlineSlot)) { inlineSlot = opts.format === 't3' ? roomSlot : null; inlineSide = room.role === 'guest' ? 1 : 0; }
     const current = inlineSlot === null ? (inlineSide ? opts.arch1 : opts.arch0) : lobby3[inlineSlot]?.arch;
-    $('front-roster-title').textContent = '选择球星 · ' + (inlineSlot === null ? (inlineSide ? '对手 / 玩家 2' : '你的球员') : lobbySlotName(inlineSlot));
+    $('front-roster-title').textContent = '选择球星 · ' + (inlineSlot === null ? (opts.mode === '2p' ? '玩家 ' + (inlineSide + 1) + (padN >= 2 ? '（手柄 ' + (inlineSide + 1) + '）' : '') : inlineSide ? '对手 / 玩家 2' : '你的球员') : lobbySlotName(inlineSlot));
     pkTeams(); pkPositionChips();
     $('front-teams').innerHTML = $('pk-teams').innerHTML.replace(/data-testid=/g, 'data-original-testid=');
     $('front-positions').innerHTML = $('pk-positions').innerHTML;
@@ -1491,7 +1491,7 @@
   function hud() {
     frameN++;
     stage.classList.toggle('replay', !!(G.replay?.view && screen === 'play'));
-    if (frameN % 30 === 0) { const hp = PH.input.pads().length > 0; if (hp !== hasPad) { hasPad = hp; show('padtag', hp); hintKey = ''; } }
+    if (frameN % 30 === 0) padScan();
     if (screen === 'tips') { drawFloats(); return; }
     if (screen !== 'play') { for (const d of fpool) d.style.display = 'none'; return; }
     const train = G.mode === 'train', t3 = G.mode === 't3', local = G.players[matchConfig ? localSlot : 0];
@@ -1520,7 +1520,7 @@
     // 操作提示
     const two = G.mode === '2p' && !matchConfig, off = t3 ? teamOff : matchConfig ? !!(local && local.hasBall) : G.off === 0;
     const offBall = teamOff && !local.hasBall, post = off && !offBall && local.post;
-    const key = (two ? '2' : '1') + (offBall ? 'b' : off ? 'o' : 'd') + (post ? 'p' : '') + (hasPad ? 'g' : '') + (train ? 't' : '') + (t3 ? '3' : '') + (ft ? 'ft' + ft.id : '');
+    const key = (two ? '2' : '1') + (offBall ? 'b' : off ? 'o' : 'd') + (post ? 'p' : '') + (hasPad ? 'g' + padN : '') + (train ? 't' : '') + (t3 ? '3' : '') + (ft ? 'ft' + ft.id : '');
     if (key !== hintKey) {
       hintKey = key;
       const kb = hasPad ? { a1: 'X', a2: 'Y', a3: 'B', po: 'LT', sp: 'RT', st: 'LT', d1: 'Y', d2: 'X' } : { a1: 'J', a2: 'K', a3: 'L', po: 'U', sp: 'Shift', st: '按住 L', d1: 'J', d2: 'K' };
@@ -1533,7 +1533,9 @@
         ? '　<b>A</b> 胸传　<b>RT+A</b> 过顶　<b>LB+A</b> 击地　<b>LT+A</b> 高吊　<b>双击 Y / LB+LT+A</b> 空接'
         : '　<b>E</b> 胸传　<b>Shift+E</b> 过顶　<b>Z</b> 击地　<b>X</b> 高吊　<b>V</b> 空接' : '';
       const alleyHelp = t3 ? '　空接接球自动终结' : '';
-      $('hint').innerHTML = two ? '玩家 1：WASD + J K L，H 犹豫步，U 背打，V 自抛空接　玩家 2：方向键 + 小键盘 1 2 3，小键盘 5 犹豫步，O 背打，Num4 自抛空接；手柄双击 Y 自抛空接，接球自动终结' : (post ? P : off ? '进攻　' + (offBall ? B : O) : '防守　' + D) + passing + (offBall ? '　<b>' + (hasPad ? 'R3' : 'F') + '</b> 掩护' : '') + (train ? '　<b>' + (hasPad ? 'View' : 'Tab') + '</b> 参数 <b>R</b> 重置' : '');
+      const padKeys = '<b>X</b> 投篮 <b>Y</b> 扣篮/终结 <b>B</b> 运球 <b>RT</b> 加速 <b>LT</b> 背打 <b>双击 Y</b> 自抛空接';
+      $('hint').innerHTML = two ? (padN >= 2 ? '手柄 1 = 玩家 1　手柄 2 = 玩家 2　' + padKeys
+        : (padN === 1 ? '玩家 1：手柄 1（' + padKeys + '）' : '玩家 1：WASD + J K L，H 犹豫步，U 背打，V 自抛空接') + '　玩家 2：方向键 + 小键盘 1 2 3，小键盘 5 犹豫步，O 背打，Num4 自抛空接' + (padN === 1 ? '（第 2 个手柄按任意键即可接管）' : '；手柄双击 Y 自抛空接，接球自动终结')) : (post ? P : off ? '进攻　' + (offBall ? B : O) : '防守　' + D) + passing + (offBall ? '　<b>' + (hasPad ? 'R3' : 'F') + '</b> 掩护' : '') + (train ? '　<b>' + (hasPad ? 'View' : 'Tab') + '</b> 参数 <b>R</b> 重置' : '');
       if (t3) $('hint').innerHTML += alleyHelp;
       if (ft) {
         const shooter = G.players[ft.id];
@@ -1979,7 +1981,12 @@
   function sysKeys() {
     const I = PH.input, replay = screen === 'play' && G.replay && !paused;
     const key = replay && I.sysAny(); // 先读键盘，避免把手柄导航连发当成新按键
-    const button = I.pollPads();
+    const button = I.pollPads(), padSlot = I.pressSlot();
+    if (padSlot >= 0 && padSlot < 2 && padSlot !== inlineSide && screen === 'menu' && opts.mode === '2p' && $('menu').dataset.view === 'select' && $('picker').classList.contains('hidden')) {
+      const f = document.activeElement, pk = f && f.closest && f.closest('#front-grid [data-pk]') ? f.dataset.pk : null;
+      inlineSide = padSlot; renderInlinePicker();
+      const again = pk && $('front-grid').querySelector('[data-pk="' + pk + '"]'); if (again) again.focus({ preventScroll: true });
+    }
     if (PH.tapeView.open) { PH.tapeView.keys(I); return; }
     replaySaveState();
     if (!$('replay-name').classList.contains('hidden')) {
@@ -2305,7 +2312,26 @@
     syncBackgroundMatch();
     if (document.hidden && !room.active && (screen === 'play' || screen === 'play5')) setPause(true);
   });
-  window.addEventListener('gamepadconnected', () => { hasPad = true; show('padtag', true); hintKey = ''; });
+  // 手柄识别：浏览器要在手柄上按过任意键才会把它交给网页；按识别顺序分配 手柄 1 = 玩家 1，手柄 2 = 玩家 2
+  function padToast(html) {
+    const el = $('padtoast'); el.innerHTML = html; show('padtoast', true);
+    clearTimeout(padToastT); padToastT = setTimeout(() => show('padtoast', false), 2600);
+  }
+  function padScan() {
+    const ps = PH.input.pads(), ids = ps.map((gp) => gp.index + ':' + gp.id);
+    if (ids.join('|') === padIds.join('|')) return;
+    const prev = padIds; padIds = ids; padN = ps.length;
+    hasPad = padN > 0; hintKey = '';
+    const gained = ids.findIndex((id) => !prev.includes(id)), lost = prev.length > ids.length;
+    if (gained >= 0) padToast('<b>手柄 ' + (gained + 1) + '</b> 已连接 · 控制玩家 ' + (gained + 1) + (padN === 1 ? '　第 2 个手柄按任意键即可加入' : ''));
+    else if (lost) padToast('手柄已断开 · 当前 <b>' + padN + '</b> 个手柄');
+    $('padchip').textContent = padN >= 2 ? '手柄 1 · 手柄 2 已连接' : '手柄 1 已连接';
+    show('padchip', padN > 0); show('padtag', padN > 0);
+    $('padtag').textContent = (padN >= 2 ? '已连接 2 个手柄：手柄 1 = 玩家 1，手柄 2 = 玩家 2；1V1 自动切到本地双人，哪个手柄按键就给哪位玩家选球员。' : '已连接 Xbox 手柄（第 2 个手柄按任意键即可加入本地双人）。') + '十字键 / 左摇杆选择，A 确认，B 返回，LB / RB 切页，右摇杆滚动';
+    if (padN >= 2 && prev.length < 2 && screen === 'menu' && $('menu').dataset.view === 'select' && opts.format === 'duel' && opts.opponent === 'cpu' && !room.role) { opts.opponent = '2p'; refreshMenu(); }
+  }
+  window.addEventListener('gamepadconnected', padScan);
+  window.addEventListener('gamepaddisconnected', padScan);
 
   function boot() {
     layout(); R.init(canvas); PH.input.initTouch(document);
