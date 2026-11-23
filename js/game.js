@@ -1781,7 +1781,7 @@
     iverson: { style: 'braids', face: 'long', band: '#f4f0e0', sleeve: 'R', build: -0.42, shoulder: 0.86, headScale: 0.94, neckScale: 0.86 },
     carter: { style: 'bald', face: 'oval', build: 0.12, muscle: 0.48, shoulder: 1.12, waistScale: 0.6, hipScale: 0.7, shortsScale: 0.7, taper: true },
     kyrie: { style: 'curlfade', face: 'tapered', beard: 'trimmed', band: '', brow: 'soft', build: -0.27 },
-    lillard: { face: 'long', beardFit: 'close' },
+    lillard: { face: 'long', beardFit: 'close', neckLen: 1.4, neckScale: 0.8 },
     dosunmu: { style: 'longbraids', hair: '#191311', headScale: 0.97, neckScale: 0.94 },
     jwells: { style: 'afro', hair: '#211b1b', skin: '#9c6446', face: 'tapered', headScale: 1.05, neckScale: 1.05 },
     harden: { style: 'braids', beard: 'long', face: 'oval' },
@@ -1849,7 +1849,7 @@
         legs: sig.legs || clamp(1 + (inches - 78) * 0.002 - frame * 0.06, 0.96, 1.04),
         limb: limb * widthScale, armThickness: (limb + 0.82 * muscle) * widthScale, hand: hand ? clamp(hand / (0.11 * inches), 0.84, 1.18) : 1,
         headScale: (0.92 + 0.08 * Math.min(1.4, 1 + 0.7 * legacyBuild + 0.9 * muscle)) * (sig.headScale || 1),
-        neckScale: sig.neckScale || 1, shortsScale: sig.shortsScale || 1 };
+        neckScale: sig.neckScale || 1, neckLen: sig.neckLen || 1, shortsScale: sig.shortsScale || 1 };
     }
     return look;
   }
@@ -5680,6 +5680,8 @@
     if (postBlend && T.yaw == null) T.yaw = 0;
     if (a && a.type === 'block') { pl.armS = null; T.reachL = T.reachR = P.reachL = P.reachR = 1; }
     // 肩部转角按最短路径插值（风车扣篮手臂转一整圈后，不会再倒着从最下面绕回去）
+    for (const n of ['aLf', 'aRf']) if (T[n] == null && P[n]) T[n] = 0;
+    for (const n of ['reachL', 'reachR']) if (T[n] == null && P[n] != null && P[n] !== 1) T[n] = 1;
     for (const n in T) {
       if (n.startsWith('foot') || pl.stance && pl.anim === 'def' && T.crab && /^(crab|lA|lB|lS|rA|rB|rS|bob)$/.test(n)) P[n] = T[n];
       else if (postBlend) { let delta = T[n] - (P[n] || 0); if (n === 'aLp' || n === 'aRp') delta = Math.atan2(Math.sin(delta), Math.cos(delta)); P[n] = (P[n] || 0) + clamp(delta * kq, -2 * dt / blendT, 2 * dt / blendT); }
@@ -5805,7 +5807,7 @@
         robot: Object.assign({ lA: 0.2, rA: 0.2, lB: 0.4, rB: 0.4 }, ROBOT[Math.floor(e * 3.2) % ROBOT.length]),
         armwave: { lean: -0.04, tilt: 0.1 * Math.sin(e * 8 - 1.2), lB: 0.3 + 0.12 * Math.sin(e * 8), rB: 0.3 - 0.12 * Math.sin(e * 8), aLp: 1.57 + 0.35 * Math.sin(e * 8), aLq: 1.3, aLe: 0.75 * Math.sin(e * 8 + 1.1), aRp: 1.57 + 0.35 * Math.sin(e * 8 - 2.4), aRq: 1.3, aRe: 0.75 * Math.sin(e * 8 - 1.3) },
         griddy: { lean: 0.26, tilt: 0.1 * gs, yaw: 0.25 * gs, bob: 0.03 * Math.abs(gs), lA: 0.15 + 1.25 * gl, lB: 0.3 + 1.7 * gl, rA: 0.15 + 1.25 * gr, rB: 0.3 + 1.7 * gr, aLp: 0.5 - 0.95 * gs, aLq: 0.25, aLe: 1.5, aRp: 0.5 + 0.95 * gs, aRq: 0.25, aRe: 1.5 },
-        watch: { lean: 0.04, aLp: 1.25 + 0.08 * Math.abs(w12), aLq: -0.4, aLe: 1.95, aRp: 0.15, aRq: 0.2, aRe: 0.3 },   // 利拉德 Dame Time：一只手腕举到脸前看表，另一只手垂下
+        watch: { lean: -0.04, aLp: 2.9, aLq: 0.15, aLe: -0.95 + 0.05 * Math.abs(w12), aLf: -1.06, reachL: 1.18, aRp: 0.15, aRq: 0.2, aRe: 0.3 },   // 利拉德 Dame Time：左小臂横搭在眼前看表，右手垂下
         crown: { lean: lerp(0, -0.14, up), aLp: lerp(1.0, 2.75, up), aLq: 0.55, aLe: lerp(1.0, 1.85 + 0.12 * Math.sin(e * 5), up), aRp: lerp(1.0, 2.75, up), aRq: 0.55, aRe: lerp(1.0, 1.85 + 0.12 * Math.sin(e * 5), up) } }[ty] || {};
   }
   function poseTarget(pl) {
