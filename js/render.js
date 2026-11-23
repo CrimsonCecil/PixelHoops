@@ -351,79 +351,26 @@
       let d = ((pl.runPh || 0) * scale - Math.PI / 2) - (pl.drib || 0); d = d - Math.round(d / Math.PI) * Math.PI;
       return base + (cad(pl) * scale - base) * s + 5 * s * d;
     }
-    function crab(pl, dt, pose = pl.pose) {
-      if (!pl.stance || pl.anim !== 'def' || pl.z > 0.01) { pl.crab = null; return; }
+    // 螃蟹步：独立的循环动画（不在地面钉脚）。只记一个相位和平滑后的身体局部速度；
+    // 两脚相差半个周期，一只脚抬起沿移动方向迈出时另一只脚贴地往后划，前后左右与斜向共用同一套循环
+    function slide(pl, dt) {
+      if (!pl.stance || pl.anim !== 'def' || pl.z > 0.01) { pl.slide = null; return; }
       if (!(dt > 0)) return;
-      const fx = Math.cos(pl.face), fy = Math.sin(pl.face), Hh = 1 + (height(pl) / 1.95 - 1) * 1.55, w = tune('stWidth', 0.42) * Hh;
-      const k = rig(pl, { ...pose, crab: 0 }, false, pl.col && pl.col.body), reach = tune('stReach', 0.3) * Hh;
-      const base = (side) => {
-        const foot = k[side < 0 ? 'kneeL' : 'kneeR'];
-        const forward = (foot[0] - pl.x) * fx + (foot[1] - pl.y) * fy - 0.075 * Hh;
-        return [pl.x + fy * side * w + fx * forward,
-          pl.y - fx * side * w + fy * forward, 0];
-      };
-      let c = pl.crab;
-      if (!c || Math.abs(c.width - w) > 0.001 || Math.hypot(pl.x - c.x, pl.y - c.y) > 1) {
-        const lat = pl.vx * fy - pl.vy * fx;
-        c = pl.crab = { x: pl.x, y: pl.y, width: w, phase: 0, side: lat < 0 ? 'L' : 'R', L: base(-1), R: base(1) };
-        c.from = c[c.side].slice(); c.to = c.from.slice();
-      }
-      const previous = { L: c.L.slice(), R: c.R.slice() };
-      const turned = c.face != null && Math.abs(pl.face - c.face) > 1e-6;
-      c.face = pl.face;
-      c.drag = { L: false, R: false };
-      c.velocity = c.velocity || { L: [0, 0], R: [0, 0] };
-      if (turned) for (const side of ['L', 'R']) {
-        const center = base(side === 'L' ? -1 : 1), f = c[side];
-        if (f[2] <= 0.001 && Math.hypot(f[0] - center[0], f[1] - center[1]) > reach + 1e-6) c.next = side;
-      }
-      const dx = pl.x - c.x, dy = pl.y - c.y, distance = Math.hypot(dx, dy);
-      const speed = distance / dt;
-      if (c.speed != null && speed < c.speed - 0.01 * dt) c.settling = true;
-      c.speed = speed;
-      c.x = pl.x; c.y = pl.y;
-      if (distance < 0.00001 && !c.next && !c.recovering) { c[c.side][2] = Math.max(0, c[c.side][2] - 0.6 * dt); c.rest = c[c.side][2] === 0; c.settling = !c.rest; }
-      else {
-        if (c.rest) { c.side = dx * fy - dy * fx < 0 ? 'L' : 'R'; c.phase = 0; c.rest = false; }
-        const v = distance / dt, lo = tune('stHzMin', 1), hi = Math.max(lo, tune('stHzMax', 2.4));
-        const hz = distance < 0.00001 ? lo : cl(v / (tune('stStep', 0.42) + 0.12 * v), lo, hi) * Math.min(1, v / 0.35);
-        const step = Math.min(v / hz, reach);
-        c.hz = hz; c.lead = dx * fy - dy * fx < 0 ? 'L' : 'R';
-        let advance = hz * dt;
-        while (advance > 0) {
-          if (c.phase === 0) {
-            if (c.next) { c.side = c.next; c.next = null; c.recovering = true; c.rest = false; c.settling = false; c.recoveries = (c.recoveries || 0) + 1; }
-            c.from = c[c.side].slice(); c.to = base(c.side === 'L' ? -1 : 1);
-            if (distance >= 0.00001) { c.to[0] += dx / distance * (v / hz + step); c.to[1] += dy / distance * (v / hz + step); }
-            c.lift = tune('stLift', 0.07) * (c.recovering ? 1 : Math.min(1, v / 0.8));
-          }
-          const take = Math.min(1 - c.phase, advance); c.phase += take; advance -= take;
-          const u = c.phase, blend = u * u * (3 - 2 * u), foot = c[c.side];
-          foot[0] = c.from[0] + (c.to[0] - c.from[0]) * blend;
-          foot[1] = c.from[1] + (c.to[1] - c.from[1]) * blend;
-          const lift = u >= 1 ? 0 : Math.sin(Math.PI * u) * c.lift, prevZ = previous[c.side][2];
-          foot[2] = c.settling ? cl(lift, Math.max(0, prevZ - 0.6 * dt), prevZ + 0.6 * dt) : lift;
-          if (u >= 1 && foot[2] > 0) break;
-          if (u >= 1) { foot[2] = 0; c.side = c.side === 'L' ? 'R' : 'L'; c.phase = 0; c.settling = false; c.recovering = false; }
-        }
-      }
-      for (const side of ['L', 'R']) {
-        const f = c[side], center = base(side === 'L' ? -1 : 1), x = f[0] - center[0], y = f[1] - center[1], d = Math.hypot(x, y);
-        if (d > reach) { f[0] = center[0] + x * reach / d; f[1] = center[1] + y * reach / d; }
-        const prev = previous[side], px = prev[0], py = prev[1];
-        const grounded = Math.max(f[2], prev[2]) <= 0.001;
-        c.drag[side] = grounded && Math.hypot(px - center[0], py - center[1]) > reach + 1e-6;
-        const swing = side === c.side && c.phase > 0 && c.phase < 1 && Math.min(f[2], prev[2]) > 0.001 && !c.settling, travel = Math.hypot(f[0] - px, f[1] - py), budget = Math.sqrt(Math.max(0, Math.pow(c.drag[side] ? speed * dt + 0.01 : (swing ? 9 : 0.84) * dt, 2) - Math.pow(f[2] - prev[2], 2)));
-        if (travel > budget) { f[0] = px + (f[0] - px) * budget / travel; f[1] = py + (f[1] - py) * budget / travel; }
-        if (c.drag[side]) {
-          const velocity = c.velocity[side], vx = (f[0] - px) / dt, vy = (f[1] - py) / dt, change = Math.hypot(vx - velocity[0], vy - velocity[1]), mix = Math.min(1, 360 * dt / (change || 1));
-          f[0] = px + (velocity[0] + (vx - velocity[0]) * mix) * dt;
-          f[1] = py + (velocity[1] + (vy - velocity[1]) * mix) * dt;
-          const moved = Math.hypot(f[0] - px, f[1] - py);
-          if (moved > budget) { f[0] = px + (f[0] - px) * budget / moved; f[1] = py + (f[1] - py) * budget / moved; }
-        }
-        c.velocity[side] = [(f[0] - px) / dt, (f[1] - py) / dt];
-      }
+      const fx = Math.cos(pl.face), fy = Math.sin(pl.face), Hh = 1 + (height(pl) / 1.95 - 1) * 1.55;
+      const lx = (pl.vx || 0) * fy - (pl.vy || 0) * fx, ly = (pl.vx || 0) * fx + (pl.vy || 0) * fy;
+      const c = pl.slide || (pl.slide = { ph: 0, vx: 0, vy: 0 }), k = 1 - Math.exp(-12 * dt);
+      c.vx += (lx - c.vx) * k; c.vy += (ly - c.vy) * k;
+      const v = Math.hypot(c.vx, c.vy), stride = Math.max(0.1, tune('stSlideStride', 0.7)) * Hh, hz = cl(v / stride, 1.2, Math.max(1.2, tune('stSlideHz', 2.6)));
+      const D = Math.min(stride, v / hz) / (v || 1);
+      c.ph = (c.ph + hz * dt) % 1;
+      // 急停变向时步幅平滑地换向，脚不会一下子从身前闪到身后
+      const tx = c.vx * D - (c.dx || 0), ty = c.vy * D - (c.dy || 0), r = Math.hypot(tx, ty), cap = 4 * Hh * dt, q = r > cap ? cap / r : 1;
+      c.dx = (c.dx || 0) + tx * q; c.dy = (c.dy || 0) + ty * q; c.lift = 0.075 * Hh * Math.min(1, v / 1.2); c.hh = Hh;
+    }
+    // 一只脚在循环里的局部位置：前半周期抬脚迈出，后半周期落地往回划（相对身体）
+    function slideFoot(c, u) {
+      const swing = u < 0.5, w = swing ? u * 2 : (u - 0.5) * 2, e = w * w * (3 - 2 * w), m = swing ? e - 0.5 : 0.5 - w;
+      return [c.dx * m / 2, c.dy * m / 2, swing ? Math.sin(Math.PI * w) * c.lift : 0];
     }
     // 跑动运球：球在最低点往身前推多少（米）
     function ballFwd(pl) { if (pl.post) return 0; const u = Math.abs(Math.sin(pl.drib || 0)), push = sprintDribble(pl) ? drTune(pl, 'drPush', [0.35, 0.45, 0.55]) : 0.3; return (0.08 * cl(kW(pl), 0, 1) + push * spW(pl)) * (1 - u); }
@@ -444,15 +391,22 @@
     }
     // poseTarget 末尾：运球手形、冲刺重心与呼吸叠加
     function post(pl, T, an, a) {
-      T.crab = an === 'steal' ? T.crab || 0 : pl.crab && an === 'def' ? 1 : 0;
+      T.crab = an === 'steal' ? T.crab || 0 : pl.slide && an === 'def' ? 1 : 0;
       if (T.crab && an === 'def') {
-        const fx = Math.cos(pl.face), fy = Math.sin(pl.face);
-        for (const side of ['L', 'R']) {
-          const f = pl.crab[side], dx = f[0] - pl.x, dy = f[1] - pl.y;
-          T['foot' + side + 'X'] = dx * fy - dy * fx;
-          T['foot' + side + 'Y'] = dx * fx + dy * fy;
+        const c = pl.slide, w = tune('stWidth', 0.42) * c.hh, fwd = (side) => {
+          const s = T[side + 'S'], a = T[side + 'A'], th = 0.41 * c.hh;
+          return Math.sin(a) * Math.cos(s) * th - 0.075 * c.hh;
+        };
+        for (const [side, u, sign] of [['R', c.ph, 1], ['L', (c.ph + 0.5) % 1, -1]]) {
+          const f = slideFoot(c, u);
+          T['foot' + side + 'X'] = sign * w + f[0];
+          T['foot' + side + 'Y'] = fwd(side.toLowerCase()) + f[1];
           T['foot' + side + 'Z'] = f[2];
         }
+        // 每一步落地时重心轻轻往下压一下，脚分得最开时身体往移动方向微侧
+        const wide = Math.sin(2 * Math.PI * c.ph), v = Math.hypot(c.vx, c.vy), go = Math.min(1, v / 2.5);
+        T.bob = (T.bob || 0) - 0.012 * go * (0.5 + 0.5 * Math.cos(4 * Math.PI * c.ph));
+        T.tilt = (T.tilt || 0) + 0.05 * go * (v ? c.vx / v : 0) * (0.6 + 0.4 * wide);
       }
       if (T.bob == null) T.bob = 0;
       if (pl.pose && pl.pose.bob == null) pl.pose.bob = 0;
@@ -505,7 +459,7 @@
     const G0 = () => (PH.game && PH.game.G) || { time: 0 };
     // 胸口起伏（rig 里用，世界米）：呼吸吸气时胸、肩、头上提
     const bz = (pl) => (pl.brPh == null ? 0 : (0.5 + 0.5 * brS(pl)) * (0.004 + 0.02 * (pl.exr || 0) + 0.014 * fat(pl)));
-    return { tick, cad, drib, crab, ballFwd, run, post, br, brS, bz, kW, spW };
+    return { tick, cad, drib, slide, ballFwd, run, post, br, brS, bz, kW, spW };
   })();
   PH.gait = GT;
 
