@@ -478,6 +478,7 @@
         launchRoomMatch(config, roomSlot);
       },
       state: roomState,
+      skip: (msg, slot) => skipVote(msg, slot),
       error: (message) => { const wasPlay = screen === 'play'; if (wasPlay) toMenu(); menuStatus(message); refreshMenu(); if (wasPlay && /^直连失败/.test(message)) netToast(message); },
       notice: (message) => { if (screen === 'menu') menuStatus(message); else netToast(message); }
     });
@@ -2017,7 +2018,8 @@
       else if (I.sysPressed('PadRight') || I.sysPressed('PadDown')) $('replay-cancel').focus();
       I.clearSys(); return;
     }
-    if (replay) { I.clearSys(); if (key || button) skipReplay(); return; }
+    if (replay) { I.clearSys(); if (key || button) { if (skipScene()) skipPress(); else skipReplay(); } return; }
+    if (skipScene() && !paused) { if (I.sysAny() || button) skipPress(); I.clearSys(); return; }
     if (screen === 'play' && G.intro && !paused) { if (I.sysPressed('Escape') || I.sysPressed('PadStart') || I.sysPressed('PadB')) GM.introEnd(); else if (I.sysAny() || button) GM.introPress(); I.clearSys(); return; }
     if (I.sysPressed('KeyM')) toggleMusic();
     if (I.sysPressed('KeyI') && screen === 'play') toggleInfo();
@@ -2191,6 +2193,7 @@
   function tickMatch() {
     if (PH.tapeView.open) return;
     if (screen === 'play5') { if (!paused) tick5(DT); return; }
+    skipTick();
     if (G.intro) { GM.introTick(DT); PH.input.endTick(); roomAudio.length = 0; return; }
     if (!matchConfig) { GM.tick(DT); return; }
     const p = G.players[localSlot], a = p && p.action, t3 = G.mode === 't3', I = PH.input;
@@ -2322,6 +2325,7 @@
     updateNetstat(false);
     if (aiOn && !aiAllowed()) aiSet(false);
     show('btn-ai', aiAllowed() && !paused);
+    skipUi();
     const r5 = PH.render5.rpl, replay = screen === 'play' ? G.replay : screen === 'play5' && r5.on ? r5 : null;
     show('replay-badge', !!replay?.view && !paused && !PH.tapeView.open);
     if (PH.tapeView.open) { PH.tapeView.render(dt); return; }
@@ -2353,7 +2357,43 @@
     const n = L.done ? L.t.length : Math.min(L.t.length, Math.floor((G.time - I.lt) * 30));
     $('talk-text').textContent = L.t.slice(0, n); box.classList.toggle('done', n >= L.t.length);
   }
-  $('talk').addEventListener('pointerdown', (e) => { e.stopPropagation(); GM.introPress(); });
+  $('talk').addEventListener('pointerdown', (e) => { e.stopPropagation(); if (skipScene()) skipPress(); else GM.introPress(); });
+  // 在线真人 1V1：进场动画 / 回放要两人都按任意键才跳过；房主计票，客机只发自己的一票（通道可能丢包，未结束前每 0.5 秒补发）
+  const SKIP = { scene: '', votes: new Set(), n: 0, mine: false, endIn: 0, resend: 0 };
+  function skipScene() {
+    if (screen !== 'play' || !matchConfig || matchConfig.mode !== 'online' || !room.active || PH.tapeView.open) return '';
+    return G.intro ? 'intro' : G.replay ? 'replay' : '';
+  }
+  function skipSync() {
+    const sc = skipScene();
+    if (sc !== SKIP.scene) Object.assign(SKIP, { scene: sc, n: 0, mine: false, endIn: 0, resend: 0 }), SKIP.votes.clear();
+    return sc;
+  }
+  function skipPress() {
+    const sc = skipSync(); if (!sc || SKIP.mine) return;
+    SKIP.mine = true;
+    if (room.role === 'host') skipVote({ scene: sc }, localSlot);
+    else { SKIP.n = Math.max(SKIP.n, 1); rooms.skip(sc); }
+  }
+  function skipVote(msg, slot) {
+    const sc = skipSync(); if (!sc || !msg || msg.scene !== sc) return;
+    if (room.role !== 'host') { SKIP.n = Math.max(SKIP.mine ? 1 : 0, Math.min(2, msg.n | 0)); return; }
+    SKIP.votes.add(slot); SKIP.n = Math.min(2, SKIP.votes.size);
+    rooms.broadcast({ type: 'skip', scene: sc, n: SKIP.n });
+    if (SKIP.n >= 2 && !SKIP.endIn) SKIP.endIn = 24;
+  }
+  function skipTick() {
+    const sc = skipSync(); if (!sc) return;
+    if (room.role === 'guest') { if (SKIP.mine && SKIP.n < 2 && ++SKIP.resend % 30 === 0) rooms.skip(sc); return; }
+    if (SKIP.endIn && --SKIP.endIn === 0) { if (sc === 'intro') GM.introEnd(); else G.replay.skip = true; }
+  }
+  function skipUi() {
+    const sc = skipSync(), el = $('skipvote');
+    stage.classList.toggle('vote', !!sc); show('skipvote', !!sc);
+    if (!sc) return;
+    const cls = 's' + SKIP.n;
+    if (el.dataset.s !== cls) { el.dataset.s = cls; el.className = cls; $('skipvote-n').textContent = SKIP.n + '/2'; }
+  }
   $('intro-skip').addEventListener('pointerdown', (e) => { e.stopPropagation(); GM.introEnd(); });
   function cutin() {
     const c = G.cutin, el = $('cutin');
