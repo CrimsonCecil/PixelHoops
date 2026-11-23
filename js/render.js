@@ -12,6 +12,7 @@
   const CAMV = Object.assign({}, CAM_DEF);
   let follow3 = null;
   let intro1 = null;
+  let czAim = false;
   let offsetX3 = 0, offsetY3 = 0;
   function setPitch(dy, dz) {
     const L = Math.hypot(dy, dz);
@@ -2237,19 +2238,26 @@
     cam.x = foc.cx + (G.camShift || 0); cam.y = foc.cy; cam.z = CAMV.height; cam.F = 400 * CAMV.zoom;
     // 特写：镜头沿视线朝高光点推近（目标点在画面中位置基本不变、被放大），同时横向对准
     const cz = G.cz;
+    if (czAim) { czAim = false; setPitch(CAMV.dist + 2.4, 1 - CAMV.height); }
     if (cz) {
       let k = cz.k != null ? cz.k : Math.min(1, cz.t / 0.18) * Math.min(1, Math.max(0, cz.T - cz.t) / 0.4);
       k = k * k * (3 - 2 * k); const u = cz.u * k;
       const c0x = cam.x, c0y = cam.y, c0z = cam.z;
       cam.x += (cz.x - cam.x) * 0.55 * k; cam.y += (cz.y - cam.y) * u; cam.z += (cz.z - cam.z) * u;
-      // 庆祝特写：推近后球员脚到头都要在画面里，否则退回到刚好装得下的位置
+      // 庆祝特写：镜头同时低头对准庆祝的人（不管他站在哪都能推近）；推近后脚到头仍要在画面里，否则退回到刚好装得下的位置
       if (cz.px != null) {
-        const dx = cam.x - c0x, dy = cam.y - c0y, dz = cam.z - c0z;
+        const dx = cam.x - c0x, dy = cam.y - c0y, dz = cam.z - c0z, by = CAMV.dist + 2.4, bz = 1 - CAMV.height, bl = Math.hypot(by, bz);
+        const place = (m) => {
+          cam.x = c0x + dx * m; cam.y = c0y + dy * m; cam.z = c0z + dz * m;
+          const ay = Math.max(1, cz.py - cam.y), az = 1.05 - cam.z, al = Math.hypot(ay, az);
+          setPitch(by / bl + (ay / al - by / bl) * k, bz / bl + (az / al - bz / bl) * k);
+        };
         const fits = () => { const f = proj(cz.px, cz.py, 0), h = proj(cz.px, cz.py, 2.2); return f.d > 1.5 && f.y <= H * 0.9 && h.y >= H * 0.05; };
+        place(1); czAim = true;
         if (!fits()) {
           let lo = 0, hi = 1;
-          for (let i = 0; i < 8; i++) { const m = (lo + hi) / 2; cam.x = c0x + dx * m; cam.y = c0y + dy * m; cam.z = c0z + dz * m; if (fits()) lo = m; else hi = m; }
-          cam.x = c0x + dx * lo; cam.y = c0y + dy * lo; cam.z = c0z + dz * lo;
+          for (let i = 0; i < 8; i++) { const m = (lo + hi) / 2; place(m); if (fits()) lo = m; else hi = m; }
+          place(lo);
         }
       }
     }
