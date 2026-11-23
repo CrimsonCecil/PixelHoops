@@ -15,6 +15,7 @@
   const TDEF = [
     ['foulJump', 'rules', '跳投犯规基础倍率', 0.15, 0, 1, 0.01, '乘以超过阈值的干扰与能力倍率'],
     ['foulInside', 'rules', '冲筐犯规基础倍率', 0.22, 0, 1, 0.01, '上篮、扣篮：乘以干扰、身体接触与能力倍率'],
+    ['foulDunk', 'rules', '扣篮犯规倍率', 1, 0, 3, 0.05, '扣篮：在冲筐犯规基础倍率上再乘；1 = 与上篮相同'],
     ['foulContestMin', 'rules', '投篮犯规干扰阈值', 0.2, 0, 1, 0.01, '只有超过此值的干扰计入犯规概率，冲筐接触另计'],
     ['foulBlock', 'rules', '封盖动作 犯规倍率', 1.6, 0, 4, 0.05, '防守人做出封盖动作时的干扰倍率'],
     ['foulBody', 'rules', '冲筐身体接触加成', 0.65, 0, 2, 0.05, '有终结路线身体接触时计入犯规压力'],
@@ -171,6 +172,8 @@
     ['cvCm', 'lay', '封堵变体 降干扰强度', 1, 0, 2, 0.05, '倍率：各变体自带的干扰减免乘这个数（1 = 默认，约减 15%~20%）'],
     ['cvBm', 'lay', '封堵变体 降被盖强度', 1, 0, 2, 0.05, '倍率：各变体自带的被盖率减免乘这个数（1 = 默认，约减 20%~40%）'],
     ['cvHangD', 'lay', '空中滞留 出手后移', 0.1, 0, 0.25, 0.01, '秒：空中滞留变体的出手点（投篮条最佳点）往后移这么多'],
+    ['cvD2LAir', 'lay', '空中被挡 扣篮改上篮 概率', 0.75, 0, 1, 0.01, '概率：扣篮飞行途中被挡且扛不住时，能力强的人空中改成上篮（上篮能力越高越容易）；0 = 只会被挡停'],
+    ['cvD2LU', 'lay', '空中改上篮 最晚时机', 0.75, 0, 1, 0.05, '扣篮飞行进度超过此比例后被挡不再改上篮；0 = 关闭空中改上篮'],
     ['cvD2L', 'lay', '扣篮改上篮 概率', 0.6, 0, 1, 0.01, '概率：起跳时正面严重封堵（干扰 ≥ 0.45）且对抗吃亏，能力强的人改成上篮（越吃亏越高）'],
     // —— V4.3 封堵对抗：进攻对抗分 − 防守对抗分 = 差值 edge，决定命中惩罚、被盖率、被盖后的结果
     ['ctStr', 'ct', '进攻 力量权重', 0.3, 0, 1, 0.01, '进攻对抗分 = 力量×此 + 终结(扣篮/上篮)×终结权重 + 弹跳×弹跳权重 + (体重−1)×体重权重 + 起跳速度×速度权重 + 徽章 − 疲劳'],
@@ -2153,7 +2156,7 @@
     const edge = Math.max(0.2, 1 + K.foulRating * (pl.r.drawFoul - 65 / 99) + 65 / 99 - df.r.dcon);
     const pace = G.ftTrips < 2 ? 1 + K.foulPace * clamp(G.foulDrought - 1, 0, 6)
       : 1 / (1 + K.foulPace * Math.max(0, G.ftTrips - 3));
-    const p = clamp((inside ? K.foulInside : K.foulJump) * pressure * edge * pace, 0, 1);
+    const p = clamp((inside ? K.foulInside * (kind === 'dunk' ? K.foulDunk : 1) : K.foulJump) * pressure * edge * pace, 0, 1);
     if (p <= 0) return false;
     if (rnd() < p) return true;
     if (G.ftTrips < 2) G.foulDrought++;
@@ -2536,7 +2539,10 @@
         if (finEdge(f, o, a, true) > K.ctKeep) { a.bodyPen = Math.max(a.bodyPen || 0, 0.12); float('硬扣', f, '#ffd24a', 1); }   // 对抗占优：扛着人继续扣
         else if (d2l(f, a, 0.3)) float('改上篮', f, '#f6efe0', 1);
         else { a.bodyPen = Math.max(a.bodyPen || 0, 0.3); float('被挡', f, '#ff6b5e', 1); }
-      } else if (dk) { a.stall = { x: f.x - (a.ikx || 0), y: f.y - (a.iky || 0) }; a.bodyPen = 0.3; float('被挡', f, '#ff6b5e', 1); }
+      } else if (dk) {
+        if (d2lAir(f, a, 0.3)) float('空中改上篮', f, '#f6efe0', 1);
+        else { a.stall = { x: f.x - (a.ikx || 0), y: f.y - (a.iky || 0) }; a.bodyPen = 0.3; float('被挡', f, '#ff6b5e', 1); }
+      }
       else {
         a.bump = Math.max(a.bump || 0, 0.3);
         if (air) { f.vx *= 0.35; f.vy *= 0.35; if (!a.cv && cvOk(f, false) && (f.r.str >= 0.75 || hasB(f, 'bully')) && rnd() < 0.7) cvSet(f, a, 'bump'); }   // V4.3 空中被撞：力量好的人硬挤出手
@@ -2553,6 +2559,7 @@
       float('被挡下', f, '#ff6b5e', 1);
     }
     else if (!air) { f.vx *= 0.3; f.vy *= 0.3; if (finEdge(f, o, a, true) > K.ctKeep + 0.15) { a.bodyPen = Math.max(a.bodyPen || 0, 0.25); float('硬扣', f, '#ffd24a', 1); } else if (d2l(f, a, 0.55)) float('被挡下 改上篮', f, '#ff6b5e', 1); else { a.bodyPen = Math.max(a.bodyPen || 0, 0.5); float('被挡下', f, '#ff6b5e', 1); } }
+    else if (dk && d2lAir(f, a, 0.55)) float('被挡下 空中改上篮', f, '#ff6b5e', 1);
     else if (dk) { a.stall = { x: f.x - (a.ikx || 0), y: f.y - (a.iky || 0) }; a.bodyPen = 0.5; float('被挡下', f, '#ff6b5e', 1); }
     else { a.bump = Math.max(a.bump || 0, 0.55); f.vx = -nx * 0.8; f.vy = -ny * 0.8; float('被挡下', f, '#ff6b5e', 1); }
   }
@@ -4146,6 +4153,20 @@
     na.cvTr = 0.15;
     return true;
   }
+  // 扣篮飞行途中被挡：上篮能力强的人在空中改成上篮，按当前高度接着下落出手
+  function d2lAir(f, a, bump) {
+    const u = a.t / (a.T * 0.8);
+    if (a.done || f.z < 0.4 || u >= K.cvD2LU || !cvOk(f, true) || rnd() >= K.cvD2LAir * clamp(0.4 + (f.r.lay - K.cvA) * 4, 0.3, 1)) return false;
+    const z = f.z, x = f.x, y = f.y;
+    if (!d2l(f, a, bump, true)) return false;
+    const na = f.action, h = hoopDir(f), vz = 1.2, left = (vz + Math.sqrt(vz * vz + 2 * GP * z)) / GP, dd = Math.max(0, distHoop(f) - 0.6);
+    na.inSteps = false; na.t = 0; na.cAir = true;
+    if (f.ctrl !== 'cpu') na.rearm = true;   // 起跳后的松手不记在 a.rel：按住的会立刻清掉 rearm，松开的走 d2lE 兜底
+    f.x = x; f.y = y; f.z = z; f.vz = vz; f.vx = h.x * Math.min(dd / left, 2.5); f.vy = h.y * Math.min(dd / left, 2.5);
+    na.ideal = clamp(Math.min(na.ideal, left - 0.08), 0.1, 0.6); layMeter(na);
+    return true;
+  }
+
   // 有人上篮 / 扣篮还没出手：撞人顿帧、慢动作不冻结（投篮条不停）
   function finLive() { if (!(K.layNoStop > 0)) return false; for (const p of G.players) { const a = p.action; if (a && ((a.type === 'layup' && !a.released) || (a.type === 'dunk' && !a.done))) return true; } return false; }
   function startDunk(pl, P, btn, stick, sd) {
@@ -7779,6 +7800,7 @@
     aiPoFar: ['电脑背打型 远端要位距离', '越大背打型面对贴防时越远就开始背身要位；米'],
     aiPoMvT: ['电脑背打 招式等待时间', '越大背身挤压越久才开始尝试招式；秒'],
     foulJump: ['跳投犯规 基础系数', '越大受干扰的跳投越容易获判犯规；概率系数'],
+    foulDunk: ['扣篮犯规 倍率', '越大扣篮受干扰或有身体接触时越容易获判犯规；在冲筐犯规系数上再乘，1 = 与上篮相同'],
     foulInside: ['冲筐犯规 基础系数', '越大受干扰或有身体接触的冲筐越容易获判犯规；概率系数'],
     foulContestMin: ['投篮犯规 干扰起点', '越小越轻的干扰也能增加犯规概率；干扰比例'],
     foulBlock: ['投篮犯规 封盖动作倍数', '越大防守人起跳封盖时越容易犯规；干扰压力倍数'],
@@ -8298,6 +8320,8 @@
     cvCm: ['封堵变体 干扰减免强度', '越大变体越能减轻防守干扰；1 = 原减免强度'],
     cvBm: ['封堵变体 被盖减免强度', '越大变体越能降低被盖概率；1 = 原减免强度'],
     cvHangD: ['空中滞留 出手延迟', '越大滞留变体越晚到最佳出手点；秒'],
+    cvD2LAir: ['空中改上篮 概率系数', '越大扣篮飞行途中被挡时越容易空中改成上篮；概率系数，上篮能力越高越容易'],
+    cvD2LU: ['空中改上篮 最晚时机', '越大扣篮飞得越靠后被挡也能改上篮；飞行进度比例，0 = 关闭'],
     cvD2L: ['扣篮改上篮 概率系数', '越大严重封堵且对抗吃亏时越容易改上篮；概率系数'],
     smLay0: ['上篮 基础命中', '越大普通上篮越准；概率基数'],
     smLayR: ['上篮 能力命中系数', '越大上篮能力带来的命中加成越高；概率系数'],
