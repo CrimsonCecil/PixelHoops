@@ -1929,7 +1929,7 @@
     G.bumpT = -9; G.postBumpT = -9; G.pushT = -9;
     G.tips = null; G.mode = o.mode || 'cpu'; G.diff = o.diff == null ? 1 : o.diff; G.target = o.target || 21; G.glen = G.mode === 'cpu' || G.mode === '2p' ? (o.glen || 0) : 0; G.gclock = G.glen; G.sd = false; G.gEnd = false; G.mp = -1; G.mpT = 0; G.clkTick = 99; G.fb = o.fb || 'simple'; G.bpops = []; G.shotN = 0; G.hero = null; G.cz = null; G.hlQ = null; G.rec = []; G.replay = null;
     const c0 = G.mode === 'demo' ? 'cpu' : 'p1', c1 = G.mode === '2p' ? 'p2' : 'cpu';
-    if (G.mode === 'cpu' || G.mode === 'train') G.aiPlay = {};
+    if (G.mode === 'cpu' || G.mode === 'train' || G.mode === '2p') G.aiPlay = {};
     G.players = [makePlayer(0, ARCH[o.arch0] ? o.arch0 : 'dosunmu', c0), makePlayer(1, ARCH[o.arch1] ? o.arch1 : 'joe', c1)]; G.cutin = null; G.intro = null;
     if (G.mode !== 'demo') applyMatchKits(G.players);
     if (o.cpuD && G.players[1].ctrl === 'cpu') G.players[1].D = o.cpuD; // 斗牛之王：逐关递增的电脑难度
@@ -6402,7 +6402,8 @@
   // 5V5 里按 aiSty5 向中性收拢（倍率 → 1，加减项 → 0）
   function styK(pl, f) { const v = K['ps' + STY_P[styOf(pl)] + f]; if (G.mode !== 't5') return v; const m = K.aiSty5; return f === 'CbN' || f === 'Keep' || f === 'Open' ? v * m : 1 + (v - 1) * m; }
   const PLAYS = ['three', 'mid', 'drive', 'post', 'spin'];
-  function playCPU(pl) { return G.mode !== 't5' && (G.mode === 'cpu' || G.mode === 'train') && pl.ctrl === 'cpu' && !pl.dummy; }
+  function duelAI() { return G.mode === 'cpu' || G.mode === 'train' || G.mode === '2p'; }   // 2p：在线对局托管时由电脑接手
+  function playCPU(pl) { return duelAI() && pl.ctrl === 'cpu' && !pl.dummy; }
   function postCall(pl) { return pl.ai.call === 'post' || pl.ai.call === 'spin'; }
   function playCount(key) { const C = G.aiPlay || (G.aiPlay = {}); C[key] = (C[key] || 0) + 1; }
   function playPick(pl) {
@@ -6559,7 +6560,7 @@
       if (!a && pl.post && ai.postChain) { const h = hoopDir(pl), side = ai.postChain; ai.postChain = 0; o.a1 = o.post = true; o.mx = -h.y * side; o.my = h.x * side; ai.fakeNext = postFakeAllowed(pl) && rnd() < K.aiPoFake * bk(pl, 'dream', 1.6); return o; }
       if (!a && postFollow(pl) && pl.cd <= 0) { o.a1 = true; o.post = true; return o; }
       if (playCPU(pl) && a && (a.type === 'shot' || a.type === 'layup' || a.type === 'dunk') && ai.postFinish != null && G.time - ai.postFinish < 2.5 && pl.lastMoveT <= ai.postFinish) a.playOrigin = 'post';
-      const duel = G.mode !== 't5' && (G.mode === 'cpu' || G.mode === 'train') && (playCPU(pl) && ai.call ? !postCall(pl) : styOf(pl) !== 'post');
+      const duel = duelAI() && (playCPU(pl) && ai.call ? !postCall(pl) : styOf(pl) !== 'post');
       const rhythm = duel ? duelRhythm(pl) : 0;
       if (duel && ai.su && a && a.type === 'move' && ai.su.moveFor !== a) { ai.su.moveFor = a; ai.su.nm = (ai.su.nm || 0) + 1; }
       if (pl.uuFake && !pl.uuFake.cpuChecked && (!a || a.type === 'fake') && (pl.z <= 0.05 || pl.vz < 0)) {
