@@ -243,6 +243,9 @@ button.pick.fighter-pick { width:100%; min-height:260px; height:auto; display:fl
 .front-select-head h2 { font-size:21px; line-height:1.15; margin:0 0 4px; color:#f6f1dc; }
 .front-select-head small { display:block; line-height:1.3; color:var(--front-muted); font-size:11px; }
 .front-select-head > b { color:var(--front-gold); font-size:13px; }
+.front-select-head > b,#front-room-info:empty { display:none; }
+/* Local instructions are redundant with the player cards; online room state stays visible. */
+#menu:not([data-room]) #front-room-info { display:none; }
 #menu .menu-panel > .row { display:inline-flex; width:auto; gap:10px; margin:0 16px 6px 0; }
 #menu .menu-panel > .row label { font-size:12px; width:auto; }
 #menu .menu-panel > .row button { font-size:12px; padding:6px 12px; }
@@ -309,6 +312,70 @@ button.pick.fighter-pick .pk-c { font-size:11px; color:var(--fighter-color); }
 #menu[data-view=select] .menu-panel .foot { font-size:10px; text-align:left; color:var(--front-muted); margin-top:6px; }
 @media(min-width:1500px) and (min-height:850px) {
   #menu:not([data-view=select]) .front-top { min-height:76px; }
+}
+
+/* D: two staggered, clipped-corner player modules. Keep King on its own layout. */
+#menu[data-view=select]:not([data-format=king]) .duel-lineup { gap:30px; padding-bottom:32px; margin:10px 0 16px; isolation:isolate; }
+#menu[data-view=select]:not([data-format=king]) .duel-lineup::before { content:''; position:absolute; inset:0 35%; z-index:-1; background:repeating-linear-gradient(125deg,transparent 0 15px,#79baff12 15px 17px); transform:skewX(-18deg); }
+#menu[data-view=select]:not([data-format=king]) .duel-lineup::after { top:50%; padding:9px; background:var(--front-gold); color:var(--front-bg); transform:translate(-50%,-50%) rotate(-8deg); font-size:23px; box-shadow:4px 4px #070d1b; }
+#menu[data-view=select]:not([data-format=king]) .duel-lineup button.fighter-pick { min-height:360px; padding:18px 22px 18px 10px; grid-template-columns:41% minmax(0,59%); clip-path:polygon(0 0,95% 0,100% 9%,100% 100%,5% 100%,0 91%); border-top:3px solid var(--fighter-color); background:linear-gradient(118deg,#243958,var(--front-panel) 65%); box-shadow:inset 0 -1px var(--front-line); }
+#menu[data-view=select]:not([data-format=king]) .duel-lineup #pick1 { top:32px; }
+#menu[data-view=select]:not([data-format=king]) #pick1 .fighter-figure { order:0; }
+#menu[data-view=select]:not([data-format=king]) .fighter-figure { padding:0 0 10px; }
+#menu[data-view=select]:not([data-format=king]) .fighter-body { height:320px; object-position:center bottom; image-rendering:pixelated; }
+#menu[data-view=select]:not([data-format=king]) .fighter-number { font-size:148px; top:28px; left:5px; }
+#menu[data-view=select]:not([data-format=king]) .fighter-ring { max-width:210px; }
+#menu[data-view=select]:not([data-format=king]) .fighter-info { justify-content:center; gap:10px; padding:0 0 12px; }
+#menu[data-view=select]:not([data-format=king]) .fighter-label { font-size:15px; }
+#menu[data-view=select]:not([data-format=king]) .fighter-name { align-items:center; }
+#menu[data-view=select]:not([data-format=king]) .fighter-name .pk-n { font-size:clamp(22px,2.1vw,32px); }
+#menu[data-view=select]:not([data-format=king]) .fighter-name strong { font-size:43px; color:var(--fighter-color); }
+#menu[data-view=select]:not([data-format=king]) .fighter-pick .pk-s { font-size:13px; }
+#menu[data-view=select]:not([data-format=king]) .fighter-stats { gap:10px 18px; }
+#menu[data-view=select]:not([data-format=king]) .fighter-stats > span { font-size:14px; }
+#menu[data-view=select]:not([data-format=king]) .fighter-stats b { font-size:21px; }
+#menu[data-view=select]:not([data-format=king]) .fighter-stats i { height:4px; }
+#menu[data-view=select]:not([data-format=king]) .fighter-badges { max-height:62px; gap:7px; }
+#menu[data-view=select]:not([data-format=king]) .fighter-badges > span { font-size:11px; padding:0; border:0; }
+#menu[data-view=select]:not([data-format=king]) .fighter-badges .bhex { --bpk:1.5px; width:21px; height:23px; }
+#menu[data-view=select] #btn-replays { display:none; }
+#menu[data-view=select] .front-footer { display:none; }
+#menu[data-view=select] .front-roster { position:relative; margin-top:0; padding-top:0; border:0; }
+#menu[data-view=select] .front-target { position:absolute; bottom:100%; right:0; margin:0 0 8px; gap:10px; }
+#menu[data-view=select] #front-player-detail { padding:2px 8px; font-size:18px; }
+#menu[data-view=select] #front-positions { display:flex; align-items:center; gap:7px; margin:0 0 12px; padding:8px 12px; background:#141f34; border:1px solid var(--front-line); border-top:0; }
+#menu[data-view=select] #front-teams { margin:0; }
+#menu[data-view=select] #front-teams.pk-team-filters { display:grid; gap:0; }
+#menu[data-view=select] #front-breadcrumb,#menu[data-view=select] .front-edition { display:none; }
+#menu[data-view=select] #front-teams .pk-team-row .pkt { padding:4px 0; font-size:11px; }
+#menu[data-view=select] #front-teams .pk-team-row .pkt.on { background:#ffdc6526; color:var(--front-gold); border-color:var(--front-gold); }
+#menu[data-view=select] #front-teams .pk-special .pkt { padding:5px 3px; gap:3px; font-size:13px; }
+#menu[data-view=select] #front-grid { grid-template-columns:repeat(auto-fill,minmax(190px,1fr)); grid-auto-rows:50px; max-height:164px; gap:7px; }
+#menu[data-view=select] #front-grid .pkc { height:50px; grid-template-columns:30px minmax(0,1fr) 28px; }
+#menu[data-view=select] #front-grid .pkn { font-size:14px; }
+#menu[data-view=select] .menu-actions { margin-top:14px; }
+@media(min-width:1500px) and (min-height:850px) {
+  #menu[data-view=select]:not([data-format=king]) .duel-lineup button.fighter-pick { min-height:390px; }
+  #menu[data-view=select]:not([data-format=king]) .fighter-body { height:350px; }
+}
+@media(max-width:1000px) {
+  #menu[data-view=select]:not([data-format=king]) .duel-lineup { gap:22px; }
+  #menu[data-view=select]:not([data-format=king]) .duel-lineup button.fighter-pick { min-height:335px; padding-right:16px; grid-template-columns:38% minmax(0,62%); }
+  #menu[data-view=select]:not([data-format=king]) .fighter-body { height:290px; }
+  #menu[data-view=select]:not([data-format=king]) .fighter-name strong { font-size:34px; }
+  #menu[data-view=select]:not([data-format=king]) .fighter-stats { gap:9px; }
+  #menu[data-view=select]:not([data-format=king]) .fighter-stats > span { font-size:12px; }
+  #menu[data-view=select]:not([data-format=king]) .fighter-stats b { font-size:18px; }
+}
+@media(max-width:700px) {
+  #menu[data-view=select]:not([data-format=king]) .duel-lineup { grid-template-columns:1fr; padding-bottom:0; gap:14px; }
+  #menu[data-view=select]:not([data-format=king]) .duel-lineup::before,#menu[data-view=select]:not([data-format=king]) .duel-lineup::after { display:none; }
+  #menu[data-view=select]:not([data-format=king]) .duel-lineup #pick1 { top:0; }
+  #menu[data-view=select]:not([data-format=king]) .duel-lineup button.fighter-pick { min-height:320px; }
+  #menu[data-view=select] .front-target { position:static; justify-content:flex-end; margin-bottom:8px; }
+  #menu[data-view=select] #front-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  #menu[data-view=select] #front-grid .pkc { grid-template-columns:23px minmax(0,1fr) 24px; padding:6px; gap:1px 5px; }
+  #menu[data-view=select] #front-grid .pkn { font-size:11px; }
 }
 @media(max-width:1000px),(max-height:620px) {
   .front-top { min-height:48px; }

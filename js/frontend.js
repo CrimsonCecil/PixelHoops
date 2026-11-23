@@ -79,6 +79,7 @@
     const list = r.role === 'host' ? members() : remoteMembers;
     const count = r.role === 'host' ? 1 + r.links.size : Math.max(1, remoteMembers.length);
     $('menu').dataset.view = view; $('menu').dataset.format = ctx.opts.format;
+    $('menu').toggleAttribute('data-room', !!r.code);
     $('front-select-title').textContent = online ? roomName : labels[ctx.opts.format];
     $('front-room-info').textContent = r.code ? (r.role === 'host' ? '房主' : '球友') + ' · ' + count + ' 人在房间 · ' + (r.role === 'host' ? '选好球员即可开始' : '选好球员，等待房主开始') : '选择阵容，然后上场';
     $('front-ready-state').textContent = r.code ? (r.role === 'host' && !r.links.size ? '等待球友加入…' : list.map((s) => (s === 0 ? '房主' : '球友 ' + s) + (r.role !== 'host' || s === 0 || synced.has(s) ? ' ✓ 已准备' : ' · 加入中…')).join('　')) : '';
