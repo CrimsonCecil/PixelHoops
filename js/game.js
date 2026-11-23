@@ -212,6 +212,7 @@
     ['ctThruLay', 'ct', '顶翻 上篮命中下限', 0.8, 0, 1, 0.01, '概率：顶倒防守人后上篮命中至少这么多'],
     ['ctThruPen', 'ct', '顶翻 踉跄档命中惩罚', 0.06, 0, 0.5, 0.01, '比例：硬挤完成时命中 ×(1 − 这个)'],
     ['ctKeep', 'ct', '扣篮被挡 硬扣门槛', 0, -0.5, 0.5, 0.01, '收球途中扣篮被挡：对抗差值高于这个就扛着人继续扣（被拦下要再高 0.15），否则改上篮'],
+    ['ctKeepW', 'ct', '扣篮被挡 硬扣过渡宽度', 0, 0, 1, 0.01, '对抗差值超过门槛多少才必定硬扣；之间按比例随机，其余改上篮；0 = 一过门槛就必定硬扣'],
     ['ctOwn', 'ct', '封堵上篮 独立结算', 1, 0, 1, 1, '1 = 被封堵上篮的命中惩罚只用对抗模型（旧的干扰系数不再叠加）；0 = 旧算法再叠加对抗'],
     ['ctBase', 'ct', '对抗分 基准差', 0.12, -0.5, 0.5, 0.01, '差值 edge = 进攻分 − 防守分 − 这个值（让普通对普通 ≈ 0）'],
     ['ctLayP', 'ct', '上篮 封堵命中惩罚', 0.3, 0, 1.5, 0.01, '上篮命中率 × (1 − 干扰 × 此 × 对抗系数)；对抗系数 = clamp(1 − 差值×对抗斜率, 下限, 上限)'],
@@ -2510,6 +2511,11 @@
   }
   const resistCost = (df, hd) => K.bdDefSt * clamp(ctPow(hd) / ctPow(df), 0.75, 2) * (1 + (df.stance ? K.bdStSt : 0));
   // 终结途中路线上有人：按吨位、体力、速度、终结/防守能力判定——顶开 / 被挡（扣篮改上篮）/ 被拦下
+  // 收球途中扣篮被挡：对抗差值超过门槛 m 越多越可能扛着人硬扣，否则改上篮
+  function hardDunk(f, o, a, m) {
+    const e = finEdge(f, o, a, true) - K.ctKeep - m;
+    return e > 0 && (K.ctKeepW <= 0 || rnd() < Math.min(1, e / K.ctKeepW));
+  }
   function finContact(f, o) {
     const a = f.action;
     if (!a || (a.type !== 'layup' && a.type !== 'dunk') || a.done || a.released || a.skill || G.phase !== 'live' || G.tips) return;
@@ -2553,7 +2559,7 @@
       if (dk && !air) {
         // V4.3 扣篮被挡改上篮：保留按键（不再强制点按 / 固定很晚出手），投篮条照常走；改不成上篮就继续扣、吃对抗惩罚，不再直接取消
         f.vx *= 0.5; f.vy *= 0.5;
-        if (finEdge(f, o, a, true) > K.ctKeep) { a.bodyPen = Math.max(a.bodyPen || 0, 0.12); float('硬扣', f, '#ffd24a', 1); }   // 对抗占优：扛着人继续扣
+        if (hardDunk(f, o, a, 0)) { a.bodyPen = Math.max(a.bodyPen || 0, 0.12); float('硬扣', f, '#ffd24a', 1); }   // 对抗占优：扛着人继续扣
         else if (d2l(f, a, 0.3)) float('改上篮', f, '#f6efe0', 1);
         else { a.bodyPen = Math.max(a.bodyPen || 0, 0.3); float('被挡', f, '#ff6b5e', 1); }
       } else if (dk) {
@@ -2575,7 +2581,7 @@
       if (!a.cv && cvOk(f, false) && (f.r.str >= 0.75 || hasB(f, 'bully'))) cvSet(f, a, 'bump');
       float('被挡下', f, '#ff6b5e', 1);
     }
-    else if (!air) { f.vx *= 0.3; f.vy *= 0.3; if (finEdge(f, o, a, true) > K.ctKeep + 0.15) { a.bodyPen = Math.max(a.bodyPen || 0, 0.25); float('硬扣', f, '#ffd24a', 1); } else if (d2l(f, a, 0.55)) float('被挡下 改上篮', f, '#ff6b5e', 1); else { a.bodyPen = Math.max(a.bodyPen || 0, 0.5); float('被挡下', f, '#ff6b5e', 1); } }
+    else if (!air) { f.vx *= 0.3; f.vy *= 0.3; if (hardDunk(f, o, a, 0.15)) { a.bodyPen = Math.max(a.bodyPen || 0, 0.25); float('硬扣', f, '#ffd24a', 1); } else if (d2l(f, a, 0.55)) float('被挡下 改上篮', f, '#ff6b5e', 1); else { a.bodyPen = Math.max(a.bodyPen || 0, 0.5); float('被挡下', f, '#ff6b5e', 1); } }
     else if (dk && d2lAir(f, a, 0.55)) float('被挡下 空中改上篮', f, '#ff6b5e', 1);
     else if (dk) { a.stall = { x: f.x - (a.ikx || 0), y: f.y - (a.iky || 0) }; a.bodyPen = 0.5; float('被挡下', f, '#ff6b5e', 1); }
     else { a.bump = Math.max(a.bump || 0, 0.55); f.vx = -nx * 0.8; f.vy = -ny * 0.8; float('被挡下', f, '#ff6b5e', 1); }
@@ -8241,6 +8247,7 @@
     ctThruLay: ['顶翻 上篮命中保底', '越大顶倒防守人后的上篮越准；概率，再按质量缩放'],
     ctThruPen: ['顶翻 踉跄命中折损', '越大顶得对手踉跄后的终结命中越低；折损比例'],
     ctKeep: ['扣篮被挡 硬扣优势门槛', '越小越容易扛住封堵继续扣而不改上篮；对抗分差'],
+    ctKeepW: ['扣篮被挡 硬扣过渡宽度', '越大对抗只占小优势时越常改上篮；0 = 一过门槛就必定硬扣；对抗分差'],
     ctOwn: ['上篮封堵 独立结算', '开：上篮命中只算封堵对抗惩罚，不叠加旧干扰惩罚'],
     ctBase: ['封堵对抗 防守偏置', '越大内线对抗越有利于防守人；进攻对抗分扣减'],
     ctLayP: ['上篮 封堵折损系数', '越大上篮受封堵时命中损失越多；概率倍数扣减系数'],
