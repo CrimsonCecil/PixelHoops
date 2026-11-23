@@ -1727,7 +1727,7 @@
   // 落地恢复：二次起跳（弹跳为主）越低、落地后越久跑不快 / 再起跳；弹簧腿徽章缩短
   const landK = (p) => rejK(p) * bk(p, 'pogo', K.bgPogo);
   // 盖帽 / 抢板落地：以全名单平均二次起跳为 1，怪兽明显更快、体重大弹跳低的明显更慢
-  const rebK = (p) => clamp(1 + K.rebJS * (K.rebJ0 - (p.r.rej || K.rebJ0)), K.rebJLo, K.rebJHi) * bk(p, 'pogo', K.bgPogo);
+  const rebK = (p) => clamp(1 + K.rebJS * (K.rebJ0 - (p.r.rej || K.rebJ0)), K.rebJLo, Math.max(K.rebJLo, K.rebJHi)) * bk(p, 'pogo', K.bgPogo);
   function landRecover(p, k = landK(p)) { if (k <= 0) return; p.lndT0 = G.time; p.lndT = G.time + K.lndRec * k; }
   const TEAMS = [
     { name: '蓝队', css: '#4aa3ff', jersey: '#3b8cf0', shorts: '#2459b8', trim: '#ffffff', shoe: '#f4f0e0' },
