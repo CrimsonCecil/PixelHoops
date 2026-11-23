@@ -10,6 +10,11 @@ upstream=https://github.com/CrimsonCecil/PixelHoops.git
 local_http=http://127.0.0.1:8787
 mode=${1:-sync}
 [[ $mode == sync || $mode == rollback || $mode == rollback-original ]] || exit 2
+static_dir=$(sed -n 's/^STATIC_DIR=//p' /etc/pixelhoops.env | tail -n 1)
+case $static_dir in
+    ''|"$app"|"$app"/) ;;
+    *) echo "Unsupported STATIC_DIR: $static_dir" >&2; exit 2 ;;
+esac
 
 exec 9>/run/lock/pixelhoops-sync.lock
 flock -n 9
@@ -25,8 +30,10 @@ publish() {
 }
 
 check_live() {
-    curl -fsS --max-time 5 --retry 3 --retry-connrefused "$local_http/api/health" | grep -Eq '"ok":[[:space:]]*true' &&
-        curl -fsS --max-time 10 "$local_http/js/game.js" | cmp -s - "$1/js/game.js" &&
+    curl -fsS --max-time 5 --retry 3 --retry-connrefused "$local_http/api/health" |
+        grep -Eq '"ok":[[:space:]]*true' || return 1
+    [[ -z $static_dir ]] && return 0
+    curl -fsS --max-time 10 "$local_http/js/game.js" | cmp -s - "$1/js/game.js" &&
         curl -fsS --max-time 10 "$local_http/js/main.js" | cmp -s - "$1/js/main.js"
 }
 
