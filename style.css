@@ -340,6 +340,41 @@ button.pick .pk-c { grid-row: 1 / 3; grid-column: 3; font-size: var(--fs-xs); co
 .pkt { display: inline-flex; align-items: center; gap: calc(var(--u) * 1); padding: calc(var(--u) * 0.6) calc(var(--u) * 1.6); font-size: var(--fs-xs); line-height: 1.2; }
 .pkt i { width: calc(var(--u) * 2); height: calc(var(--u) * 2); display: inline-block; box-shadow: 0 0 0 1px rgba(255,255,255,.35); }
 .pkt.on { background: var(--gold); color: #1a1206; }
+/* Shared conference filters for the inline roster and the detailed picker. */
+.pk-team-filters { display:grid; grid-template-columns:76px minmax(0,1fr); gap:0; padding:0; border:1px solid #344762; background:#141f34; }
+.pk-special { display:flex; flex-direction:column; gap:7px; padding:10px 8px; border-right:1px solid #344762; }
+.pk-special .pkt { flex:1; justify-content:center; min-height:35px; padding:5px; font-size:13px; }
+.pk-legend-star { font-size:12px; line-height:1; }
+.pk-conferences { min-width:0; padding:4px 10px; }
+.pk-conference { display:flex; align-items:center; gap:10px; min-width:0; padding:6px 0; }
+.pk-conference + .pk-conference { border-top:1px solid #2c3b51; }
+.pk-conference > b { flex:none; width:18px; font-size:12px; font-weight:normal; color:#9fafd0; writing-mode:vertical-rl; letter-spacing:3px; }
+.pk-team-row { display:grid; grid-template-columns:repeat(15,minmax(48px,1fr)); flex:1; min-width:0; gap:3px; overflow-x:auto; scrollbar-width:thin; scrollbar-color:#425777 transparent; }
+.pk-team-row .pkt { min-width:0; flex-direction:column; justify-content:center; gap:4px; padding:4px 0; border:1px solid transparent; background:transparent; box-shadow:none; font-size:11px; color:#c6d3e9; }
+.pk-team-row .pkt img { width:32px; height:32px; object-fit:contain; filter:drop-shadow(0 1px 2px #0007); }
+.pk-team-row .pkt > span { max-width:100%; white-space:nowrap; }
+.pk-team-row .pkt.on { border-color:var(--gold); background:#ffdc6526; color:var(--gold); }
+.pk-team-row .pkt:hover,.pk-team-row .pkt.pf { border-color:#81baff; background:#284363; }
+.pk-team-filters .pkt:focus-visible { outline:2px solid var(--gold); outline-offset:-2px; }
+#picker .pk-tip { display:none; }
+#picker .pk-team-filters { margin-bottom:10px; }
+/* Keep the roster reachable when the fixed filter/header stack exceeds the dialog. */
+@media(max-height:360px) {
+  #picker .panel.pk { overflow-y:auto; }
+  #picker .pk-head,#picker .pk-team-filters,#pk-positions,#picker .actions { flex-shrink:0; }
+  #picker .pk-body { flex:none; height:150px; }
+}
+@media(max-width:1000px) {
+  .pk-team-row { grid-template-columns:repeat(15,52px); overflow-x:auto; padding:0 2px 5px; scrollbar-width:thin; scrollbar-color:#425777 transparent; }
+}
+@media(max-width:600px) {
+  .pk-team-filters { grid-template-columns:62px minmax(0,1fr); }
+  .pk-special { padding:8px 5px; gap:6px; }
+  .pk-special .pkt { font-size:12px; gap:2px; }
+  .pk-conferences { padding:3px 6px; }
+  .pk-conference { gap:5px; }
+  .pk-team-row .pkt { min-height:54px; }
+}
 .pk-pos-label { align-self: center; margin-right: calc(var(--u) * 2); font-size: var(--fs-xs); color: var(--muted); }
 .pk-body { display: flex; gap: calc(var(--u) * 6); min-height: 0; flex: 1; }
 .pk-grid { flex: 0 0 calc(var(--u) * 176); display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, max(118px, calc(var(--u) * 80))), 1fr)); gap: calc(var(--u) * 2); align-content: start; overflow: hidden auto; padding: 2px; touch-action: pan-y; }
