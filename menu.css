@@ -539,6 +539,16 @@ button.pick.fighter-pick .pk-c { font-size:11px; color:var(--fighter-color); }
   #menu[data-view=home] .front-home-sub { margin-top:8px; }
   #menu[data-view=home] .front-home-train { min-height:36px; padding:4px 12px; }
 }
+@container(max-height:240px) {
+  /* Bottom-anchored menu taller than the space above it: scroll instead of clipping the top entry. */
+  #menu[data-view=home] .front-home-nav { bottom:calc(5% + 40px); width:50%; max-height:calc(90% - 40px); overflow-y:auto; scrollbar-width:none; }
+  #menu[data-view=home] .front-entries { gap:6px; }
+  #menu[data-view=home] .front-entries button { min-height:32px; padding:4px 12px; gap:12px; }
+  #menu[data-view=home] :is(.front-entries,.front-home-train) :is(b,em) { font-size:12px; }
+  #menu[data-view=home] .front-home-sub { margin-top:6px; }
+  #menu[data-view=home] .front-home-train { min-height:28px; padding:4px 12px; gap:12px; }
+  #menu[data-view=home] .front-tools button { padding:4px 8px; }
+}
 @media(prefers-reduced-motion:reduce) {
   #menu[data-view=home] button, #menu[data-view=home] button::after, #menu[data-view=home] em { transition:none; }
   #menu[data-view=home] button:is(:focus-visible,.pf),
