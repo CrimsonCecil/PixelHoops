@@ -5650,7 +5650,7 @@
     if (pl.lndT > G.time && pl.z <= 0) { ms *= lerp(K.lndSpd, 1, clamp((G.time - pl.lndT0) / Math.max(0.01, pl.lndT - pl.lndT0), 0, 1)); acc *= K.lndAcc; }
     if (a) { if (a.type === 'shot') ctl = a.jumped ? 0 : 0.12; else if (a.type === 'fake') ctl = 0; else if (a.type === 'steal') ctl = 0.25; else ctl = 0; }
     if (!pl.hasBall) { if (pl.gather) gatherOff(pl); }
-    else if (pl.passCatchT != null && pl.gaCatch !== pl.passCatchT) { pl.gaCatch = pl.passCatchT; if (!a) gatherOn(pl, false); }   // 传球接住（5V5 接球不走 pickup）
+    else if (pl.passCatchT != null && pl.gaCatch !== pl.passCatchT) { pl.gaCatch = pl.passCatchT; pl.gaUsed = false; pl.dribDead = false; if (!a) gatherOn(pl, false); }   // 传球接住（5V5 接球不走 pickup）
     else if (pl.gather && !a && G.phase === 'live') {
       if (!moving) pl.gaT = 0;
       else if (!pl.dribDead) { gatherOff(pl); pl.gaUsed = true; }
