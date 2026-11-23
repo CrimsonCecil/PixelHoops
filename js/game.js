@@ -111,12 +111,14 @@
     ['euroD', 'zone', '欧洲步第二步距离', 1.2, 0.6, 2.5, 0.05, '米：欧洲步第二步落到离筐约这么远'],
     ['euroTempo', 'zone', '欧洲步时长倍率', 1.8, 0.8, 4, 0.05, '倍率：越大越慢；两步与停顿一起缩放，保留小幅速度/加速能力差异；不改变空中出手时机'],
     ['euroBeat', 'zone', '欧洲步第一步落地停顿', 0.24, 0, 0.45, 0.01, '秒：第一步落地后压节奏，再迈第二步；受欧洲步时长倍率影响，0 为不停顿'],
+    ['euroStep1', 'zone', '欧洲步第一步时长倍率', 0.7, 0.3, 1.5, 0.05, '倍率：只乘在第一步（迈步 + 落地停顿）上，越小第一步越快；第二步与出手不变'],
     ['dunkMax', 'zone', '扣篮最远起跳', 3.2, 1.5, 5, 0.05, '米：扣篮起跳距离上限'],
     ['bkDunkDist', 'zone', '空中飞猪 额外起跳距离', 1, 0, 1.5, 0.05, '米：路线空旷的跑扣额外起跳距离'],
     ['bkDunkSpeed', 'zone', '空中飞猪 向筐速度', 1.8, 0.5, 5, 0.1, '米/秒：不需要冲刺或蓄力'],
     ['bkLane', 'zone', '空中飞猪 路线宽度', 0.9, 0.4, 2, 0.05, '米：防守人离向筐路线小于这个距离时不加成'],
     ['dunkMin', 'zone', '扣篮最近起跳', 1.1, 0.5, 2.5, 0.05, '米：扣篮起跳距离下限'],
     ['dunkBase', 'zone', '扣篮起跳距离基数', 0.6, 0, 2, 0.05, '米：起跳距离 = 基数 + 增益 × 扣篮/弹跳/速度 + 身高修正'],
+    ['dunkAthPow', 'zone', '扣篮起跳距离 扣篮能力指数', 1.5, 0.5, 3, 0.05, '指数：扣篮能力折算的起跳距离增益 ^ 这个；越大中等扣篮能力离筐越近才能起跳'],
     ['dunkAth', 'zone', '扣篮起跳距离增益', 2.4, 0, 4, 0.05, '米：顶级扣将满速时额外的起跳距离'],
     // V4.1 脚步分档与时长（原来写死在 buildSteps 里，默认值不变）：need = 当前离筐 − 目标起跳距离
     ['step0', 'zone', '0 步直接起跳阈值', 0.45, 0, 1.5, 0.05, '米：need 小于这个就收球直接起跳（不迈步，只往前带 0.12 米）'],
@@ -224,6 +226,7 @@
     ['ctLayCapB', 'ct', '上篮 重干扰盖帽系数', 0.15, 0, 1, 0.01, '严重干扰时，盖帽能力每高于60一点，命中上限降低此比例；与内防系数叠加'],
     ['ctLayGreen', 'ct', '上篮 重干扰完美加成', 0.04, 0, 0.15, 0.01, '严重干扰时，完美出手只给命中上限加此概率，不能无视内防与盖帽'],
     ['ctLayLate', 'ct', '上篮 重干扰时机惩罚', 0.04, 0, 0.15, 0.01, '严重干扰非完美出手：命中上限再减此值×时机误差'],
+    ['ctLayVLate', 'ct', '上篮 重干扰很早 / 很晚惩罚', 0.1, 0, 0.3, 0.01, '严重干扰且出手很早 / 很晚（时机误差 0.5 → 1）：命中上限再减至多这个'],
     ['ctBlkE', 'ct', '被盖率 对抗斜率', 1.0, 0, 4, 0.05, '上篮 / 扣篮被盖率 × clamp(1 − 差值×此, 0.25, 1.8)'],
     ['ctBlkH', 'ct', '严重封堵 被盖倍率', 1.0, 1, 3, 0.05, '干扰 ≥ 0.5 时上篮被盖率再乘'],
     ['ctBlkD', 'ct', '双人封堵 被盖倍率', 1.2, 1, 3, 0.05, '双人封堵时上篮被盖率再乘'],
@@ -274,6 +277,7 @@
     ['cbWin', 'drib', '连续过人 衔接窗口', 0.35, 0.05, 1, 0.01, '秒：能取消前提前按、或收招后晚按，超过这个时间都不接招；方向联招也需在这个时间内输入'],
     ['cbFat', 'drib', '连续过人 疲劳衰减', 0.8, 0, 1, 0.01, '比例：疲劳度 1（体力 0）时 combo 加成 × (1 − 这个)；疲劳度 = (疲劳线 − 体力) ÷ 疲劳线'],
     ['cbCost', 'drib', '连续过人 体力递增', 0.2, 0, 1, 0.01, '比例：第 n 段体力消耗 × (1 + 这个 × n)，在每招递增之上'],
+    ['mvHndSt', 'drib', '低控球 运球招式耗体加成', 1, 0, 3, 0.05, '比例：控球 0.70 以下运球招式耗体 +这个 × 单招基础耗体（和连招递增相加，不连乘），至 0.90 线性归零'],
     ['cbStep', 'drib', '连续过人 每招体力递增', 0.5, 0, 2, 0.01, '比例：衔接窗口内换招接上的第 n 招体力消耗 × (1 + 这个 × (n − 1))，不封顶；运球如丝 / 脚踝终结者 按 bgChainSt 放缓'],
     ['mvFat', 'drib', '疲劳 位移衰减', 0.4, 0, 0.8, 0.01, '比例：疲劳度 1 时动作速度 × (1 − 这个)，动作时长另外 +25%，合起来位移 ≈ × (1 − 这个) × 1.25（原来 0.3 → 位移只少 12%，0.4 → 少 25%）；疲劳度 = (疲劳线 − 体力) ÷ 疲劳线'],
     // —— V4.2 AI 连续过人（ai 组）：电脑用同一套 combo（pl.dcn / cbWin），当前招还在做时按下一段走缓冲接上 ——
@@ -470,6 +474,8 @@
     ['akT1h', 'ankle', '急停 失重心阈值', 0.5, 0, 2, 0.01, '强度：急停低于这个只是失重心'],
     ['akT2', 'ankle', '踉跄 → 僵直 阈值', 0.62, 0, 2, 0.01, '强度'],
     ['akT3', 'ankle', '僵直 → 晃倒 阈值', 0.8, 0, 3, 0.01, '强度：超过这个晃倒'],
+    ['akTH', 'ankle', '普通运球 晃晕 / 晃飞门槛加成', 0.25, 0, 2, 0.01, '强度：控球 0.70 以下全额加到踉跄、僵直门槛，至 0.90 线性归零；背身转身和晃倒必杀不受影响'],
+    ['akReachH', 'ankle', '伸手落空 低控球必晃折扣', 0.6, 0, 1, 0.01, '比例：防守人伸手抢断时，控球 0.70 以下只有 (1 − 这个) 的概率必被晃，其余照常判定；至 0.90 线性归零'],
     ['akT3H', 'ankle', '普通运球 晃倒门槛加成', 0.4, 0, 2, 0.01, '强度：控球 0.70 以下全额加到晃倒门槛，至 0.90 线性归零；背身转身和晃倒必杀不受影响'],
     ['akOffM', 'ankle', '失重心 时长倍率', 1, 0, 4, 0.05, '倍率'],
     ['akDazeM', 'ankle', '踉跄 时长倍率', 1.2, 0, 4, 0.05, '倍率'],
@@ -708,6 +714,13 @@
     ['rbCvChin', 'reb', '落地硬直 护球落地', 0.42, 0, 1, 0.01, '秒'],
     ['rbCvRip', 'reb', '落地硬直 强抢', 0.36, 0, 1, 0.01, '秒'],
     ['rbCvTip', 'reb', '落地硬直 拨球', 0.2, 0, 1, 0.01, '秒'],
+    ['lndRec', 'reb', '落地恢复 基础时间', 0.36, 0, 1, 0.01, '秒：跳投落地后跑不快的时间 × 二次起跳倍率（弹簧腿徽章再缩短）；盖帽 / 抢板落地只有超过平均倍率的部分才会变慢'],
+    ['lndSpd', 'reb', '落地恢复 移动速度', 0.45, 0, 1, 0.01, '比例：刚落地时的最高跑速比例，恢复期内逐渐回到 1'],
+    ['lndAcc', 'reb', '落地恢复 加速比例', 0.4, 0, 1, 0.01, '比例：恢复期内的起步 / 变向加速度'],
+    ['rebJ0', 'reb', '二次起跳 平均线', 0.7, 0.3, 1, 0.01, '二次起跳值：等于这个的人盖帽 / 抢板落地后的再起跳冷却和硬直保持原样（全名单平均约 0.70）'],
+    ['rebJS', 'reb', '二次起跳 差距', 3, 0, 6, 0.1, '倍率斜率：二次起跳每比平均线高 / 低 0.1，盖帽 / 抢板落地后的冷却和硬直少 / 多 ×0.1 × 这个'],
+    ['rebJLo', 'reb', '二次起跳 最快倍率', 0.3, 0.1, 1, 0.01, '倍率下限：二次起跳怪兽最快能缩到原时间的多少（弹簧腿徽章再乘）'],
+    ['rebJHi', 'reb', '二次起跳 最慢倍率', 2.2, 1, 4, 0.1, '倍率上限：体重大弹跳低的人最多慢到原时间的多少倍'],
     ['rbTipV', 'reb', '拨球 弹出速度', 1.2, 0, 4, 0.05, '米/秒'],
     ['rbTipNP', 'reb', '拨球 不可拾取', 0.3, 0, 1, 0.01, '秒'],
     ['rbRipPush', 'reb', '强抢 推开对手速度', 2.4, 0, 6, 0.1, '米/秒'],
@@ -782,14 +795,16 @@
     ['stDepth', 'def', '防守马步 下蹲深度', 1, 0.6, 1.2, 0.01, '倍率：只影响主动防守姿态的屈髋和屈膝'],
     ['stLean', 'def', '防守蹲姿 躯干前倾', 0.52, 0.35, 0.65, 0.01, '弧度：胸口前移到膝盖上方，保留低重心宽站姿'],
     ['stWidth', 'def', '防守马步 双脚宽度', 0.42, 0.3, 0.5, 0.01, '米：单脚离身体中线的距离，随身高缩放'],
+    ['stSlideHz', 'def', '螃蟹步 步频', 2.6, 1.2, 4, 0.05, '次/秒：一左一右算一次；独立循环动画，快于步频×步幅的移动由脚贴地滑补足'],
+    ['stSlideStride', 'def', '螃蟹步 步幅', 0.7, 0.3, 1, 0.01, '米：一个循环（一左一右）身体移动的距离，随身高缩放；更快的移动由脚贴地滑补足，不在地面钉脚'],
     ['stStep', 'def', '螃蟹步 步频距离', 0.42, 0.2, 0.6, 0.01, '米：用于移动速度到步频的换算；短步之外的位移由贴地滑行补足'],
     ['stHzMin', 'def', '防守滑步 最低步频', 1, 0.5, 1.5, 0.05, '次/秒：左右脚合计；极慢移动继续放缓，静止不迈步'],
     ['stHzMax', 'def', '防守滑步 最高步频', 2.4, 1.5, 3.2, 0.05, '次/秒：超过腿部步幅的移动由蹬地滑步承担，不改变移动速度'],
+    ['stReach', 'def', '螃蟹步 步幅', 0.3, 0.05, 0.5, 0.01, '米：每只脚离站位点最远能迈多远，随身高缩放；支撑脚踩实不动，超出步幅才拖地'],
+    ['stLift', 'def', '螃蟹步 抬脚高度', 0.07, 0, 0.15, 0.005, '米：膝盖随摆动脚垂直抬起；小步降低抬脚，超出触及范围才滑行'],
     ['gaHzMin', 'drib', '跑步 最低步频', 0.45, 0.2, 1.2, 0.05, '次/秒：标准身高的低速步频；持球和无球共用'],
     ['gaHzMax', 'drib', '跑步 最高步频', 2.8, 1.8, 3.5, 0.05, '次/秒：标准身高的全速步频；慢跑到冲刺连续增加'],
     ['gaHeight', 'drib', '跑步 身高步幅差异', 0.8, 0, 1.5, 0.05, '指数：越高步幅越长、步频越低；不影响移动速度'],
-    ['stReach', 'def', '螃蟹步 步幅', 0.3, 0.05, 0.5, 0.01, '米：每只脚离站位点最远能迈多远，随身高缩放；支撑脚踩实不动，超出步幅才拖地'],
-    ['stLift', 'def', '螃蟹步 抬脚高度', 0.07, 0, 0.15, 0.005, '米：膝盖随摆动脚垂直抬起；小步降低抬脚，超出触及范围才滑行'],
     ['drCrouch', 'drib', '跑动运球 速度下蹲', 0.32, 0, 0.5, 0.01, '弧度：速度越快膝盖越弯，冲刺最深；保留跑步摆腿'],
     ['drHeight', 'drib', '运球频率 身高差异', 1.8, 0, 3, 0.05, '指数：按实际模型身高缩放拍球频率，越矮越快；0 为无差异'],
     ['drTierS', 'drib', '冲刺运球 矮个界线', 1.91, 1.7, 2.1, 0.01, '米：模型身高低于此值为矮个，否则按中等或高个整档选择'],
@@ -919,6 +934,7 @@
     ['bgDreamSpin', 'rules', '梦幻舞步 背身转身撞开加成', 0.45, 0, 1, 0.01, '概率（金档数值；铜 / 银 / 名人堂按徽章档位系数缩放）'],
     ['bgBullySpin', 'rules', '推土机 背身转身撞开加成', 0.2, 0, 1, 0.01, '概率（金档数值；铜 / 银 / 名人堂按徽章档位系数缩放）'],
     ['bgHuCost', 'rules', '鱼跃扑球 体力倍率', 0.6, 0, 1, 0.01, '倍率（金档数值；铜 / 银 / 名人堂按徽章档位系数缩放）'],
+    ['bgPogo', 'rules', '弹簧腿 落地恢复倍率', 0.55, 0, 1, 0.01, '倍率：落地恢复时间 × 这个（金档数值；铜 / 银 / 名人堂按徽章档位系数缩放）'],
     ['bgHuReach', 'rules', '鱼跃扑球 抓球范围加成', 0.15, 0, 1, 0.01, '米（金档数值；铜 / 银 / 名人堂按徽章档位系数缩放）'],
     ['bgHuWin', 'rules', '鱼跃扑球 争球胜率加成', 0.2, 0, 1, 0.01, '概率：双方各自加减（金档数值；铜 / 银 / 名人堂按徽章档位系数缩放）'],
     ['bgMotorSt', 'rules', '永动机 体力消耗倍率', 0.65, 0, 1, 0.01, '倍率（金档数值；铜 / 银 / 名人堂按徽章档位系数缩放）'],
@@ -953,6 +969,9 @@
     ['dkCE', 'fin', '扣篮 干扰对抗斜率', 1.8, 0, 5, 0.05, '比例'],
     ['dkBodyD', 'fin', '扣篮 身体对抗距离惩罚', 0.3, 0, 1, 0.01, '概率：被撞后离筐每远 1 米多扣'],
     ['dkLowSt', 'stam', '低体力 扣篮命中惩罚', 0.15, 0, 0.5, 0.01, '概率'],
+    ['dkCLo', 'fin', '低扣篮能力 干扰折损保底', 0.6, 0, 1.3, 0.01, '比例：扣篮能力 0.70 以下时，对抗分再占优干扰惩罚也至少 × 这个，至 0.90 线性降到 0.05'],
+    ['dkCWeak', 'fin', '低扣篮能力 干扰放大', 4, 0, 8, 0.1, '比例：扣篮能力 0.70 以下时干扰值 ×(1 + 这个)，至 0.90 线性归零；防守人站好位举手时一般扣将扣不进'],
+    ['dkCWeakC', 'fin', '低扣篮能力 干扰放大起点', 0.2, 0, 1, 0.01, '干扰值：只放大超过这个的部分；0.2 = 空位线，空位扣篮不吃低扣篮能力的额外惩罚'],
     ['dkMin', 'fin', '扣篮 命中下限', 0.06, 0, 0.5, 0.01, '概率'],
     ['dkMax', 'fin', '扣篮 命中上限', 0.99, 0.5, 1, 0.01, '概率'],
     // V4.6 电脑 AI：难度表 / 持球决策 / 防守反应（原写死，默认值不变）
@@ -1044,6 +1063,7 @@
     ['fxT3Fl', 'pace', '高光重档 闪白', 0.3, 0, 1, 0.01, '强度'],
     ['fxWinSlowT', 'pace', '绝杀球 慢动作提前量', 0.32, 0, 1.5, 0.01, '秒：绝杀球入筐前多久开始慢放'],
     ['fxWinSlow', 'pace', '绝杀球 慢动作时长', 1, 0, 3, 0.05, '秒'],
+    ['celSig3', 'pace', '招牌庆祝 三分触发概率', 0.6, 0, 1, 0.05, '概率：有招牌庆祝的球星投进三分时做招牌动作；2+1、3+1、绝杀必出'],
     ['rpPre', 'pace', '回放 高光前长度', 2.6, 0.5, 8, 0.1, '秒'],
     ['rpPost', 'pace', '回放 高光后长度', 0.9, 0, 4, 0.1, '秒'],
     ['rpKeep', 'pace', '回放 录像保留', 12, 4, 30, 1, '秒'],
@@ -1450,6 +1470,7 @@
     dodger: { name: '挤过掩护', five: true, desc: '被掩护撞到时影响更轻、被挡时间更短' },
     intercept: { name: '截传', five: true, desc: '截传够球范围更大、截下概率更高' },
     anchor: { name: '禁区之锚', five: true, desc: '离筐 3 米内的终结，你在出手人 2.5 米内（协防也算）时干扰更强、更容易盖帽' },
+    pogo: { name: '弹簧腿', desc: '跳投、盖帽、抢板落地后恢复更快，能马上冲进内线抢板或再次起跳。档位由二次起跳和篮板决定' },
     chaser: { name: '篮板猎手', five: true, desc: '投篮篮板抓取范围更大' },
     boxout: { name: '卡位野兽', five: true, desc: '对方出手后自动卡位，你贴住的进攻人篮板范围变小' },
   };
@@ -1464,6 +1485,7 @@
     ankle: (a) => T3(a.hnd, 87, 91, 95), tight: (a) => T3(a.hnd, 85, 90, 95), acrobat: (a) => T3(a.lay, 84, 88, 93), poster: (a) => T3(a.dunk, 87, 91, 95),
     launch: (a) => T3(a.vert, 84, 89, 94), bully: (a) => T3(a.str, 82, 88, 95), rim: (a) => T3(a.blk, 83, 88, 93), pick: (a) => T3(a.stl, 80, 85, 92),
     clamps: (a) => T3(a.def, 83, 88, 92), motor: (a) => T3(a.sta, 87, 90, 95), dream: (a) => T3(a.post || 0, 75, 88, 93),
+    pogo: (a) => T4(99 * (0.6 * (a.rej || 0) + 0.4 * Math.max(a.oreb || 0, a.dreb || 0)), 80, 84, 88, 92),
     hustle: (a) => {
       const { hus2k: h, dcon2k: d } = a;
       if (!(h >= 90 && d >= 50)) return 0;
@@ -1681,6 +1703,7 @@
     a.rej = d(0.45 * vt + 0.3 * agi + 0.25 * a.hus - 0.18 * hv);
     a.leap = d(0.45 * vt + 0.3 * a.dunk + 0.25 * a.spd - 0.2 * hv);
     a.hang = d(0.7 * vt + 0.3 * agi - 0.15 * hv);
+    if (BADGE_TIER.pogo(a) && !a.badges.includes('pogo')) a.badges.push('pogo');
   }
   for (const key of ['curry', 'harden', 'luka', 'durant', 'lillard', 'kyrie', 'sga', 'kobe', 'booker', 'mitchell', 'brunson', 'trae', 'jmurray', 'maxey']) {
     if (ARCH[key]) ARCH[key].badges.push('pullup');
@@ -1712,6 +1735,11 @@
   }
   const bk = (pl, b, v) => { const t = btier(pl, b); return t ? 1 + (v - 1) * tierF(t) : 1; };
   const ba = (pl, b, v) => { const t = btier(pl, b); return t ? v * tierF(t) : 0; };
+  // 落地恢复：二次起跳（弹跳为主）越低、落地后越久跑不快 / 再起跳；弹簧腿徽章缩短
+  const landK = (p) => rejK(p) * bk(p, 'pogo', K.bgPogo);
+  // 盖帽 / 抢板落地：以全名单平均二次起跳为 1，怪兽明显更快、体重大弹跳低的明显更慢
+  const rebK = (p) => clamp(1 + K.rebJS * (K.rebJ0 - (p.r.rej || K.rebJ0)), K.rebJLo, Math.max(K.rebJLo, K.rebJHi)) * bk(p, 'pogo', K.bgPogo);
+  function landRecover(p, k = landK(p)) { if (k <= 0) return; p.lndT0 = G.time; p.lndT = G.time + K.lndRec * k; }
   const TEAMS = [
     { name: '蓝队', css: '#4aa3ff', jersey: '#3b8cf0', shorts: '#2459b8', trim: '#ffffff', shoe: '#f4f0e0' },
     { name: '红队', css: '#ff6b5e', jersey: '#e8483e', shorts: '#a82a2a', trim: '#ffe14a', shoe: '#2a2740' },
@@ -1780,7 +1808,7 @@
     iverson: { style: 'braids', face: 'long', band: '#f4f0e0', sleeve: 'R', build: -0.42, shoulder: 0.86, headScale: 0.94, neckScale: 0.86 },
     carter: { style: 'bald', face: 'oval', build: 0.12, muscle: 0.48, shoulder: 1.12, waistScale: 0.6, hipScale: 0.7, shortsScale: 0.7, taper: true },
     kyrie: { style: 'curlfade', face: 'tapered', beard: 'trimmed', band: '', brow: 'soft', build: -0.27 },
-    lillard: { face: 'long', beardFit: 'close' },
+    lillard: { face: 'long', beardFit: 'close', neckLen: 1.4, neckScale: 0.8 },
     dosunmu: { style: 'longbraids', hair: '#191311', headScale: 0.97, neckScale: 0.94 },
     jwells: { style: 'afro', hair: '#211b1b', skin: '#9c6446', face: 'tapered', headScale: 1.05, neckScale: 1.05 },
     harden: { style: 'braids', beard: 'long', face: 'oval' },
@@ -1848,7 +1876,7 @@
         legs: sig.legs || clamp(1 + (inches - 78) * 0.002 - frame * 0.06, 0.96, 1.04),
         limb: limb * widthScale, armThickness: (limb + 0.82 * muscle) * widthScale, hand: hand ? clamp(hand / (0.11 * inches), 0.84, 1.18) : 1,
         headScale: (0.92 + 0.08 * Math.min(1.4, 1 + 0.7 * legacyBuild + 0.9 * muscle)) * (sig.headScale || 1),
-        neckScale: sig.neckScale || 1, shortsScale: sig.shortsScale || 1 };
+        neckScale: sig.neckScale || 1, neckLen: sig.neckLen || 1, shortsScale: sig.shortsScale || 1 };
     }
     return look;
   }
@@ -1925,7 +1953,7 @@
   function newTrainStats() { return { n: 0, made: 0, blocked: 0, sumC: 0, zones: { three: [0, 0], mid: [0, 0], lay: [0, 0] }, timing: [0, 0, 0, 0, 0], last: [] }; }
   function newGame(o) {
     o = o || {};
-    G.fouls = o.fouls !== false; G.ft = null; G.ftTrips = 0; G.foulDrought = 0;
+    G.fouls = o.fouls !== false; G.ft = null; G.foulStop = null; G.ftTrips = 0; G.foulDrought = 0;
     G.bumpT = -9; G.postBumpT = -9; G.pushT = -9;
     G.tips = null; G.mode = o.mode || 'cpu'; G.diff = o.diff == null ? 1 : o.diff; G.target = o.target || 21; G.glen = G.mode === 'cpu' || G.mode === '2p' ? (o.glen || 0) : 0; G.gclock = G.glen; G.sd = false; G.gEnd = false; G.mp = -1; G.mpT = 0; G.clkTick = 99; G.fb = o.fb || 'simple'; G.bpops = []; G.shotN = 0; G.hero = null; G.cz = null; G.hlQ = null; G.rec = []; G.replay = null;
     const c0 = G.mode === 'demo' ? 'cpu' : 'p1', c1 = G.mode === '2p' ? 'p2' : 'cpu';
@@ -2004,12 +2032,12 @@
   function isO(p) { return TM(p) === G.off; }
   function OP(pl) { return teamPlay() ? pl.opp || OFFP : G.players[1 - pl.id]; }
   function hoopDir(p) { let x = HOOP.x - p.x, y = HOOP.y - p.y; const l = Math.hypot(x, y) || 1; return { x: x / l, y: y / l, l: l }; }
-  // lvl：1=精简模式也显示（盖帽/抢断/晃倒等关键事件），0=只在详细模式显示
+  // lvl：2=保留的关键提示（盖帽名称/规则），1=普通动作，0=详细反馈；普通动作不在局内显示。
   function float(text, pl, color, lvl) {
     if (G.fb !== 'detail' && !lvl) return;
     const pid = pl.id != null ? pl.id : -1;
     if (G.fb !== 'detail' && pid >= 0) G.floats = G.floats.filter((f) => f.pid !== pid || f.t > 0.9);
-    G.floats.push({ text: text, pid: pid, x: pl.x, y: pl.y, z: pl.h + pl.z * 0.5 + 0.45, t: 0, color: color || '#fff' }); if (G.floats.length > 4) G.floats.shift();
+    G.floats.push({ text: text, prominent: lvl === 2, pid: pid, x: pl.x, y: pl.y, z: pl.h + pl.z * 0.5 + 0.45, t: 0, color: color || '#fff' }); if (G.floats.length > 4) G.floats.shift();
   }
   function banner(text, sub, color, dur) { G.banner = { text: text, sub: sub || '', color: color || '#ffd24a', t: 0, dur: dur || 1.3 }; }
   // 徽章触发提示（类似 2K：屏幕下方角落弹出徽章），同一徽章 2.5 秒内不重复弹
@@ -2111,8 +2139,10 @@
     const p = clamp(K.foulCharge - K.foulChargeSlope * Math.max(0, edge - K.foulChargeEdge), 0, 1);
     if (p <= 0 || rnd() >= p) return false;
     G.stats[pl.id].pf = (G.stats[pl.id].pf || 0) + 1;
-    turnover(df.id, '进攻犯规', 'foulWhistle');
-    vo(pl, 'foulCharge', 'pri');
+    pl.action = null;
+    looseBall(G.ball, pl.vx * 0.25, pl.vy * 0.25, 0, pl.id);
+    foulFall(df, pl);
+    stopForFoul({ id: df.id, charge: true });
     return true;
   }
   function shootingFoul(pl, df, a, ci, kind) {
@@ -2129,15 +2159,57 @@
     if (G.ftTrips < 2) G.foulDrought++;
     return false;
   }
-  function awardFreeThrows(id, pts, made) {
+  function foulFall(pl, other) {
+    const dx = pl.x - other.x, dy = pl.y - other.y, d = Math.hypot(dx, dy) || 1;
+    Object.assign(pl, { knock: 'fall', knockT: 0, knockD: 1.15, knockUp: 0.7, knockDx: dx / d, knockDy: dy / d });
+  }
+  function foulRecoil(pl, df, a, kind) {
+    const dx = pl.x - df.x, dy = pl.y - df.y, fx = Math.cos(pl.face), fy = Math.sin(pl.face);
+    const side = dx * fy - dy * fx, fwd = dx * fx + dy * fy;
+    a.foulAt = G.time;
+    pl.foulRecoil = { at: G.time, side: Math.abs(side) > 0.08 ? Math.sign(side) : pl.arch.lefty ? -1 : 1, fwd: fwd > 0.15 ? 1 : -1,
+      fall: kind !== 'shot' && !a.thru && (a.cHit || a.cAir) };
+  }
+  function awardFreeThrows(id, pts, made, attempt) {
     const df = G.players[1 - id];
     G.stats[df.id].pf = (G.stats[df.id].pf || 0) + 1;
     G.ftTrips++; G.foulDrought = 0;
-    G.ft = { id, index: 1, total: made ? 1 : pts };
+    G.ft = { id, index: 1, total: made ? 1 : pts, and: made ? pts : 0 };
+    stopForFoul({ id, andOne: made ? pts : 0, contactAt: attempt.foulAt });
+  }
+  function stopForFoul(foul) {
     G.cel = null; G.hlQ = null;
+    G.ball.dead = true;
+    G.phase = 'foul';
+    G.foulStop = { ...foul, settled: 0 };
+  }
+  function presentDefensiveFoul(andOne) {
     sfx('foulWhistle');
-    vo(G.players[id], made ? 'foulAndOne' : 'foulShot', 'pri');
-    beginFreeThrow('投篮犯规');
+    vo(G.players[G.ft.id], andOne ? 'foulAndOne' : 'foulShot', 'pri');
+    beginFreeThrow('防守犯规');
+    G.banner.foul = true;
+  }
+  function finishFoulStop(dt) {
+    const F = G.foulStop;
+    if (G.players.some(p => p.z > 0 || p.vz > 0 || p.foulRecoil?.fall || (p.knock === 'fall' && p.knockT < 0.34))) {
+      F.settled = 0;
+      return;
+    }
+    F.settled += dt;
+    if (F.settled < 0.22) return;
+    G.foulStop = null;
+    if (F.charge) {
+      G.players[F.id].knock = null;
+      turnover(F.id, '进攻犯规', 'foulWhistle');
+      G.banner.foul = true;
+      vo(G.players[1 - F.id], 'foulCharge', 'pri');
+    } else {
+      if (F.andOne && G.vopt.replay && !PH.game.isOnline?.()) {
+        G.hlQ = { s: 200, t: G.lastMakeAt, pid: F.id, x: HOOP.x, y: HOOP.y, z: HOOP.z, andOne: F.andOne, contactAt: F.contactAt };
+        startReplay();
+      }
+      if (!G.replay) presentDefensiveFoul(!!F.andOne);
+    }
   }
   const FT_BOUNCE = 0.5, FT_DRIBBLES = 2, FT_PREP = FT_BOUNCE * FT_DRIBBLES;
   function freeThrowDip(F) {
@@ -2160,6 +2232,7 @@
       Object.assign(p, { vx: 0, vy: 0, vz: 0, z: 0, speed: 0, action: null, stun: 0, knock: null, blkR: null, stance: false, box: false, post: false, jbuf: 0, ib: null, buf: null, finQ: null, rsGesture: null, hasBall: p === pl, anim: 'idle', animT: 0 });
       delete p.pose.passHands;
       delete p.pose.ftHand;
+      p.foulRecoil = null;
     }
     Object.assign(pl, { x: HOOP.x, y: HOOP.y - 4.225, face: Math.PI / 2 });
     Object.assign(df, { x: HOOP.x + 2.75, y: HOOP.y - 1.75, face: Math.atan2(1.75, -2.75) });
@@ -2237,6 +2310,7 @@
       G.phase = 'dead'; G.phaseT = K.ftSetup;
       looseBall({ x: HOOP.x, y: HOOP.y, z: HOOP.z - 0.1 }, 0, -0.5, -3.2, s.shooter);
       b.dead = true; b.under = true;
+      if (s.made && F.and && G.mode !== 'train') { celStart(pl, null, F.and, 2, 'andone'); G.cel.ev = 'make'; }
     } else {
       G.phase = 'live';
       looseBall({ x: b.x, y: b.y, z: b.z }, rr(-1.2, 1.2), -rr(0.7, 2.1), rr(1.2, 2), s.shooter);
@@ -2937,13 +3011,13 @@
     if (df.action && df.action.type === 'block') { df.action.bst = st; df.action.hitT = df.action.t; }
     if (st === 'chase') {
       const S = df.arch.skill, gen = S && S.type === 'block', nm = gen ? S.name : '追身大帽';
-      float(nm, df, '#ffd24a', 1); sfx('block');
+      float(nm, df, '#ffd24a', 2); sfx('block');
       hype(3, df, { x: df.x, y: df.y, z: df.z + df.h, col: '#ffd24a', cols: ['#ffffff', '#ffd24a', '#ff6b5e'], led: gen ? S.en + '  ' + S.name : 'CHASE DOWN BLOCK  追身大帽  钉板', sfx: 'bigblock', hero: [nm, df.arch.name + ' · ' + (gen ? S.en : 'CHASE DOWN')] });
       return;
     }
     if (df.action && df.action.q > 0.85 && df.action.type === 'block') float('完美时机', df, '#ffe14d', 0);
     const perfect = df.action && df.action.q > 0.85;
-    float(pin ? '钉板大帽' : { swat: '大帽', catch: '抓帽', facial: '呼脸大帽', chase: '追身封盖' }[st], df, st === 'catch' ? '#5ee0ff' : '#ff6b5e', 1);
+    float(pin ? '钉板大帽' : { swat: '大帽', catch: '抓帽', facial: '呼脸大帽', chase: '追身封盖' }[st], df, st === 'catch' ? '#5ee0ff' : '#ff6b5e', 2);
     const tier = perfect || pin || st === 'facial' || st === 'chase' ? 2 : 1;
     bigPlay('block', df, hp.x, hp.y, hp.z, tier, (pin ? 15 : 0) + (perfect ? 8 : 0) + (st === 'facial' ? 12 : st === 'chase' ? 10 : st === 'catch' ? 6 : 0));
     if (st === 'facial') { shake(9); impactFx(sh.x, sh.y, true, 1.4); }
@@ -3103,7 +3177,7 @@
       const cd = ctDef(pl, df), cc = cd === df ? ci.c : contestOf(pl, cd, 'in');
       const w = clamp((cc - K.ctLayCapStart) / Math.max(0.05, K.ctLayCapSpan), 0, 1);
       const cap = clamp(K.ctLayCap + K.ctLayCapR * (r - 0.7) - K.ctLayCapD * (cd.r.intD - 0.6), K.smMin, 1);
-      prob = Math.min(prob, 1 - w * (1 - cap) - (heavyLay && !green ? K.ctLayLate * Math.min(1, ae) : 0));
+      prob = Math.min(prob, 1 - w * (1 - cap) - (heavyLay && !green ? K.ctLayLate * Math.min(1, ae) + K.ctLayVLate * clamp((ae - 0.5) / 0.5, 0, 1) : 0));
     }
     if (kind === 'shot' && !V.hook && !SK) {
       const cs = a.catchShot;
@@ -3117,12 +3191,15 @@
     prob = alleyProb(a, clamp((prob + info.uuBonus) * (1 - movePenalty), K.smMin, 1)); pl.uuShot = null; pl.postFakeCount = 0;
     if (heavyLay) {
       const cap = K.ctLayCap + K.ctLayCapR * (r - 0.7) - K.ctLayCapD * (cd.r.intD - 0.6) - K.ctLayCapB * (cd.r.blk - 0.6);
-      prob = Math.min(prob, clamp(cap + (green ? K.ctLayGreen : -K.ctLayLate * Math.min(1, ae)), K.smMin, 1));
+      prob = Math.min(prob, clamp(cap + (green ? K.ctLayGreen : -K.ctLayLate * Math.min(1, ae) - K.ctLayVLate * clamp((ae - 0.5) / 0.5, 0, 1)), K.smMin, 1));
     }
     if (a.softSkill) prob = Math.min(K.lgCap, prob + (a.skill === 'tmac' ? K.lgTmacBonus : K.lgRipBonus) * (1 - c));
     if (kind === 'lay' && (a.farLsv || a.lsv === 'far') && !SK) prob *= clamp(K.lvFarP + K.lvFarLay * (pl.r.lay - 0.75), 0.25, 1);
     const made = G.tips && G.tips.mk && pl.id === 0 ? true : rnd() < prob;
-    if (made && a.shootingFoul) { st.fga++; if (three) st.tpa++; if (kind === 'lay') st.ina++; }
+    if (a.shootingFoul) {
+      foulRecoil(pl, df, a, kind);
+      if (made) { st.fga++; if (three) st.tpa++; if (kind === 'lay') st.ina++; }
+    }
     const cl = SK ? '无视干扰' : c < 0.2 ? '空位' : c < 0.5 ? '轻微干扰' : '严重干扰';
     const tl = a.alley ? '自动终结' : green ? '完美' : e < 0 ? (ae > 0.5 ? '很早' : '稍早') : (ae > 0.5 ? '很晚' : '稍晚');
     const colr = a.alley ? '#ffd24a' : green ? '#7dff8a' : ae > 0.5 ? '#ff6b5e' : '#ffd24a';
@@ -3178,19 +3255,27 @@
   }
   // 被打的一方回嘴：等对方那句说完再接（嘴硬 / 甩锅 / 自嘲）
   function vic(pl, ev, p) { if (!pl || pl.off || rnd() > (p || 0.75)) return; setTimeout(() => vo(pl, ev, 'q'), 60); }
-  // 庆祝动作：按球员性格挑
+  // 庆祝动作分四档：普通 / 中等 / 高级三档通用动作按进球精彩度（hype 档位）挑，同档内优先挑球员性格常做的（CELS）；
+  // 最高档是球星招牌庆祝（SIG_CEL），只有这名球星会做：2+1、3+1、绝杀必出，三分按 K.celSig3 概率出
+  const CEL_TIERS = [['point', 'clap', 'fist'], ['flex', 'chest', 'shimmy'], ['robot', 'armwave', 'griddy']];
+  const CEL_LV_T = [1.3, 1.5, 2.1, 2.1];
+  const SIG_CEL = { curry: 'night', lillard: 'watch', lebron: 'crown' };
+  const SIG_LED = { night: 'NIGHT NIGHT  晚安', watch: 'DAME TIME  看表', crown: 'THE KING  戴王冠', chalk: 'CHALK TOSS  撒镁粉' };
   const CELS = { tmac: ['cool', 'point'], nash: ['point', 'shrug'], rip: ['point', 'cool'], curry: ['night', 'shimmy', 'shrug'], lebron: ['roar', 'chest', 'toosmall'], shaq: ['flex', 'roar', 'shimmy'], kobe: ['shush', 'cool', 'point'], luka: ['shrug', 'point', 'toosmall'], giannis: ['flex', 'roar', 'chest'], kyrie: ['shush', 'cool', 'dance'],
     maxey: ['dance', 'shimmy'], sengun: ['flex', 'shrug'], white: ['cool', 'point'], bridges: ['cool', 'shrug'], herb: ['wag', 'chest'], kessler: ['flex', 'roar'], dybantsa: ['toosmall', 'dance'], peterson: ['shimmy', 'point'], gafford: ['flex', 'roar'], joe: ['point', 'cool'], boozer: ['chest', 'flex'], dosunmu: ['dance', 'point'], flemings: ['shimmy', 'dance'], mara: ['roar', 'flex'], peat: ['flex', 'chest'], karaban: ['point', 'shrug'], delarrea: ['dance', 'shimmy'] };
   for (const p of RXP) { if (p.cel && p.cel.length) CELS[p.key] = p.cel; if (p.hz) HZ_SIG[p.key] = p.hz; if (p.face) FACE[p.key] = p.face; if (p.dpk) DPK_OF[p.key] = p.dpk; }
   const HURTS = ['head', 'hips', 'complain'];
-  function celStart(pl, kind, pts, big) {
-    const L = CELS[pl.arch.key] || ['flex', 'point', 'dance', 'shrug', 'chest'];
-    let ty = L[Math.floor(rnd() * L.length)];
-    if (kind === 'dunk' && rnd() < 0.5) ty = ['flex', 'roar', 'chest'][Math.floor(rnd() * 3)];
-    if (pts === 3 && pl.arch.key === 'curry' && rnd() < 0.6) ty = 'night';
-    const d0 = kind === 'dunk' ? 0.55 : 0.75;
-    G.cel = { id: pl.id, ty: ty, hurt: HURTS[Math.floor(rnd() * HURTS.length)], t0: G.time + d0, T: big ? 1.7 : 1.3, cz: false, big: big };
-    G.phaseT = Math.max(G.phaseT, d0 + (big ? 1.7 : 1.3) + 0.9);
+  function celPick(pl, lv, why, pts) {
+    const sig = SIG_CEL[pl.arch.key];
+    if (sig && (why === 'andone' || why === 'win' || (pts === 3 && rnd() < K.celSig3))) return { ty: sig, lv: 3 };
+    if (why === 'andone' || why === 'win') lv = 2;
+    const L = CEL_TIERS[clamp(lv | 0, 0, 2)], own = (CELS[pl.arch.key] || []).filter((t) => L.includes(t));
+    return { ty: own.length && rnd() < 0.6 ? own[Math.floor(rnd() * own.length)] : L[Math.floor(rnd() * L.length)], lv: lv };
+  }
+  function celStart(pl, kind, pts, lv, why) {
+    const c = celPick(pl, lv, why, pts), d0 = why === 'andone' ? 0.3 : kind === 'dunk' ? 0.55 : 0.75, T = CEL_LV_T[c.lv];
+    G.cel = { id: pl.id, ty: c.ty, lv: c.lv, hurt: HURTS[Math.floor(rnd() * HURTS.length)], t0: G.time + d0, T: T, cz: false, big: c.lv >= 2 };
+    G.phaseT = Math.max(G.phaseT, d0 + T + 0.9);
   }
   const celOn = () => G.cel && G.phase === 'dead' && G.time >= G.cel.t0 && G.time < G.cel.t0 + G.cel.T;
   function celTick() {
@@ -3198,8 +3283,10 @@
     if (G.phase !== 'dead' || G.time > C.t0 + C.T + 0.2) { G.cel = null; return; }
     if (!C.cz && G.time >= C.t0) {
       C.cz = true; const p = G.players[C.id], o = OP(G.players[C.id]);
-      if (G.mode !== 'demo' && G.vopt.close) G.cz = { x: (p.x * 2 + o.x) / 3, y: (p.y * 2 + o.y) / 3, z: 1.1, t: 0, T: C.T + 0.2, u: C.big ? 0.55 : 0.45 };
-      vo(p, C.ev === 'make' || (/^(dunk|three)$/.test(C.ev) && rnd() < 0.55) ? 'taunt' : C.ev, 'pri'); setTimeout(() => vo(o, C.vic || 'hurt', 'q'), 50);
+      if (G.mode !== 'demo' && G.vopt.close) G.cz = { x: (p.x * 2 + o.x) / 3, y: (p.y * 2 + o.y) / 3, z: 1.1, t: 0, T: C.T + 0.2, u: C.big ? 0.55 : 0.45, px: p.x, py: p.y };
+      if (C.lv === 3) { led(SIG_LED[C.ty] || ISIG_CN[C.ty], p.team.css, C.T + 0.4); spawnConfetti(36, [p.team.css, '#ffd24a', '#ffffff'], 'burst'); flash('#ffd24a', 0.12); G.fx.cheer = Math.max(G.fx.cheer, 3.2); }
+      else if (C.lv === 2) { spawnConfetti(18, [p.team.css, '#ffd24a', '#ffffff'], 'burst'); G.fx.cheer = Math.max(G.fx.cheer, 2.4); }
+      if (!C.quiet) { vo(p, C.ev === 'make' || (/^(dunk|three)$/.test(C.ev) && rnd() < 0.55) ? 'taunt' : C.ev, 'pri'); setTimeout(() => vo(o, C.vic || 'hurt', 'q'), 50); }
     }
   }
   function celInput(p, inp) {
@@ -3209,8 +3296,13 @@
     return o;
   }
   // 开场入场：双方从两侧边线走到开球站位 → 主角依次做招牌动作（镜头推近）→ 对话框互相垃圾话，空格 / 点击下一句，Esc 跳过
-  const ISIG = { lebron: 'chalk', curry: 'night', kobe: 'cool', shaq: 'flex', ginobili: 'step', iverson: 'cool', carter: 'flex', giannis: 'roar', luka: 'shrug', kyrie: 'shush', herb: 'wag', barkley: 'flex', yao: 'cool', mutombo: 'wag' };
-  const ISIG_CN = { step: '脚步点名', chalk: '撒镁粉', night: '晚安手势', shimmy: '抖肩', flex: '秀肌肉', roar: '仰天怒吼', chest: '捶胸', toosmall: 'Too Small', shush: '嘘声', cool: '抱臂冷视', point: '隔空点名', dance: '尬舞', shrug: '耸肩', wag: '摇手指' };
+  // 进场动作分四档：普通 / 中等 / 高级按球员档位（arch.tier：avg·rook / mid / star），最高档是只有这名球星才有的招牌进场（ISIG）
+  const ISIG = { lebron: 'chalk', curry: 'night', lillard: 'watch', mutombo: 'wag', ginobili: 'step' };
+  const INTRO_TIERS = [['wave', 'clap', 'fist'], ['raise', 'flex', 'chest'], ['hype', 'salute', 'spread']];
+  const introLv = (p) => ISIG[p.arch.key] ? 3 : p.arch.tier === 'star' ? 2 : p.arch.tier === 'mid' ? 1 : 0;
+  const INTRO_FX = [{ n: 6, cheer: 1.4, fl: 0 }, { n: 12, cheer: 1.8, fl: 0 }, { n: 22, cheer: 2.4, fl: 0.06 }, { n: 34, cheer: 3, fl: 0.1 }];
+  const ISIG_CN = { step: '脚步点名', chalk: '撒镁粉', night: '晚安手势', watch: '看表', crown: '戴王冠', shimmy: '抖肩', flex: '秀肌肉', roar: '仰天怒吼', chest: '捶胸', toosmall: 'Too Small', shush: '嘘声', cool: '抱臂冷视', point: '隔空点名', dance: '尬舞', shrug: '耸肩', wag: '摇手指',
+    wave: '挥手致意', salute: '敬礼致意', clap: '拍手', fist: '握拳', raise: '双臂高举', hype: '振臂煽动', spread: '展翅', robot: '机械舞', armwave: '电流波浪', griddy: '格里迪舞' };
   // 宿敌台词：[说话人, 语音事件, 序号] 全部走各球员原声语音包并同步显示对应字幕
   const TALK = {
     'kobe|tmac': [['tmac', 'dom', 0], ['kobe', 'taunt', 0], ['tmac', 'taunt', 0]],
@@ -3227,10 +3319,11 @@
     'kobe|kyrie': [['kyrie', 'taunt', 0], ['kobe', 'taunt', 0], ['kyrie', 'taunt', 3]] };
   // 入场走位时的造势动作（上半身），走到位后再做招牌动作
   const IWALK = { lebron: ['raise', 'wave'], curry: ['wave', 'shimmy'], kobe: ['wave', 'point'], shaq: ['raise', 'dance'], ginobili: ['point', 'wave'], iverson: ['cool', 'point'], carter: ['raise', 'flex'], giannis: ['chest', 'flex'], luka: ['wave', 'wag'], kyrie: ['point', 'wave'], herb: ['flex', 'chest'] };
-  Object.assign(ISIG, { tmac: 'cool', nash: 'point', rip: 'point' });
   Object.assign(IWALK, { tmac: ['wave', 'point'], nash: ['wave', 'point'], rip: ['point', 'wave'] });
   const IWA = 3.8;
-  Object.assign(ISIG, { rodman: 'shrug', bwallace: 'flex', rallen: 'cool' });
+  const IVO_WAIT = 8, IVO_LOAD = 20;
+  const introVoEnabled = () => PH.audio?.voOn !== false && PH.audio?.sfxOn !== false;
+  const introVoUntil = (I, dur, started) => Math.max(performance.now() + Math.max(IVO_WAIT, (Number.isFinite(dur) ? dur : 0) + 2) * 1000, started ? 0 : I.voLoadUntil || 0);
   Object.assign(IWALK, { rodman: ['wag', 'shrug'], bwallace: ['raise', 'flex'], rallen: ['wave', 'cool'] });
   // 非宿敌对局：按双方最强项套模板开场 + 回呛，最后用语音包里的真实嘲讽收尾
   const TSTAT = {
@@ -3289,13 +3382,21 @@
     const spots = ps.map((p) => ({ p: p, x: p.x, y: p.y, face: p.face }));
     spots.forEach((s, i) => { const sd = TM(s.p) === 0 ? -1 : 1; if (s.p.pose) delete s.p.pose.passHands; Object.assign(s.p, { x: sd * 7.1, y: clamp(s.y + 1.4 + (i % 3) * 0.35, 0.5, 12.5), face: sd < 0 ? 0 : Math.PI, vx: 0, vy: 0, speed: 0 }); });
     const t0 = G.time;
-    const sigOf = (p) => ISIG[p.arch.key] || (CELS[p.arch.key] || ['flex'])[0], walk = [];
-    for (const s of spots) { const p = s.p, star = p === fa || p === fb; s.w0 = t0 + (TM(p) === TM(fa) ? 0 : IWA); s.w1 = s.w0 + IWA;
-      (star ? [(IWALK[p.arch.key] || ['wave'])[0], sigOf(p)] : ['wave']).forEach((ty, j) => walk.push({ id: p.id, ty: ty, t0: s.w0 + (star ? 0.3 + j * 1.75 : 0.9 + (p.id % 3) * 0.3), T: 1.6, fx: false, sig: star && j === 1, vo: star && j === 0, voAt: s.w0 + (p === fa ? 0.25 : 0), voDone: false })); }
+    const walk = [];
+    for (const s of spots) { const p = s.p, star = p === fa || p === fb, lv = introLv(p), L = INTRO_TIERS[Math.min(lv, 2)], ent = lv === 3 ? ISIG[p.arch.key] : L[Math.floor(rnd() * L.length)];
+      let pre = (IWALK[p.arch.key] || ['wave'])[0]; if (pre === ent) pre = ent === 'wave' ? 'raise' : 'wave';
+      s.w0 = t0 + (TM(p) === TM(fa) ? 0 : IWA); s.w1 = s.w0 + IWA;
+      (star ? [pre, ent] : [ent]).forEach((ty, j) => { const main = !star || j === 1; walk.push({ id: p.id, ty: ty, lv: main ? lv : -1, t0: s.w0 + (star ? 0.3 + j * 1.75 : 0.9 + (p.id % 3) * 0.3), T: 1.6, fx: false, sig: star && j === 1, vo: star && j === 0, voAt: s.w0 + (p === fa ? 0.25 : 0), voDone: false }); }); }
+    walk.sort((a, b) => a.voAt - b.voAt);
     const foc0 = { x: fa.x, y: fa.y, u: G.mode === 't3' ? 0.08 : 0.3, mode: 'walk', snap: true };
-    if (PH.audio && PH.audio.voPreload) PH.audio.voPreload([fa.arch.key, fb.arch.key]);
+    const ready = introVoEnabled() ? PH.audio?.voPreload?.([fa.arch.key, fb.arch.key], true) : null;
     G.intro = { t0: t0, duo: [fa.id, fb.id], walk: walk, spots: spots, lines: lines, li: -1, lt: 0, ld: 0, tT: t0 + 2 * IWA + 0.15, cam: foc0, foc: foc0, banner: G.banner, phaseT: G.phaseT,
-      sig: [], confettiT: 0, usedVo: new Set() };
+      sig: [], confettiT: 0, usedVo: new Set(), loadUntil: performance.now() + IVO_WAIT * 1000, voLoadUntil: performance.now() + IVO_LOAD * 1000 };
+    if (ready?.then) {
+      const I = G.intro; I.loading = true;
+      const timer = setTimeout(() => { I.loading = false; }, IVO_WAIT * 1000);
+      ready.then(() => { I.loading = false; clearTimeout(timer); }, () => { I.loading = false; clearTimeout(timer); });
+    }
     G.cz = null; G.cutin = null; G.phase = 'intro';
   }
   const introSig = (pl) => { const I = G.intro; if (!I) return null; for (const S of I.sig) if (S.id === pl.id && G.time >= S.t0 && G.time < S.t0 + S.T) return S; return null; };
@@ -3309,9 +3410,17 @@
   function introCam(p, u) { const I = G.intro; I.cam = p ? { x: p.x, y: p.y, u: u } : null; }
   function introTick(dt) {
     const I = G.intro; if (!I || G.state !== 'play') return;
+    if (I.waitPeers) { introEnd(false); return; }
     G.cutin = null; fxUpdate(dt); G.time += dt;
     if (G.banner) { G.banner.t += dt; if (G.banner.t > G.banner.dur) G.banner = null; }
     const now = G.time;
+    if (!introVoEnabled() || performance.now() >= I.loadUntil) I.loading = false;
+    const W = I.voWait;
+    if (W && (!introVoEnabled() || performance.now() >= W.until)) {
+      W.expired = true; I.voWait = null; I.walkWait = false; I.walkUntil = 0;
+      if (I.lines[I.li] === W.line) { W.line.waitVo = false; I.ld = 0; }
+      PH.audio?.voStop?.();
+    }
     for (const s of I.spots) {
       const p = s.p, inp = zeroInp(), dx = s.x - p.x, dy = s.y - p.y, d = Math.hypot(dx, dy);
       if (d > 0.12 && now >= s.w0) { const v = d / Math.max(0.35, s.w1 - 0.35 - now), k = Math.min(1, d / 0.9) * clamp(v / 4.4, 0.22, 0.85); inp.mx = dx / d * k; inp.my = dy / d * k; }
@@ -3319,12 +3428,40 @@
     }
     updateBall(dt);
     if (I.li < 0) for (const S of I.walk) {
-      if (S.vo && !S.voDone && now >= (S.voAt != null ? S.voAt : S.t0)) { S.voDone = true; const p = plById(S.id); if (G.mode !== 'demo' && PH.audio && PH.audio.vo) { const speak = () => { if (G.intro !== I || I.li >= 0) return true; const it = PH.audio.vo(p.arch.key, 'walk', 'pri'); if (it && it.f) I.usedVo.add(it.f); if (it && it.d && p.id === I.duo[1]) I.tT = Math.max(I.tT, G.time + it.d + 0.2); return it; }; if (!speak() && PH.audio.voWhenReady) PH.audio.voWhenReady(speak); } }
+      if (S.vo && !S.voDone && !I.loading && !I.walkWait && now >= (I.walkUntil || 0) && now >= (S.voAt != null ? S.voAt : S.t0)) {
+        S.voDone = true; const p = plById(S.id);
+        if (G.mode !== 'demo' && introVoEnabled() && PH.audio?.vo) {
+          const W = I.voWait = { line: S, until: introVoUntil(I) };
+          const finish = () => { if (!W.expired && I.voWait === W) { I.voWait = null; I.walkWait = false; } };
+          const speak = () => {
+            if (W.expired || G.intro !== I || I.li >= 0) return true;
+            I.walkWait = true;
+            let it;
+            it = PH.audio.vo(p.arch.key, 'walk', 'pri', (dur, ended) => {
+              if (W.expired || G.intro !== I || I.li >= 0) return;
+              if (dur > 0 && it?.f) I.usedVo.add(it.f);
+              W.until = introVoUntil(I, dur, true);
+              I.walkUntil = G.time + dur; I.walkWait = !!ended;
+              if (ended) ended.then(finish, finish); else finish();
+            });
+            W.until = introVoUntil(I, it?.d);
+            if (!it?.pending) {
+              I.walkWait = false;
+              if (it) { finish(); if (it.f) { I.usedVo.add(it.f); I.walkUntil = G.time + (it.d || 0); } }
+            }
+            return it;
+          };
+          if (!speak() && PH.audio.voWhenReady) {
+            I.walkWait = true;
+            PH.audio.voWhenReady((ok) => { if (W.expired) return; I.walkWait = false; if (ok !== false) speak(); else finish(); });
+          }
+        }
+      }
       if (S.ty === 'chalk' && !S.fx && now >= S.t0 + 0.42) { S.fx = true; const p = plById(S.id); burst(p.x, p.y, p.h + 0.45, 70, ['#ffffff', '#f4f1e8', '#e2ded2', '#fffbe9'], 2.3, 1.7, 1.1, 2); spawnConfetti(28, [p.team.css, '#ffd24a', '#ffffff'], 'burst'); }
-      else if (S.sig && !S.fx && now >= S.t0 + 0.35) { S.fx = true; const p = plById(S.id); spawnConfetti(26, [p.team.css, '#ffd24a', '#ffffff', '#ff8a2a'], 'burst'); flash('#ffffff', 0.08); G.fx.cheer = Math.max(G.fx.cheer, 2.6); }
+      else if (S.lv >= 0 && !S.fx && now >= S.t0 + 0.35) { S.fx = true; const p = plById(S.id), X = INTRO_FX[S.lv]; spawnConfetti(X.n, [p.team.css, '#ffd24a', '#ffffff', '#ff8a2a'], 'burst'); if (X.fl) flash('#ffffff', X.fl); G.fx.cheer = Math.max(G.fx.cheer, X.cheer); if (S.lv === 3 && SIG_LED[S.ty]) led(SIG_LED[S.ty], p.team.css, 2.2); }
     }
     const curL = I.li >= 0 ? I.lines[I.li] : null;
-    if (I.li < 0 ? now >= I.tT : (!curL || !curL.waitVo || now - I.lt >= 4) && now >= I.lt + I.ld) introNext();
+    if (I.li < 0 ? !I.loading && !I.walkWait && now >= (I.walkUntil || 0) && I.walk.every((S) => !S.vo || S.voDone) && now >= I.tT : (!curL || !curL.waitVo) && now >= I.lt + I.ld) introNext();
     if (!G.intro) return;
     const A = plById(I.duo[0]), B2 = plById(I.duo[1]), mid = { x: (A.x + B2.x) / 2, y: (A.y + B2.y) / 2 };
     const sh = I.li < 0 ? (now < I.t0 + IWA ? A : B2) : null;
@@ -3334,7 +3471,7 @@
       if (I.confettiT <= 0) { I.confettiT = 0.14; spawnConfetti(7, [sh.team.css, '#ffd24a', '#ffffff', '#5ee0ff', '#ff6b5e'], 'shower'); }
       if (I.shot !== sh.id) {
         I.shot = sh.id; I.snap = true;
-        banner(sh.arch.full, '入场 · ' + (ISIG_CN[(I.walk.find((S) => S.id === sh.id && S.ty === (ISIG[sh.arch.key] || S.ty)) || {}).ty] || '登场'), sh.team.css, 2.6);
+        banner(sh.arch.full, '入场 · ' + (ISIG_CN[(I.walk.find((S) => S.id === sh.id && S.lv >= 0) || {}).ty] || '登场'), sh.team.css, 2.6);
         led('NOW ENTERING  ' + sh.arch.full + '  震撼登场', sh.team.css, IWA);
         G.fx.cheer = 3.2; flash(sh.team.css, 0.12);
         spawnConfetti(48, [sh.team.css, '#ffd24a', '#ffffff', '#ff8a2a'], 'cannon');
@@ -3349,30 +3486,42 @@
   }
   function introNext() {
     const I = G.intro; if (!I) return;
+    if (I.voWait) { I.voWait.expired = true; I.voWait = null; PH.audio?.voStop?.(); }
     if (I.li < 0 && G.time < I.tT) { for (const s of I.spots) Object.assign(s.p, { x: s.x, y: s.y, vx: 0, vy: 0, speed: 0 }); for (const S of I.sig) { S.on = true; S.fx = true; S.t0 = -99; } for (const S of I.walk) { S.fx = true; S.voDone = true; } G.banner = null; I.snap = true; }
     I.li++;
-    if (I.li >= I.lines.length) { introEnd(); return; }
+    if (I.li >= I.lines.length) { introEnd(false); return; }
     const L = I.lines[I.li], p = plById(L.id);
     if (L.v) {
+      const W = { line: L, until: introVoUntil(I) };
+      if (introVoEnabled()) I.voWait = W;
+      const finish = () => { if (!W.expired) { L.waitVo = false; if (I.voWait === W) I.voWait = null; } };
       const sayVo = () => {
-        if (!G.intro || G.intro.lines[G.intro.li] !== L) return false;
+        if (W.expired || G.intro !== I || I.lines[I.li] !== L) return false;
         const ev = L.pref && PH.audio?.voHas?.(p.arch.key, L.pref) ? L.pref : L.v;
         const it = PH.audio && PH.audio.voLine ? PH.audio.voLine(p.arch.key, ev, ev === L.pref ? 0 : L.i, G.intro.usedVo) : null;
         if (!it) return false;
-        if (it.f && G.intro.usedVo) G.intro.usedVo.add(it.f);
         L.t = it.t; L.d = it.d;
+        W.until = introVoUntil(I, L.d);
         G.intro.ld = Math.max(clamp(0.8 + L.t.length * 0.1, 1.9, 4.5), (L.d || 0) + 0.55);
+        if (!introVoEnabled()) { finish(); return true; }
         if (G.mode !== 'demo') {
-          const pending = PH.audio.voSay(it, (playDur) => {
-            if (!G.intro || G.intro.lines[G.intro.li] !== L) return;
-            L.waitVo = false;
-            if (playDur > 0) { G.intro.lt = G.time; G.intro.ld = Math.max(clamp(0.8 + L.t.length * 0.1, 1.9, 4.5), playDur + 0.55); }
+          const pending = PH.audio.voSay(it, (playDur, ended) => {
+            if (W.expired || G.intro !== I || I.lines[I.li] !== L) return;
+            L.waitVo = !!ended;
+            W.until = introVoUntil(I, playDur, true);
+            if (ended) ended.then(finish, finish); else finish();
+            if (playDur > 0) { G.intro.usedVo.add(it.f); G.intro.lt = G.time; G.intro.ld = Math.max(clamp(0.8 + L.t.length * 0.1, 1.9, 4.5), playDur + 0.55); }
           });
           if (pending === true) L.waitVo = true;
+          else if (pending === false) return false;
+          else { finish(); if (it.f) G.intro.usedVo.add(it.f); }
         }
         return true;
       };
-      if (!sayVo() && PH.audio && PH.audio.voWhenReady) PH.audio.voWhenReady(sayVo);
+      if (!sayVo() && introVoEnabled() && PH.audio?.voWhenReady) {
+        L.waitVo = true;
+        PH.audio.voWhenReady((ok) => { if (ok === false || !sayVo()) finish(); });
+      }
     }
     if (!L.t) L.t = L.fb || (L.v === 'dom' ? '别急，看看最后谁笑。' : '今天这场，我拿下了！');
     L.done = false; I.lt = G.time; I.ld = Math.max(clamp(0.8 + L.t.length * 0.1, 1.9, 4.5), (L.d || 0) + 0.55);
@@ -3383,8 +3532,10 @@
     if (L && !L.done && (G.time - I.lt) * 30 < L.t.length) { L.done = true; return; }
     introNext();
   }
-  function introEnd() {
+  function introEnd(explicit = true) {
     const I = G.intro; if (!I) return;
+    if (PH.game.introEndGate?.(explicit) === false) { I.waitPeers = true; I.li = Math.min(I.li, I.lines.length - 1); return; }
+    if (I.voWait) I.voWait.expired = true;
     for (const s of I.spots) Object.assign(s.p, { x: s.x, y: s.y, face: s.face, vx: 0, vy: 0, speed: 0 });
     G.intro = null; G.cz = null; G.phase = 'check'; G.phaseT = I.phaseT;
     if (G.fx && G.fx.confetti) G.fx.confetti.length = 0;
@@ -3410,10 +3561,10 @@
     if (pl.arch.skill && pl.arch.skill.id === 'curry' && pts === 3 && !lsk) { pl.sk.streak++; if (pl.sk.streak >= 2 && pl.sk.cd <= 0) pl.sk.ready = true; }
     tkAdd(pl, 13 + 4 * (pts - 2) + 4 * Math.min(3, G.streak[id] || 0)); tkAdd(OP(G.players[id]), -4);
     const andOne = !!(attempt ?? pl.action)?.shootingFoul;
-    const oppS = G.score[1 - id], win = !andOne && !train && winsWith(id, pts), buzzer = win && (oppS >= G.target - 2 || G.sd || (G.glen > 0 && G.gclock <= 2));
+    const oppS = G.score[1 - id], win = !andOne && !train && (winsWith(id, pts) || (G.glen > 0 && G.gclock <= 0 && G.score[id] + pts > oppS)), buzzer = win && (oppS >= G.target - 2 || G.sd || (G.glen > 0 && G.gclock <= 2));
     if (!train) { G.score[id] += pts; { const o2 = G.stats[1 - id]; st.lead = Math.max(st.lead, G.score[id] - G.score[1 - id]); st.runC += pts; o2.runC = 0; st.run = Math.max(st.run, st.runC); } G.phase = 'dead'; G.phaseT = win ? 2.6 : 1.7; }
     const hot = G.streak[id] >= K.hcHotN;
-    const title = kind === 'dunk' ? (name || '暴扣得分') : name === '空接上篮' ? name : pts === 3 ? '三分' : (name && name !== '定点跳投' ? name : '两分');
+    const title = andOne ? (pts === 3 ? '三加一' : '二加一') : kind === 'dunk' ? (name || '暴扣得分') : name === '空接上篮' ? name : pts === 3 ? '三分' : (name && name !== '定点跳投' ? name : '两分');
     banner(title, (train ? '' : t.name + ' +' + pts) + (hot ? (train ? '' : ' · ') + '连中 ' + G.streak[id] + ' 球' : ''), t.css, train ? 0.9 : 1.4);
     sfx(kind === 'dunk' ? 'dunk' : 'swish');
     const F = G.fx, hx = HOOP.x, hy = HOOP.y, hz = HOOP.z, pa = pl.action;
@@ -3436,8 +3587,11 @@
     const poster = kind === 'dunk' && (/隔人/.test(name || '') || (pa && pa.v === 'poster' && pa.edge != null && !OP(G.players[id]).off && Math.hypot(OP(G.players[id]).x - pl.x, OP(G.players[id]).y - pl.y) < 1.6));
     const ev = win || clutch ? 'clutch' : poster ? 'poster' : hot && G.streak[id] === 3 ? 'hot' : kind === 'dunk' ? 'dunk' : pts === 3 ? 'three' : 'make';
     G.cel = null;
-    if (!andOne && !train && G.mode !== 'train' && !win && (tier >= 1 || hot || lsk || rnd() < 0.4)) { celStart(pl, kind, pts, tier >= 2 || !!lsk); G.cel.ev = ev; G.cel.vic = poster ? 'posterized' : null; }
-    else if (!win) { vo(pl, ev); if (poster) vic(OP(G.players[id]), 'posterized'); }
+    // 每个进球都庆祝并推近镜头；普通两分里原来不庆祝的那些（loud=false）只说原来那句台词，不加对手回嘴
+    const cel = !andOne && !train && G.mode !== 'train', loud = cel && (win || tier >= 1 || hot || lsk || rnd() < 0.4);
+    if (cel) { celStart(pl, kind, pts, lsk ? 2 : Math.max(Math.min(tier, 2), hot ? 1 : 0), win ? 'win' : null); G.cel.ev = ev; G.cel.vic = poster ? 'posterized' : null; G.cel.quiet = !loud; }
+    if (loud) return;
+    if (!win) { vo(pl, ev); if (poster) vic(OP(G.players[id]), 'posterized'); }
     else vo(pl, 'clutch', 'pri');
   }
 
@@ -3714,7 +3868,7 @@
     const adv = 0;
     // 扣篮起跳距离：扣篮能力 × 爆发（弹跳/速度/加速），体重越大越难远距离起飞
     const ath = 0.6 * (pl.r.leap || pl.r.vert) + 0.25 * pl.r.spd + 0.15 * pl.r.acc, dR = dunkR(pl, run), dk = clamp((dR - 0.5) / 0.5, 0, 1);
-    const reach0 = dR < 0.5 ? 0 : clamp(K.dunkBase + K.dunkAth * dk * Math.pow(ath, 1.5) * (0.4 + 0.6 * run) + (pl.h - 1.95) * 1.2 - heavy * 0.6 + ba(pl, 'launch', K.bgLaunch) - 0.9 * fat(pl), K.dunkMin, K.dunkMax);
+    const reach0 = dR < 0.5 ? 0 : clamp(K.dunkBase + K.dunkAth * Math.pow(dk, K.dunkAthPow) * Math.pow(ath, 1.5) * (0.4 + 0.6 * run) + (pl.h - 1.95) * 1.2 - heavy * 0.6 + ba(pl, 'launch', K.bgLaunch) - 0.9 * fat(pl), K.dunkMin, K.dunkMax);
     const tko = d - K.stepN * L;
     const inside = pl.y < HOOP.y + 0.3 && (d > 0.45 || !!aerial);
     const back = pl.y >= HOOP.y + 0.3 && d > 0.45 && d < 6;
@@ -3789,8 +3943,9 @@
       const tempo = K.euroTempo * lerp(1.1, 0.95, clamp((pl.r.spd + pl.r.acc) / 2, 0, 1));
       const beat = K.euroBeat * tempo, euroT = (len) => sT(len) * tempo;
       const w = clamp(s * 0.75, 0.55, 1.0);
-      push(x + h.x * s * 0.75 + lx * eS * w, y + h.y * s * 0.75 + ly * eS * w, euroT(s) + (GATHER_T + 0.02) * tempo + beat, 0.1, eS > 0 ? 'L' : 'R');
-      wp[0].hold = beat;
+      const f1 = K.euroStep1;
+      push(x + h.x * s * 0.75 + lx * eS * w, y + h.y * s * 0.75 + ly * eS * w, (euroT(s) + (GATHER_T + 0.02) * tempo + beat) * f1, 0.1, eS > 0 ? 'L' : 'R');
+      wp[0].hold = beat * f1;
       const d1 = Math.hypot(HOOP.x - x, HOOP.y - y), s2 = clamp(d1 - K.euroD, 0.6, P.L * 1.05);
       push(x + h.x * s2 * 0.8 - lx * eS * w * 1.25, y + h.y * s2 * 0.8 - ly * eS * w * 1.25, euroT(s2) + 0.04 * tempo, 0.1, eS > 0 ? 'R' : 'L');
     } else {
@@ -4561,7 +4716,7 @@
     } else { pl.uuShot = null; pl.uuFake = null; }
     // 连续过人越往后越累：每多一招、每接上一段都加价；运球如丝 / 脚踝终结者 只让加出来的那部分放缓
     const chainX = (1 + K.cbStep * (pl.combo - 1)) * (1 + K.cbCost * pl.dcn) - 1, chainBg = Math.max(0, Math.min(bk(pl, 'tight', K.bgChainSt), bk(pl, 'ankle', K.bgChainSt)));
-    spendStamina(pl, CFG.moveCost * M.cost * (CBk ? 1.3 : 1) * (1 + chainX * chainBg) * bk(pl, 'tight', K.bgTightSt) * (tkIs(pl, 'hnd') ? 0.4 : 1) * stamK(pl)); pl.animT = 0; pl.cd = (MT + lerp(0.2, 0.02, clamp((hnd - 0.4) / 0.55, 0, 1))) * (ptIs(pl, 'playmaker') ? 0.9 : 1); pl.boost = kind === 'hesi' ? MT + 0.7 : 0.75;
+    spendStamina(pl, CFG.moveCost * M.cost * (CBk ? 1.3 : 1) * (1 + chainX * chainBg + (isPostMove(kind) ? 0 : K.mvHndSt * lowHnd(hnd))) * bk(pl, 'tight', K.bgTightSt) * (tkIs(pl, 'hnd') ? 0.4 : 1) * stamK(pl)); pl.animT = 0; pl.cd = (MT + lerp(0.2, 0.02, clamp((hnd - 0.4) / 0.55, 0, 1))) * (ptIs(pl, 'playmaker') ? 0.9 : 1); pl.boost = kind === 'hesi' ? MT + 0.7 : 0.75;
     pl.lastMove = kind; pl.lastMv = mvx || kind; pl.lastMoveT = G.time; pl.post = false;
     pl.sk.probe = G.time;
     pl.postMove = isPostMove(kind) ? { kind: kind, t: G.time + MT, bite: false, side: Math.sign(dx * -hy + dy * hx) || openS } : null;
@@ -4609,7 +4764,7 @@
       let bite = !!kySk; const k = (ptIs(df, 'lockdown') ? 0.9 : 1) * rdK * Math.pow(M.bite, K.akPkW) * (CBk ? Math.pow(CBk.bite, K.akCbW) : 1) * (rep ? K.akRep : 1) * (1 + K.akCombo * (pl.combo - 1)) * CFG.ankle * (PS ? 1 : bk(pl, 'ankle', K.akBdg)) * (PS ? 1 : bk(df, 'clamps', K.akClamp)) * (PS ? clamp(1 + 0.9 * pAdv, 0.5, 1.6) * (hasB(df, 'brick') ? 0.6 : 1) : K.akDef0 - K.akDef * df.r.def) * (1 - K.akPred * pred) * (1 - K.akFat * fat(pl)) * (1 + K.akFatD * fat(df)) * (1 - K.akAgD * (agil(df) - 0.5)) * (PS ? 1 : K.akHnd0 + K.akHnd * (X && X.str ? pl.r.str : hnd)) * (tkIs(pl, 'hnd') ? K.akTk : 1) * (PS ? PS.bite * (1.15 - 0.45 * df.r.intD) : 1)
         * (X && !CBk ? X.sit({ dd: dd, toMe: toMe, reach: !!(df.action && df.action.type === 'steal'), pw: Math.log(bodyPow(pl) / bodyPow(df)) }) : 1);
       if (rnd() < (PS ? Math.min(k * distF * Math.pow(mis, K.akMisW) * K.akMul, PS.cap * (1.2 - 0.5 * df.r.intD)) : k * distF * Math.pow(mis, K.akMisW) * K.akMul)) bite = true;
-      if (df.action && df.action.type === 'steal') { bite = true; mis = 1; }
+      if (df.action && df.action.type === 'steal' && (PS || rnd() >= K.akReachH * lowHnd(hnd))) { bite = true; mis = 1; }
       if (!bite && rdK < K.akReadK && dd < K.akReadD) { float('读到了', df, '#9aa3c0'); df.sqv = (df.sqv || 0) - 2.5; }
       df.biteMis = mis * (1 - K.akBmD + K.akBmD * distF);
       if (bite) {
@@ -4618,8 +4773,8 @@
           : (kind === 'hesi' ? K.akHesi : K.akCross + K.akCrossH * pl.r.hnd) * (df.stance ? K.akStS : 1) * (1 + K.akComboS * (pl.combo - 1)) * bk(pl, 'ankle', K.akBdgS) * (CBk ? CBk.stun : 1) * CFG.stunMul;
         // 四档：晃开（重心偏移）→ 晃晕（踉跄冒星）→ 晃飞（扑空转圈）→ 晃倒（坐地）
         const pw = df.stun * rr(1 - K.akPwR, 1 + K.akPwR) * (K.akPw0 + K.akPwM * df.biteMis) * (kySk ? K.akKyPw : 1) * (PS && !PS.dream ? 0.85 : 1);
-        const fallAt = K.akT3 + (PS || kySk ? 0 : K.akT3H * clamp((0.9 - hnd) / 0.2, 0, 1));
-        let tier = kind === 'hesi' && pw < K.akT1h ? 'off' : pw < K.akT1 ? 'off' : pw < K.akT2 ? 'daze' : pw < fallAt ? 'spin' : 'fall';
+        const lowH = PS || kySk ? 0 : lowHnd(hnd), fallAt = K.akT3 + K.akT3H * lowH, tH = K.akTH * lowH;
+        let tier = kind === 'hesi' && pw < K.akT1h + tH ? 'off' : pw < K.akT1 + tH ? 'off' : pw < K.akT2 + tH ? 'daze' : pw < Math.max(fallAt, K.akT2 + tH) ? 'spin' : 'fall';
         if (PS && !PS.dream && (tier === 'spin' || tier === 'fall')) tier = pAdv > 0.3 && tier === 'fall' ? 'spin' : 'daze';
         if (PS) scoutRec(pl, 'postspin', tier === 'off' ? 0.25 : 0.5);
         df.stunK = tier; df.stun *= tier === 'off' ? K.akOffM : tier === 'daze' ? K.akDazeM : tier === 'spin' ? K.akSpinM : K.akFallM; if (tier === 'fall') df.stun = Math.max(df.stun, K.akFallMin); if (kySk) df.stun = K.akKyStun;
@@ -4928,7 +5083,7 @@
           if (!a.postOrigin && hT < a.fkT && pl.ctrl !== 'cpu') { pumpFake(pl, 0.15, true); pl.vz = Math.min(pl.vz, -1.5); pl.vx *= 0.3; pl.vy *= 0.3; return; }
           releaseJumpShot(pl, clamp((a.t - TI) / 0.2, -1, 1));
         } else if (a.t > TI + 0.22) releaseJumpShot(pl, 1);
-      } else if (pl.z <= 0 && a.t > (a.jT || K.shotJump) + 0.2) pl.action = null;
+      } else if (pl.z <= 0 && a.t > (a.jT || K.shotJump) + 0.2) { pl.action = null; if (a.jumped) landRecover(pl); }
     } else if (a.type === 'fake') {
       if (a.jf && pl.z > 0) pl.vz = Math.min(pl.vz, -1.5); // 起跳假投：压着落地，0.12–0.18 秒收势
       if (pl.uuFake) pl.uuFake.until = G.time + K.uuWin;
@@ -4978,7 +5133,7 @@
           // V4.3 扣篮对抗：差值用 finEdge（力量 / 扣篮 / 弹跳 / 体重 / 起跳速度 / 徽章 / 疲劳 对 盖帽 / 内防 / 臂展 / 弹跳 / 力量 / 站位时机）
           const dR = dunkR(pl, a.run0 || 0), edge = df.off ? 1 : finEdge(pl, df, a, true);
           const flashy = a.v === 'windmill' || a.v === '360' || a.v === 'cock' || a.v === 'cradle' || a.v === 'pump' || a.v === 'scissor', vk = flashy ? K.dkFlyK : a.v === 'two' || a.v === 'rimpull' || a.v === 'shaq' ? K.dkPowK : 1;
-          const prob0 = SK ? 1 : clamp(K.dkP0 + K.dkPR * dR - (flashy ? K.dkPFly : 0) - K.ctDkP * c * vk * clamp(K.dkC0 - K.dkCE * edge, 0.05, 1.3) - heavyD - (a.bodyPen ? a.bodyPen + K.dkBodyD * clamp(distHoop(pl) - 1, 0, 1.5) : 0) - (pl.stam < ST.layLow ? K.dkLowSt : 0), K.dkMin, K.dkMax);
+          const prob0 = SK ? 1 : clamp(K.dkP0 + K.dkPR * dR - (flashy ? K.dkPFly : 0) - K.ctDkP * (c + K.dkCWeak * lowHnd(dR) * Math.max(0, c - K.dkCWeakC)) * vk * clamp(K.dkC0 - K.dkCE * edge, Math.min(1.3, lerp(0.05, K.dkCLo, lowHnd(dR))), 1.3) - heavyD - (a.bodyPen ? a.bodyPen + K.dkBodyD * clamp(distHoop(pl) - 1, 0, 1.5) : 0) - (pl.stam < ST.layLow ? K.dkLowSt : 0), K.dkMin, K.dkMax);
           const prob = alleyProb(a, SK || !a.thru ? prob0 : thruProb(pl, a, prob0, true));
           a.edge = edge; if (a.v === 'poster') bpop(pl, 'poster');
           const info = { who: pl.id, name: a.alley ? '空接暴扣' : a.name, pts: 2, dist: distHoop(pl), contest: c, src: c > 0.04 ? ci.src : '', e: null, zone: 'lay', stamLow: pl.stam < ST.layLow, green: false, made: false, blocked: false, prob: prob, tl: '—', cl: c < 0.2 ? '空位' : c < 0.5 ? '轻微干扰' : '严重干扰', reason: '' };
@@ -5020,7 +5175,7 @@
           } else { G.ball.wasShot = true; looseBall(grip, rr(-1.4, 1.4), -rr(0.8, 2.2), rr(2, 3.2), pl.id); float('扣篮不进', pl, '#ff6b5e'); sfx('rim'); shake(3); G.fx.board = 0.3; cold(pl.id); info.reason = c > 0.3 ? '防守干扰大（' + ci.src + '）' : pl.stam < ST.layLow ? '体力不足' : '运气不佳（本次命中率 ' + Math.round(prob * 100) + '%）'; }
           if (!made && !a.shootingFoul) { st.fga++; st.ina++; }
           publishShot(info);
-          if (a.shootingFoul) awardFreeThrows(pl.id, 2, made);
+          if (a.shootingFoul) { foulRecoil(pl, df, a, 'dunk'); awardFreeThrows(pl.id, 2, made, a); }
         }
       } else if (a.hang && a.t - a.doneT < a.hang) { pl.z = a.hz + (a.ikz || 0); if (a.hx != null) { pl.x = a.hx + (a.ikx || 0); pl.y = a.hy + (a.iky || 0); } pl.vz = 0; pl.vx = pl.vy = 0; }
       else if (pl.z <= 0) pl.action = null;
@@ -5074,9 +5229,9 @@
       }
     } else if (a.type === 'block') {
       if (pl.z <= 0 && a.t > 0.1) {
-        pl.action = null; pl.cd = a.rbS && pl.hasBall ? a.rcv : K.bkLandCd * rejK(pl);
+        pl.action = null; const rk = rebK(pl); pl.cd = (a.rbS && pl.hasBall ? a.rcv : K.bkLandCd * Math.max(0.7, 1 + 2.4 * (0.85 - K.rebJ0))) * rk; if (a.zmax) landRecover(pl, rk - 1);
         if (a.reb && !a.rodSecond && !a.rodClaimed && !a.rbS && rodReach(pl)) { pl.sk.rodUntil = G.time + K.rodWindow; pl.sk.rodLandCd = pl.cd; }
-        if (a.rbS && pl.hasBall) { pl.recT = G.time + a.rcv; pl.landS = a.rbS; pl.landT = G.time; }
+        if (a.rbS && pl.hasBall) { pl.recT = G.time + pl.cd; pl.landS = a.rbS; pl.landT = G.time; }
       }
     } else if (a.type === 'steal') {
       if (!a.done && a.t >= K.stlHitT) {
@@ -5136,7 +5291,7 @@
     const d = distHoop(pl);
     if (pl.hasBall) {
       if (G.phase !== 'live') return;
-      if (pl.recT > G.time && pl.landT && G.time - pl.landT < 0.6) return;
+      if (pl.recT > G.time && pl.landT && G.time - pl.landT < 0.6 * Math.max(1, rebK(pl))) return;
       if (pr.a1 || pr.a2) {
         if (G.needClear) { G.clearPing = G.time; G.illId = pl.id; }
         if (cancelVariant) { startShot(pl, inp, 'a1', cancelVariant); return; }
@@ -5197,6 +5352,7 @@
     float(txt, pl, '#ff6b5e', 1); sfx('gasp');
   }
   function spendStamina(pl, cost) { pl.stam = Math.max(0, pl.stam - cost); }
+  function lowHnd(r) { return clamp((0.9 - r) / 0.2, 0, 1); }
   function stamK(pl) { return (1.25 - 0.65 * pl.r.sta) * bk(pl, 'motor', K.bgMotorSt); }
 
   // ---------- 输入缓冲（V3.9j）----------
@@ -5244,7 +5400,7 @@
   // 这一帧能不能直接响应 key（不能 = 按下的键进缓冲）
   function ibReady(pl, key) {
     if (pl.stun > 0 || pl.action || pl.z > 0.05) return false;
-    if (pl.hasBall) { if (key === 'a3') return pl.cd <= 0; return !(pl.recT > G.time && pl.landT && G.time - pl.landT < 0.6); } // 运球招式本来就不受落地硬直限制
+    if (pl.hasBall) { if (key === 'a3') return pl.cd <= 0; return !(pl.recT > G.time && pl.landT && G.time - pl.landT < 0.6 * Math.max(1, rebK(pl))); } // 运球招式本来就不受落地硬直限制
     return pl.cd <= 0 || key === 'a1' && rodReady(pl);
   }
   // 持球动作里自己的键另有用途（蓄力出手 / 二次按键转身上篮 / 双击扣篮 / 运球连招自带缓存），这些时候不进缓冲
@@ -5319,7 +5475,7 @@
       else if (run && !pl.action) pl.sk.runway = (pl.sk.runway || 0) + Math.max(0, (pl.x - run.x) * h.x + (pl.y - run.y) * h.y);
       pl.sk.runwayPos = { x: pl.x, y: pl.y };
     }
-    const frozen = G.phase === 'check' || G.phase === 'over' || G.phase === 'ft';
+    const frozen = G.phase === 'check' || G.phase === 'over' || G.phase === 'ft' || G.phase === 'foul';
     const rsRaw = inp;
     inp = rightStickInput(pl, inp);
     inp = postRightStickInput(pl, inp, rsRaw);
@@ -5376,7 +5532,7 @@
       const live = G.phase === 'live' && !G.ball.dead && !frozen;
       if (!live) { pl.ib = null; if (pr.a1 && !pl.hasBall) pl.jbuf = G.time; }
       else {
-        if (pl.z > 0.05 || (pl.hasBall && pl.recT > G.time && pl.landT && G.time - pl.landT < 0.6)) ibuf.hold(pl, G.time);
+        if (pl.z > 0.05 || (pl.hasBall && pl.recT > G.time && pl.landT && G.time - pl.landT < 0.6 * Math.max(1, rebK(pl)))) ibuf.hold(pl, G.time);
         if (pl.ib) trackHesitation(pl, pl.ib.hesi, raw);
         // 缓存中的投篮键：记下松手时刻（实际按住时长 hd），执行时回放；5V5 接球前 team5 不把 X 传进来，直接读手柄/键盘的 X
         if (pl.ib && pl.ib.k === 'a1' && pl.ib.hd == null && !ibDown(pl, raw)) pl.ib.hd = G.time - pl.ib.t;
@@ -5489,6 +5645,7 @@
     if (pl.hasBall) { ms *= 0.93 * clamp((0.8 + 0.2 * (pl.r.spdB || pl.r.spd)) / (0.8 + 0.2 * pl.r.spd), 0.9, 1.08); if (ptIs(pl, 'slasher')) acc *= 1.06; } ms *= 1 - 0.24 * fat(pl); acc *= 1 - 0.35 * fat(pl);
     { const LQ = pl.r.lat || pl.r.def; if (pl.stance) { ms *= (0.78 + 0.16 * LQ) * (ptIs(pl, 'lockdown') ? 1.05 : 1); acc = 34 + 18 * LQ; } else if (!pl.hasBall && !isO(pl)) acc *= (0.94 + 0.08 * (pl.r.hus || 0.8)) * (ptIs(pl, 'threeD') ? 1.06 : 1); if (!isO(pl) && ptIs(pl, 'rim') && distHoop(pl) < 3.5) { ms *= 1.04; acc *= 1.1; } }
     if (!pl.hasBall && pl.arch.skill && pl.arch.skill.id === 'lebron' && pl.sk.hint === 'ready') ms *= 1.2; if (pl.boost > 0) ms *= 1.15; if (pl.post) { ms *= 0.5; acc = 24; } if (pl.box) { ms *= 0.72; acc = 30; }
+    if (pl.lndT > G.time && pl.z <= 0) { ms *= lerp(K.lndSpd, 1, clamp((G.time - pl.lndT0) / Math.max(0.01, pl.lndT - pl.lndT0), 0, 1)); acc *= K.lndAcc; }
     if (a) { if (a.type === 'shot') ctl = a.jumped ? 0 : 0.12; else if (a.type === 'fake') ctl = 0; else if (a.type === 'steal') ctl = 0.25; else ctl = 0; }
     if (a && (a.type === 'move' || a.type === 'dive' || a.type === 'shot' && a.stride && a.stride.moving || (a.type === 'dunk' && !a.done) || a.inSteps)) { /* 脚本位移 */ }
     else if (air) { pl.vx *= 1 - 0.8 * dt; pl.vy *= 1 - 0.8 * dt; }
@@ -5502,6 +5659,10 @@
     if (!(a && ((a.type === 'dunk' && !a.done) || a.inSteps))) {
       pl.x += pl.vx * dt; pl.y += pl.vy * dt;
       if (pl.z > 0 || pl.vz > 0) { pl.z += pl.vz * dt; pl.vz -= GP * dt; if (pl.z <= 0) { pl.z = 0; pl.vz = 0; } }
+    }
+    if (pl.foulRecoil?.fall && pl.z === 0 && pl.vz <= 0) {
+      pl.foulRecoil.fall = false;
+      foulFall(pl, OP(pl));
     }
     // 卡位：按住防守键挡在对手和球之间，用身体把对手往外挤（吨位大挤得动）
     if (pl.box) {
@@ -5579,7 +5740,7 @@
     else if (pl.speed > 0.9) an = 'run';
     else an = 'idle';
     if (an !== pl.anim) { pl.anim = an; if (!a) pl.animT = 0; }
-    if (PH.gait && PH.gait.crab) PH.gait.crab(pl, dt, pl.stance ? poseTarget(pl) : pl.pose);
+    if (PH.gait && PH.gait.slide) PH.gait.slide(pl, dt);
     pl.animT += dt; pl.runPh += (PH.gait ? PH.gait.cad(pl) : pl.speed * 2.7) * dt;
     pl.gasp = Math.max(0, (pl.gasp || 0) - dt);
     if (pl.stam < 35 && G.phase !== 'over') {
@@ -5603,7 +5764,7 @@
     if (an === 'steal' && pl.stun > 0) a.footDone = true;
     if (an === 'steal' && !a.footDone && (!pl.stealFoot || pl.stealFoot.action !== a)) {
       const side = a.swipe < 0 ? 'L' : 'R', start = PH.rig(pl)['foot' + side].slice(), length = K.stlLungeStep * pl.h / 1.95;
-      const stance = Object.assign(Object.create(pl), { anim: 'def', action: null, stealFoot: null, crab: null, sq: 1, speed: 0 });
+      const stance = Object.assign(Object.create(pl), { anim: 'def', action: null, stealFoot: null, slide: null, sq: 1, speed: 0 });
       const home = PH.rig(stance, poseTarget(stance), false)['foot' + side], floor = pl.z + 0.06 * (1 + (pl.h / 1.95 - 1) * 1.7);
       pl.stealFoot = { action: a, side, start, end: [home[0] + Math.cos(pl.face) * length, home[1] + Math.sin(pl.face) * length, floor], pos: start.slice(), t: 0 };
     }
@@ -5611,6 +5772,8 @@
     if (postBlend && T.yaw == null) T.yaw = 0;
     if (a && a.type === 'block') { pl.armS = null; T.reachL = T.reachR = P.reachL = P.reachR = 1; }
     // 肩部转角按最短路径插值（风车扣篮手臂转一整圈后，不会再倒着从最下面绕回去）
+    for (const n of ['aLf', 'aRf']) if (T[n] == null && P[n]) T[n] = 0;
+    for (const n of ['reachL', 'reachR']) if (T[n] == null && P[n] != null && P[n] !== 1) T[n] = 1;
     for (const n in T) {
       if (n.startsWith('foot') || pl.stance && pl.anim === 'def' && T.crab && /^(crab|lA|lB|lS|rA|rB|rS|bob)$/.test(n)) P[n] = T[n];
       else if (postBlend) { let delta = T[n] - (P[n] || 0); if (n === 'aLp' || n === 'aRp') delta = Math.atan2(Math.sin(delta), Math.cos(delta)); P[n] = (P[n] || 0) + clamp(delta * kq, -2 * dt / blendT, 2 * dt / blendT); }
@@ -5701,15 +5864,23 @@
       if (Math.abs(pl.armS[0] - 1) + Math.abs(pl.armS[1] - 1) + Math.abs(pl.armSv[0]) + Math.abs(pl.armSv[1]) < 0.004 && G.time > (pl.armHold || 0)) pl.armS = null;
     }
   }
+  // 机械舞：每拍一个直角定格，身体左右顿转
+  const ROBOT = [
+    { yaw: 0.35, aLp: 1.57, aLq: 0, aLe: 1.57, aRp: 0.1, aRq: 1.5, aRe: 1.57 },
+    { yaw: -0.35, aLp: 0.1, aLq: 1.5, aLe: 1.57, aRp: 1.57, aRq: 0, aRe: 1.57 },
+    { yaw: 0.35, aLp: 1.57, aLq: 0, aLe: 0.05, aRp: 1.57, aRq: 0, aRe: 0.05, lB: 0.7, rB: 0.7 },
+    { yaw: -0.35, aLp: 1.57, aLq: 1.5, aLe: -1.4, aRp: 0.05, aRq: 0.1, aRe: 1.57 },
+    { yaw: 0, aLp: 2.9, aLq: 0.2, aLe: 0, aRp: 1.57, aRq: 1.5, aRe: 0, bob: -0.03 }];
   function celPose(ty, e) {
     const w = Math.sin(e * 10), w2 = Math.sin(e * 22), up = sm(clamp((e - 0.3) / 0.14, 0, 1));
+    const w8 = Math.sin(e * 8), w12 = Math.sin(e * 12), c14 = 0.5 + 0.5 * Math.cos(e * 14), pump = Math.abs(Math.sin(e * 7)), gs = Math.sin(e * 9), gl = Math.max(0, gs), gr = Math.max(0, -gs), sw = sm(clamp((e - 0.6) / 0.3, 0, 1));
     return {
         wave: { lean: -0.04, aLp: 0.3, aLq: 0.2, aLe: 0.4, aRp: 2.75, aRq: 0.35 + 0.3 * w, aRe: 0.35 },
         raise: { lean: -0.12, aLp: 2.75 + 0.15 * w, aLq: 0.45, aLe: 0.3, aRp: 2.75 - 0.15 * w, aRq: 0.45, aRe: 0.3 },
         flex: { lean: -0.12, aLp: 1.55, aLq: 1.55, aLe: 1.7 + 0.2 * w, aRp: 1.55, aRq: 1.55, aRe: 1.7 - 0.2 * w, lS: 0.3, rS: 0.3, lB: 0.45, rB: 0.45 },
         roar: { lean: -0.28 + 0.06 * w, aLp: 0.9, aLq: 1.7, aLe: 0.9, aRp: 0.9, aRq: 1.7, aRe: 0.9, lS: 0.32, rS: 0.32, lB: 0.5, rB: 0.5 },
         shimmy: { lean: 0.05, aLp: 0.9 + 0.45 * w2, aLq: 0.9, aLe: 1.3, aRp: 0.9 - 0.45 * w2, aRq: 0.9, aRe: 1.3, lB: 0.35 + 0.15 * w2, rB: 0.35 - 0.15 * w2 },
-        night: { lean: -0.08, aLp: 2.55, aLq: 0.15, aLe: 1.9, aRp: 2.55, aRq: 0.15, aRe: 1.9 },
+        night: { lean: -0.04, tilt: 0.24 + 0.03 * Math.sin(e * 3), aLp: 1.1, aLq: -1.3, aLe: 1.95, aRp: 2.0, aRq: 0.1, aRe: 2.05 },   // 库里晚安：双手合十贴在歪向一侧的脸旁
         toosmall: { lean: -0.05, aLp: 0.35, aLq: 0.9, aLe: 1.6, aRp: 1.1 + 0.35 * Math.abs(w2), aRq: 0.5, aRe: 0.25 },
         shush: { lean: -0.05, aLp: 0.25, aLq: 0.3, aLe: 0.2, aRp: 2.15, aRq: 0.05, aRe: 2.5 },
         chest: { lean: -0.1, aLp: 1.0 + 0.25 * Math.max(0, w2), aLq: 0.2, aLe: 2.3, aRp: 1.0 + 0.25 * Math.max(0, -w2), aRq: 0.2, aRe: 2.3 },
@@ -5719,7 +5890,17 @@
         shrug: { lean: -0.05, aLp: 0.8, aLq: 1.3, aLe: 1.5, aRp: 0.8, aRq: 1.3, aRe: 1.5 },
         wag: { lean: 0, aLp: 0.3, aLq: 0.4, aLe: 0.3, aRp: 2.3, aRq: 0.25 + 0.35 * w2, aRe: 0.3 },
         chalk: { lean: lerp(0.06, -0.26, up), aLp: lerp(1.1, 2.85, up), aLq: lerp(0.25, 0.6, up), aLe: lerp(2.1, 0.25, up), aRp: lerp(1.1, 2.85, up), aRq: lerp(0.25, 0.6, up), aRe: lerp(2.1, 0.25, up), lB: 0.35 * (1 - up), rB: 0.35 * (1 - up) },
-        cool: { lean: -0.1, aLp: 1.05, aLq: 0.05, aLe: 2.35, aRp: 1.0, aRq: 0.05, aRe: 2.35 } }[ty] || {};
+        cool: { lean: -0.1, aLp: 1.05, aLq: 0.05, aLe: 2.35, aRp: 1.0, aRq: 0.05, aRe: 2.35 },
+        clap: { lean: -0.04, aLp: 1.45, aLq: -0.3 + 0.85 * c14, aLe: 1.05, aRp: 1.45, aRq: -0.3 + 0.85 * c14, aRe: 1.05 },
+        fist: { lean: 0.12, lB: 0.5, rB: 0.5, lA: 0.22, rA: 0.22, aLp: 0.35, aLq: 0.3, aLe: 1.2, aRp: 2.8 - 1.2 * pump, aRq: 0.3, aRe: 0.3 + 1.6 * pump },
+        hype: { lean: -0.12, aLp: 2.0 + 0.85 * Math.max(0, w8), aLq: 0.5, aLe: 0.35, aRp: 2.0 + 0.85 * Math.max(0, -w8), aRq: 0.5, aRe: 0.35 },
+        spread: { lean: -0.16, aLp: 2.45 + 0.1 * w, aLq: 1.0, aLe: 0.1, aRp: 2.45 - 0.1 * w, aRq: 1.0, aRe: 0.1 },
+        salute: { lean: -0.06, aLp: 0.3, aLq: 0.25, aLe: 0.3, aRp: lerp(2.3, 1.9, sw), aRq: lerp(0.35, 1.35, sw), aRe: lerp(2.45, 0.15, sw) },
+        robot: Object.assign({ lA: 0.2, rA: 0.2, lB: 0.4, rB: 0.4 }, ROBOT[Math.floor(e * 3.2) % ROBOT.length]),
+        armwave: { lean: -0.04, tilt: 0.1 * Math.sin(e * 8 - 1.2), lB: 0.3 + 0.12 * Math.sin(e * 8), rB: 0.3 - 0.12 * Math.sin(e * 8), aLp: 1.57 + 0.35 * Math.sin(e * 8), aLq: 1.3, aLe: 0.75 * Math.sin(e * 8 + 1.1), aRp: 1.57 + 0.35 * Math.sin(e * 8 - 2.4), aRq: 1.3, aRe: 0.75 * Math.sin(e * 8 - 1.3) },
+        griddy: { lean: 0.26, tilt: 0.1 * gs, yaw: 0.25 * gs, bob: 0.03 * Math.abs(gs), lA: 0.15 + 1.25 * gl, lB: 0.3 + 1.7 * gl, rA: 0.15 + 1.25 * gr, rB: 0.3 + 1.7 * gr, aLp: 0.5 - 0.95 * gs, aLq: 0.25, aLe: 1.5, aRp: 0.5 + 0.95 * gs, aRq: 0.25, aRe: 1.5 },
+        watch: { lean: -0.04, aLp: 2.9, aLq: 0.15, aLe: -0.95 + 0.05 * Math.abs(w12), aLf: -1.06, reachL: 1.18, aRp: 0.15, aRq: 0.2, aRe: 0.3 },   // 利拉德 Dame Time：左小臂横搭在眼前看表，右手垂下
+        crown: { lean: lerp(0, -0.14, up), aLp: lerp(1.0, 2.75, up), aLq: 0.55, aLe: lerp(1.0, 1.85 + 0.12 * Math.sin(e * 5), up), aRp: lerp(1.0, 2.75, up), aRq: 0.55, aRe: lerp(1.0, 1.85 + 0.12 * Math.sin(e * 5), up) } }[ty] || {};
   }
   function poseTarget(pl) {
     const T = { tilt: 0, lean: 0.06, lA: 0.12, lB: 0.25, lS: 0.06, rA: 0.12, rB: 0.25, rS: 0.06, aLp: 0.15, aLq: 0.14, aLe: 0.35, aRp: 0.15, aRq: 0.14, aRe: 0.35 };
@@ -5953,7 +6134,18 @@
     }
     if (PH.gait) PH.gait.post(pl, T, an, a);
     const IG0 = G.intro && !a && (an === 'run' || an === 'idle' || an === 'def') ? introWalk(pl) : null;
-    if (IG0) { const e = G.time - IG0.t0, o = celPose(IG0.ty, e), k = Math.min(1, e / 0.2, (IG0.T - e) / 0.2); for (const n in o) if (n[0] === 'a') T[n] = lerp(T[n], o[n], k); }
+    if (IG0) { const e = G.time - IG0.t0, o = celPose(IG0.ty, e), k = Math.min(1, e / 0.2, (IG0.T - e) / 0.2); const D = { aLf: 0, aRf: 0, reachL: 1, reachR: 1 }; for (const n in o) if (n[0] === 'a' || n in D) T[n] = lerp(T[n] ?? D[n] ?? 0, o[n], k); }
+    const F = pl.foulRecoil, elapsed = F ? G.time - F.at : 1;
+    if (elapsed >= 0 && elapsed < 0.36) {
+      const w = clamp(Math.min(elapsed / 0.045, (0.36 - elapsed) / 0.26), 0, 1);
+      T.tilt += F.side * 0.55 * w;
+      T.lean += F.fwd * 0.34 * w;
+      T.lB += 0.5 * w; T.rB += 0.5 * w;
+      const arm = F.side > 0 ? 'aL' : 'aR';
+      T[arm + 'p'] = lerp(T[arm + 'p'], 0.75, w);
+      T[arm + 'q'] = lerp(T[arm + 'q'], 1.4, w);
+      T[arm + 'e'] = lerp(T[arm + 'e'], 1.25, w);
+    }
     return T;
   }
 
@@ -6107,8 +6299,8 @@
           if (s.air) { float('三不沾', { x: b.x, y: b.y, z: 0, h: 2.6 }, '#ff6b5e'); b.vx *= 0.4; b.vy = b.vy * 0.3 + 1.5; }
           else { if (!(s.mk && s.mk.miss)) sfx('rim'); G.net = 0.3; G.fx.board = 0.18; G.fx.rim = 1; burst(b.x, b.y, b.z, 5, ['#ffd24a', '#ff8a2a'], 2, 0.3, 8); float(s.mk && s.mk.txt ? s.mk.txt : rnd() < 0.5 ? '打铁' : '刷框而出', { x: HOOP.x, y: HOOP.y, z: 0, h: 3.3 }, '#ff9c8a'); }
         }
-        if (s.attempt?.shootingFoul) awardFreeThrows(s.shooter, s.pts, s.made);
-        else b.shot = null;
+        if (s.attempt?.shootingFoul) awardFreeThrows(s.shooter, s.pts, s.made, s.attempt);
+        b.shot = null;
       }
       return;
     }
@@ -6996,12 +7188,18 @@
     R.age += dt;
     return 'play';
   }
-  function replayCover(R) {
+  function wipeCover(p) {
     // Keep the midpoint fully covered even when a frame skips past it.
-    const p = R && R.returnT == null ? R.wipeIn : 0;
     return p > 0 && p < 1 ? Math.min(1, 1.15 * Math.sin(Math.PI * p)) : 0;
   }
-  const replayFlow = { makeBeat: REPLAY_MAKE_BEAT, ready: replayReady, advance: advanceReplay, cover: replayCover };
+  const replayCover = (R) => wipeCover(R && R.returnT == null ? R.wipeIn : 0);
+  function foulWipeProgress(b) {
+    if (!b?.foul || replayMotion?.matches) return 1;
+    const half = REPLAY_WIPE_TIME / 2;
+    const t = b.t < half ? b.t : Math.max(half, b.t - 0.2);
+    return Math.min(1, t / REPLAY_WIPE_TIME);
+  }
+  const replayFlow = { makeBeat: REPLAY_MAKE_BEAT, ready: replayReady, advance: advanceReplay, cover: replayCover, wipeCover, foulProgress: foulWipeProgress };
   // 每个推进的逻辑帧录一份画面快照（只录渲染需要的字段，保留 12 秒）；回合死球时播放本回合最精彩的一次
   function snapP(p) { return { x: p.x, y: p.y, z: p.z, face: p.face, pose: Object.assign({}, p.pose), h: p.h, col: p.col, id: p.id, stun: p.stun, stunK: p.stunK, knock: p.knock || null, knockT: p.knockT || 0, knockD: p.knockD || 0, knockUp: p.knockUp || 0, knockDx: p.knockDx || 0, knockDy: p.knockDy || 0, flash: p.flash, off: p.off, action: null,
     sq: p.sq, armS: p.armS && p.armS.slice(), brPh: p.brPh, stam: p.stam, exr: p.exr, grip: p.grip, hasBall: p.hasBall, anim: p.anim,
@@ -7015,8 +7213,11 @@
   }
   function startReplay() {
     const q = G.hlQ; G.hlQ = null;
-    const t0r = q.mk ? Math.min(q.t - K.rpPre, q.mk.t - 1.4) : q.t - K.rpPre, fr = G.rec.filter((f) => f.t >= t0r && f.t <= q.t + K.rpPost);
-    if (fr.length < 30) return;
+    const pre = q.t - K.rpPre;
+    const t0r = q.andOne ? Math.min(pre, q.contactAt - 0.55) : q.mk ? Math.min(pre, q.mk.t - 1.4) : pre;
+    const t1r = q.andOne ? G.time : q.t + K.rpPost;
+    const fr = G.rec.filter((f) => f.t >= t0r && f.t <= t1r);
+    if (fr.length < (q.andOne ? 2 : 30)) return;
     const kp = fr[0].p[q.pid];
     G.replay = { fr: fr, i: 0, rt: fr[0].t, t1: fr[fr.length - 1].t, q: q, fc: { cx: G.focus.cx, cy: G.focus.cy }, skip: false, view: null, age: 0, wipeIn: 0, kx: kp.x, ky: kp.y, kz: kp.z + kp.h * 0.6 };
     sfx('swoosh');
@@ -7024,11 +7225,18 @@
   }
   function replayTick(dt) {
     const R = G.replay;
-    const phase = advanceReplay(R, dt, R.skip || R.rt >= R.t1);
+    const ending = R.skip || R.rt >= R.t1;
+    if (ending && R.q.andOne) {
+      G.replay = null; G.rec = [];
+      presentDefensiveFoul(true);
+      G.ft.ready = false;
+      return;
+    }
+    const phase = advanceReplay(R, dt, ending);
     if (phase === 'done') { G.replay = null; G.rec = []; }
     if (phase !== 'play') return;
     if (!R.view) { G.cz = null; G.hero = null; G.banner = null; G.floats = []; G.bpops = []; }
-    const dq = R.rt - R.q.t, near = dq > -1.0 && dq < 0.5, MK = R.q.mk, dm = MK ? R.rt - MK.t : 9, nearM = Math.abs(dm) < 0.35;
+    const dq = R.rt - R.q.t, near = dq > -1.0 && dq < 0.5, MK = R.q.mk, dm = R.rt - (MK?.t ?? R.q.contactAt ?? -Infinity), nearM = Math.abs(dm) < 0.35;
     R.rt += dt * (nearM ? K.rpSpM : near ? K.rpSpH : K.rpSpN);   // V4.5 顶翻：接触那一刻前后 0.35 秒 ×0.25 慢放
     while (R.i < R.fr.length - 1 && R.fr[R.i + 1].t <= R.rt) R.i++;
     const f = R.fr[R.i], kp = f.p[R.q.pid], CV = PH.render.CAMV;
@@ -7056,7 +7264,7 @@
     recFrame();
     if (G.mode === 'train' || (G.mode === 't3' && PH.T3 && !PH.T3.T.replay)) return;
     if (G.hlQ && (!G.vopt.replay || G.time - G.hlQ.t > 10)) G.hlQ = null;
-    if (G.hlQ && !G.tips && replayReady() && G.time - G.hlQ.t > 0.8 && ((G.phase === 'dead' && G.phaseT < 1.0) || G.phase === 'check' || G.phase === 'over')) startReplay();
+    if (G.hlQ && !G.tips && foulWipeProgress(G.banner) >= 1 && replayReady() && G.time - G.hlQ.t > 0.8 && ((G.phase === 'dead' && G.phaseT < 1.0) || G.phase === 'check' || G.phase === 'over')) startReplay();
   }
   // 两人身体碰撞（1V1 / 5V5 共用）
   function collide(a, c) {
@@ -7170,7 +7378,7 @@
   }
   function tick(dt, humanInput) {
     if (G.state !== 'play') return;
-    if (G.replay) { PH.input.endTick(); replayTick(dt); return; }
+    if (G.replay) { PH.input?.endTick(); replayTick(dt); return; }
     const F = G.fx;
     if (G.cutin) { G.cutin.t += dt; G.skSlow = 0; if (G.cutin.t >= Math.max(G.cutin.T, PH.ci ? PH.ci.dur(G.cutin) : 0)) G.cutin = null; }   // V3.9o 半屏插屏：不冻结、不慢放，只推进面板计时
     fxUpdate(dt); hzView();
@@ -7204,7 +7412,7 @@
     // 终结路线上的身体阻挡（先于普通碰撞）
     finContact(ps[0], ps[1]); finContact(ps[1], ps[0]);
     // 碰撞
-    if (G.phase !== 'ft') collide(ps[0], ps[1]);
+    if (G.phase !== 'ft' && G.phase !== 'foul') collide(ps[0], ps[1]);
     updateBall(dt);
     if (G.phase === 'ft') stepFreeThrowReturn();
     for (const p of ps) comboTick(p);
@@ -7259,11 +7467,14 @@
     for (const f of G.floats) f.t += dt; while (G.floats.length && G.floats[0].t > 1.3) G.floats.shift();
     if (G.banner) { G.banner.t += dt; if (G.banner.t > G.banner.dur) G.banner = null; }
     // 相机
-    const b = G.ball, fx = b.state === 'held' ? ps[b.holder].x : b.x, fy = b.state === 'held' ? ps[b.holder].y : Math.min(b.y, 9, Math.min(ps[0].off ? 99 : ps[0].y, ps[1].off ? 99 : ps[1].y) + 4.2);
+    const b = G.ball, cp = G.cel && G.phase === 'dead' && G.time >= G.cel.t0 - 0.4 ? ps[G.cel.id] : null, fx = cp ? cp.x : b.state === 'held' ? ps[b.holder].x : b.x, fy = cp ? cp.y : b.state === 'held' ? ps[b.holder].y : Math.min(b.y, 9, Math.min(ps[0].off ? 99 : ps[0].y, ps[1].off ? 99 : ps[1].y) + 4.2);
     const CV = PH.render.CAMV, sx = 3.4 + Math.max(0, CV.zoom - 1) * 6, tx = clamp(fx * CV.follow, -sx, sx), ty = clamp(fy - CV.dist, 2 - CV.dist, 9 - CV.dist), kc = Math.min(1, dt * K.camFolK);
     G.focus.cx = lerp(G.focus.cx, tx, kc); G.focus.cy = lerp(G.focus.cy, ty, kc);
     if (!(b.state === 'held' && G.phase === 'live')) G.camK = (G.camK || 0) * Math.max(0, 1 - dt * K.camRimOut);
-    if (G.mode !== 'demo') { if (humanInput) recFrame(); else trackReplay(); }
+    if (G.foulStop) {
+      recFrame();
+      finishFoulStop(dt);
+    } else if (G.mode !== 'demo') { if (humanInput) recFrame(); else trackReplay(); }
   }
 
   function toText() {
@@ -7664,6 +7875,7 @@
     fxT3Fl: ['高光重档 闪白强度', '越大重档高光闪白越亮；透明度'],
     fxWinSlowT: ['绝杀 慢放提前量', '越大绝杀球越早在入筐前开始慢放；秒'],
     fxWinSlow: ['绝杀 慢动作时长', '越大绝杀球慢放持续越久；秒'],
+    celSig3: ['招牌庆祝 三分触发概率', '越大有招牌庆祝的球星（库里晚安、利拉德看表、詹姆斯戴王冠）投进三分越常做招牌动作；概率，2+1、3+1、绝杀必出'],
     rpPre: ['高光回放 事前长度', '越大回放包含高光前的画面越多；秒'],
     rpPost: ['高光回放 事后长度', '越大回放包含高光后的画面越多；秒'],
     rpKeep: ['回放 录像保留时间', '越大可回看的历史画面越长；秒'],
@@ -7907,6 +8119,7 @@
     ctLayCapB: ['上篮 上限盖帽能力系数', '越大盖帽高于 0.6 越压低重扰上限、低于者越抬高；概率系数'],
     ctLayGreen: ['上篮 重扰完美上限加成', '越大严重干扰下完美上篮的命中上限越高；概率加成'],
     ctLayLate: ['上篮 重扰时机上限折损', '越大严重干扰且未进绿区的上篮命中上限越低；概率系数'],
+    ctLayVLate: ['上篮 重扰很早很晚折损', '越大严重干扰时出手很早 / 很晚的上篮越难进；概率'],
     ctBlkE: ['内线被盖 对抗差影响系数', '越大进攻占优者越难被盖、吃亏者越易被盖；系数'],
     ctBlkH: ['严重封堵 被盖倍数', '越大严重封堵的上篮越容易被盖；1 = 基准'],
     ctBlkD: ['双人封堵 被盖倍数', '越大双人封堵的上篮越容易被盖；1 = 基准'],
@@ -8028,6 +8241,7 @@
     euroD: ['欧洲步 第二步目标距离', '越大欧洲步第二步离筐越远、迈得越短；米'],
     euroTempo: ['欧洲步 时长倍数', '越大欧洲步脚步与停顿越慢；1 = 基准，不改空中出手时机'],
     euroBeat: ['欧洲步 首步落地停顿', '越大欧洲步第一步落地后停得越久；秒，再乘时长倍数'],
+    euroStep1: ['欧洲步 第一步时长倍数', '越大欧洲步第一步迈得越慢、落地停得越久；只管第一步，第二步和出手不变'],
     dunkMax: ['扣篮 最远起跳上限', '越大扣篮能从越远处起跳；米'],
     dunkMin: ['扣篮 最远起跳下限', '越大较弱扣将的起跳距离也能更远；米'],
     dunkBase: ['扣篮 起跳距离基数', '越大扣篮基础可起跳距离越远；米'],
@@ -8276,6 +8490,8 @@
     akT2: ['晃人 僵直门槛', '越小越轻的晃人也能让对手僵直；强度门槛'],
     akT3: ['晃人 倒地门槛', '越小越轻的晃人也能让对手倒地；强度门槛'],
     akT3H: ['', '越大普通低控球运球越难晃倒对手；强度加成'],
+    akTH: ['普通运球 低控球晃晕门槛', '越大低控球运球越难把对手晃晕 / 晃飞，多数只是晃开；强度加成'],
+    akReachH: ['伸手落空 低控球必晃折扣', '越大低控球持球人越难靠对手伸手落空必晃；比例'],
     akOffM: ['失重心 恢复时长倍数', '越大失重心后恢复越慢；1 = 基准'],
     akDazeM: ['踉跄 恢复时长倍数', '越大踉跄后恢复越慢；1 = 基准'],
     akSpinM: ['僵直 恢复时长倍数', '越大僵直后恢复越慢；1 = 基准'],
@@ -8343,6 +8559,13 @@
     rbOneV: ['单手摘板 弹跳门槛', '越小弹跳较弱者也能单手摘板；能力值，0–1'],
     rbOneR: ['单手摘板 篮板门槛', '越小篮板较弱者也能单手摘板；能力值，0–1'],
     rbOneZ: ['单手摘板 球高门槛', '越小较低的球也会触发单手摘板；离地球高的身高倍数'],
+    lndRec: ['落地恢复 基础时间', '越大跳投落地后越久跑不快，二次起跳越低的人越久；盖帽 / 抢板落地只有二次起跳低于平均的人会变慢；秒'],
+    rebJ0: ['二次起跳 平均线', '越大平均线越高，更多人落地后再起跳变慢；二次起跳等于这个的人保持原样'],
+    rebJS: ['二次起跳 差距', '越大二次起跳怪兽和低弹跳大个落地后的再起跳速度差距越大'],
+    rebJLo: ['二次起跳 最快倍率', '越小二次起跳怪兽落地后越快能再起跳'],
+    rebJHi: ['二次起跳 最慢倍率', '越大体重大弹跳低的人落地后越久才能再起跳'],
+    lndSpd: ['落地恢复 移动速度', '越大刚落地时跑得越快；最高跑速比例'],
+    lndAcc: ['落地恢复 加速比例', '越大落地恢复期内起步 / 变向越快；加速度比例'],
     rbCvOne: ['落地恢复 单手摘板', '越大单手摘板后越久才能恢复动作；秒'],
     rbCvTwo: ['落地恢复 双手抓板', '越大双手抓板后越久才能恢复动作；秒'],
     rbCvChin: ['落地恢复 护球落地', '越大护球落地后越久才能恢复动作；秒'],
@@ -8407,6 +8630,7 @@
     dvSpF: ['鱼跃撞人 撞倒后速度倍数', '越大撞倒对手后自身保留的扑球速度越多；1 = 不减速'],
     dvSpO: ['鱼跃撞人 撞开后速度倍数', '越大撞开对手后自身保留的扑球速度越多；1 = 不减速'],
     dvSpB: ['鱼跃撞人 擦碰后速度倍数', '越大擦碰对手后自身保留的扑球速度越多；1 = 不减速'],
+    bgPogo: ['弹簧腿 落地恢复倍率', '越小弹簧腿徽章持有者落地后越快能再冲板 / 起跳；金档倍率'],
     bgHuReach: ['鱼跃扑球 抓球范围加成', '越大鱼跃徽章持有者能抓到越远的球；米，金档加成'],
     bgHuWin: ['鱼跃扑球 争球胜率加成', '越大鱼跃徽章持有者越容易赢得近身争球；金档概率加成'],
     poFakeCommit: ['背打 假投收球窗口（旧）', '当前版本未使用，改了无效果'],
@@ -8494,15 +8718,22 @@
     bgTightSt: ['运球如丝 耗体倍数', '越大运球如丝持有者运球招式耗体越多；金档倍数，1 = 无减耗'],
     bgHuCost: ['鱼跃徽章 耗体倍数', '越大鱼跃徽章持有者扑球耗体越多；金档倍数，1 = 无减耗'],
     bgMotorSt: ['永动机 耗体倍数', '越大永动机持有者冲刺等动作耗体越多；金档倍数，1 = 无减耗'],
+    dkCWeak: ['扣篮 低扣篮能力干扰放大', '越大扣篮能力一般的人被干扰时越难扣进；比例'],
+    dkCWeakC: ['扣篮 低扣篮能力干扰放大起点', '越大空位 / 轻微干扰扣篮越稳：干扰值超过这个才被低扣篮能力放大；干扰值'],
+    dkCLo: ['扣篮 低扣篮能力干扰保底', '越大扣篮能力一般的人被干扰时越难硬扣；干扰惩罚倍数下限'],
+    mvHndSt: ['运球招式 低控球耗体加成', '越大控球差的人做运球招式越耗体；比例'],
+    dunkAthPow: ['扣篮 起跳距离能力指数', '越大扣篮能力一般的人越难远距离起跳扣篮；指数'],
     dkLowSt: ['扣篮 低体力命中惩罚', '越大低体力扣篮越难进；直接扣除的命中概率'],
     stDepth: ['防守滑步 下蹲深度', '越大防守姿态越蹲得低；屈膝倍数，不改移速'],
     stLean: ['防守滑步 躯干前倾', '越大防守时上身越向前倾；弧度'],
     stWidth: ['防守滑步 站姿半宽', '越大防守时双脚站得越宽；米，随身高缩放'],
-    stStep: ['防守滑步 步频距离', '越大同速滑步迈脚越慢；米，不改移速'],
-    stHzMin: ['防守滑步 最低步频', '越大低速滑步迈脚越快；次/秒，静止不迈步'],
-    stHzMax: ['防守滑步 最高步频', '越大高速滑步迈脚越快；次/秒，不改移速'],
-    stReach: ['防守滑步 单脚步幅', '越大单脚越能迈远再拖地；米，随身高缩放'],
-    stLift: ['防守滑步 抬脚高度', '越大滑步时脚和膝盖抬得越高；米'],
+    stSlideHz: ['防守滑步 步频', '越大滑步时两脚交替越快；次/秒，不改移速'],
+    stSlideStride: ['防守滑步 步幅', '越大每一步跨得越开、脚越少打滑；米，随身高缩放'],
+    stStep: ['防守滑步 步频距离', '当前版本未使用，改了无效果'],
+    stHzMin: ['防守滑步 最低步频', '当前版本未使用，改了无效果'],
+    stHzMax: ['防守滑步 最高步频', '当前版本未使用，改了无效果'],
+    stReach: ['防守滑步 单脚步幅', '当前版本未使用，改了无效果'],
+    stLift: ['防守滑步 抬脚高度', '当前版本未使用，改了无效果'],
     gaHzMin: ['跑步 最低步频', '越大低速跑动迈脚越快；次/秒，不改移速'],
     gaHzMax: ['跑步 最高步频', '越大高速跑动迈脚越快；次/秒，不改移速'],
     gaHeight: ['跑步 身高步频差', '越大高个迈脚越慢、矮个越快；指数，0 = 无差异'],
@@ -8602,14 +8833,14 @@
     for (const [field, [label, note]] of Object.entries(STYLE_DISPLAY)) BLOCK_DISPLAY['ps' + prefix + field] = ['个性·' + name + ' ' + label, note];
   }
   if (TU) {
-    TU.reg(TDEF.map((d) => ({ k: 'l1_' + d[0], g: d[1], label: d[2], v: d[3], min: d[4], max: d[5], step: d[6], note: d[7], display: BLOCK_DISPLAY[d[0]], mode: d[8] || 'num', tmp: !!d[9], ...(d[0] === 'stLift' || d[0] === 'stReach' || /^(euroTempo|euroBeat|manu|aiCommit|aiProbeRange|aiBurst|aiChain|vc)/.test(d[0]) ? { wide: false } : {}), ...(/^manu/.test(d[0]) ? { cat: 'fin', sub: '上篮变体', gm: 'both' } : {}), ...(/^vc/.test(d[0]) ? { cat: 'fin', sub: '扣篮', gm: 'both' } : {}), ...(/^ai(Commit|ProbeRange|Burst|Chain)/.test(d[0]) ? { cat: 'drib', sub: '连招', gm: 'both' } : {}), ...(/^(alley|selfAlley)/.test(d[0]) ? { cat: 'fin', sub: '上篮', gm: 'both' } : {}) })));
+    TU.reg(TDEF.map((d) => ({ k: 'l1_' + d[0], g: d[1], label: d[2], v: d[3], min: d[4], max: d[5], step: d[6], note: d[7], display: BLOCK_DISPLAY[d[0]], mode: d[8] || 'num', tmp: !!d[9], ...(d[0] === 'stLift' || d[0] === 'stReach' || /^(euroTempo|euroBeat|euroStep1|manu|aiCommit|aiProbeRange|aiBurst|aiChain|vc)/.test(d[0]) ? { wide: false } : {}), ...(/^manu/.test(d[0]) ? { cat: 'fin', sub: '上篮变体', gm: 'both' } : {}), ...(/^vc/.test(d[0]) ? { cat: 'fin', sub: '扣篮', gm: 'both' } : {}), ...(/^ai(Commit|ProbeRange|Burst|Chain)/.test(d[0]) ? { cat: 'drib', sub: '连招', gm: 'both' } : {}), ...(/^(alley|selfAlley)/.test(d[0]) ? { cat: 'fin', sub: '上篮', gm: 'both' } : {}) })));
     TU.reg(RDEF.map((d) => ({ k: 'l1_' + d[0], g: 'rules', label: d[1], v: CFG_DEF[d[0]], min: d[2], max: d[3], step: d[4], note: d[5], display: RULE_DISPLAY[d[0]], mode: d[6] || 'num' })));
     for (const d of RDEF) if (d[0] !== 'shotClock') Object.defineProperty(CFG, d[0], { enumerable: true, configurable: true, get: () => TU.get('l1_' + d[0]), set: (v) => { TU.set('l1_' + d[0], v); } });
     // 进攻时间是“本场”设置（比赛开始界面 / 5V5 会临时改），所以 CFG.shotClock 仍是普通字段，调参改动时同步过去
     TU.on((ks) => { if (!ks || ks.indexOf('l1_shotClock') >= 0) CFG.shotClock = TU.get('l1_shotClock'); syncK(); });
     syncK();
   }
-  PH.game = { ptIs: ptIs, ptOf: ptOf, ibuf: ibuf, t5: T5API, G: G, HZ: HZ, HZN: HZN, zoneOf: zoneOf, hzBase: hzBase, hzLvl: hzLvl, MVX: MVX, DPKG: DPKG, DPK_OF: DPK_OF, ST: ST, GW_OUT: K.gwOut, zones: zones, K: K, TDEF: TDEF, blkTier: blkTier, blkReact: blkReact, blkMove: blkMove, _qa: { finEdge: finEdge, blockBall: blockBall, greenWidth: greenWidth, ratingOf: ratingOf, SV: SV, LVR: LVR, startDunk: startDunk, startFinish: startFinish, finPlan: finPlan, contactAdv: contactAdv, bodyPow: bodyPow }, mobOf: mobOf, winnerNow: winnerNow, moveSet: moveSet, SF: SF, dunkPkg: dunkPkg, TKD: TKD, CB: CB, TIPS: TIPS, tipsStart: tipsStart, tipsStop: tipsStop, tkType: tkType, hcMod: hcMod, lookOf: lookOf, newGame: newGame, tick: tick, introStart: introStart, introTick: introTick, introPress: introPress, introEnd: introEnd, TALK: TALK, ISIG: ISIG, toText: toText, ARCH: ARCH, ATTRS: ATTRS, BADGES: BADGES, BADGE_TIER: BADGE_TIER, TIER_CN: TIER_CN, TIER_F: TIER_F, btier: btier, bk: bk, ba: ba, ROSTER: ROSTER, NBA: TEAMS_NBA, hasB: hasB, TEAMS: TEAMS, DIFF: DIFF, CFG: CFG, CFG_DEF: CFG_DEF, isThree: isThree, distHoop: distHoop, setupCheck: setupCheck, contestInfo: contestInfo,
+  PH.game = { ptIs: ptIs, ptOf: ptOf, ibuf: ibuf, t5: T5API, G: G, HZ: HZ, HZN: HZN, zoneOf: zoneOf, hzBase: hzBase, hzLvl: hzLvl, MVX: MVX, DPKG: DPKG, DPK_OF: DPK_OF, ST: ST, GW_OUT: K.gwOut, zones: zones, K: K, TDEF: TDEF, blkTier: blkTier, blkReact: blkReact, blkMove: blkMove, _qa: { finEdge: finEdge, blockBall: blockBall, greenWidth: greenWidth, ratingOf: ratingOf, SV: SV, LVR: LVR, startDunk: startDunk, startFinish: startFinish, finPlan: finPlan, contactAdv: contactAdv, bodyPow: bodyPow }, mobOf: mobOf, winnerNow: winnerNow, moveSet: moveSet, SF: SF, dunkPkg: dunkPkg, TKD: TKD, CB: CB, TIPS: TIPS, tipsStart: tipsStart, tipsStop: tipsStop, tkType: tkType, hcMod: hcMod, lookOf: lookOf, newGame: newGame, tick: tick, introStart: introStart, introTick: introTick, introPress: introPress, introEnd: introEnd, TALK: TALK, ISIG: ISIG, celStart: celStart, celPick: celPick, CEL_TIERS: CEL_TIERS, INTRO_TIERS: INTRO_TIERS, SIG_CEL: SIG_CEL, introLv: introLv, awardFreeThrows: awardFreeThrows, settleFreeThrow: settleFreeThrow, toText: toText, ARCH: ARCH, ATTRS: ATTRS, BADGES: BADGES, BADGE_TIER: BADGE_TIER, TIER_CN: TIER_CN, TIER_F: TIER_F, btier: btier, bk: bk, ba: ba, ROSTER: ROSTER, NBA: TEAMS_NBA, hasB: hasB, TEAMS: TEAMS, DIFF: DIFF, CFG: CFG, CFG_DEF: CFG_DEF, isThree: isThree, distHoop: distHoop, setupCheck: setupCheck, contestInfo: contestInfo,
     _dbg: { tkStart: tkStart, tkAdd: tkAdd, startShot: startShot, releaseShot: releaseShot, greenWidth: greenWidth, startMove: startMove, startBlock: startBlock, startFinish: startFinish, startDunk: startDunk, contestOf: contestOf, contestInfo: contestInfo, finPlan: finPlan }, TIERS: TIERS, grade: grade, DIMS: DIMS, applyTrain: applyTrain, applyMatchKits: applyMatchKits, placeDummy: placeDummy, trainReset: trainReset, giveBall: giveBall, newTrainStats: newTrainStats, styOf: styOf, styK: styK, STY_NAME: STY_NAME, seed: (s) => { seed = s | 1; } };
   PH.game.pokeCue = pokeCue;
   PH.game.hzCells = hzCells;

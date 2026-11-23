@@ -3,6 +3,8 @@
   const PH = window.PH, GM = PH.game, G = GM.G, R = PH.render, CFG = GM.CFG, TR = G.train;
   const $ = (id) => document.getElementById(id);
   const stage = $('stage'), canvas = $('game'), replayWipe = $('replay-wipe');
+  const wipeTitle = replayWipe.querySelector('strong');
+  const replayTitle = wipeTitle.textContent;
   const opts = { format: 'duel', opponent: 'cpu', get mode() { return this.format === 'duel' ? this.opponent : this.format; }, diff: 1, target: 21, clock: 24, glen: 0, fouls: 'on', arch0: GM.ROSTER[(Math.random() * GM.ROSTER.length) | 0], arch1: 'random', fb: 'simple', info: 'show', intro: 'on', netstat: 'on', home: 'LAL', away: 'BOS', qlen: 300, side: 0, ktarget: 21, kreveal: 'hide' };
   const lobbyRoles = { human: '你', cpu: '电脑', waiting: '等待玩家' };
   const lobby3 = ['curry', 'lebron', 'jokic', 'edwards', 'durant', 'giannis'].map((arch, i) => ({ arch, role: i === 0 ? 'human' : i % 3 === 2 ? 'waiting' : 'cpu' }));
@@ -84,7 +86,7 @@
   function pkCard(key) {
     if (key === 'random') return '<button class="pkc rnd" data-pk="random" data-testid="pk-random"><span class="pkf q">?</span><span class="pkn">随机</span><span class="pkp">任意球员</span></button>';
     const a = GM.ARCH[key];
-    return '<button class="pkc t' + TT[a.tier] + '" data-pk="' + key + '" data-testid="pk-' + key + '"><canvas class="pkf" width="32" height="32"></canvas><span class="pkn">' + a.name + (a.skill ? '<i class="pkst">' + IC.svg('takeover') + '</i>' : '') + '</span><span class="pkp">' + (pkSlot === null ? a.pos : positionBadge(a, true)) + '<small class="pkh"> · ' + listedHeight(a) + '</small></span><span class="pko">' + a.ovr + '</span></button>';
+    return '<button class="pkc ' + vcl(a.ovr) + '" data-pk="' + key + '" data-testid="pk-' + key + '"><canvas class="pkf" width="32" height="32"></canvas><span class="pkn">' + a.name + (a.skill ? '<i class="pkst">' + IC.svg('takeover') + '</i>' : '') + '</span><span class="pkp">' + (pkSlot === null ? a.pos : positionBadge(a, true)) + '<small class="pkh"> · ' + listedHeight(a) + '</small></span><span class="pko">' + a.ovr + '</span></button>';
   }
   const LTIP = { normal: 'lay' };
   let pkShown = '';
@@ -124,7 +126,7 @@
   PH.attrG = attrGroups; PH.attrGN = AGRP.map((g) => g[1]); PH.vcl = vcl;
   // 球员详情分页（参考 2K：概览 / 属性六大类 / 徽章四大类 / 动作与热区）；LB·RB 或点页签切换，右摇杆上下滚动
   const PK_TABS = [['ov', '概览'], ['at', '属性'], ['bd', '徽章'], ['mv', '动作 · 热区']];
-  const BCAT = [['终结', ['acrobat', 'poster', 'launch', 'bully', 'dream', 'fakes']], ['投篮', ['limitless', 'deadeye', 'quick', 'clutch', 'fade', 'stepper', 'cs', 'pullup']], ['组织', ['ankle', 'tight', 'dimer', 'needle', 'bailout', 'breaker', 'postpm']], ['防守 / 篮板', ['rim', 'pick', 'clamps', 'motor', 'hustle', 'brick', 'dodger', 'intercept', 'anchor', 'chaser', 'boxout']]];
+  const BCAT = [['终结', ['acrobat', 'poster', 'launch', 'bully', 'dream', 'fakes']], ['投篮', ['limitless', 'deadeye', 'quick', 'clutch', 'fade', 'stepper', 'cs', 'pullup']], ['组织', ['ankle', 'tight', 'dimer', 'needle', 'bailout', 'breaker', 'postpm']], ['防守 / 篮板', ['rim', 'pick', 'clamps', 'motor', 'hustle', 'pogo', 'brick', 'dodger', 'intercept', 'anchor', 'chaser', 'boxout']]];
   let pkTab = 'ov';
   function pkTabStep(d) { const i = PK_TABS.findIndex((t) => t[0] === pkTab); pkTab = PK_TABS[(i + d + PK_TABS.length) % PK_TABS.length][0]; pkDetail(pkShown || pkSel); $('pk-detail').scrollTop = 0; PH.audio.play('ui'); }
   function pkDetail(key) {
@@ -132,7 +134,7 @@
     if (key === 'random') { el.innerHTML = '<div class="pkd-h"><b>随机对手</b></div><p class="tnote">每局开赛重新抽一位（不会抽到你自己选的人，一轮之内不重复）。</p>'; return; }
     const a = GM.ARCH[key];
     const tm = a.team && GM.NBA[a.team], tmS = tm ? (a.team === 'LEG' ? '传奇' : tm.city + tm.name) + ' · ' : a.tier === 'rook' ? '新秀 · ' : '';
-    let h = '<div class="pkd-h"><canvas class="pkf big" width="64" height="64"></canvas><div><b>' + a.full + '</b><span>' + tmS + a.pos + ' · ' + listedHeight(a) + ' 米 · ' + a.num + ' 号</span><span class="pkd-desc">' + a.desc + '</span></div><em class="t' + TT[a.tier] + '">' + a.ovr + '<small>' + GM.TIERS[a.tier] + '</small></em></div>';
+    let h = '<div class="pkd-h"><canvas class="pkf big" width="64" height="64"></canvas><div><b>' + a.full + '</b><span>' + tmS + a.pos + ' · ' + listedHeight(a) + ' 米 · ' + a.num + ' 号</span><span class="pkd-desc">' + a.desc + '</span></div><em class="' + vcl(a.ovr) + '">' + a.ovr + '<small>' + GM.TIERS[a.tier] + '</small></em></div>';
     const pt = PH.PT.of(a);
     h += '<p class="pkform" data-testid="ptype"><canvas width="' + PH.PT.SIZE + '" height="' + PH.PT.SIZE + '" data-ptype="' + pt.id + '" style="width:26px;height:26px;image-rendering:pixelated;vertical-align:middle"></canvas> <b>' + pt.name + '</b> · ' + (pt.desc || '') + '</p>';
     h += '<div class="pkd-tabs" data-testid="pk-tabs">' + PK_TABS.map((t) => '<button data-nonav="1" data-pkt="' + t[0] + '" class="' + (t[0] === pkTab ? 'on' : '') + '" data-testid="pkt-tab-' + t[0] + '">' + t[1] + '</button>').join('') + '<span class="pkd-lr">LB</span><span class="pkd-lr r">RB</span></div>';
@@ -172,6 +174,10 @@
   let pkTeam = 'LEG';
   const pkPositions = new Set();
   const PK_POSITIONS = { PG: '控球后卫', SG: '得分后卫', SF: '小前锋', PF: '大前锋', C: '中锋' };
+  const PK_CONFERENCES = {
+    '东部': ['BOS','NYK','BKN','PHI','TOR','CLE','IND','DET','CHI','MIL','ATL','MIA','ORL','CHA','WAS'],
+    '西部': ['DEN','MIN','OKC','POR','UTA','GSW','LAC','LAL','PHX','SAC','DAL','HOU','MEM','NOP','SAS']
+  };
   function playerPositions(a) {
     return String(a.pos || '').split(/[\/／、,，\s]+/).flatMap((p) => {
       if (p === '后卫') return ['PG', 'SG'];
@@ -180,13 +186,15 @@
     });
   }
   function pkPositionChips() {
-    $('pk-positions').innerHTML = '<span class="pk-pos-label">位置 · 多选</span>' + Object.entries(PK_POSITIONS).map(([k, n]) => '<button class="pkt' + (pkPositions.has(k) ? ' on' : '') + '" data-pos="' + k + '" aria-pressed="' + pkPositions.has(k) + '" title="' + n + '">' + k + '</button>').join('');
+    $('pk-positions').innerHTML = '<span class="pk-pos-label">位置</span>' + Object.entries(PK_POSITIONS).map(([k, n]) => '<button class="pkt' + (pkPositions.has(k) ? ' on' : '') + '" data-pos="' + k + '" aria-pressed="' + pkPositions.has(k) + '" title="' + n + '">' + k + '</button>').join('');
   }
   function pkTeams() {
-    const N = GM.NBA || {}, ks = Object.keys(N).filter((k) => k !== 'LEG').sort((x, y) => N[x].name.localeCompare(N[y].name, 'zh-Hans-u-co-pinyin'));
-    const chip = (v, t, col) => '<button class="pkt' + (pkTeam === v ? ' on' : '') + '" data-tm="' + v + '" data-testid="pkt-' + v + '">' + (col ? '<i style="background:' + col + '"></i>' : '') + t + '</button>';
-    $('pk-teams').innerHTML = chip('all', '全部') + ks.map((k) => chip(k, N[k].name, N[k].jersey)).join('') + (N.LEG ? chip('LEG', '传奇', N.LEG.jersey) : '') + chip('rook', '新秀');
-    $('pk-teams').classList.toggle('hidden', !ks.length);
+    const N = GM.NBA || {};
+    const chip = (v, label, icon = '') => '<button class="pkt' + (pkTeam === v ? ' on' : '') + '" data-tm="' + v + '" data-testid="pkt-' + v + '" aria-pressed="' + (pkTeam === v) + '">' + icon + '<span>' + label + '</span></button>';
+    const conferences = Object.entries(PK_CONFERENCES).map(([name, teams]) => '<div class="pk-conference" role="group" aria-label="' + name + '球队"><b>' + name + '</b><div class="pk-team-row">' + teams.filter((k) => N[k]).map((k) => chip(k, N[k].name, '<img src="assets/teams/' + k + '.svg" width="36" height="36" alt="">')).join('') + '</div></div>').join('');
+    $('pk-teams').innerHTML = '<div class="pk-special">' + chip('all', '全部') + (N.LEG ? chip('LEG', '传奇', '<span class="pk-legend-star" aria-hidden="true">★</span>') : '') + chip('rook', '新秀') + '</div><div class="pk-conferences">' + conferences + '</div>';
+    $('pk-teams').classList.add('pk-team-filters');
+    $('pk-teams').classList.toggle('hidden', !Object.keys(N).length);
   }
   function pkFill() {
     const roster = GM.ROSTER.filter((k) => !pkPositions.size || playerPositions(GM.ARCH[k]).some((p) => pkPositions.has(p)));
@@ -198,7 +206,7 @@
     $('pk-grid').querySelectorAll('canvas.pkf').forEach((cv) => portrait(cv, GM.ARCH[cv.parentElement.getAttribute('data-pk')], GM.TEAMS[pkSide]));
     pkMark();
   }
-  $('pk-teams').addEventListener('click', (e) => { const b = e.target.closest('.pkt'); if (!b) return; pkTeam = b.getAttribute('data-tm'); $('pk-teams').querySelectorAll('.pkt').forEach((x) => x.classList.toggle('on', x === b)); pkFill(); PH.audio.play('ui'); });
+  $('pk-teams').addEventListener('click', (e) => { const b = e.target.closest('.pkt'); if (!b) return; pkTeam = b.getAttribute('data-tm'); $('pk-teams').querySelectorAll('.pkt').forEach((x) => { x.classList.toggle('on', x === b); x.setAttribute('aria-pressed', x === b); }); pkFill(); PH.audio.play('ui'); });
   $('pk-positions').addEventListener('click', (e) => {
     const b = e.target.closest('[data-pos]'); if (!b) return;
     const p = b.getAttribute('data-pos');
@@ -243,9 +251,11 @@
     else if (inlineSlot === null) inlineSlot = 0;
     if (!PH.frontend.allowed(inlineSide, inlineSlot)) { inlineSlot = opts.format === 't3' ? roomSlot : null; inlineSide = room.role === 'guest' ? 1 : 0; }
     const current = inlineSlot === null ? (inlineSide ? opts.arch1 : opts.arch0) : lobby3[inlineSlot]?.arch;
-    $('front-roster-title').textContent = '选择球星 · ' + (inlineSlot === null ? (opts.mode === '2p' ? '玩家 ' + (inlineSide + 1) + (padN >= 2 ? '（手柄 ' + (inlineSide + 1) + '）' : '') : inlineSide ? '对手 / 玩家 2' : '你的球员') : lobbySlotName(inlineSlot));
+    $('front-roster-title').textContent = inlineSlot === null ? (inlineSide ? 'P2' : 'P1') : lobbySlotName(inlineSlot);
+    const conferenceScroll = Array.from($('front-teams').querySelectorAll('.pk-team-row'), (row) => row.scrollLeft);
     pkTeams(); pkPositionChips();
     $('front-teams').innerHTML = $('pk-teams').innerHTML.replace(/data-testid=/g, 'data-original-testid=');
+    $('front-teams').querySelectorAll('.pk-team-row').forEach((row, i) => { row.scrollLeft = conferenceScroll[i] || 0; });
     $('front-positions').innerHTML = $('pk-positions').innerHTML;
     const keys = GM.ROSTER.filter((k) => { const a = GM.ARCH[k]; return (pkTeam === 'all' || (pkTeam === 'rook' ? a.tier === 'rook' : a.team === pkTeam)) && (!pkPositions.size || playerPositions(a).some((p) => pkPositions.has(p))); });
     $('front-grid').innerHTML = (inlineSide && inlineSlot === null && !room.role ? pkCard('random') : '') + keys.map(pkCard).join('') || '<p class="tnote">没有符合条件的球员，试试其他球队或位置。</p>';
@@ -254,7 +264,7 @@
     for (let i = 0; i < 2; i++) $('pick' + i).classList.toggle('on', inlineSlot === null && i === inlineSide);
   }
   function installInlinePicker() {
-    $('menu').querySelector('.menu-actions').insertAdjacentHTML('beforebegin', '<section id="front-roster" class="front-roster"><div class="front-target"><h3 id="front-roster-title">选择球星</h3><button id="front-player-detail">完整属性 / 技能说明</button></div><div id="front-teams" role="group" aria-label="球队筛选"></div><div id="front-positions" role="group" aria-label="位置筛选"></div><div id="front-grid" aria-label="可选球星"></div></section>');
+    $('menu').querySelector('.menu-actions').insertAdjacentHTML('beforebegin', '<section id="front-roster" class="front-roster"><div class="front-target"><h3 id="front-roster-title" aria-live="polite">P1</h3><button id="front-player-detail" aria-label="球员详情与技能" title="球员详情与技能">↗</button></div><div id="front-teams" class="pk-team-filters" role="group" aria-label="球队筛选"></div><div id="front-positions" role="group" aria-label="位置筛选（可多选）"></div><div id="front-grid" aria-label="可选球星"></div></section>');
     $('front-teams').onclick = (e) => { const b = e.target.closest('[data-tm]'); if (b) { pkTeam = b.dataset.tm; renderInlinePicker(); } };
     $('front-positions').onclick = (e) => { const b = e.target.closest('[data-pos]'); if (b) { const p = b.dataset.pos; if (pkPositions.has(p)) pkPositions.delete(p); else pkPositions.add(p); renderInlinePicker(); } };
     $('front-grid').onclick = (e) => {
@@ -266,12 +276,17 @@
   }
   function pickBtn(id, key, side = id === 'pick0' ? 0 : 1, t3 = false) {
     const el = $(id);
-    if (key === 'random') { el.className = 'pick fighter-pick fighter-random'; el.innerHTML = '<span class="fighter-figure"><span class="fighter-question">?</span><span class="fighter-ring"></span></span><span class="fighter-info"><span class="fighter-label">P2 / 神秘对手</span><span class="pk-n">随机球星</span><span class="pk-s">让下一场对决充满惊喜</span><span class="pk-c">选择指定球星 →</span></span>'; return; }
+    if (key === 'random') { el.className = 'pick fighter-pick fighter-random'; el.setAttribute('aria-label', 'P2 随机球星，更换球员'); el.innerHTML = '<span class="fighter-figure"><span class="fighter-question">?</span><span class="fighter-ring"></span></span><span class="fighter-info"><span class="fighter-label">P2</span><span class="pk-n">随机球星</span></span>'; return; }
     const a = GM.ARCH[key];
-    el.className = 'pick t' + TT[a.tier]; el.innerHTML = '<canvas class="pkf" width="32" height="32"></canvas><span class="pk-n">' + a.name + ' <small>' + a.ovr + '</small></span>' + (t3 ? positionBadge(a) : '<span class="pk-s">' + (a.skill ? '必杀技 · ' + a.skill.name : a.pos + ' · ' + GM.TIERS[a.tier]) + '</span><span class="pk-c">更换</span>');
+    el.className = 'pick ' + vcl(a.ovr); el.innerHTML = '<canvas class="pkf" width="32" height="32"></canvas><span class="pk-n">' + a.name + ' <small>' + a.ovr + '</small></span>' + (t3 ? positionBadge(a) : '<span class="pk-s">' + (a.skill ? '必杀技 · ' + a.skill.name : a.pos + ' · ' + GM.TIERS[a.tier]) + '</span><span class="pk-c">更换</span>');
     if (!t3) {
       el.classList.add('fighter-pick');
-      el.innerHTML = '<span class="fighter-figure"><span class="fighter-number">' + a.num + '</span><canvas class="fighter-body" width="240" height="300" aria-label="' + a.full + '全身像"></canvas><span class="fighter-ring"></span></span><span class="fighter-info"><span class="fighter-label">' + (side ? 'P2 / ' : 'P1 / ') + $('lab-p' + (side + 1)).textContent + '</span><span class="fighter-name"><span><span class="pk-n">' + a.name + '</span><span class="fighter-full">' + a.full + '</span></span><strong>' + a.ovr + '<small>总评</small></strong></span><span class="pk-s">' + a.pos + ' · ' + listedHeight(a) + ' 米 · #' + a.num + '</span><span class="fighter-stats">' + [['three','三分'],['mid','中投'],['lay','上篮'],['dunk','扣篮'],['hnd','控球'],['spd','速度'],['def','防守'],['str','力量']].map(([k,n]) => '<span>' + n + '<b class="' + vcl(A99(a[k])) + '">' + A99(a[k]) + '</b><i style="--rating:' + A99(a[k]) + '%"></i></span>').join('') + '</span><span class="fighter-badges">' + bList(a, true).map(([k,t]) => '<span title="' + GM.BADGES[k].desc + '">' + bHex(k,t) + GM.BADGES[k].name + '</span>').join('') + '</span><span class="pk-c">选择球星 →</span></span>';
+      el.setAttribute('aria-label', 'P' + (side + 1) + ' ' + a.full + '，更换球员');
+      el.innerHTML = '<span class="fighter-figure"><span class="fighter-number">' + a.num + '</span><canvas class="fighter-body" width="300" height="440" aria-label="' + a.full + '全身像"></canvas><span class="fighter-ring"></span></span>' +
+        '<span class="fighter-info"><span class="fighter-label">P' + (side + 1) + '</span><span class="fighter-name"><span class="pk-n">' + a.name + '</span><strong class="' + vcl(a.ovr) + '" aria-label="总评 ' + a.ovr + '">' + a.ovr + '</strong></span>' +
+        '<span class="pk-s">' + a.pos + ' · ' + listedHeight(a) + ' 米 · #' + a.num + '</span>' +
+        '<span class="fighter-stats">' + [['three','三分'],['mid','中投'],['lay','上篮'],['dunk','扣篮'],['hnd','控球'],['spd','速度'],['def','防守'],['str','力量']].map(([k,n]) => '<span class="' + vcl(A99(a[k])) + '">' + n + '<b>' + A99(a[k]) + '</b><i style="--pct:' + A99(a[k]) + '%"></i></span>').join('') + '</span>' +
+        '<span class="fighter-badges">' + bList(a, true).map(([k,t]) => '<span title="' + GM.BADGES[k].desc + '">' + bHex(k,t) + GM.BADGES[k].name + '</span>').join('') + '</span></span>';
       R.playerPreview(el.querySelector('canvas'), a, side);
     } else {
       const cv = el.querySelector('canvas'); cv.classList.add('team-body'); cv.width = 90; cv.height = 130;
@@ -325,6 +340,21 @@
   }
   const NET_STATE = ['time', 'phase', 'phaseT', 'score', 'stats', 'target', 'shotClock', 'glen', 'gclock', 'sd', 'mp', 'needClear', 'off', 'winner',
     'ball', 'banner', 'floats', 'fx', 'net', 'focus', 'camK', 'cz', 'cutin', 'hero', 'bpops', 'lastShot', 'hzV', 'clearOk', 'clearPing', 'ft'];
+  const ROOM_INTRO_WAIT = 20000;
+  const roomIntro = { done: new Set(), until: 0, sent: false };
+  function resetRoomIntro() { roomIntro.done.clear(); roomIntro.until = 0; roomIntro.sent = false; }
+  function roomIntroDone(msg, slot) { if (room.role === 'host' && room.active && room.links.has(slot)) roomIntro.done.add(slot); }
+  function roomIntroEnd(explicit) {
+    if (!room.active || !matchConfig) return true;
+    if (room.role === 'guest') {
+      if (!roomIntro.sent) { roomIntro.sent = true; rooms.introDone(); }
+      return true;
+    }
+    if (room.role !== 'host' || explicit || [...room.links.keys()].every((slot) => roomIntro.done.has(slot))) return true;
+    if (!roomIntro.until) roomIntro.until = performance.now() + ROOM_INTRO_WAIT;
+    return performance.now() >= roomIntro.until;
+  }
+  GM.introEndGate = roomIntroEnd;
   const roomAudio = [];
   let netInterp = null;
   function resetRoomAudio() {
@@ -347,7 +377,7 @@
       const value = G[key];
       state[key] = roundNet(key === 'hzV' && value ? { z: value.z, l: value.l } : value);
     }
-    state.players = G.players.map(({ opp, arch, team, b5in, r, col, ai, prev, headScreen, rBase, id, tm, tendency, ring, ...p }) => {
+    state.players = G.players.map(({ opp, arch, team, b5in, r, col, ai, prev, headScreen, rBase, id, tm, tendency, ring, sty, ...p }) => {
       const out = roundNet(p);
       out.oppId = opp ? opp.id : -1;
       return out;
@@ -355,6 +385,54 @@
     if (roomAudio.length) state.audio = roomAudio.splice(0);
     return state;
   }
+  // Delta snapshots: the first NET_REPEAT packets and every NET_KEYFRAME-th are full keyframes (a lost first one
+  // cannot stall kickoff), otherwise only keys (top-level and per player) that
+  // changed within the last NET_REPEAT packets, so a lost unreliable packet is covered by the next ones. The guest
+  // merges onto its last state. Halves a 1V1 snapshot (~2/3 off in 3V3); with the TURN stride, ~1.4 Mbps becomes ~0.5 Mbps.
+  const NET_KEYFRAME = 45, NET_REPEAT = 6;
+  let netTx = null, netRx = null;
+  function netDelta(state, delta) {
+    const tx = netTx && netTx.players === state.players.length ? netTx : (netTx = { n: 0, players: state.players.length, top: new Map(), pl: [] });
+    const n = ++tx.n, full = !delta || n <= NET_REPEAT || n % NET_KEYFRAME === 1;
+    const pick = (seen, k, v, out) => {
+      const j = v === undefined ? '\u0000' : JSON.stringify(v);
+      let e = seen.get(k);
+      if (!e || e.j !== j) seen.set(k, e = { j, at: n });
+      if (full || n - e.at < NET_REPEAT) { out[k] = v; return v === undefined; }
+      return false;
+    };
+    // Keys that vanished count as a change to undefined, so a later reappearance with the old value is resent.
+    const vanish = (seen, obj, mark) => { for (const k of seen.keys()) if (!(k in obj)) mark(k); };
+    const out = {}, gone = [];
+    for (const k in state) if (k !== 'players' && k !== 'audio' && pick(tx.top, k, state[k], out)) gone.push(k);
+    vanish(tx.top, state, (k) => { if (pick(tx.top, k, undefined, out)) gone.push(k); delete out[k]; });
+    out.players = state.players.map((p, i) => {
+      const seen = tx.pl[i] || (tx.pl[i] = new Map()), o = {};
+      for (const k in p) pick(seen, k, p[k], o);
+      vanish(seen, p, (k) => { pick(seen, k, undefined, o); delete o[k]; });
+      return o;
+    });
+    if (state.audio) out.audio = state.audio;
+    if (!full) { out.dl = 1; if (gone.length) out.gone = gone; }
+    return out;
+  }
+  function netMerge(state) {
+    if (!state || !Array.isArray(state.players)) return state;
+    const { dl, gone, audio, ...rest } = state;
+    let merged;
+    if (!dl) merged = rest;
+    else if (!netRx || netRx.players.length !== rest.players.length) return audio ? { audio } : null;
+    else {
+      merged = { ...netRx, ...rest, players: rest.players.map((p, i) => ({ ...netRx.players[i], ...p })) };
+      if (Array.isArray(gone)) for (const k of gone) if (NET_STATE.includes(k)) merged[k] = undefined;
+    }
+    netRx = merged;
+    const copy = structuredClone(merged);
+    if (audio) copy.audio = audio;
+    return copy;
+  }
+  // TURN leg transport for the HUD: TCP/TLS means head-of-line blocking; 对方 = only the other player relays.
+  const netRelayProto = (proto) => proto === 'peer' ? '·对方' : proto ? '·' + proto.toUpperCase() : '';
   function captureNetPose() {
     return {
       phase: G.phase,
@@ -477,7 +555,9 @@
         if (!config || config.mode !== mode || (mode === 't3' && (!Array.isArray(config.slots) || config.slots.length !== 6 || !config.slots.every((s) => GM.ARCH[s.arch])))) return;
         launchRoomMatch(config, roomSlot);
       },
-      state: roomState,
+      state: (state) => roomState(netMerge(state)),
+      introDone: roomIntroDone,
+      skip: (msg, slot) => skipVote(msg, slot),
       error: (message) => { const wasPlay = screen === 'play'; if (wasPlay) toMenu(); menuStatus(message); refreshMenu(); if (wasPlay && /^直连失败/.test(message)) netToast(message); },
       notice: (message) => { if (screen === 'menu') menuStatus(message); else netToast(message); }
     });
@@ -507,6 +587,9 @@
     show('btn-start', !guest && (!online || room.role === 'host' && room.links.has(1)));
     $('row-diff').classList.toggle('hidden', opts.mode !== 'cpu' && !t5 && !t3);
     const kg = opts.mode === 'king';
+    const startSlot = kg ? $('king-start') : $('menu').querySelector('.menu-actions');
+    if ($('btn-start').parentElement !== startSlot) startSlot.prepend($('btn-start'));
+    show('king-start', kg);
     show('row-p1', setup && !t5); show('row-p2', setup && !t5 && !kg); show('lobbyK', kg);
     for (const id of ['row-teams', 'row-side']) $(id).classList.toggle('hidden', !t5);
     const clkS = opts.clock ? opts.clock + ' 秒进攻' : '不限进攻';
@@ -522,7 +605,7 @@
     $('lab-p2').textContent = online ? (guest ? '你 · 球友' : '球友') : opts.mode === '2p' ? '玩家 2' : tr ? '假人体型' : '对手';
     $('btn-start').textContent = tr ? '进入训练场' : '开始比赛';
     $('menu-foot').textContent = tr ? '训练场：无比分无时限，可设置假人防守方式，比赛中按 Tab 开关训练参数面板。' : online ? '建房间并分享房间号，对手加入后由房主开始 · ' + opts.target + ' 分制 · ' + clkS + '。' : '规则：先到 ' + opts.target + ' 分（领先 2 分胜）· ' + clkS + ' · ' + lenS + ' · 失分方球权，抢断需出三分线。';
-    if (kg) { const sv = kingSaved(); $('btn-start').textContent = sv ? '继续闯关 · 第 ' + (sv.stage + 1) + ' 关' : '开始闯关'; $('menu-foot').textContent = '斗牛之王：选好你的球员，连赢五位越来越强的对手 · 每关先到 ' + (sv ? sv.target : opts.ktarget) + ' 分（领先 2 分胜）· ' + clkS + ' · 三次重来机会。'; kingLadderView(); }
+    if (kg) { const sv = kingSaved(); $('btn-start').textContent = sv ? '继续闯关' : '开始闯关'; $('menu-foot').textContent = ''; kingLadderView(); }
     const a = GM.ARCH[opts.arch0];
     pickBtn('pick0', opts.arch0); pickBtn('pick1', online && room.role === 'host' && !room.links.has(1) ? 'random' : opts.arch1);
     $('arch-desc').textContent = a.full + '：' + a.desc + (a.skill ? '。必杀技「' + a.skill.name + '」，条件和效果见“更换”。' : '。');
@@ -556,13 +639,14 @@
     PH.frontend.started();
     tuneClose();
     PH.audio.ensure(); PH.audio.play('start'); PH.audio.startMusic();
-    localSlot = slot; matchConfig = config; netFrame = 0; netInterp = null; aiReset();
+    localSlot = slot; matchConfig = config; netFrame = 0; netInterp = null; netTx = null; netRx = null; aiReset(); skipReset(); resetRoomIntro();
     resetRoomAudio();
     if (config.mode === 't3') PH.T3.start({ ...config, local: slot, replay: !room.active });
     else { CFG.shotClock = config.clock; GM.newGame({ ...config, mode: '2p' }); }
     replaySaveReset();
     PH.audio.voPreload(G.players.map((p) => p.arch.key));
-    if (opts.intro !== 'off') GM.introStart();
+    if ((config.intro || opts.intro) !== 'off') GM.introStart();
+    if (!G.intro && room.role === 'guest') roomIntroEnd(false);
     stage.classList.toggle('intro', !!G.intro);
     screen = 'play'; paused = false; panelOpen = false; overShown = false; PH.input.clearSys(); PH.input.flush(); clearPf(); camShift();
     syncBackgroundMatch();
@@ -637,11 +721,20 @@
     const sv = kingSaved();
     if (sv) kingLadder = sv.ladder.slice();
     else if (!kingLadder || kingLadder.includes(opts.arch0)) kingRoll();
-    const tg = sv ? sv.tags : kingTags(kingLadder), at = sv ? sv.stage : -1, see = (i) => sv ? sv.open || i < at || i === at && sv.retry > 0 : opts.kreveal === 'show';
+    const at = sv ? sv.stage : 0, see = (i) => sv ? sv.open || i < at || i === at && sv.retry > 0 : opts.kreveal === 'show';
     $('lk-lives').innerHTML = kingLives(sv ? sv.lives : KING_LIVES);
     show('lk-quit', !!sv);
-    $('lk-list').innerHTML = kingLadder.map((k, i) => '<li class="lk-i s' + i + (i < at ? ' done' : i === at ? ' cur' : '') + '" data-testid="king-rung-' + (i + 1) + '"><em>' + (i + 1) + '</em><canvas width="32" height="32" data-k="' + k + '"></canvas><span class="lk-n">' + (see(i) ? GM.ARCH[k].name : '???') + '<small class="ktag">' + tg[i] + '</small></span>' + (i < at ? '<i class="lk-st">已击败</i>' : '') + '<b class="lk-o">' + (see(i) ? GM.ARCH[k].ovr : '??') + '</b></li>').join('');
-    $('lk-list').querySelectorAll('canvas').forEach((cv) => portrait(cv, GM.ARCH[cv.getAttribute('data-k')], GM.TEAMS[1]));
+    $('lk-list').innerHTML = kingLadder.map((k, i) => kingRung(k, i, see(i), at)).join('');
+    $('lk-list').querySelectorAll('canvas').forEach((cv) => R.playerPreview(cv, GM.ARCH[cv.getAttribute('data-k')], 1));
+  }
+  function kingRung(key, i, known, at) {
+    const a = GM.ARCH[key], current = i === at, done = i < at;
+    const silhouette = '<svg class="lk-mystery" viewBox="0 0 120 260" aria-hidden="true"><g class="lk-silhouette"><path d="M46 9H76V17H82V55H75V63H46V55H38V17H46Z"/><path d="M30 74H90L98 170H22Z"/><path d="M18 76H30L26 170H14ZM90 76H102L106 170H94ZM30 170H54V244H30ZM66 170H90V244H66Z"/></g><text x="60" y="140" text-anchor="middle">?</text></svg>';
+    return '<li class="lk-i s' + i + (done ? ' done' : current ? ' cur' : '') + (known ? ' revealed' : ' mystery') + '" data-testid="king-rung-' + (i + 1) + '"' + (current ? ' aria-current="step"' : '') + ' aria-label="' + (current ? '当前挑战：' : done ? '已击败：' : '待挑战：') + (known ? a.name : '神秘对手') + '">' +
+      (current ? '<span class="lk-arrow" aria-hidden="true">▼</span>' : '') +
+      '<span class="lk-figure">' + (known ? '<canvas width="180" height="320" data-k="' + key + '" aria-label="' + a.full + '全身像"></canvas>' : silhouette) + '</span>' +
+      (known ? '<span class="lk-name">' + a.name + '</span><b class="lk-rating">' + a.ovr + '</b>' : '') +
+      (done ? '<span class="lk-defeated" aria-hidden="true">✓</span>' : '') + '</li>';
   }
   const KING_LIVES = 3;
   const KING_AT = [AT_CLOSE, ['mid', '中投'], ['three', '三分'], ['fade', '后仰'], ['lay', '上篮'], ['flo', '抛投'], ['dunk', '扣篮'], ['post', '背打'], ['hnd', '控球'], ['spd', '速度'], ['str', '力量'], ['def', '外防'], ['intD', '内防'], ['stl', '抢断'], ['blk', '盖帽'], ['dreb', '篮板']];
@@ -729,9 +822,9 @@
     if (opts.mode === 't3' || opts.mode === 'online') {
       const t3 = opts.mode === 't3';
       if (!t3 && !room.links.has(1)) return;
-      const config = same && !t3 && matchConfig ? matchConfig : { mode: opts.mode, clock: opts.clock, target: opts.target, diff: opts.diff, fb: opts.fb, glen: opts.glen,
+      const config = same && !t3 && matchConfig ? { ...matchConfig, intro: opts.intro } : { mode: opts.mode, clock: opts.clock, target: opts.target, diff: opts.diff, fb: opts.fb, glen: opts.glen,
         ...(t3 ? { slots: lobby3.map((s, i) => ({ arch: s.arch, role: room.links.has(i) ? 'remote' : s.role === 'waiting' ? 'cpu' : s.role })) }
-          : { arch0: opts.arch0, arch1: pickArch(opts.arch1, opts.arch0), fouls: opts.fouls === 'on' }) };
+          : { arch0: opts.arch0, arch1: pickArch(opts.arch1, opts.arch0), fouls: opts.fouls === 'on', intro: opts.intro }) };
       if (room.role === 'host') {
         if (!room.code) return;
         room.active = true;
@@ -1049,7 +1142,7 @@
   $('btn-netstat').addEventListener('click', () => { opts.netstat = opts.netstat === 'off' ? 'on' : 'off'; setLabels(); updateNetstat(true); });
   $('btn-vo').addEventListener('click', () => { PH.audio.setVo(!PH.audio.voOn); saveV(); });
   function skipReplay() { if (screen === 'play' && !paused && G.replay && G.replay.age >= REPLAY_MIN) G.replay.skip = true; }
-  canvas.addEventListener('pointerdown', skipReplay);
+  canvas.addEventListener('pointerdown', () => { if (skipScene()) skipPress(); else skipReplay(); });
   $('btn-fb').addEventListener('click', () => { opts.fb = opts.fb === 'detail' ? 'simple' : 'detail'; G.fb = opts.fb; if (typeof refreshMenu === 'function') refreshMenu(); setLabels(); });
   // ---------- 动作演示 ----------
   let tipsSave = null;
@@ -1137,7 +1230,7 @@
     // V4.5 信息卡徽章行（1V1 / 5V5 同一套）：档位配色的六边形图标，正在触发的徽章高亮
     const bl = bList(pl, is5), hot = new Set((G.bpops || []).filter((x) => G.time - x.t0 < 1.8 && G.time >= x.t0 && G.players[x.pid] === pl).map((x) => x.key));
     const brow = bl.length ? '<div class="pcb" data-testid="pc-badges">' + bl.map((x) => '<span class="tr' + x[1] + (hot.has(x[0]) ? ' hot' : '') + '" title="' + GM.BADGES[x[0]].name + '">' + bHex(x[0], x[1]) + '</span>').join('') + '</div>' : '';
-    const name = '<b>' + a.name + '</b>', ovr = '<em class="t' + TT[a.tier] + '">' + a.ovr + '</em>';
+    const name = '<b>' + a.name + '</b>', ovr = '<em class="' + vcl(a.ovr) + '">' + a.ovr + '</em>';
     const role = '<u class="' + (isOff ? 'ro' : 'rd') + '">' + (isOff ? '进攻' : '防守') + '</u>';
     const head = '<span class="pc-id">' + name + ovr + (G.mode === 't3' ? positionBadge(a) : '') + '</span>' + role;
     return '<div class="pch">' + head + '</div>' + sl + '<div class="pcg">' + cells + '</div>' + brow + tkl + '<div class="pctk' + (tkOn ? ' on' : '') + '"><span>主宰</span><s><b style="width:' + Math.round(pl.tk) + '%"></b></s></div>';
@@ -1490,7 +1583,9 @@
     if (sbE && sbE.offsetParent && screen === 'play') { const cv = stage.getBoundingClientRect(), r = sbE.getBoundingClientRect(); if (r.width) sb = { x0: (r.left - cv.left) / scale, x1: (r.right - cv.left) / scale, y1: (r.bottom - cv.top) / scale }; }
     for (let i = fpool.length - 1; i >= 0; i--) {
       const f = G.floats[i], d = fpool[i];
-      if (!f) { d.style.display = 'none'; continue; }
+      // 局内不再用小字解释动作；保留投篮反馈和明确标记的关键事件。
+      // 操作说明的演示仍显示动作标签，便于对照学习。
+      if (!f || screen !== 'tips' && !f.shot && !f.prominent) { d.style.display = 'none'; continue; }
       const p = R.proj(f.x, f.y, f.z + f.t * 0.5), pw = (f.shot ? 44 : f.text.length * 7 + 6) / 2, ph = f.shot ? 26 : 13;
       let y = p.y;
       const inSb = (yy) => sb && p.x + pw > sb.x0 && p.x - pw < sb.x1 && yy - ph < sb.y1 + 1;
@@ -1506,7 +1601,7 @@
       d.style.opacity = f.t > 1 ? String(Math.max(0, 1 - (f.t - 1) / 0.3)) : '1';
     }
   }
-  function hud() {
+  function hud(foulWipe) {
     frameN++;
     stage.classList.toggle('replay', !!(G.replay?.view && screen === 'play'));
     if (frameN % 30 === 0) padScan();
@@ -1546,7 +1641,7 @@
       const B = '<b>' + kb.d1 + '</b> 抢篮板 <b>' + kb.st + '</b> 卡位 <b>' + kb.sp + '</b> 加速';
       const P = '背打中　<b>' + kb.a1 + '</b> 勾手 / 按住后方向后仰 <b>' + kb.a2 + '</b> 转身终结　松开时按左右 转身';
       const D = '<b>' + kb.d1 + '</b> 封盖 <b>' + kb.d2 + '</b> 抢断 <b>' + kb.st + '</b> 举手干扰 <b>' + kb.sp + '</b> 加速';
-      show('hint', !!ft || train || !!(t3 && local) || opts.fb === 'detail');
+      show('hint', !ft && (train || !!(t3 && local) || opts.fb === 'detail'));
       const passing = t3 && local && off ? offBall ? '　<b>' + (hasPad ? 'A' : 'E') + '</b> 要球' : hasPad
         ? '　<b>A</b> 胸传　<b>RT+A</b> 过顶　<b>LB+A</b> 击地　<b>LT+A</b> 高吊　<b>双击 Y / LB+LT+A</b> 空接'
         : '　<b>E</b> 胸传　<b>Shift+E</b> 过顶　<b>Z</b> 击地　<b>X</b> 高吊　<b>V</b> 空接' : '';
@@ -1555,12 +1650,6 @@
       $('hint').innerHTML = two ? (padN >= 2 ? '手柄 1 = 玩家 1　手柄 2 = 玩家 2　' + padKeys
         : (padN === 1 ? '玩家 1：手柄 1（' + padKeys + '）' : '玩家 1：WASD + J K L，H 犹豫步，U 背打，V 自抛空接') + '　玩家 2：方向键 + 小键盘 1 2 3，小键盘 5 犹豫步，O 背打，Num4 自抛空接' + (padN === 1 ? '（第 2 个手柄按任意键即可接管）' : '；手柄双击 Y 自抛空接，接球自动终结')) : (post ? P : off ? '进攻　' + (offBall ? B : O) : '防守　' + D) + passing + (offBall ? '　<b>' + (hasPad ? 'R3' : 'F') + '</b> 掩护' : '') + (train ? '　<b>' + (hasPad ? 'View' : 'Tab') + '</b> 参数 <b>R</b> 重置' : '');
       if (t3) $('hint').innerHTML += alleyHelp;
-      if (ft) {
-        const shooter = G.players[ft.id];
-        const key = hasPad ? 'X' : two && ft.id === 1 ? '小键盘 1' : kb.a1;
-        const help = shooter.ctrl === 'cpu' || !two && shooter !== local ? '等待对手罚球' : '按住 <b>' + key + '</b>，到绿区松手罚球';
-        $('hint').innerHTML = '罚球能力 ' + A99(shooter.r.ft) + ' · ' + help;
-      }
       if (isTouch) {
         $('tb1').textContent = ft && ft.id === local?.id ? '罚球' : offBall ? '篮板' : off ? '投篮' : '盖帽'; $('tb2').textContent = offBall ? '扑球' : off ? '终结' : '抢断'; $('tb3').textContent = offBall ? '卡位' : off ? '运球' : '姿态'; $('tbalt').textContent = '背打';
         show('tbalt', off && !offBall); show('tbscreen', offBall);
@@ -1581,7 +1670,7 @@
       d.style.left = Math.max(40, Math.min(R.W - 40, p.x)) * scale + 'px'; d.style.top = Math.min(R.H - 6, p.y + 0.45 * p.s + 10) * scale + 'px';
     }
     drawFloats();
-    const b = G.banner, be = $('banner');
+    const b = !foulWipe && G.banner, be = $('banner');
     if (b) { if (be.classList.contains('hidden') || be.firstElementChild.textContent !== b.text) { be.classList.remove('hidden'); be.style.animation = 'none'; void be.offsetWidth; be.style.animation = ''; } be.firstElementChild.textContent = b.text; be.firstElementChild.style.color = b.color; be.lastElementChild.textContent = b.sub; be.style.borderLeftColor = b.color; be.classList.toggle('top', !!b.top); }
     else be.classList.add('hidden');
     const hr = G.hero, he = $('hero');
@@ -1694,11 +1783,11 @@
     if (G.mode === 't3') { renderBox3(); return; }
     const P = G.players.map((pl, i) => Object.assign(bxStat(i), { ftAbility: A99(pl.r.ft) })), cols = VIEWS[BX.view].concat(BX.adv ? ADVC : []), cat = BX.view !== 'box';
     if (!cat && G.fouls) cols.splice(3, 0, 'FT', 'PF');
-    const nm = [0, 1].map((i) => $('n' + i).dataset.fullName), cw = cat ? VIEWS[BX.view].map((k) => catWin(k, P)) : null;
+    const nm = [0, 1].map((i) => G.players[i].arch.name), cw = cat ? VIEWS[BX.view].map((k) => catWin(k, P)) : null;
     let h = '<thead><tr><th class="pcol">球员</th>' + cols.map((k) => '<th title="' + C[k][3] + '">' + C[k][0] + '</th>').join('') + (cat ? '<th class="cw">胜项</th>' : '') + '</tr></thead><tbody>';
     for (const i of [0, 1]) {
       const p = P[i];
-      h += '<tr class="' + (i === G.winner ? 'win' : '') + '"><td class="pcol ' + (i ? 'r' : 'b') + '">' + nm[i] + '</td>';
+      h += '<tr class="' + (i === G.winner ? 'win' : '') + '"><td class="pcol ' + (i ? 'r' : 'b') + '">' + escH(nm[i]) + '</td>';
       cols.forEach((k, j) => { const c = C[k], v = c[2] ? c[2](p) : c[1](p), hc = BX.heat ? heatCls(k, P, i) : '', won = cat && j < cw.length && cw[j] === i; h += '<td class="' + hc + (won ? ' cwin' : '') + '">' + v + '</td>'; });
       if (cat) { const n = cw.filter((x) => x === i).length, t = cw.filter((x) => x === -1).length; h += '<td class="cw"><b>' + n + '</b><small>-' + (cw.length - n - t) + (t ? '-' + t : '') + '</small></td>'; }
       h += '</tr>';
@@ -2017,8 +2106,9 @@
       else if (I.sysPressed('PadRight') || I.sysPressed('PadDown')) $('replay-cancel').focus();
       I.clearSys(); return;
     }
-    if (replay) { I.clearSys(); if (key || button) skipReplay(); return; }
-    if (screen === 'play' && G.intro && !paused) { if (I.sysPressed('Escape') || I.sysPressed('PadStart') || I.sysPressed('PadB')) GM.introEnd(); else if (I.sysAny() || button) GM.introPress(); I.clearSys(); return; }
+    if (replay) { I.clearSys(); if (key || button) { if (skipScene()) skipPress(); else skipReplay(); } return; }
+    if (skipScene() && !paused) { if (G.intro && room.role === 'host' && (I.introPressed('Escape') || I.introPressed('PadStart') || I.introPressed('PadB'))) GM.introEnd(); else if (I.sysAny() || button) skipPress(); I.clearSys(); return; }
+    if (screen === 'play' && G.intro && !paused) { if (I.introPressed('Escape') || I.introPressed('PadStart') || I.introPressed('PadB')) GM.introEnd(); else if (I.introPressed()) GM.introPress(); I.clearSys(); return; }
     if (I.sysPressed('KeyM')) toggleMusic();
     if (I.sysPressed('KeyI') && screen === 'play') toggleInfo();
     if (I.sysPressed('KeyC') && screen === 'play' && G.phase !== 'over') toggleCam();
@@ -2191,6 +2281,7 @@
   function tickMatch() {
     if (PH.tapeView.open) return;
     if (screen === 'play5') { if (!paused) tick5(DT); return; }
+    skipTick();
     if (G.intro) { GM.introTick(DT); PH.input.endTick(); roomAudio.length = 0; return; }
     if (!matchConfig) { GM.tick(DT); return; }
     const p = G.players[localSlot], a = p && p.action, t3 = G.mode === 't3', I = PH.input;
@@ -2203,8 +2294,8 @@
     aiSync();
     if (t3) { PH.T3.tick(DT, inputs); I.endTick(); }
     else GM.tick(DT, (pl) => inputs[pl.id] || GM.t5.zeroInp());
-    const stride = rooms.relaying() ? 3 : 2;
-    if (room.active && ++netFrame % stride === 0 && room.links.size && (roomAudio.length || !rooms.congested())) rooms.broadcast({ type: 'state', state: roomSnapshot() });
+    const stride = rooms.relaying() || room.route === 'turn' ? 3 : 2;
+    if (room.active && ++netFrame % stride === 0 && room.links.size && (roomAudio.length || !rooms.congested())) rooms.broadcast({ type: 'state', state: netDelta(roomSnapshot(), rooms.deltaOk()) });
   }
   function aiAllowed() { return screen === 'play' && !!matchConfig && localSlot >= 0 && !G.intro && !G.replay && G.phase !== 'over' && !PH.tapeView.open; }
   function aiSet(on) {
@@ -2307,7 +2398,8 @@
   // 浏览器要求用户操作后才能出声：第一次点击 / 按键时启动音乐（主菜单就有音乐）
   const musKick = () => { if (PH.audio.ensure()) { PH.audio.startMusic(); musicPick(); } };
   window.addEventListener('pointerdown', musKick, true); window.addEventListener('keydown', musKick, true);
-  let lastReplayCover = 0, netstatAt = 0, pingAt = 0, lastFpsText = '', lastPingText = '', lastPingCls = '';
+  let lastWipeCover = 0, lastWipeTitle = replayTitle;
+  let netstatAt = 0, pingAt = 0, lastFpsText = '', lastPingText = '', lastPingCls = '';
   function updateNetstat(force) {
     const now = performance.now();
     if ((room.role === 'host' && room.links.size) || (room.role === 'guest' && room.code)) {
@@ -2322,8 +2414,9 @@
     const p = room.ping;
     const via = room.transport === 'local' ? ' 本地'
       : room.direct ? (room.transport === 'p2p' ? ' P2P·强制直连' : room.transport ? ' 直连中…' : '')
-      : room.transport === 'p2p' ? (room.route === 'turn' ? ' P2P/TURN' : ' P2P') : room.transport === 'relay' ? ' 中继' : '';
-    const pingText = (p != null ? 'PING ' + p + 'ms' : 'PING --') + via;
+      : room.transport === 'p2p' ? (room.route === 'turn' ? ' P2P/TURN' + netRelayProto(room.relayProto) : ' P2P') : room.transport === 'relay' ? ' 中继' : '';
+    const ice = room.transport === 'p2p' && Number.isFinite(room.iceRtt) ? ' · ICE ' + room.iceRtt + 'ms' : '';
+    const pingText = (p != null ? 'PING ' + p + 'ms' : 'PING --') + via + ice;
     const pingCls = p == null ? '' : p < 60 ? 'good' : p < 120 ? 'warn' : 'bad';
     if (fpsText !== lastFpsText) { $('netstat-fps').textContent = fpsText; lastFpsText = fpsText; }
     if (pingText !== lastPingText) { $('netstat-ping').textContent = pingText; lastPingText = pingText; }
@@ -2335,16 +2428,24 @@
     updateNetstat(false);
     if (aiOn && !aiAllowed()) aiSet(false);
     show('btn-ai', aiAllowed() && !paused);
+    skipUi();
     const r5 = PH.render5.rpl, replay = screen === 'play' ? G.replay : screen === 'play5' && r5.on ? r5 : null;
+    const progress = screen === 'play' && !paused && !replay ? GM.replayFlow.foulProgress(G.banner) : 1;
+    const foulLabel = progress < 1 ? G.banner.text : '';
+    const andOne = replay?.q?.andOne;
+    const title = foulLabel || replayTitle;
+    const cover = foulLabel ? GM.replayFlow.wipeCover(progress) : GM.replayFlow.cover(replay);
+    if (cover !== lastWipeCover) { replayWipe.style.setProperty('--cover', cover); lastWipeCover = cover; }
+    if (title !== lastWipeTitle) { wipeTitle.textContent = title; lastWipeTitle = title; }
     show('replay-badge', !!replay?.view && !paused && !PH.tapeView.open);
     if (PH.tapeView.open) { PH.tapeView.render(dt); return; }
-    const cover = GM.replayFlow.cover(replay);
-    if (cover !== lastReplayCover) { replayWipe.style.setProperty('--cover', cover); lastReplayCover = cover; }
+    // Keep the last frame on screen until the wipe covers the change in position.
+    if (!paused && (foulLabel && progress < 0.5 || andOne && replay.wipeIn < 0.5)) return;
     if (screen === 'play5') { PH.render5.render(PH.T5.T, manual ? 0.05 : 1 / Math.max(30, fps)); hud5(); cutin(); return; }
     const hint = screen === 'play' && G.mode === 't3' && !G.replay?.view ? $('hint') : null;
     const hintY = hint?.offsetHeight ? hint.offsetTop / scale : undefined;
     if (room.role === 'guest' && room.active) applyGuestInterp(performance.now());
-    R.render(G, dt, hintY); hud(); cutin(); talkBox();
+    R.render(G, dt, hintY); hud(!!foulLabel); cutin(); talkBox();
     const dbg = $('debug');
     if (debug) { dbg.classList.remove('hidden'); dbg.textContent = 'FPS ' + fps.toFixed(0) + ' · ' + G.phase + ' · 进攻 ' + G.off + ' · 球 ' + G.ball.state; } else dbg.classList.add('hidden');
   }
@@ -2366,7 +2467,44 @@
     const n = L.done ? L.t.length : Math.min(L.t.length, Math.floor((G.time - I.lt) * 30));
     $('talk-text').textContent = L.t.slice(0, n); box.classList.toggle('done', n >= L.t.length);
   }
-  $('talk').addEventListener('pointerdown', (e) => { e.stopPropagation(); GM.introPress(); });
+  $('talk').addEventListener('pointerdown', (e) => { e.stopPropagation(); if (G.intro?.waitPeers && room.role === 'host') GM.introEnd(); else if (skipScene()) skipPress(); else GM.introPress(); });
+  // 在线真人 1V1：进场动画 / 回放要两人都按任意键才跳过；房主计票，客机只发自己的一票（通道可能丢包，未结束前每 0.5 秒补发）
+  const SKIP = { scene: '', votes: new Set(), n: 0, mine: false, endIn: 0, resend: 0 };
+  function skipScene() {
+    if (screen !== 'play' || !matchConfig || matchConfig.mode !== 'online' || !room.active || PH.tapeView.open) return '';
+    return G.intro ? 'intro' : G.replay ? 'replay' : '';
+  }
+  function skipReset(sc = '') { Object.assign(SKIP, { scene: sc, n: 0, mine: false, endIn: 0, resend: 0 }); SKIP.votes.clear(); }
+  function skipSync() {
+    const sc = skipScene();
+    if (sc !== SKIP.scene) skipReset(sc);
+    return sc;
+  }
+  function skipPress() {
+    const sc = skipSync(); if (!sc || SKIP.mine) return;
+    SKIP.mine = true;
+    if (room.role === 'host') skipVote({ scene: sc }, localSlot);
+    else { SKIP.n = Math.max(SKIP.n, 1); rooms.skip(sc); }
+  }
+  function skipVote(msg, slot) {
+    const sc = skipSync(); if (!sc || !msg || msg.scene !== sc) return;
+    if (room.role !== 'host') { SKIP.n = Math.max(SKIP.mine ? 1 : 0, Math.min(2, msg.n | 0)); return; }
+    SKIP.votes.add(slot); SKIP.n = Math.min(2, SKIP.votes.size);
+    rooms.broadcast({ type: 'skip', scene: sc, n: SKIP.n });
+    if (SKIP.n >= 2 && !SKIP.endIn) SKIP.endIn = 24;
+  }
+  function skipTick() {
+    const sc = skipSync(); if (!sc) return;
+    if (room.role === 'guest') { if (SKIP.mine && SKIP.n < 2 && ++SKIP.resend % 30 === 0) rooms.skip(sc); return; }
+    if (SKIP.endIn && --SKIP.endIn === 0) { if (sc === 'intro') GM.introEnd(); else G.replay.skip = true; }
+  }
+  function skipUi() {
+    const sc = skipSync(), el = $('skipvote');
+    stage.classList.toggle('vote', !!sc); show('skipvote', !!sc);
+    if (!sc) return;
+    const cls = 's' + SKIP.n;
+    if (el.dataset.s !== cls) { el.dataset.s = cls; el.className = cls; $('skipvote-n').textContent = SKIP.n + '/2'; }
+  }
   $('intro-skip').addEventListener('pointerdown', (e) => { e.stopPropagation(); GM.introEnd(); });
   function cutin() {
     const c = G.cutin, el = $('cutin');

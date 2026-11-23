@@ -16,20 +16,23 @@ function load(base) {
 }
 const old = load(true), current = load(false);
 const validNote = d => /^(越大|越小|开：)/.test(d.note) || d.note === '当前版本未使用，改了无效果';
-assert.deepEqual(Array.from(current.list(), d => d.k).sort(), Array.from(old.list(), d => d.k).sort());
+const added = current.list().filter(d => !old.meta(d.k));
+for (const d of old.list()) assert(current.meta(d.k), `${d.k}: kept`);
+for (const d of added) assert(validNote(d), `${d.k}: new tip style`);
 let edited = 0;
 const maxChanges = [];
 for (const d of current.list()) {
   const before = old.meta(d.k);
+  if (!before) continue;
   for (const f of ['v', 'min', 'step', 'g', 'cat', 'sub', 'gm', 'mode']) assert.equal(d[f], before[f], `${d.k}.${f}`);
   if (d.max !== before.max) maxChanges.push(`${d.k}: ${before.max} → ${d.max}`);
   if (d.label !== before.label || d.note !== before.note) {
     edited++;
-    assert(d.syn.includes(before.label), `${d.k}: old label searchable`);
+    assert(d.label === before.label || d.syn.includes(before.label), `${d.k}: old label searchable`);
     assert(validNote(d), `${d.k}: tip style`);
   }
 }
-console.log(`Registry comparison: ${current.list().length} keys identical; default/min/step/group/category/sub/mode identical`);
+console.log(`Registry comparison: ${old.list().length} keys kept, ${added.length} added; default/min/step/group/category/sub/mode identical`);
 console.log(`Max changes: ${maxChanges.length ? maxChanges.join(', ') : 'none'}`);
 console.log(`Rewritten parameters: ${edited}`);
 console.log(`Empty notes: ${current.list().filter(d => !d.note.trim()).length}`);

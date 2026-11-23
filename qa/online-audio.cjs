@@ -19,16 +19,17 @@ function client(role) {
 }
 
 const host = client('host'), guest = client('guest');
+const relaySnapshot = () => JSON.parse(JSON.stringify(vm.runInContext('roomSnapshot()', host.ctx)));
 host.game.t5.sfx('bounce');
 host.game.t5.scoreBy(0, 3, 'shot');
 host.game.t5.sfx('whistle');
 assert.deepEqual(host.heard, [['play', 'bounce'], ['play', 'swish'], ['play', 'cheer'], ['vo', 'curry', 'three', undefined], ['play', 'whistle']]);
-guest.ctx.snapshot = vm.runInContext('roomSnapshot()', host.ctx);
+guest.ctx.snapshot = relaySnapshot();
 assert.deepEqual(guest.heard, [], 'No guest simulation is needed');
 vm.runInContext('roomState(snapshot)', guest.ctx);
 assert.deepEqual(guest.heard, JSON.parse(JSON.stringify(host.heard)), 'Guest plays host events when applying the snapshot');
 assert.equal(guest.game.G.score[0], 3);
-guest.ctx.snapshot = vm.runInContext('roomSnapshot()', host.ctx);
+guest.ctx.snapshot = relaySnapshot();
 vm.runInContext('roomState(snapshot)', guest.ctx);
 assert.equal(guest.heard.length, host.heard.length, 'The next snapshot must not replay old audio');
 console.log('PASS: online guests hear batched bounce, basket, voice and whistle events once without simulating.');

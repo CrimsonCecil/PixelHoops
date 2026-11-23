@@ -126,7 +126,7 @@ for (const mode of ['2p', 't3', 't5']) for (const fps of [60, 120]) {
   const base = { type: 'move', T: 0.6, h0: 1, h1: -1, hand: 1, dx: 1, dy: 0, hx: 0, hy: 1, ideal: 0.35, jT: 0.2, wp: [], side: 1, postSide: 1 };
   const poses = [
     ...['idle', 'run', 'def', 'box', 'post', 'pass', 'fake', 'shoot', 'win', 'lose', 'land'].map(an => [an, an, {}]),
-    ['stance/crab', 'def', { stance: true }],
+    ['stance/slide', 'def', { stance: true }],
     ['sprint', 'run', {}],
     ...Object.keys(qa.SV).map(v => ['shoot/' + v, 'shoot', { V: qa.SV[v], v }]),
     ...Object.keys(qa.MKF).map(kind => ['move/' + kind, 'move', { kind }]),
@@ -144,7 +144,7 @@ for (const mode of ['2p', 't3', 't5']) for (const fps of [60, 120]) {
     ['reach/extreme', 'block', { type: 'block', verticalArm: 1, stretch: true }],
   ];
   for (const [label, an, extra] of poses) {
-    Object.assign(p, { action: { ...base, ...extra }, anim: an, stealFoot: null, crab: null, grip: null, armS: extra.stretch ? [1.6, 1.6] : null, hasBall: false, stun: 0, stance: !!extra.stance, speed: an === 'run' || extra.stance ? 7 : 0, x: 0, y: 5, z: 0, sq: 1, landT: 0, recT: 0.6 });
+    Object.assign(p, { action: { ...base, ...extra }, anim: an, stealFoot: null, slide: null, grip: null, armS: extra.stretch ? [1.6, 1.6] : null, hasBall: false, stun: 0, stance: !!extra.stance, speed: an === 'run' || extra.stance ? 7 : 0, x: 0, y: 5, z: 0, sq: 1, landT: 0, recT: 0.6 });
     if (an === 'stun') Object.assign(p, { stun: 0.8, stunT0: 0.8, stunK: extra.stunK });
     for (let i = 0; i <= Math.round(0.6 * fps); i++) {
       const t = i * dt;
@@ -152,7 +152,7 @@ for (const mode of ['2p', 't3', 't5']) for (const fps of [60, 120]) {
       p.animT = p.action.t = t; p.action.released = t > 0.35;
       p.runPh = t * 12; p.stun = Math.max(0, 0.8 - t); p.sq = 1 + 0.2 * Math.sin(t * 20);
       if (an !== 'stun') p.stun = 0;
-      if (extra.stance) ctx.PH.gait.crab(p, dt, p.pose);
+      if (extra.stance) ctx.PH.gait.slide(p, dt);
       p.pose = qa.poseTarget(p);
       if (extra.pass) p.pose.passHands = { L: [-1, 4, 2], R: [1, 4, 2] };
       record(p, label, { mode, fps, t, player: p.arch.key });

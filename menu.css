@@ -1,4 +1,5 @@
-/* A / 街机球馆: the court keeps playing behind a quiet two-choice home. */
+/* Pixel arcade navigation: the live court keeps playing behind the home. */
+.selection-lineup { display:contents; }
 #menu { --front-blue:#79adff; --front-ink:#10192c; }
 #menu.overlay { padding:0; overflow:auto; background:linear-gradient(90deg,rgba(5,10,20,.95),rgba(5,10,20,.74) 45%,rgba(5,10,20,.05) 80%); }
 #menu [data-view-panel] { display:none; }
@@ -167,14 +168,14 @@ button.pick.fighter-pick { width:100%; min-height:260px; height:auto; display:fl
 }
 
 /* Restore the original approved A prototype's composition and blue/yellow shell. */
-#menu { --front-bg:#10182a; --front-panel:#1c2942; --front-line:#3b4f6c; --front-muted:#97a6c2; --front-blue:#61b8ff; --front-gold:#ffd54b; color:#f6f1dc; font-family:'Noto Sans CJK SC','Microsoft YaHei',sans-serif; }
+#menu { --front-bg:#10182a; --front-panel:#1c2942; --front-line:#3b4f6c; --front-muted:#97a6c2; --front-blue:#61b8ff; --front-gold:#ffd54b; color:#f6f1dc; font-family:var(--font); }
 #menu.overlay { display:flex; flex-direction:column; align-items:stretch; justify-content:flex-start; padding:0 3%; overflow:auto; background:var(--front-bg); }
 #menu[data-view=home] { background:linear-gradient(90deg,rgba(16,24,42,.62),rgba(16,24,42,.4) 40%,rgba(16,24,42,.86) 60%,rgba(16,24,42,.96)); }
 #menu button { font-family:inherit; border:1px solid var(--front-line); background:var(--front-panel); box-shadow:inset 0 3px #ffffff04,3px 3px #060b14; color:#f6f1dc; line-height:1.3; }
 #menu button:hover { border-color:var(--front-gold); }
 #menu button.primary { background:var(--front-gold); color:var(--front-bg); border-color:var(--front-gold); }
 #menu button:focus-visible,#menu a:focus-visible { outline:2px solid var(--front-gold); outline-offset:3px; }
-#menu input,#menu select { background:var(--front-panel); color:#f6f1dc; border:1px solid var(--front-line); font:inherit; padding:10px 12px; min-width:0; }
+#menu input:not([type=range]),#menu select { background:var(--front-panel); color:#f6f1dc; border:1px solid var(--front-line); font:inherit; padding:10px 12px; min-width:0; }
 #menu[data-view=home] [data-view-panel=home] { display:grid; }
 .front-top { display:flex; align-items:center; justify-content:space-between; flex-shrink:0; min-height:62px; border-bottom:2px solid var(--front-line); gap:16px; }
 .front-brand { color:#f6f1dc; font:24px var(--font); text-decoration:none; white-space:nowrap; }
@@ -182,7 +183,7 @@ button.pick.fighter-pick { width:100%; min-height:260px; height:auto; display:fl
 #front-breadcrumb { color:var(--front-muted); font-size:12px; }
 .front-edition { color:var(--front-gold); font-size:12px; margin-right:276px; }
 .front-footer { order:2; display:flex; flex-shrink:0; justify-content:space-between; gap:16px; align-items:center; min-height:40px; margin-top:auto; border-top:1px solid var(--front-line); color:var(--front-muted); font-size:11px; }
-.front-footer kbd { background:#24344f; color:#dae4f6; padding:3px 5px; margin-right:5px; font:10px/1.2 monospace; border:0; box-shadow:none; min-width:0; }
+.front-footer kbd { background:#24344f; color:#dae4f6; padding:3px 5px; margin-right:5px; font:10px/1.2 var(--font); border:0; box-shadow:none; min-width:0; }
 .front-footer kbd:not(:first-child) { margin-left:14px; }
 .front-eyebrow { color:var(--front-gold); font:12px var(--font); letter-spacing:.13em; }
 .front-home { grid-template-columns:45% 55%; flex:1; min-height:0; width:100%; max-width:none; padding:5% 1% 3%; gap:0; }
@@ -243,6 +244,9 @@ button.pick.fighter-pick { width:100%; min-height:260px; height:auto; display:fl
 .front-select-head h2 { font-size:21px; line-height:1.15; margin:0 0 4px; color:#f6f1dc; }
 .front-select-head small { display:block; line-height:1.3; color:var(--front-muted); font-size:11px; }
 .front-select-head > b { color:var(--front-gold); font-size:13px; }
+.front-select-head > b,#front-room-info:empty { display:none; }
+/* Local instructions are redundant with the player cards; online room state stays visible. */
+#menu:not([data-room]) #front-room-info { display:none; }
 #menu .menu-panel > .row { display:inline-flex; width:auto; gap:10px; margin:0 16px 6px 0; }
 #menu .menu-panel > .row label { font-size:12px; width:auto; }
 #menu .menu-panel > .row button { font-size:12px; padding:6px 12px; }
@@ -265,14 +269,14 @@ button.pick.fighter-pick { width:100%; min-height:260px; height:auto; display:fl
 button.pick.fighter-pick .pk-n { display:block; font-family:inherit; font-size:23px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .fighter-name > span { min-width:0; }
 .fighter-full { display:block; color:var(--front-muted); font-size:10px; margin-top:5px; }
-.fighter-name strong { font:34px/1 var(--font); color:var(--front-gold); }
-.fighter-name strong small { display:block; text-align:center; color:var(--front-muted); font:9px sans-serif; margin-top:4px; }
+.fighter-name strong { font:34px/1 var(--font); color:var(--rating, var(--front-gold)); text-shadow:var(--rating-glow, none); }
+.fighter-name strong small { display:block; text-align:center; color:var(--front-muted); font:9px var(--font); margin-top:4px; }
 button.pick.fighter-pick .pk-s { font-size:11px; color:var(--front-muted); white-space:normal; }
 .fighter-stats { grid-template-columns:repeat(2,minmax(0,1fr)); gap:6px 14px; margin:2px 0; }
 .fighter-stats > span { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; font-size:11px; color:var(--front-muted); gap:2px 4px; }
-.fighter-stats b { display:inline; font:15px/1 var(--font); margin:0; }
+.fighter-stats b { display:inline; font:15px/1 var(--font); margin:0; color:var(--rating, inherit); text-shadow:var(--rating-glow, none); }
 .fighter-stats i { display:block; height:3px; width:100%; background:var(--front-line); }
-.fighter-stats i::before { content:''; display:block; height:100%; width:var(--rating); background:var(--fighter-color); }
+.fighter-stats i::before { content:''; display:block; height:100%; width:var(--pct); background:var(--rating, var(--fighter-color)); box-shadow:var(--rating-glow, none); }
 .fighter-badges { gap:4px; max-height:45px; scrollbar-width:thin; scrollbar-color:var(--front-line) transparent; }
 .fighter-badges > span { gap:3px; font-size:9px; padding:3px; border:1px solid var(--front-line); background:none; }
 .fighter-badges .bhex { --bpk:1px; width:12px; height:12px; }
@@ -291,12 +295,15 @@ button.pick.fighter-pick .pk-c { font-size:11px; color:var(--fighter-color); }
 #front-grid { grid-template-columns:repeat(auto-fill,minmax(175px,1fr)); grid-auto-rows:48px; gap:6px; max-height:162px; overflow:hidden auto; scrollbar-width:thin; scrollbar-color:var(--front-line) transparent; }
 #menu #front-grid .pkc { display:grid; grid-template-columns:28px minmax(0,1fr) 25px; grid-template-rows:18px 14px; gap:1px 7px; min-width:0; min-height:0; height:48px; padding:6px 8px; background:var(--front-panel); }
 #front-grid .pkc .pkf { width:28px; height:28px; min-width:0; min-height:0; grid-row:1/3; }
-#front-grid .pkc .pkn { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; overflow-wrap:normal; font:12px/18px 'Noto Sans CJK SC','Microsoft YaHei',sans-serif; }
-#front-grid .pkc .pkp { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; overflow-wrap:normal; font:10px/14px 'Noto Sans CJK SC','Microsoft YaHei',sans-serif; }
+#front-grid .pkc .pkn { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; overflow-wrap:normal; font:12px/18px var(--font); }
+#front-grid .pkc .pkp { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; overflow-wrap:normal; font:10px/14px var(--font); }
 #front-grid .pkc .pkh { font:inherit; }
 #front-grid .pkc .pkst { display:none; }
-#front-grid .pkc .pko { font:18px var(--font); color:var(--front-gold); }
+#front-grid .pkc .pko { font:18px var(--font); color:var(--rating, var(--front-gold)); text-shadow:var(--rating-glow, none); }
+#menu #front-grid .pkc[class*="rating-"] { border-left:3px solid var(--rating); background:linear-gradient(90deg, color-mix(in srgb, var(--rating) 14%, var(--front-panel)), var(--front-panel) 55%); }
+#front-grid .pkc[class*="rating-"] .pkf { background:color-mix(in srgb, var(--rating) 24%, #0c1424); box-shadow:0 0 0 1px var(--rating), var(--rating-glow, 0 0 0 transparent); }
 #menu #front-grid .pkc.on { border-color:var(--front-blue); background:#243b58; color:#f6f1dc; }
+#menu #front-grid .pkc.on[class*="rating-"] { border-left-color:var(--rating); }
 #front-grid .pkc.on .pkp { color:#bdcbe0; }
 .pk-grid .pkc .pkn { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; overflow-wrap:normal; }
 #front-ready-state { color:var(--front-muted); font-size:12px; margin:8px 0; }
@@ -309,6 +316,71 @@ button.pick.fighter-pick .pk-c { font-size:11px; color:var(--fighter-color); }
 #menu[data-view=select] .menu-panel .foot { font-size:10px; text-align:left; color:var(--front-muted); margin-top:6px; }
 @media(min-width:1500px) and (min-height:850px) {
   #menu:not([data-view=select]) .front-top { min-height:76px; }
+}
+
+/* D: two staggered, clipped-corner player modules. Keep King on its own layout. */
+#menu[data-view=select]:not([data-format=king]) .duel-lineup { gap:30px; padding-bottom:32px; margin:10px 0 16px; isolation:isolate; }
+#menu[data-view=select]:not([data-format=king]) .duel-lineup::before { content:''; position:absolute; inset:0 35%; z-index:-1; background:repeating-linear-gradient(125deg,transparent 0 15px,#79baff12 15px 17px); transform:skewX(-18deg); }
+#menu[data-view=select]:not([data-format=king]) .duel-lineup::after { top:50%; padding:9px; background:var(--front-gold); color:var(--front-bg); transform:translate(-50%,-50%) rotate(-8deg); font-size:23px; box-shadow:4px 4px #070d1b; }
+#menu[data-view=select]:not([data-format=king]) .duel-lineup button.fighter-pick { min-height:360px; padding:18px 22px 18px 10px; grid-template-columns:41% minmax(0,59%); clip-path:polygon(0 0,95% 0,100% 9%,100% 100%,5% 100%,0 91%); border-top:3px solid var(--fighter-color); background:linear-gradient(118deg,#243958,var(--front-panel) 65%); box-shadow:inset 0 -1px var(--front-line); }
+#menu[data-view=select]:not([data-format=king]) .duel-lineup #pick1 { top:32px; }
+#menu[data-view=select]:not([data-format=king]) #pick1 .fighter-figure { order:0; }
+#menu[data-view=select]:not([data-format=king]) .fighter-figure { padding:0 0 10px; }
+#menu[data-view=select]:not([data-format=king]) .fighter-body { height:320px; object-position:center bottom; image-rendering:pixelated; }
+#menu[data-view=select]:not([data-format=king]) .fighter-number { font-size:148px; top:28px; left:5px; }
+#menu[data-view=select]:not([data-format=king]) .fighter-ring { max-width:210px; }
+#menu[data-view=select]:not([data-format=king]) .fighter-info { justify-content:center; gap:10px; padding:0 0 12px; }
+#menu[data-view=select]:not([data-format=king]) .fighter-label { font-size:15px; }
+#menu[data-view=select]:not([data-format=king]) .fighter-name { align-items:center; }
+#menu[data-view=select]:not([data-format=king]) .fighter-name .pk-n { font-size:clamp(22px,2.1vw,32px); }
+#menu[data-view=select]:not([data-format=king]) .fighter-name strong { font-size:43px; color:var(--rating, var(--fighter-color)); }
+#menu[data-view=select]:not([data-format=king]) .fighter-pick .pk-s { font-size:13px; }
+#menu[data-view=select]:not([data-format=king]) .fighter-stats { gap:10px 18px; }
+#menu[data-view=select]:not([data-format=king]) .fighter-stats > span { font-size:14px; }
+#menu[data-view=select]:not([data-format=king]) .fighter-stats b { font-size:21px; }
+#menu[data-view=select]:not([data-format=king]) .fighter-stats i { height:4px; }
+#menu[data-view=select]:not([data-format=king]) .fighter-badges { max-height:62px; gap:7px; }
+#menu[data-view=select]:not([data-format=king]) .fighter-badges > span { font-size:11px; padding:0; border:0; }
+#menu[data-view=select]:not([data-format=king]) .fighter-badges .bhex { --bpk:1.5px; width:21px; height:23px; }
+#menu[data-view=select] #btn-replays { display:none; }
+#menu[data-view=select] .front-footer { display:none; }
+#menu[data-view=select] .front-roster { position:relative; margin-top:0; padding-top:0; border:0; }
+#menu[data-view=select] .front-target { position:absolute; bottom:100%; right:0; margin:0 0 8px; gap:10px; }
+#menu[data-view=select][data-format=t3] .front-target { position:static; justify-content:flex-end; }
+#menu[data-view=select] #front-player-detail { padding:2px 8px; font-size:18px; }
+#menu[data-view=select] #front-positions { display:flex; align-items:center; gap:7px; margin:0 0 12px; padding:8px 12px; background:#141f34; border:1px solid var(--front-line); border-top:0; }
+#menu[data-view=select] #front-teams { margin:0; }
+#menu[data-view=select] #front-teams.pk-team-filters { display:grid; gap:0; }
+#menu[data-view=select] #front-breadcrumb,#menu[data-view=select] .front-edition { display:none; }
+#menu[data-view=select] #front-teams .pk-team-row .pkt { padding:4px 0; font-size:11px; }
+#menu[data-view=select] #front-teams .pk-team-row .pkt.on { background:#ffdc6526; color:var(--front-gold); border-color:var(--front-gold); }
+#menu[data-view=select] #front-teams .pk-special .pkt { padding:5px 3px; gap:3px; font-size:13px; }
+#menu[data-view=select] #front-grid { grid-template-columns:repeat(auto-fill,minmax(190px,1fr)); grid-auto-rows:50px; max-height:164px; gap:7px; }
+#menu[data-view=select] #front-grid .pkc { height:50px; grid-template-columns:30px minmax(0,1fr) 28px; }
+#menu[data-view=select] #front-grid .pkn { font-size:14px; }
+#menu[data-view=select] .menu-actions { margin-top:14px; }
+@media(min-width:1500px) and (min-height:850px) {
+  #menu[data-view=select]:not([data-format=king]) .duel-lineup button.fighter-pick { min-height:390px; }
+  #menu[data-view=select]:not([data-format=king]) .fighter-body { height:350px; }
+}
+@media(max-width:1000px) {
+  #menu[data-view=select]:not([data-format=king]) .duel-lineup { gap:22px; }
+  #menu[data-view=select]:not([data-format=king]) .duel-lineup button.fighter-pick { min-height:335px; padding-right:16px; grid-template-columns:38% minmax(0,62%); }
+  #menu[data-view=select]:not([data-format=king]) .fighter-body { height:290px; }
+  #menu[data-view=select]:not([data-format=king]) .fighter-name strong { font-size:34px; }
+  #menu[data-view=select]:not([data-format=king]) .fighter-stats { gap:9px; }
+  #menu[data-view=select]:not([data-format=king]) .fighter-stats > span { font-size:12px; }
+  #menu[data-view=select]:not([data-format=king]) .fighter-stats b { font-size:18px; }
+}
+@media(max-width:700px) {
+  #menu[data-view=select]:not([data-format=king]) .duel-lineup { grid-template-columns:1fr; padding-bottom:0; gap:14px; }
+  #menu[data-view=select]:not([data-format=king]) .duel-lineup::before,#menu[data-view=select]:not([data-format=king]) .duel-lineup::after { display:none; }
+  #menu[data-view=select]:not([data-format=king]) .duel-lineup #pick1 { top:0; }
+  #menu[data-view=select]:not([data-format=king]) .duel-lineup button.fighter-pick { min-height:320px; }
+  #menu[data-view=select] .front-target { position:static; justify-content:flex-end; margin-bottom:8px; }
+  #menu[data-view=select] #front-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  #menu[data-view=select] #front-grid .pkc { grid-template-columns:23px minmax(0,1fr) 24px; padding:6px; gap:1px 5px; }
+  #menu[data-view=select] #front-grid .pkn { font-size:11px; }
 }
 @media(max-width:1000px),(max-height:620px) {
   .front-top { min-height:48px; }
@@ -389,4 +461,152 @@ button.pick.fighter-pick .pk-c { font-size:11px; color:var(--fighter-color); }
   #menu .menu-actions #btn-start, #menu .menu-actions #front-guest-wait { flex:1; min-width:140px; }
   #menu .menu-actions-sub { gap:8px; }
   #menu .menu-actions-sub button { padding:7px 9px; }
+}
+
+/* Approved F home: left court, stacked primary entries, then training and tools. */
+#menu .menu-panel .foot { display:none; }
+#menu[data-view=home] {
+  padding:0; overflow:hidden; outline:0; container-type:size;
+  background:linear-gradient(180deg,#0d1424b0,transparent 28%),linear-gradient(90deg,#0d14242b,#0d14243b 40%,#0d1424cf 57%,#0d1424f5 79%,#0d1424);
+}
+#menu[data-view=home] > :is(.front-top,.front-footer) { display:none; }
+#menu[data-view=home] .front-home { position:relative; display:block; flex:1; width:100%; height:100%; min-height:0; padding:0; margin:0; background:none; }
+#menu[data-view=home] .front-intro { position:absolute; left:4%; top:5.3%; padding:0; }
+#menu[data-view=home] h1 { margin:0; font:clamp(36px,5vw,80px)/.97 var(--font); letter-spacing:-.0375em; text-shadow:3px 4px #111c30; white-space:nowrap; }
+#menu[data-view=home] h1 span { display:inline; margin-left:.2em; }
+#menu[data-view=home] h1::after { content:''; display:block; margin-top:24px; width:72px; height:5px; background:var(--front-gold); }
+#menu[data-view=home] .front-home-nav { position:absolute; right:4.5%; top:36.4%; width:36.25%; padding:0; }
+#menu[data-view=home] .front-entries { display:grid; gap:clamp(16px,3.33cqh,30px); }
+#menu[data-view=home] .front-entries button {
+  --entry-accent:var(--front-gold); position:relative; display:flex; align-items:center; gap:24px;
+  min-height:clamp(76px,15.8cqh,142px); padding:clamp(14px,1.625vw,26px) 18px;
+  background:#18243a99; border:0; border-bottom:2px solid #62738b; box-shadow:none; text-align:left;
+  transition:transform .42s cubic-bezier(.2,.7,.25,1),background-color .42s,border-color .42s;
+}
+#menu[data-view=home] .front-entries #front-online { --entry-accent:var(--front-blue); }
+#menu[data-view=home] .front-entries b { margin:0; font:clamp(24px,2.625vw,42px)/1.15 var(--font); white-space:nowrap; }
+#menu[data-view=home] .front-home em { margin-left:auto; color:#8396b0; font:clamp(24px,2.625vw,42px)/1 var(--font); transition:color .42s; }
+#menu[data-view=home] .front-entries button::after { content:''; position:absolute; left:-5px; top:-5px; width:17px; height:17px; border-top:3px solid var(--entry-accent); border-left:3px solid var(--entry-accent); opacity:0; transform:scale(.6); transition:opacity .42s,transform .42s; }
+#menu[data-view=home] .front-entries button:is(:focus-visible,.pf),
+#menu[data-view=home]:not(:has(button:is(:focus-visible,.pf))) .front-entries button:hover { transform:translateX(-8px) scale(1.025); border-bottom-color:var(--entry-accent); background-color:#263750e8; }
+#menu[data-view=home] .front-entries button:is(:focus-visible,.pf)::after,
+#menu[data-view=home]:not(:has(button:is(:focus-visible,.pf))) .front-entries button:hover::after { opacity:1; transform:scale(1); }
+#menu[data-view=home] .front-entries button:is(:focus-visible,.pf) em,
+#menu[data-view=home]:not(:has(button:is(:focus-visible,.pf))) .front-entries button:hover em { color:var(--entry-accent); }
+#menu[data-view=home] button:is(:focus-visible,.pf) { outline:0; filter:none; }
+#menu[data-view=home] .front-home-train { display:flex; align-items:center; gap:22px; width:max-content; max-width:100%; min-width:44%; min-height:clamp(52px,8.66cqh,78px); margin-top:clamp(22px,3.8cqh,34px); padding:12px 20px; border:1px solid #50617b; border-bottom:3px solid #536580; background:#19263c; box-shadow:0 5px #080f1d; font:clamp(18px,1.75vw,28px)/1.2 var(--font); transition:transform .42s,background-color .42s,border-color .42s; }
+#menu[data-view=home] .front-home-train em { font-size:inherit; }
+#menu[data-view=home] .front-tools { position:absolute; right:4%; bottom:5.1%; display:flex; gap:14px; margin:0; }
+#menu[data-view=home] .front-tools button { display:flex; align-items:center; justify-content:center; gap:13px; min-height:clamp(42px,6.44cqh,58px); min-width:118px; padding:10px 24px; border:1px solid #596983; background:#1c2942; color:#f6f1dc; box-shadow:0 4px #070d19; font:clamp(14px,1.3125vw,21px)/1.2 var(--font); transition:transform .42s,background-color .42s,border-color .42s; }
+#menu[data-view=home] .front-tools span { display:inline; font-size:1em; }
+#menu[data-view=home] :is(.front-home-train,.front-tools button):is(:focus-visible,.pf),
+#menu[data-view=home]:not(:has(button:is(:focus-visible,.pf))) :is(.front-home-train,.front-tools button):hover { transform:translateY(-3px) scale(1.025); background-color:#263750; border-color:var(--front-gold); }
+@media(max-width:700px) {
+  #menu[data-view=home] { background:linear-gradient(180deg,#0d14247a,#0d1424a6 35%,#0d1424f2 65%); }
+  #menu[data-view=home] .front-intro { top:5%; left:6%; }
+  #menu[data-view=home] h1 { font-size:clamp(30px,7vw,48px); }
+  #menu[data-view=home] h1::after { width:48px; height:3px; margin-top:16px; }
+  #menu[data-view=home] .front-home-nav { right:7%; top:36%; width:72%; }
+  #menu[data-view=home] .front-entries { gap:18px; }
+  #menu[data-view=home] .front-entries button { min-height:76px; padding:20px 16px; }
+  #menu[data-view=home] .front-entries b { font-size:clamp(24px,5.6vw,32px); }
+  #menu[data-view=home] .front-home-train { margin-top:24px; min-height:52px; }
+  #menu[data-view=home] .front-tools { right:7%; bottom:5%; gap:12px; }
+  #menu[data-view=home] .front-tools button { min-width:90px; padding:10px 16px; }
+}
+@container(max-height:500px) {
+  #menu[data-view=home] .front-intro { top:6%; }
+  #menu[data-view=home] h1 { font-size:clamp(30px,4.5vw,52px); }
+  #menu[data-view=home] h1::after { margin-top:12px; height:3px; width:48px; }
+  #menu[data-view=home] .front-home-nav { top:23%; right:5%; width:43%; }
+  #menu[data-view=home] .front-entries { gap:12px; }
+  #menu[data-view=home] .front-entries button { min-height:58px; padding:14px; }
+  #menu[data-view=home] .front-entries b { font-size:24px; }
+  #menu[data-view=home] .front-home-train { min-height:44px; margin-top:16px; font-size:18px; padding:8px 14px; }
+  #menu[data-view=home] .front-tools { bottom:5%; right:5%; }
+  #menu[data-view=home] .front-tools button { min-height:34px; padding:7px 12px; font-size:14px; }
+}
+@media(prefers-reduced-motion:reduce) {
+  #menu[data-view=home] button, #menu[data-view=home] button::after, #menu[data-view=home] em { transition:none; }
+  #menu[data-view=home] button:is(:focus-visible,.pf),
+  #menu[data-view=home]:not(:has(button:is(:focus-visible,.pf))) button:hover { transform:none; }
+}
+
+/* K6 / dark mist: the same player module, five ascending mystery silhouettes. */
+#menu[data-format=king] .selection-lineup { display:grid; grid-template-columns:minmax(0,.95fr) minmax(0,1.25fr); gap:24px; margin:12px 0 0; }
+#menu[data-format=king] .duel-lineup { grid-template-columns:minmax(0,1fr); max-width:none; margin:0; gap:0; }
+#menu[data-format=king] #pick0 { min-height:390px; padding:18px 22px 18px 10px; grid-template-columns:42% minmax(0,58%); border-top:3px solid var(--front-blue); background:linear-gradient(118deg,#243958,var(--front-panel) 65%); }
+#menu[data-format=king] .fighter-figure { padding:0 0 10px; }
+#menu[data-format=king] .fighter-body { height:350px; image-rendering:pixelated; }
+#menu[data-format=king] .fighter-number { font-size:145px; top:28px; }
+#menu[data-format=king] .fighter-ring { max-width:210px; }
+#menu[data-format=king] .fighter-info { justify-content:center; gap:10px; }
+#menu[data-format=king] .fighter-label { font-size:15px; }
+#menu[data-format=king] .fighter-name { align-items:center; }
+#menu[data-format=king] .fighter-name .pk-n { font-size:clamp(22px,2.1vw,32px); }
+#menu[data-format=king] .fighter-name strong { font-size:43px; }
+#menu[data-format=king] .fighter-pick .pk-s { font-size:13px; }
+#menu[data-format=king] .fighter-stats { gap:10px 16px; }
+#menu[data-format=king] .fighter-stats > span { font-size:14px; }
+#menu[data-format=king] .fighter-stats b { font-size:21px; }
+#menu[data-format=king] .fighter-stats i { height:4px; }
+#menu[data-format=king] .fighter-badges { max-height:62px; gap:7px; }
+#menu[data-format=king] .fighter-badges > span { font-size:11px; padding:0; border:0; }
+#menu[data-format=king] .fighter-badges .bhex { --bpk:1.5px; width:21px; height:23px; }
+#menu[data-format=king] #lobbyK { min-width:0; margin:0; padding:10px 12px 14px; border:1px solid var(--front-line); border-top:3px solid var(--front-gold); background:linear-gradient(125deg,#1d2d48,#172236); box-shadow:4px 4px #060b14; }
+#menu[data-format=king] .lk-head { height:28px; margin:0 0 16px; justify-content:flex-end; }
+#menu[data-format=king] #lk-lives { flex:none; }
+#menu[data-format=king] #lk-quit { font-size:11px; padding:4px 8px; }
+#menu[data-format=king] #lk-list { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); align-items:end; gap:9px; height:315px; padding:0; margin:0; }
+#menu[data-format=king] .lk-i { --boss:#a0b1ca; display:block; position:relative; min-width:0; height:242px; margin-bottom:calc(var(--s) * 14px); padding:0; border:1px solid #455773; background:#1d2b43; box-shadow:0 10px #10192b,0 11px #3b4f6c; }
+#menu[data-format=king] .lk-i.s2 { --boss:#83b8fb; }
+#menu[data-format=king] .lk-i.s3 { --boss:#b48ce7; }
+#menu[data-format=king] .lk-i.s4 { --boss:#ffdb65; }
+#menu[data-format=king] .lk-i.mystery:nth-child(n+3) { border-color:color-mix(in srgb,var(--boss) 50%,#344762); background:radial-gradient(ellipse at 50% 60%,color-mix(in srgb,var(--boss) 16%,transparent),transparent 75%),#142036; }
+#menu[data-format=king] .lk-i.cur { border-color:var(--front-gold); box-shadow:inset 0 0 0 1px #ffdc6533,0 10px #10192b,0 11px #3b4f6c; }
+#menu[data-format=king] .lk-arrow { position:absolute; z-index:2; left:50%; bottom:calc(100% + 7px); transform:translateX(-50%); font-size:24px; line-height:1; color:var(--front-gold); filter:drop-shadow(0 3px #090f1c); }
+#menu[data-format=king] .lk-figure { position:absolute; left:5%; right:5%; bottom:0; height:95%; display:flex; justify-content:center; align-items:flex-end; }
+#menu[data-format=king] .s0 .lk-figure { height:77%; }
+#menu[data-format=king] .s1 .lk-figure { height:84%; }
+#menu[data-format=king] .s2 .lk-figure { height:90%; }
+#menu[data-format=king] .s4 .lk-figure { height:100%; }
+#menu[data-format=king] .lk-figure canvas { width:100%; height:calc(100% - 34px); margin-bottom:34px; object-fit:contain; image-rendering:pixelated; }
+#menu[data-format=king] .lk-mystery { width:100%; height:100%; overflow:visible; }
+#menu[data-format=king] .lk-silhouette { fill:#53637d; }
+#menu[data-format=king] .lk-mystery text { fill:var(--boss); font:28px var(--font); opacity:.7; }
+#menu[data-format=king] .mystery:nth-child(n+3) .lk-silhouette { fill:#142239; stroke:var(--boss); stroke-width:.8px; }
+#menu[data-format=king] .s3 .lk-mystery { transform:scaleX(1.05); }
+#menu[data-format=king] .s4 .lk-mystery { transform:scaleX(1.1); filter:drop-shadow(0 0 5px #e5b54133); }
+#menu[data-format=king] .lk-i.mystery:nth-child(n+3)::after { content:''; position:absolute; pointer-events:none; left:8%; top:42%; width:3px; height:3px; background:var(--boss); box-shadow:7px -30px var(--boss),83px -15px var(--boss),75px 45px var(--boss); opacity:.45; }
+#menu[data-format=king] .lk-i.mystery.s3::after { box-shadow:7px -30px var(--boss),83px -15px var(--boss),75px 45px var(--boss),5px 70px var(--boss),84px 88px var(--boss),67px -70px var(--boss); }
+#menu[data-format=king] .lk-i.mystery.s4::after { box-shadow:7px -30px var(--boss),83px -15px var(--boss),75px 45px var(--boss),5px 70px var(--boss),84px 88px var(--boss),67px -70px var(--boss),20px -80px var(--boss),84px 15px var(--boss),0 12px var(--boss),16px 100px var(--boss); opacity:.8; }
+#menu[data-format=king] .lk-name { position:absolute; bottom:20px; left:3px; right:3px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:12px; text-align:center; }
+#menu[data-format=king] .lk-rating { position:absolute; bottom:3px; left:0; right:0; text-align:center; font-size:14px; color:var(--front-gold); }
+#menu[data-format=king] .lk-defeated { position:absolute; left:7px; top:6px; color:var(--front-gold); font-size:20px; }
+#menu[data-format=king] .lk-i.done { opacity:.5; }
+#menu[data-format=king] .king-start { display:flex; justify-content:center; margin:20px 0 18px; }
+#menu[data-format=king] #king-start #btn-start { width:min(100%,420px); min-height:56px; font-size:22px; padding:12px 24px; }
+#menu[data-format=king] #menu-foot { display:none; }
+@media(max-width:1100px) {
+  #menu[data-format=king] .selection-lineup { grid-template-columns:minmax(0,1fr); gap:18px; }
+  #menu[data-format=king] #pick0 { min-height:350px; }
+  #menu[data-format=king] .fighter-body { height:310px; }
+  #menu[data-format=king] #lk-list { height:295px; }
+  #menu[data-format=king] .lk-i { height:220px; }
+}
+@media(max-width:600px) {
+  #menu[data-format=king] #pick0 { padding:14px 16px 14px 6px; grid-template-columns:38% minmax(0,62%); min-height:330px; }
+  #menu[data-format=king] .fighter-body { height:290px; }
+  #menu[data-format=king] .fighter-name strong { font-size:34px; }
+  #menu[data-format=king] .fighter-stats { gap:9px; }
+  #menu[data-format=king] .fighter-stats > span { font-size:12px; }
+  #menu[data-format=king] .fighter-stats b { font-size:18px; }
+  #menu[data-format=king] #lobbyK { padding:8px 8px 14px; }
+  #menu[data-format=king] .lk-head { margin-bottom:18px; }
+  #menu[data-format=king] #lk-list { height:212px; gap:5px; }
+  #menu[data-format=king] .lk-i { height:157px; margin-bottom:calc(var(--s) * 9px); }
+  #menu[data-format=king] .lk-arrow { font-size:20px; }
+  #menu[data-format=king] .lk-i.mystery::after { display:none; }
+  #menu[data-format=king] .lk-name { font-size:9px; }
+  #menu[data-format=king] .lk-rating { font-size:12px; }
 }

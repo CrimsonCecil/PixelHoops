@@ -60,8 +60,9 @@ module.exports = (async () => {
     console.log('PASS:', key, '8 Mandarin voice lines, contiguous 120-byte sprites, real manifest intro/comeback and offline-device safety');
   }
 
-  const gainNodes = [], voices = [], tones = [];
-  const param = () => ({ setValueAtTime() {}, exponentialRampToValueAtTime() {} });
+  const gainNodes = [], voices = [], tones = [], breathNoise = [];
+  const param = () => ({ events: [], setValueAtTime(...a) { this.events.push(a); },
+    linearRampToValueAtTime(...a) { this.events.push(a); }, exponentialRampToValueAtTime(...a) { this.events.push(a); } });
   class AudioContext {
     currentTime = 1;
     sampleRate = 24000;
@@ -72,11 +73,18 @@ module.exports = (async () => {
     }
     createBuffer() { return { getChannelData: () => new Float32Array(this.sampleRate) }; }
     createBiquadFilter() { return { frequency: param(), Q: {}, connect: (dest) => dest }; }
-    createOscillator() { return { frequency: param(), connect: (dest) => dest, start: (when) => tones.push(when), stop() {} }; }
+    createOscillator() {
+      const tone = {};
+      return { frequency: param(), connect: (dest) => dest,
+        start(when) { tone.start = when; tones.push(tone); }, stop(when) { tone.end = when; } };
+    }
     createBufferSource() {
       return {
         connect(dest) { this.dest = dest; return dest; },
-        start(when) { if (this.buffer.decoded) voices.push({ when, dest: this.dest, buffer: this.buffer }); },
+        start(when) {
+          if (this.buffer.decoded) voices.push({ when, dest: this.dest, buffer: this.buffer });
+          else breathNoise.push(when);
+        },
         stop() {}
       };
     }
@@ -89,7 +97,19 @@ module.exports = (async () => {
   };
   const audio = ctx.PH.audio;
   audio.play('foulWhistle');
-  assert.deepEqual(tones, [1, 1, 1.155, 1.155], 'two distinct whistle blasts');
+  assert.deepEqual(tones.map(t => t.start), [1, 1], 'oscillators start together for one blast');
+  assert.deepEqual(breathNoise, [1], 'breath starts with the tones, not a second blast');
+  const end = tones[0].end;
+  assert(tones.every(t => t.end === end) && end - 1 >= 0.4, 'all tones hold for one long blast');
+  const foulGain = gainNodes[5];
+  const envelope = foulGain.gain.events;
+  assert.equal(envelope[0][0], 0, 'soft attack');
+  assert(envelope.slice(1, -1).every(([level]) => level >= 0.25), 'audible throughout the body of the whistle');
+  assert(envelope.at(-1)[0] < 0.01 && envelope.at(-1)[1] === end, 'fades before stopping');
+  assert.equal(foulGain.dest, gainNodes[3], 'the blast still uses the SFX bus');
+  const foulLayers = gainNodes.slice(6);
+  assert.equal(foulLayers.length, 3, 'two tones and a noise layer');
+  assert(foulLayers.every(layer => layer.dest === foulGain), 'all whistle layers share one envelope');
   for (const [event, key, index, line] of [
     ['foulCharge', 'daniels', 1, '啧，碰一下也算我犯规？'],
     ['foulShot', 'edwards', 1, '嘶，裁判你看见没？'],
@@ -99,7 +119,7 @@ module.exports = (async () => {
     assert.equal(audio.vo('curry', event, 'pri').t, line);
     await new Promise(setImmediate);
     const { when, dest, buffer } = voices.shift();
-    assert(when > tones.at(-1) + 0.18, 'reaction starts after the whistle');
+    assert(when > end, 'reaction starts after the whistle');
     assert.equal(dest, gainNodes[4], 'reaction uses the voice bus');
     const data = fs.readFileSync(path.join(__dirname, '../vo', pack.s));
     assert.deepEqual(Buffer.from(buffer.decoded), data.subarray(clip.o * 120, (clip.o + clip.n) * 120));
@@ -114,6 +134,6 @@ module.exports = (async () => {
   audio.setSfx(false);
   audio.play('foulWhistle');
   assert.equal(audio.vo('curry', 'foulShot', 'pri'), null);
-  assert.equal(tones.length, 4);
-  console.log('PASS foul mixer: two whistle blasts, three existing Mandarin clips, whistle before voice, existing mutes and mixer buses');
+  assert.equal(tones.length, 2);
+  console.log('PASS foul mixer: one long blast, three existing Mandarin clips, whistle before voice, existing mutes and mixer buses');
 })().catch(error => { console.error(error); process.exitCode = 1; });

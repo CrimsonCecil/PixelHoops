@@ -83,8 +83,11 @@ for (const attacker of ['rdunn', 'giannis']) for (const defender of ['pritchard'
 for (const kind of ['dunk', 'lay']) {
   const average = { kind, ratings: { dunk: 0.675, lay: 0.675, hnd: 0.675, spd: 0.675, str: 0.675 } };
   assert(sample(after, average, 600).trigger < sample(legacy, average, 600).trigger * 0.85, 'average attackers remain below pre-quality trigger rates');
+  const AK = after.PH.game.K, keep = { dkCLo: AK.dkCLo, dunkAthPow: AK.dunkAthPow, dkCWeak: AK.dkCWeak };
+  Object.assign(AK, { dkCLo: 0.05, dunkAthPow: 1, dkCWeak: 0 });   // 扣篮能力折损（dkCLo / dunkAthPow / dkCWeak）是后加的独立规则，这里只比对穿越对抗本身
   const ordinaryBefore = fixture(before, { kind }), ordinaryAfter = fixture(after, { kind });
   assert.equal(resolve(after, ordinaryAfter, kind).prob, resolve(before, ordinaryBefore, kind).prob, 'ordinary non-through finish odds unchanged');
+  Object.assign(AK, keep);
   for (const rating of ['hnd', 'spd', 'str', kind === 'dunk' ? 'dunk' : 'lay']) {
     const low = sample(after, { kind, ratings: { [rating]: 0.4 } }, 600);
     const high = sample(after, { kind, ratings: { [rating]: 0.95 } }, 600);
