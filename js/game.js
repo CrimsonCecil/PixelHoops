@@ -4360,8 +4360,8 @@
     }
     switch (a.kind) {
       case 'uu': return [h0 * 0.12, 0.38 + 0.12 * Math.sin(PI * u), 1.0 - 0.2 * Math.sin(PI * u)];
-      case 'jab': return [h0 * 0.5, 0.04 * Math.sin(PI * u), 0.95 - 0.1 * Math.sin(PI * u)];
-      case 'jabgo': return [h0 * lerp(0.5, 0.34, s), lerp(0, 0.5, s), lerp(0.95, 0.1, Math.sin(PI * Math.min(1, u * 1.6)) * (u < 0.62 ? 1 : 0.6))];
+      case 'jab': return [h0 * 0.16, 0.34 + 0.04 * Math.sin(PI * u), 1.05 - 0.1 * Math.sin(PI * u)];
+      case 'jabgo': return [h0 * lerp(0.16, 0.34, s), lerp(0.34, 0.5, s), lerp(1.05, 0.1, Math.sin(PI * Math.min(1, u * 1.6)) * (u < 0.62 ? 1 : 0.6))];
       case 'cross': return [lerp(h0 * 0.36, h1 * 0.36, s), 0.38, 0.1 + 0.68 * ab(cs(PI * u))];
       case 'legs': return [lerp(h0 * 0.34, h1 * 0.34, s), 0.06 + 0.3 * ab(2 * u - 1), 0.1 + 0.62 * ab(cs(PI * u))];
       case 'behind': return [lerp(h0 * 0.34, h1 * 0.34, s), 0.25 - 0.58 * Math.sin(PI * u), 0.12 + 0.62 * ab(cs(PI * u))];
@@ -4447,6 +4447,16 @@
     const e = Math.acos(clamp((rc * rc - ua * ua - fa * fa) / (2 * ua * fa), -1, 1));
     const q = clamp(Math.atan2(side * vx, Math.hypot(vy, vz)), -0.55, 1.2), p = Math.atan2(vy, -vz) - e * 0.5;
     if (side > 0) { T.aRp = p; T.aRq = q; T.aRe = e; } else { T.aLp = p; T.aLq = q; T.aLe = e; }
+  }
+  // 胸前合球：大臂外撑（手肘朝外），小臂横向内收，双手夹住球的两侧
+  function gatherArms(T, Hh, g) {
+    const sy = Math.sin(T.lean) * 0.48 * Hh, sz = 0.76 * Hh + Math.cos(T.lean) * 0.48 * Hh - 0.03, ua = 0.28 * Hh, q = 0.8, p = 0.45;
+    for (const side of [1, -1]) {
+      const el = [side * (0.21 * Hh + Math.sin(q) * ua), sy + Math.sin(p) * Math.cos(q) * ua, sz - Math.cos(p) * Math.cos(q) * ua];
+      const d = [(g[0] + side * 0.13) * Hh - el[0], (g[1] - 0.03) * Hh - el[1], g[2] * Hh - el[2]], n = Math.hypot(d[0], d[1], d[2]) || 1;
+      const q2 = Math.asin(clamp(side * d[0] / n, -1, 1)), p2 = Math.atan2(d[1], -d[2]), S = side > 0 ? 'R' : 'L';
+      T['a' + S + 'p'] = p; T['a' + S + 'q'] = q; T['a' + S + 'e'] = p2 - p; T['a' + S + 'f'] = q2 - 0.4 * q;
+    }
   }
   function stepPose(a) {
     const w = (a.wp && (a.wp[a.si] || a.wp[a.wp.length - 1])), o = { aLp: 0.5, aLq: 0.28, aLe: 1.05, aRp: 0.5, aRq: 0.28, aRe: 1.05 };
@@ -4562,8 +4572,8 @@
     float('假动作', pl, '#f6efe0');
   }
   // 合球：接球 / 假投后双手抱球（三威胁）。合球后只能运一次球，已运过再合球时再运球判二次运球、拖动中枢脚判走步
-  // 合球持球点（身体坐标，按身高缩放）：持球手一侧腰外，从身后镜头也能看到双手抱球
-  function gatherBall(pl) { return [(pl.hand || 1) * 0.5, 0, 0.95]; }
+  // 合球持球点（身体坐标，按身高缩放）：双手在胸前抱球，手肘外撑
+  function gatherBall(pl) { return [(pl.hand || 1) * 0.16, 0.36, 1.08]; }
   function travelRule() { return G.travel !== false && G.mode !== 'train' && G.mode !== 'demo'; }
   function gatherOn(pl, dead) { if (!dead) pl.gaUsed = false; pl.gather = true; pl.dribDead = !!dead && travelRule(); pl.gaT = 0; }
   function gatherOff(pl) { pl.gather = false; pl.dribDead = false; pl.gaT = 0; }
@@ -5970,6 +5980,13 @@
       }
     } else if (an === 'fake') {
       set({ lean: 0.02, lA: 0.2, lB: 0.4, rA: 0.2, rB: 0.4, aLp: 1.8, aLe: 1.4, aRp: 1.95, aRe: 1.5, aLq: 0.1, aRq: 0.1 });
+      if (a && !a.postFake && pl.hasBall) {
+        // 假投从胸前合球举起，再收回合球
+        const C = { lean: T.lean }, w = clamp(Math.sin(Math.PI * clamp(t / a.T, 0, 1)) * 1.6, 0, 1), R = {};
+        gatherArms(C, pl.h / 1.95, gatherBall(pl));
+        for (const k of ['aLp', 'aLe', 'aLq', 'aLf', 'aRp', 'aRe', 'aRq', 'aRf']) R[k] = lerp(C[k], T[k] || 0, w);
+        set(R);
+      }
       if (a && a.postFake) {
         const u = Math.sin(Math.PI * clamp(t / a.T, 0, 1)), high = a.fakeId.endsWith('High');
         set({ lean: 0.24, lA: 0.5, lB: 0.95, rA: 0.5, rB: 0.95, lS: 0.4, rS: 0.4, yaw: a.side * (high ? 0.2 : 0.65) * u, tilt: a.side * (high ? 0.08 : 0.2) * u,
@@ -6135,12 +6152,13 @@
     }
     if (pl.hasBall && an === 'move' && a && a.kind !== 'hesi') {
       const bp = movePath(a, clamp(a.t / a.T, 0, 1)), Hh = pl.h / 1.95;
-      if (a.kind === 'uu' || a.kind === 'jab' || a.kind === 'jabgo' && a.t / a.T < 0.3 || a.kind === 'stepback' && a.t / a.T > 0.6) { armTo(T, 1, bp[0] + 0.1, bp[1], bp[2], Hh); armTo(T, -1, bp[0] - 0.1, bp[1], bp[2], Hh); }
+      if (a.kind === 'jab' || a.kind === 'jabgo' && a.t / a.T < 0.3) gatherArms(T, Hh, bp);
+      else if (a.kind === 'uu' || a.kind === 'stepback' && a.t / a.T > 0.6) { armTo(T, 1, bp[0] + 0.1, bp[1], bp[2], Hh); armTo(T, -1, bp[0] - 0.1, bp[1], bp[2], Hh); }
       else armTo(T, bp[0] >= 0 ? 1 : -1, bp[0], bp[1], bp[2] + 0.12, Hh);
     } else if (pl.hasBall && pl.gather && !a && (an === 'run' || an === 'idle')) {
-      // 合球：双手抱球护在持球手一侧腰前（三威胁）
-      const Hh = pl.h / 1.95, sd = pl.hand || 1; set({ lean: T.lean + 0.14, lB: T.lB + 0.3, rB: T.rB + 0.3, lA: T.lA + 0.12, rA: T.rA + 0.12 });
-      const g = gatherBall(pl); armTo(T, 1, g[0] + 0.1, g[1], g[2], Hh); armTo(T, -1, g[0] - 0.1, g[1], g[2], Hh);
+      // 合球：双手胸前抱球（三威胁）
+      const Hh = pl.h / 1.95; set({ lean: T.lean + 0.14, lB: T.lB + 0.3, rB: T.rB + 0.3, lA: T.lA + 0.12, rA: T.rA + 0.12 });
+      gatherArms(T, Hh, gatherBall(pl));
     } else if (pl.hasBall && (an === 'run' || an === 'idle' || an === 'post')) {
       const u = Math.abs(Math.sin(pl.drib)), p = 0.34 + 0.3 * u, e = 0.25 + 0.6 * u, low = an === 'move' ? 0.2 : 0;
       if (pl.handX > 0) set({ aRp: p - low, aRe: e - low, aRq: 0.22 }); else set({ aLp: p - low, aLe: e - low, aLq: 0.22 });
