@@ -403,6 +403,26 @@ function client({ relay = true, rtc = false, bcBus = null, direct = false, ice =
   assert.equal(lHost.bcs[0].closed, true);
   lHost.rooms.close();
   lGuest.rooms.close();
+  // Same-browser BroadcastChannel join in a force-direct room (local-offer arrives before WebRTC offer)
+  const dlBus = new Map();
+  const dlHost = client({ rtc: true, bcBus: dlBus, direct: true }), dlGuest = client({ rtc: true, bcBus: dlBus });
+  await dlHost.open(true); dlHost.sockets[0].opened();
+  await dlGuest.open(false); dlGuest.sockets[0].opened();
+  dlHost.sockets[0].receive({ type: 'peer-open', id: 1 });
+  dlGuest.sockets[0].receive({ type: 'relay-ready' });
+  // Host ignores relay join in force-direct mode; local-offer carries direct:true so guest resends join over BroadcastChannel
+  const dlRelayJoin = dlGuest.sockets[0].sent.find((m) => m.type === 'join');
+  dlHost.sockets[0].receive({ from: 1, msg: dlRelayJoin });
+  assert.equal(dlHost.rooms.room.links.size, 0, 'force-direct host ignores relay join');
+  const dlLocalOffer = dlHost.sockets[0].sent.find((m) => m.msg?.type === 'rtc' && m.msg.kind === 'local-offer');
+  assert.equal(dlLocalOffer?.msg?.direct, true, 'local-offer carries direct flag in force-direct mode');
+  dlGuest.sockets[0].receive(dlLocalOffer.msg);
+  assert.equal(dlHost.rooms.room.transport, 'local');
+  assert.equal(dlGuest.rooms.room.transport, 'local');
+  assert.equal(dlHost.rooms.room.links.size, 1, 'force-direct host admits guest via BroadcastChannel');
+  assert.deepEqual(dlGuest.events.filter((e) => e[0] === 'joined'), [['joined', 1]]);
+  dlHost.rooms.close();
+  dlGuest.rooms.close();
   console.log('PASS: same-browser BroadcastChannel local upgrade, RTC teardown, and dead-tab cleanup');
 
   // 10. Relay in-flight ACK pacing prevents TCP queue buildup without blocking audio or deadlocking

@@ -208,7 +208,7 @@
         if (closed) return;
         if (isHost && localChannelName && typeof window.BroadcastChannel === 'function' && !bc) {
           startLocal(localChannelName);
-          relaySend({ type: 'rtc', kind: 'local-offer', ch: localChannelName });
+          relaySend(link.direct ? { type: 'rtc', kind: 'local-offer', ch: localChannelName, direct: true } : { type: 'rtc', kind: 'local-offer', ch: localChannelName });
         }
         if (localUp || pc || typeof window.RTCPeerConnection !== 'function') return;
         if (icePending) { whenIce(() => { if (!closed && !localUp && !pc) this.startRtc(); }); return; }
@@ -227,6 +227,7 @@
         if (closed || !msg) return;
         if (msg.kind === 'fail') { if (this.direct) { this.reason = DIRECT_FAIL; this.close(); } return; }
         if (msg.kind === 'local-offer' && !isHost && typeof msg.ch === 'string' && msg.ch && typeof window.BroadcastChannel === 'function') {
+          if (msg.direct === true) this.armDirect();
           if (!bc) startLocal(msg.ch);
           return;
         }
