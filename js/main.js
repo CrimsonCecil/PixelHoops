@@ -1050,7 +1050,7 @@
   $('btn-netstat').addEventListener('click', () => { opts.netstat = opts.netstat === 'off' ? 'on' : 'off'; setLabels(); updateNetstat(true); });
   $('btn-vo').addEventListener('click', () => { PH.audio.setVo(!PH.audio.voOn); saveV(); });
   function skipReplay() { if (screen === 'play' && !paused && G.replay && G.replay.age >= REPLAY_MIN) G.replay.skip = true; }
-  canvas.addEventListener('pointerdown', skipReplay);
+  canvas.addEventListener('pointerdown', () => { if (skipScene()) skipPress(); else skipReplay(); });
   $('btn-fb').addEventListener('click', () => { opts.fb = opts.fb === 'detail' ? 'simple' : 'detail'; G.fb = opts.fb; if (typeof refreshMenu === 'function') refreshMenu(); setLabels(); });
   // ---------- 动作演示 ----------
   let tipsSave = null;
