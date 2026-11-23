@@ -3427,7 +3427,7 @@
     if (pl.arch.skill && pl.arch.skill.id === 'curry' && pts === 3 && !lsk) { pl.sk.streak++; if (pl.sk.streak >= 2 && pl.sk.cd <= 0) pl.sk.ready = true; }
     tkAdd(pl, 13 + 4 * (pts - 2) + 4 * Math.min(3, G.streak[id] || 0)); tkAdd(OP(G.players[id]), -4);
     const andOne = !!(attempt ?? pl.action)?.shootingFoul;
-    const oppS = G.score[1 - id], win = !andOne && !train && winsWith(id, pts), buzzer = win && (oppS >= G.target - 2 || G.sd || (G.glen > 0 && G.gclock <= 2));
+    const oppS = G.score[1 - id], win = !andOne && !train && (winsWith(id, pts) || (G.glen > 0 && G.gclock <= 0 && G.score[id] + pts > oppS)), buzzer = win && (oppS >= G.target - 2 || G.sd || (G.glen > 0 && G.gclock <= 2));
     if (!train) { G.score[id] += pts; { const o2 = G.stats[1 - id]; st.lead = Math.max(st.lead, G.score[id] - G.score[1 - id]); st.runC += pts; o2.runC = 0; st.run = Math.max(st.run, st.runC); } G.phase = 'dead'; G.phaseT = win ? 2.6 : 1.7; }
     const hot = G.streak[id] >= K.hcHotN;
     const title = kind === 'dunk' ? (name || '暴扣得分') : name === '空接上篮' ? name : pts === 3 ? '三分' : (name && name !== '定点跳投' ? name : '两分');

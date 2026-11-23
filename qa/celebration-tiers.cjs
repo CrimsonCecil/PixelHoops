@@ -44,7 +44,11 @@ Gm.newGame({ mode: 'cpu', arch0: 'curry', arch1: 'joe' });
 Object.assign(G, { intro: null, phase: 'live' }); G.score[0] = G.target - 3;
 Gm.t5.scoreBy(0, 3, 'shot', '三分');
 assert.ok(G.cel && G.cel.ty === 'night' && G.cel.lv === 3, 'Curry game-winning three plays night-night');
-console.log('PASS: game winner plays the signature celebration');
+Gm.newGame({ mode: 'cpu', arch0: 'curry', arch1: 'joe', glen: 60 });
+Object.assign(G, { intro: null, phase: 'live', gclock: 0 }); G.score[0] = G.score[1] = 5;
+Gm.t5.scoreBy(0, 2, 'shot', '中投');
+assert.ok(G.cel && G.cel.ty === 'night', 'tie-breaking basket after the horn in a timed game plays night-night');
+console.log('PASS: game winner plays the signature celebration (target score and timed buzzer)');
 
 // and-one / 3+1: signature after the final free throw goes in
 for (const pts of [2, 3]) {
