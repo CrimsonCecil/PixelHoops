@@ -308,6 +308,14 @@
   function menuStatus(text) {
     $('menu-status').textContent = text; show('menu-status', !!text);
   }
+  // Room failures that land on a screen where #menu-status is not visible (home view, or mid-match in 3V3).
+  let netToastT = 0;
+  function netToast(text) {
+    let el = $('net-toast');
+    if (!el) { el = document.createElement('div'); el.id = 'net-toast'; el.className = 'net-toast hidden'; el.setAttribute('role', 'alert'); document.body.appendChild(el); }
+    el.textContent = text; show('net-toast', true);
+    clearTimeout(netToastT); netToastT = setTimeout(() => show('net-toast', false), 8000);
+  }
   function roomStatus() {
     if (room.role === 'host' && room.code) menuStatus('公开房间 · ' + (1 + room.links.size) + ' 人在房间 · ' + (room.links.size ? '选好球星即可开始' : '等待球友加入'));
     else if (!room.role) menuStatus('');
@@ -454,10 +462,10 @@
       ready: (id) => { field.value = id; roomStatus(); PH.frontend.changed(); refreshMenu(); },
       reserve: (requested, links) => requested !== mode ? -1 : mode === 't3'
         ? lobby3.findIndex((s, i) => s.role === 'waiting' && !links.has(i)) : links.has(1) ? -1 : 1,
-      change: (left) => {
-        if (screen === 'play' && left != null && G.mode === 't3') G.players[left].ctrl = 'cpu';
-        if (screen === 'play' && left != null && G.mode !== 't3') { toMenu(); menuStatus('对手已断开连接。'); }
-        if (screen === 'menu' && room.role) { roomStatus(); PH.frontend.changed(); refreshMenu(); }
+      change: (left, reason) => {
+        if (screen === 'play' && left != null && G.mode === 't3') { G.players[left].ctrl = 'cpu'; if (reason) netToast(reason); }
+        if (screen === 'play' && left != null && G.mode !== 't3') { toMenu(); menuStatus(reason || '对手已断开连接。'); if (reason) netToast(reason); }
+        if (screen === 'menu' && room.role) { roomStatus(); PH.frontend.changed(); refreshMenu(); if (reason) menuStatus(reason); }
         if (left == null && room.links.size) { pingAt = performance.now(); rooms.ping(); }
       },
       joined: (slot) => { roomSlot = slot; menuStatus('已加入房间 · 选好球星，等待房主开始'); PH.frontend.joined(); refreshMenu(); pingAt = performance.now(); rooms.ping(); },
@@ -467,7 +475,8 @@
         launchRoomMatch(config, roomSlot);
       },
       state: roomState,
-      error: (message) => { if (screen === 'play') toMenu(); menuStatus(message); refreshMenu(); }
+      error: (message) => { const wasPlay = screen === 'play'; if (wasPlay) toMenu(); menuStatus(message); refreshMenu(); if (wasPlay && /^直连失败/.test(message)) netToast(message); },
+      notice: (message) => { if (screen === 'menu') menuStatus(message); else netToast(message); }
     });
     refreshMenu();
     PH.audio.play('ui');
@@ -2243,7 +2252,8 @@
     netstatAt = now;
     const fpsText = Math.round(fps) + ' FPS';
     const p = room.ping;
-    const via = room.transport === 'p2p' ? (room.route === 'turn' ? ' P2P/TURN' : ' P2P') : room.transport === 'relay' ? ' 中继' : '';
+    const via = room.direct ? (room.transport === 'p2p' ? ' P2P·强制直连' : room.transport ? ' 直连中…' : '')
+      : room.transport === 'p2p' ? (room.route === 'turn' ? ' P2P/TURN' : ' P2P') : room.transport === 'relay' ? ' 中继' : '';
     const pingText = (p != null ? 'PING ' + p + 'ms' : 'PING --') + via;
     const pingCls = p == null ? '' : p < 60 ? 'good' : p < 120 ? 'warn' : 'bad';
     if (fpsText !== lastFpsText) { $('netstat-fps').textContent = fpsText; lastFpsText = fpsText; }
