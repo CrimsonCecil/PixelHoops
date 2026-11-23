@@ -2197,7 +2197,7 @@
     const off = !!(p && (p.hasBall || a && ['shot', 'layup', 'dunk', 'fake'].includes(a.type)));
     const local = !p || paused || (room.active && document.hidden) ? GM.t5.zeroInp() : t3 ? I.read3(off) : I.read(0, off, true);
     if (aiOn && aiPadPressed()) aiSet(false);
-    if (room.role === 'guest') { rooms.input(aiOn ? { ...GM.t5.zeroInp(), ai: true } : local); I.endTick(); return; }
+    if (room.role === 'guest') { rooms.input(aiOn && !paused ? { ...GM.t5.zeroInp(), ai: true } : local); I.endTick(); return; }
     const inputs = rooms.inputs();
     if (p) inputs[localSlot] = local;
     aiSync();
@@ -2240,7 +2240,7 @@
     const remote = rooms.aiSlots(), slots = new Set([localSlot, ...room.links.keys(), ...Object.keys(aiTk).map(Number)]);
     for (const s of slots) {
       const p = G.players[s]; if (!p) continue;
-      const want = s === localSlot ? aiOn : remote.has(s) && room.links.has(s);
+      const want = s === localSlot ? aiOn && !paused : remote.has(s) && room.links.has(s);
       if (want && !(s in aiTk) && p.ctrl !== 'cpu') { aiTk[s] = p.ctrl; p.ctrl = 'cpu'; }
       else if (!want && s in aiTk) { p.ctrl = aiTk[s]; delete aiTk[s]; p.prev.a1 = p.prev.a2 = p.prev.a3 = true; }
     }
