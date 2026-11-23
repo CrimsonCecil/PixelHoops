@@ -123,11 +123,13 @@ async function scenario(name, options = {}) {
       snapshot: () => vm.runInContext(snapshot + ';roomState({players:G.players});', ctx),
       reset: () => { ctx.resetRoomIntro(); GM.newGame({ mode: '2p', arch0: 'lebron', arch1: 'curry' }); GM.introStart(); },
       skip: key => {
-        if (key === 'pointer') {
+        if (key === 'pointer' || key.startsWith('talk-')) {
           let handler;
+          const id = key === 'pointer' ? 'intro-skip' : 'talk';
           ctx.$ = () => ({ addEventListener: (name, fn) => { handler = fn; } });
-          vm.runInContext(main.split('\n').find(s => s.includes("$('intro-skip').addEventListener('pointerdown'")), ctx);
-          handler({ stopPropagation() {} }); return;
+          ctx.skipScene = () => 'intro'; ctx.skipPress = () => { throw new Error('host wait override must not become a vote'); };
+          vm.runInContext(main.split('\n').find(s => s.includes("$('" + id + "').addEventListener('pointerdown'")), ctx);
+          handler({ pointerType: key === 'talk-touch' ? 'touch' : 'mouse', stopPropagation() {} }); return;
         }
         const original = ctx.PH.input.introPressed;
         ctx.PH.input.introPressed = code => code === key;
@@ -235,6 +237,7 @@ function pointerAdvance() {
   for (const file of ['tune', 'ptype', 'render', 'roster', 'measurements', 'r5', 'game', 'team3']) vm.runInContext(read(file), c);
   c.PH.audio = { play() {}, voLine: () => null, voStop() {} };
   c.GM = c.PH.game;
+  c.G = c.GM.G; c.room = { role: 'guest' };
   const main = read('main').split('\n');
   for (const id of ['talk', 'intro-skip']) vm.runInContext(main.find(s => s.includes("$('" + id + "').addEventListener('pointerdown'")), c);
   const event = pointerType => ({ pointerType, stopPropagation() { stopped++; } });
@@ -245,11 +248,17 @@ function pointerAdvance() {
   handlers['talk:pointerdown'](event('touch')); assert.equal(I.li, 1, 'fresh mobile tap advances');
   I.lines[1].done = true;
   handlers['talk:pointerdown'](event('mouse')); assert.equal(I.li, 2, 'mouse click advances');
-  online = true; handlers['talk:pointerdown'](event('touch'));
+  online = true; I.waitPeers = true; handlers['talk:pointerdown'](event('touch'));
   assert.equal(votes, 1); assert.equal(I.li, 2, 'online tap retains skip voting');
+  c.room.role = 'host'; I.waitPeers = false; handlers['talk:pointerdown'](event('mouse'));
+  assert.equal(votes, 2); assert.equal(c.G.intro, I, 'host taps before waiting retain voting');
+  I.waitPeers = true; handlers['talk:pointerdown'](event('touch'));
+  assert.equal(c.G.intro, null, 'host talk tap overrides peer wait'); assert.equal(votes, 2);
+  c.GM.newGame({ mode: 'cpu', arch0: 'lebron', arch1: 'curry' }); c.GM.introStart();
   handlers['intro-skip:pointerdown'](event('mouse')); assert.equal(c.GM.G.intro, null, 'pointer skip still exits');
-  assert.equal(stopped, 5, 'pointer events do not bubble into other controls');
+  assert.equal(stopped, 7, 'pointer events do not bubble into other controls');
   console.log('PASS intro pointer input: touch tap and mouse click advance; typing, online voting and explicit skip preserved');
+  console.log('PASS intro pointer wait override: host talk tap exits wait; guest taps and normal host taps retain voting');
 }
 
 async function onlineScenario(name, options = {}) {
@@ -358,6 +367,7 @@ async function guestCompletion() {
   await onlineScenario('legacy', { noAck: true });
   for (const skip of ['Escape', 'PadStart', 'PadB']) await onlineScenario('skip', { skip });
   await onlineScenario('skip-during-wait', { skip: 'pointer', skipWait: true });
+  for (const skip of ['talk-touch', 'talk-mouse']) await onlineScenario('talk-override', { skip, skipWait: true });
   await onlineScenario('disconnect', { disconnect: true });
   await onlineScenario('all-guests', { extraGuest: true });
   await guestCompletion();

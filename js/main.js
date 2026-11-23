@@ -2405,7 +2405,7 @@
     const n = L.done ? L.t.length : Math.min(L.t.length, Math.floor((G.time - I.lt) * 30));
     $('talk-text').textContent = L.t.slice(0, n); box.classList.toggle('done', n >= L.t.length);
   }
-  $('talk').addEventListener('pointerdown', (e) => { e.stopPropagation(); if (skipScene()) skipPress(); else GM.introPress(); });
+  $('talk').addEventListener('pointerdown', (e) => { e.stopPropagation(); if (G.intro?.waitPeers && room.role === 'host') GM.introEnd(); else if (skipScene()) skipPress(); else GM.introPress(); });
   // 在线真人 1V1：进场动画 / 回放要两人都按任意键才跳过；房主计票，客机只发自己的一票（通道可能丢包，未结束前每 0.5 秒补发）
   const SKIP = { scene: '', votes: new Set(), n: 0, mine: false, endIn: 0, resend: 0 };
   function skipScene() {
