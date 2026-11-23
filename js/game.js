@@ -708,6 +708,13 @@
     ['rbCvChin', 'reb', '落地硬直 护球落地', 0.42, 0, 1, 0.01, '秒'],
     ['rbCvRip', 'reb', '落地硬直 强抢', 0.36, 0, 1, 0.01, '秒'],
     ['rbCvTip', 'reb', '落地硬直 拨球', 0.2, 0, 1, 0.01, '秒'],
+    ['lndRec', 'reb', '落地恢复 基础时间', 0.36, 0, 1, 0.01, '秒：跳投落地后跑不快的时间 × 二次起跳倍率（弹簧腿徽章再缩短）；盖帽 / 抢板落地只有超过平均倍率的部分才会变慢'],
+    ['lndSpd', 'reb', '落地恢复 移动速度', 0.45, 0, 1, 0.01, '比例：刚落地时的最高跑速比例，恢复期内逐渐回到 1'],
+    ['lndAcc', 'reb', '落地恢复 加速比例', 0.4, 0, 1, 0.01, '比例：恢复期内的起步 / 变向加速度'],
+    ['rebJ0', 'reb', '二次起跳 平均线', 0.7, 0.3, 1, 0.01, '二次起跳值：等于这个的人盖帽 / 抢板落地后的再起跳冷却和硬直保持原样（全名单平均约 0.70）'],
+    ['rebJS', 'reb', '二次起跳 差距', 3, 0, 6, 0.1, '倍率斜率：二次起跳每比平均线高 / 低 0.1，盖帽 / 抢板落地后的冷却和硬直少 / 多 ×0.1 × 这个'],
+    ['rebJLo', 'reb', '二次起跳 最快倍率', 0.3, 0.1, 1, 0.01, '倍率下限：二次起跳怪兽最快能缩到原时间的多少（弹簧腿徽章再乘）'],
+    ['rebJHi', 'reb', '二次起跳 最慢倍率', 2.2, 1, 4, 0.1, '倍率上限：体重大弹跳低的人最多慢到原时间的多少倍'],
     ['rbTipV', 'reb', '拨球 弹出速度', 1.2, 0, 4, 0.05, '米/秒'],
     ['rbTipNP', 'reb', '拨球 不可拾取', 0.3, 0, 1, 0.01, '秒'],
     ['rbRipPush', 'reb', '强抢 推开对手速度', 2.4, 0, 6, 0.1, '米/秒'],
@@ -919,6 +926,7 @@
     ['bgDreamSpin', 'rules', '梦幻舞步 背身转身撞开加成', 0.45, 0, 1, 0.01, '概率（金档数值；铜 / 银 / 名人堂按徽章档位系数缩放）'],
     ['bgBullySpin', 'rules', '推土机 背身转身撞开加成', 0.2, 0, 1, 0.01, '概率（金档数值；铜 / 银 / 名人堂按徽章档位系数缩放）'],
     ['bgHuCost', 'rules', '鱼跃扑球 体力倍率', 0.6, 0, 1, 0.01, '倍率（金档数值；铜 / 银 / 名人堂按徽章档位系数缩放）'],
+    ['bgPogo', 'rules', '弹簧腿 落地恢复倍率', 0.55, 0, 1, 0.01, '倍率：落地恢复时间 × 这个（金档数值；铜 / 银 / 名人堂按徽章档位系数缩放）'],
     ['bgHuReach', 'rules', '鱼跃扑球 抓球范围加成', 0.15, 0, 1, 0.01, '米（金档数值；铜 / 银 / 名人堂按徽章档位系数缩放）'],
     ['bgHuWin', 'rules', '鱼跃扑球 争球胜率加成', 0.2, 0, 1, 0.01, '概率：双方各自加减（金档数值；铜 / 银 / 名人堂按徽章档位系数缩放）'],
     ['bgMotorSt', 'rules', '永动机 体力消耗倍率', 0.65, 0, 1, 0.01, '倍率（金档数值；铜 / 银 / 名人堂按徽章档位系数缩放）'],
@@ -1451,6 +1459,7 @@
     dodger: { name: '挤过掩护', five: true, desc: '被掩护撞到时影响更轻、被挡时间更短' },
     intercept: { name: '截传', five: true, desc: '截传够球范围更大、截下概率更高' },
     anchor: { name: '禁区之锚', five: true, desc: '离筐 3 米内的终结，你在出手人 2.5 米内（协防也算）时干扰更强、更容易盖帽' },
+    pogo: { name: '弹簧腿', desc: '跳投、盖帽、抢板落地后恢复更快，能马上冲进内线抢板或再次起跳。档位由二次起跳和篮板决定' },
     chaser: { name: '篮板猎手', five: true, desc: '投篮篮板抓取范围更大' },
     boxout: { name: '卡位野兽', five: true, desc: '对方出手后自动卡位，你贴住的进攻人篮板范围变小' },
   };
@@ -1465,6 +1474,7 @@
     ankle: (a) => T3(a.hnd, 87, 91, 95), tight: (a) => T3(a.hnd, 85, 90, 95), acrobat: (a) => T3(a.lay, 84, 88, 93), poster: (a) => T3(a.dunk, 87, 91, 95),
     launch: (a) => T3(a.vert, 84, 89, 94), bully: (a) => T3(a.str, 82, 88, 95), rim: (a) => T3(a.blk, 83, 88, 93), pick: (a) => T3(a.stl, 80, 85, 92),
     clamps: (a) => T3(a.def, 83, 88, 92), motor: (a) => T3(a.sta, 87, 90, 95), dream: (a) => T3(a.post || 0, 75, 88, 93),
+    pogo: (a) => T4(99 * (0.6 * (a.rej || 0) + 0.4 * Math.max(a.oreb || 0, a.dreb || 0)), 80, 84, 88, 92),
     hustle: (a) => {
       const { hus2k: h, dcon2k: d } = a;
       if (!(h >= 90 && d >= 50)) return 0;
@@ -1682,6 +1692,7 @@
     a.rej = d(0.45 * vt + 0.3 * agi + 0.25 * a.hus - 0.18 * hv);
     a.leap = d(0.45 * vt + 0.3 * a.dunk + 0.25 * a.spd - 0.2 * hv);
     a.hang = d(0.7 * vt + 0.3 * agi - 0.15 * hv);
+    if (BADGE_TIER.pogo(a) && !a.badges.includes('pogo')) a.badges.push('pogo');
   }
   for (const key of ['curry', 'harden', 'luka', 'durant', 'lillard', 'kyrie', 'sga', 'kobe', 'booker', 'mitchell', 'brunson', 'trae', 'jmurray', 'maxey']) {
     if (ARCH[key]) ARCH[key].badges.push('pullup');
@@ -1713,6 +1724,11 @@
   }
   const bk = (pl, b, v) => { const t = btier(pl, b); return t ? 1 + (v - 1) * tierF(t) : 1; };
   const ba = (pl, b, v) => { const t = btier(pl, b); return t ? v * tierF(t) : 0; };
+  // 落地恢复：二次起跳（弹跳为主）越低、落地后越久跑不快 / 再起跳；弹簧腿徽章缩短
+  const landK = (p) => rejK(p) * bk(p, 'pogo', K.bgPogo);
+  // 盖帽 / 抢板落地：以全名单平均二次起跳为 1，怪兽明显更快、体重大弹跳低的明显更慢
+  const rebK = (p) => clamp(1 + K.rebJS * (K.rebJ0 - (p.r.rej || K.rebJ0)), K.rebJLo, Math.max(K.rebJLo, K.rebJHi)) * bk(p, 'pogo', K.bgPogo);
+  function landRecover(p, k = landK(p)) { if (k <= 0) return; p.lndT0 = G.time; p.lndT = G.time + K.lndRec * k; }
   const TEAMS = [
     { name: '蓝队', css: '#4aa3ff', jersey: '#3b8cf0', shorts: '#2459b8', trim: '#ffffff', shoe: '#f4f0e0' },
     { name: '红队', css: '#ff6b5e', jersey: '#e8483e', shorts: '#a82a2a', trim: '#ffe14a', shoe: '#2a2740' },
@@ -4993,7 +5009,7 @@
           if (!a.postOrigin && hT < a.fkT && pl.ctrl !== 'cpu') { pumpFake(pl, 0.15, true); pl.vz = Math.min(pl.vz, -1.5); pl.vx *= 0.3; pl.vy *= 0.3; return; }
           releaseJumpShot(pl, clamp((a.t - TI) / 0.2, -1, 1));
         } else if (a.t > TI + 0.22) releaseJumpShot(pl, 1);
-      } else if (pl.z <= 0 && a.t > (a.jT || K.shotJump) + 0.2) pl.action = null;
+      } else if (pl.z <= 0 && a.t > (a.jT || K.shotJump) + 0.2) { pl.action = null; if (a.jumped) landRecover(pl); }
     } else if (a.type === 'fake') {
       if (a.jf && pl.z > 0) pl.vz = Math.min(pl.vz, -1.5); // 起跳假投：压着落地，0.12–0.18 秒收势
       if (pl.uuFake) pl.uuFake.until = G.time + K.uuWin;
@@ -5139,9 +5155,9 @@
       }
     } else if (a.type === 'block') {
       if (pl.z <= 0 && a.t > 0.1) {
-        pl.action = null; pl.cd = a.rbS && pl.hasBall ? a.rcv : K.bkLandCd * rejK(pl);
+        pl.action = null; const rk = rebK(pl); pl.cd = (a.rbS && pl.hasBall ? a.rcv : K.bkLandCd * Math.max(0.7, 1 + 2.4 * (0.85 - K.rebJ0))) * rk; if (a.zmax) landRecover(pl, rk - 1);
         if (a.reb && !a.rodSecond && !a.rodClaimed && !a.rbS && rodReach(pl)) { pl.sk.rodUntil = G.time + K.rodWindow; pl.sk.rodLandCd = pl.cd; }
-        if (a.rbS && pl.hasBall) { pl.recT = G.time + a.rcv; pl.landS = a.rbS; pl.landT = G.time; }
+        if (a.rbS && pl.hasBall) { pl.recT = G.time + pl.cd; pl.landS = a.rbS; pl.landT = G.time; }
       }
     } else if (a.type === 'steal') {
       if (!a.done && a.t >= K.stlHitT) {
@@ -5201,7 +5217,7 @@
     const d = distHoop(pl);
     if (pl.hasBall) {
       if (G.phase !== 'live') return;
-      if (pl.recT > G.time && pl.landT && G.time - pl.landT < 0.6) return;
+      if (pl.recT > G.time && pl.landT && G.time - pl.landT < 0.6 * Math.max(1, rebK(pl))) return;
       if (pr.a1 || pr.a2) {
         if (G.needClear) { G.clearPing = G.time; G.illId = pl.id; }
         if (cancelVariant) { startShot(pl, inp, 'a1', cancelVariant); return; }
@@ -5309,7 +5325,7 @@
   // 这一帧能不能直接响应 key（不能 = 按下的键进缓冲）
   function ibReady(pl, key) {
     if (pl.stun > 0 || pl.action || pl.z > 0.05) return false;
-    if (pl.hasBall) { if (key === 'a3') return pl.cd <= 0; return !(pl.recT > G.time && pl.landT && G.time - pl.landT < 0.6); } // 运球招式本来就不受落地硬直限制
+    if (pl.hasBall) { if (key === 'a3') return pl.cd <= 0; return !(pl.recT > G.time && pl.landT && G.time - pl.landT < 0.6 * Math.max(1, rebK(pl))); } // 运球招式本来就不受落地硬直限制
     return pl.cd <= 0 || key === 'a1' && rodReady(pl);
   }
   // 持球动作里自己的键另有用途（蓄力出手 / 二次按键转身上篮 / 双击扣篮 / 运球连招自带缓存），这些时候不进缓冲
@@ -5441,7 +5457,7 @@
       const live = G.phase === 'live' && !G.ball.dead && !frozen;
       if (!live) { pl.ib = null; if (pr.a1 && !pl.hasBall) pl.jbuf = G.time; }
       else {
-        if (pl.z > 0.05 || (pl.hasBall && pl.recT > G.time && pl.landT && G.time - pl.landT < 0.6)) ibuf.hold(pl, G.time);
+        if (pl.z > 0.05 || (pl.hasBall && pl.recT > G.time && pl.landT && G.time - pl.landT < 0.6 * Math.max(1, rebK(pl)))) ibuf.hold(pl, G.time);
         if (pl.ib) trackHesitation(pl, pl.ib.hesi, raw);
         // 缓存中的投篮键：记下松手时刻（实际按住时长 hd），执行时回放；5V5 接球前 team5 不把 X 传进来，直接读手柄/键盘的 X
         if (pl.ib && pl.ib.k === 'a1' && pl.ib.hd == null && !ibDown(pl, raw)) pl.ib.hd = G.time - pl.ib.t;
@@ -5554,6 +5570,7 @@
     if (pl.hasBall) { ms *= 0.93 * clamp((0.8 + 0.2 * (pl.r.spdB || pl.r.spd)) / (0.8 + 0.2 * pl.r.spd), 0.9, 1.08); if (ptIs(pl, 'slasher')) acc *= 1.06; } ms *= 1 - 0.24 * fat(pl); acc *= 1 - 0.35 * fat(pl);
     { const LQ = pl.r.lat || pl.r.def; if (pl.stance) { ms *= (0.78 + 0.16 * LQ) * (ptIs(pl, 'lockdown') ? 1.05 : 1); acc = 34 + 18 * LQ; } else if (!pl.hasBall && !isO(pl)) acc *= (0.94 + 0.08 * (pl.r.hus || 0.8)) * (ptIs(pl, 'threeD') ? 1.06 : 1); if (!isO(pl) && ptIs(pl, 'rim') && distHoop(pl) < 3.5) { ms *= 1.04; acc *= 1.1; } }
     if (!pl.hasBall && pl.arch.skill && pl.arch.skill.id === 'lebron' && pl.sk.hint === 'ready') ms *= 1.2; if (pl.boost > 0) ms *= 1.15; if (pl.post) { ms *= 0.5; acc = 24; } if (pl.box) { ms *= 0.72; acc = 30; }
+    if (pl.lndT > G.time && pl.z <= 0) { ms *= lerp(K.lndSpd, 1, clamp((G.time - pl.lndT0) / Math.max(0.01, pl.lndT - pl.lndT0), 0, 1)); acc *= K.lndAcc; }
     if (a) { if (a.type === 'shot') ctl = a.jumped ? 0 : 0.12; else if (a.type === 'fake') ctl = 0; else if (a.type === 'steal') ctl = 0.25; else ctl = 0; }
     if (a && (a.type === 'move' || a.type === 'dive' || a.type === 'shot' && a.stride && a.stride.moving || (a.type === 'dunk' && !a.done) || a.inSteps)) { /* 脚本位移 */ }
     else if (air) { pl.vx *= 1 - 0.8 * dt; pl.vy *= 1 - 0.8 * dt; }
@@ -8463,6 +8480,13 @@
     rbOneV: ['单手摘板 弹跳门槛', '越小弹跳较弱者也能单手摘板；能力值，0–1'],
     rbOneR: ['单手摘板 篮板门槛', '越小篮板较弱者也能单手摘板；能力值，0–1'],
     rbOneZ: ['单手摘板 球高门槛', '越小较低的球也会触发单手摘板；离地球高的身高倍数'],
+    lndRec: ['落地恢复 基础时间', '越大跳投落地后越久跑不快，二次起跳越低的人越久；盖帽 / 抢板落地只有二次起跳低于平均的人会变慢；秒'],
+    rebJ0: ['二次起跳 平均线', '越大平均线越高，更多人落地后再起跳变慢；二次起跳等于这个的人保持原样'],
+    rebJS: ['二次起跳 差距', '越大二次起跳怪兽和低弹跳大个落地后的再起跳速度差距越大'],
+    rebJLo: ['二次起跳 最快倍率', '越小二次起跳怪兽落地后越快能再起跳'],
+    rebJHi: ['二次起跳 最慢倍率', '越大体重大弹跳低的人落地后越久才能再起跳'],
+    lndSpd: ['落地恢复 移动速度', '越大刚落地时跑得越快；最高跑速比例'],
+    lndAcc: ['落地恢复 加速比例', '越大落地恢复期内起步 / 变向越快；加速度比例'],
     rbCvOne: ['落地恢复 单手摘板', '越大单手摘板后越久才能恢复动作；秒'],
     rbCvTwo: ['落地恢复 双手抓板', '越大双手抓板后越久才能恢复动作；秒'],
     rbCvChin: ['落地恢复 护球落地', '越大护球落地后越久才能恢复动作；秒'],
@@ -8527,6 +8551,7 @@
     dvSpF: ['鱼跃撞人 撞倒后速度倍数', '越大撞倒对手后自身保留的扑球速度越多；1 = 不减速'],
     dvSpO: ['鱼跃撞人 撞开后速度倍数', '越大撞开对手后自身保留的扑球速度越多；1 = 不减速'],
     dvSpB: ['鱼跃撞人 擦碰后速度倍数', '越大擦碰对手后自身保留的扑球速度越多；1 = 不减速'],
+    bgPogo: ['弹簧腿 落地恢复倍率', '越小弹簧腿徽章持有者落地后越快能再冲板 / 起跳；金档倍率'],
     bgHuReach: ['鱼跃扑球 抓球范围加成', '越大鱼跃徽章持有者能抓到越远的球；米，金档加成'],
     bgHuWin: ['鱼跃扑球 争球胜率加成', '越大鱼跃徽章持有者越容易赢得近身争球；金档概率加成'],
     poFakeCommit: ['背打 假投收球窗口（旧）', '当前版本未使用，改了无效果'],
