@@ -1098,7 +1098,7 @@ select.pf, input.pf, .tn-row.pf, .sl.pf, .crow.pf, .mx.pf { outline: calc(var(--
 }
 
 /* 开场入场 / 精彩回放：上下各一条细黑边（--lb 是每条占画面高度的比例）+ 垃圾话对话框 */
-#stage { --lb: 4.5%; }
+#stage { --lb: 5%; }
 #lbox { position: absolute; inset: 0; z-index: 14; pointer-events: none; display: none; }
 #stage.intro #lbox, #stage.replay #lbox { display: block; }
 #stage.replay #intro-skip { display: none; }
@@ -1115,7 +1115,7 @@ select.pf, input.pf, .tn-row.pf, .sl.pf, .crow.pf, .mx.pf { outline: calc(var(--
 #lbox .lb-top { top: 0; transform-origin: top; }
 #lbox .lb-bot { bottom: 0; transform-origin: bottom; }
 @keyframes lbIn { from { transform: scaleY(0); } }
-#intro-skip { position: absolute; right: 14px; top: calc(var(--lb) / 2 + 0.6%); transform: translateY(-50%); color: #cfd6ea; font-size: max(14px, calc(var(--u) * 8)); font-weight: normal; opacity: 0.85; pointer-events: auto; cursor: pointer; letter-spacing: 1px; text-shadow: 1px 1px 0 #000, -1px 1px 0 #000, 1px -1px 0 #000, -1px -1px 0 #000; }
+#intro-skip { position: absolute; right: 6px; top: calc(var(--lb) / 2); transform: translateY(-50%); color: #cfd6ea; font-size: max(14px, calc(var(--u) * 8)); font-weight: normal; opacity: 0.85; pointer-events: auto; cursor: pointer; letter-spacing: 1px; text-shadow: 1px 1px 0 #000, -1px 1px 0 #000, 1px -1px 0 #000, -1px -1px 0 #000; }
 #stage.intro #scorebar, #stage.intro .pcard, #stage.intro #bpops, #stage.intro #hint, #stage.intro #shotcard, #stage.intro #touch { visibility: hidden; }
 #talk { position: absolute; left: 0; right: 0; bottom: 0; height: 56%; z-index: 16; --tc: #4aa3ff; cursor: pointer; pointer-events: auto; font-family: var(--font); }
 #talk::before { content: ''; position: absolute; inset: -12% 0 0 0; background: linear-gradient(180deg, transparent, rgba(5, 7, 15, 0.55) 30%, rgba(5, 7, 15, 0.85)); pointer-events: none; }
