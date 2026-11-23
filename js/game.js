@@ -3208,7 +3208,7 @@
     if (G.phase !== 'dead' || G.time > C.t0 + C.T + 0.2) { G.cel = null; return; }
     if (!C.cz && G.time >= C.t0) {
       C.cz = true; const p = G.players[C.id], o = OP(G.players[C.id]);
-      if (G.mode !== 'demo' && G.vopt.close) G.cz = { x: (p.x * 2 + o.x) / 3, y: (p.y * 2 + o.y) / 3, z: 1.1, t: 0, T: C.T + 0.2, u: C.big ? 0.55 : 0.45 };
+      if (G.mode !== 'demo' && G.vopt.close) G.cz = { x: (p.x * 2 + o.x) / 3, y: (p.y * 2 + o.y) / 3, z: 1.1, t: 0, T: C.T + 0.2, u: C.big ? 0.55 : 0.45, px: p.x, py: p.y };
       if (C.lv === 3) { led(SIG_LED[C.ty] || ISIG_CN[C.ty], p.team.css, C.T + 0.4); spawnConfetti(36, [p.team.css, '#ffd24a', '#ffffff'], 'burst'); flash('#ffd24a', 0.12); G.fx.cheer = Math.max(G.fx.cheer, 3.2); }
       else if (C.lv === 2) { spawnConfetti(18, [p.team.css, '#ffd24a', '#ffffff'], 'burst'); G.fx.cheer = Math.max(G.fx.cheer, 2.4); }
       vo(p, C.ev === 'make' || (/^(dunk|three)$/.test(C.ev) && rnd() < 0.55) ? 'taunt' : C.ev, 'pri'); setTimeout(() => vo(o, C.vic || 'hurt', 'q'), 50);
@@ -7293,7 +7293,7 @@
     for (const f of G.floats) f.t += dt; while (G.floats.length && G.floats[0].t > 1.3) G.floats.shift();
     if (G.banner) { G.banner.t += dt; if (G.banner.t > G.banner.dur) G.banner = null; }
     // 相机
-    const b = G.ball, fx = b.state === 'held' ? ps[b.holder].x : b.x, fy = b.state === 'held' ? ps[b.holder].y : Math.min(b.y, 9, Math.min(ps[0].off ? 99 : ps[0].y, ps[1].off ? 99 : ps[1].y) + 4.2);
+    const b = G.ball, cp = G.cel && G.phase === 'dead' && G.time >= G.cel.t0 - 0.4 ? ps[G.cel.id] : null, fx = cp ? cp.x : b.state === 'held' ? ps[b.holder].x : b.x, fy = cp ? cp.y : b.state === 'held' ? ps[b.holder].y : Math.min(b.y, 9, Math.min(ps[0].off ? 99 : ps[0].y, ps[1].off ? 99 : ps[1].y) + 4.2);
     const CV = PH.render.CAMV, sx = 3.4 + Math.max(0, CV.zoom - 1) * 6, tx = clamp(fx * CV.follow, -sx, sx), ty = clamp(fy - CV.dist, 2 - CV.dist, 9 - CV.dist), kc = Math.min(1, dt * K.camFolK);
     G.focus.cx = lerp(G.focus.cx, tx, kc); G.focus.cy = lerp(G.focus.cy, ty, kc);
     if (!(b.state === 'held' && G.phase === 'live')) G.camK = (G.camK || 0) * Math.max(0, 1 - dt * K.camRimOut);
