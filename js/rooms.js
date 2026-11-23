@@ -2,6 +2,7 @@
 (function () {
   const PH = window.PH;
   const alphabet = '23456789ABCDEFGHJKMNPQRSTUVWXYZ';
+  const PROTOCOL = 1, VERSION_ERROR = '版本不一致，请刷新页面后重试。';
   const MAX_FRAME = 1024 * 1024, RELAY_BUFFER_LIMIT = 8 * 1024, P2P_BUFFER_LIMIT = 32 * 1024, INPUT_HEARTBEAT_MS = 100;
   // Fallback only. google STUN is unreachable from mainland China, so it is no longer listed.
   const FALLBACK_ICE = [{ urls: ['stun:stun.qq.com:3478', 'stun:stun.miwifi.com:3478'] }];
@@ -286,12 +287,13 @@
     conn.on('data', (msg) => {
       if (token !== attempt || !msg || typeof msg !== 'object') return;
       if (slot < 0 && msg.type === 'join') {
+        if (msg.protocol !== PROTOCOL) { write(conn, { type: 'reject', reason: 'version' }); return; }
         slot = room.active ? -1 : handlers.reserve(msg.mode, room.links);
         if (slot < 0) { write(conn, { type: 'reject' }); return; }
         clearTimeout(watch);
         room.links.set(slot, { conn, input: null, last: 0, ping: null });
         syncTransport();
-        write(conn, { type: 'joined', slot });
+        write(conn, { type: 'joined', slot, protocol: PROTOCOL });
         handlers.change();
       } else if (slot >= 0 && msg.type === 'ping' && room.links.get(slot)?.conn === conn && Number.isFinite(msg.t)) {
         write(conn, { type: 'pong', t: msg.t });
@@ -360,14 +362,18 @@
         if (!alive() || expired()) { conn.close(); return; }
         pending = conn;
         syncTransport();
-        write(conn, { type: 'join', mode });
+        write(conn, { type: 'join', mode, protocol: PROTOCOL });
       });
       conn.on('close', () => { if (alive() && pending === conn) fail(relayError || '已与房主断开连接。'); });
       conn.on('error', () => { if (alive() && pending === conn) fail(relayError || '无法建立连接。'); });
       conn.on('data', (msg) => {
         if (!alive() || pending !== conn || !msg) return;
-        if (msg.type === 'reject') fail('房间已满、已开赛或比赛模式不同。');
-        else if (msg.type === 'joined') { if (expired()) return; room.code = code; clearDeadline(); handlers.joined(msg.slot); }
+        if (msg.type === 'reject') fail(msg.reason === 'version' ? VERSION_ERROR : '房间已满、已开赛或比赛模式不同。');
+        else if (msg.type === 'joined') {
+          if (expired()) return;
+          if (msg.protocol !== PROTOCOL) { fail(VERSION_ERROR); return; }
+          room.code = code; clearDeadline(); handlers.joined(msg.slot);
+        }
         else if (msg.type === 'ping' && Number.isFinite(msg.t)) write(conn, { type: 'pong', t: msg.t });
         else if (msg.type === 'pong' && Number.isFinite(msg.t)) {
           const rtt = Math.round(performance.now() - msg.t);
