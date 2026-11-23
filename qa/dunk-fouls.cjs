@@ -66,6 +66,7 @@ const na = p.action;
 assert.equal(na.type, 'layup');
 assert.equal(na.cv, 'dunk2lay');
 assert(!na.inSteps && na.cHit && na.cAir);
+assert(na.rearm, 'a human converted layup waits for a fresh press or the d2lE fallback');
 assert.equal(p.z, z, 'conversion keeps the current height');
 assert(p.vz > 0);
 const left = (p.vz + Math.sqrt(p.vz * p.vz + 2 * 17 * p.z)) / 17;
@@ -74,6 +75,8 @@ for (let i = 0; i < 240 && !na.released; i++) gm.tick(1 / 120, () => t.zeroInp()
 assert(na.released, 'converted layup is released');
 assert.equal(G.ball.state, 'shot'); assert(p.z > 0, 'released before landing');
 
+[p, a] = airDunk(0.4); p.z = 0.1;
+assert(!qa.d2lAir(p, a, 0.3), 'contact on the takeoff frame keeps the dunk');
 [p, a] = airDunk(0.8);
 assert(!qa.d2lAir(p, a, 0.3), 'too late in the flight keeps the dunk');
 set('cvD2LU', 0);
@@ -86,4 +89,4 @@ set('cvD2LAir', 1);
 [p, a] = airDunk(0.2);
 Object.assign(p.r, { lay: 0.6, dunk: 0.6 });
 assert(!qa.d2lAir(p, a, 0.3), 'below the variation rating gate keeps the dunk');
-console.log('PASS air dunk-to-layup: converts mid-flight and releases before landing; late flight, cvD2LU = 0, cvD2LAir = 0 and low ratings keep the dunk');
+console.log('PASS air dunk-to-layup: converts mid-flight and releases before landing; takeoff frame, late flight, cvD2LU = 0, cvD2LAir = 0 and low ratings keep the dunk');
