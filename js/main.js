@@ -332,8 +332,11 @@
   }
   function roomSnapshot() {
     const state = {};
-    for (const key of NET_STATE) state[key] = roundNet(G[key]);
-    state.players = G.players.map(({ opp, arch, team, b5in, r, col, ai, prev, headScreen, rBase, ...p }) => {
+    for (const key of NET_STATE) {
+      const value = G[key];
+      state[key] = roundNet(key === 'hzV' && value ? { z: value.z, l: value.l } : value);
+    }
+    state.players = G.players.map(({ opp, arch, team, b5in, r, col, ai, prev, headScreen, rBase, id, tm, tendency, ring, ...p }) => {
       const out = roundNet(p);
       out.oppId = opp ? opp.id : -1;
       return out;
@@ -424,6 +427,9 @@
     const now = performance.now();
     const from = netInterp ? captureNetPose() : null;
     for (const key of NET_STATE) G[key] = state[key];
+    const view = state.hzV;
+    G.hzV = view && GM.HZ.includes(view.z) && Number.isFinite(view.l)
+      ? { z: view.z, l: view.l, cells: GM.hzCells(view.z) } : null;
     for (let i = 0; i < G.players.length; i++) {
       const p = state.players[i];
       Object.assign(G.players[i], p, { opp: G.players[p.oppId] || null, ring: G.mode === 't3' && i === localSlot });
