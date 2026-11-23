@@ -104,9 +104,9 @@ async function scenario(name, options = {}) {
   if (options.peer) {
     const main = read('main'), gate = main.slice(main.indexOf('  const ROOM_INTRO_WAIT'), main.indexOf('  const roomAudio'));
     const room = { role: options.peer, active: true, links: new Map(options.peer === 'host' ? [[1, {}]] : []) };
-    const rooms = { introDone: () => options.onDone?.(), input() {}, inputs: () => ({}), relaying: () => true, congested: () => false, broadcast() {} };
+    const rooms = { introDone: () => options.onDone?.(), input() {}, inputs: () => ({}), relaying: () => true, deltaOk: () => false, congested: () => false, broadcast() {} };
     Object.assign(ctx, { room, rooms, matchConfig: { mode: options.mode || 'online' }, localSlot: options.peer === 'host' ? 0 : 1, netFrame: 0,
-      DT: 1 / 60, roomAudio: [], skipTick() {}, aiOn: false, aiSync() {}, document: { hidden: false }, roomSnapshot: () => ({ players: G.players }) });
+      DT: 1 / 60, roomAudio: [], skipTick() {}, aiOn: false, aiSync() {}, document: { hidden: false }, roomSnapshot: () => ({ players: G.players }), netDelta: (state) => state });
     ctx.PH.tapeView = { open: false };
     vm.runInContext(gate + main.slice(main.indexOf('  function tickMatch()'), main.indexOf('  function aiAllowed()')), ctx);
     GM.tick = dt => { G.time += dt; emit('gameplay'); };
