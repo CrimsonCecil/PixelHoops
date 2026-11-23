@@ -344,6 +344,8 @@
         if (link && rtt >= 0 && rtt < 60000) { link.ping = rtt; syncHostPing(); }
       } else if (slot >= 0 && !room.active && msg.type === 'lobby' && room.links.get(slot)?.conn === conn) {
         handlers.message?.(msg, slot);
+      } else if (slot >= 0 && msg.type === 'skip' && room.active && room.links.get(slot)?.conn === conn) {
+        handlers.skip?.(msg, slot);
       } else if (slot >= 0 && msg.type === 'input' && room.active) {
         const link = room.links.get(slot);
         if (!link || link.conn !== conn) return;
@@ -431,6 +433,7 @@
           handlers.state(msg.state);
         }
         else if (msg.type === 'lobby' && !room.active) handlers.message?.(msg);
+        else if (msg.type === 'skip' && room.active) handlers.skip?.(msg);
       });
     };
     function startRelay() {
@@ -562,5 +565,5 @@
     else if (room.role === 'guest' && pending && room.code) write(pending, { type: 'ping', t });
   }
   const valid = (code) => code.length === 5 && [...code].every((c) => alphabet.includes(c));
-  PH.rooms = { room, open, close, iceServers: () => iceServers, broadcast, congested, relaying, input, inputs, aiSlots, ping, valid, sendLobby: (data) => { if (pending && !room.active) write(pending, { ...data, type: 'lobby' }); } };
+  PH.rooms = { room, open, close, iceServers: () => iceServers, broadcast, congested, relaying, input, inputs, aiSlots, ping, valid, skip: (scene) => { if (pending && room.active) write(pending, { type: 'skip', scene }); }, sendLobby: (data) => { if (pending && !room.active) write(pending, { ...data, type: 'lobby' }); } };
 })();

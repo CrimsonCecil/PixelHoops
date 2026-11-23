@@ -1052,6 +1052,14 @@ select.pf, input.pf, .tn-row.pf, .sl.pf, .crow.pf, .mx.pf { outline: calc(var(--
 /* 开场入场：电影黑边 + 垃圾话对话框 */
 #lbox { position: absolute; inset: 0; z-index: 14; pointer-events: none; display: none; }
 #stage.intro #lbox { display: block; }
+#skipvote { position: absolute; top: calc(var(--u) * 4); left: calc(var(--u) * 6); z-index: 17; pointer-events: none; display: flex; align-items: center; gap: max(5px, calc(var(--u) * 3)); color: var(--text); font-size: var(--fs-xs); line-height: 1; letter-spacing: .06em; opacity: .85; }
+#skipvote i { box-sizing: border-box; width: max(10px, calc(var(--u) * 6)); aspect-ratio: 1; border-radius: 50%; border: max(2px, calc(var(--u) * 1)) solid #cfd6ea; flex-shrink: 0; }
+#skipvote.s1 i { background: conic-gradient(var(--green) 0 50%, transparent 50% 100%); }
+#skipvote.s2 i { background: var(--green); border-color: var(--green); }
+#skipvote b { font-weight: normal; color: var(--muted); }
+#skipvote.s1 b { color: var(--text); }
+#skipvote.s2 b { color: var(--green); }
+#stage.vote #intro-skip { display: none; }
 #lbox i { position: absolute; left: 0; right: 0; height: 9%; background: #000; animation: lbIn 0.45s steps(6) both; }
 #lbox i:first-child { top: 0; transform-origin: top; }
 #lbox i:last-child { bottom: 0; transform-origin: bottom; }

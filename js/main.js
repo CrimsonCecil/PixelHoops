@@ -480,6 +480,7 @@
         launchRoomMatch(config, roomSlot);
       },
       state: roomState,
+      skip: (msg, slot) => skipVote(msg, slot),
       error: (message) => { const wasPlay = screen === 'play'; if (wasPlay) toMenu(); menuStatus(message); refreshMenu(); if (wasPlay && /^直连失败/.test(message)) netToast(message); },
       notice: (message) => { if (screen === 'menu') menuStatus(message); else netToast(message); }
     });
@@ -558,13 +559,13 @@
     PH.frontend.started();
     tuneClose();
     PH.audio.ensure(); PH.audio.play('start'); PH.audio.startMusic();
-    localSlot = slot; matchConfig = config; netFrame = 0; netInterp = null; aiReset();
+    localSlot = slot; matchConfig = config; netFrame = 0; netInterp = null; aiReset(); skipReset();
     resetRoomAudio();
     if (config.mode === 't3') PH.T3.start({ ...config, local: slot, replay: !room.active });
     else { CFG.shotClock = config.clock; GM.newGame({ ...config, mode: '2p' }); }
     replaySaveReset();
     PH.audio.voPreload(G.players.map((p) => p.arch.key));
-    if (opts.intro !== 'off') GM.introStart();
+    if ((config.intro || opts.intro) !== 'off') GM.introStart();
     stage.classList.toggle('intro', !!G.intro);
     screen = 'play'; paused = false; panelOpen = false; overShown = false; PH.input.clearSys(); PH.input.flush(); clearPf(); camShift();
     syncBackgroundMatch();
@@ -731,9 +732,9 @@
     if (opts.mode === 't3' || opts.mode === 'online') {
       const t3 = opts.mode === 't3';
       if (!t3 && !room.links.has(1)) return;
-      const config = same && !t3 && matchConfig ? matchConfig : { mode: opts.mode, clock: opts.clock, target: opts.target, diff: opts.diff, fb: opts.fb, glen: opts.glen,
+      const config = same && !t3 && matchConfig ? { ...matchConfig, intro: opts.intro } : { mode: opts.mode, clock: opts.clock, target: opts.target, diff: opts.diff, fb: opts.fb, glen: opts.glen,
         ...(t3 ? { slots: lobby3.map((s, i) => ({ arch: s.arch, role: room.links.has(i) ? 'remote' : s.role === 'waiting' ? 'cpu' : s.role })) }
-          : { arch0: opts.arch0, arch1: pickArch(opts.arch1, opts.arch0), fouls: opts.fouls === 'on' }) };
+          : { arch0: opts.arch0, arch1: pickArch(opts.arch1, opts.arch0), fouls: opts.fouls === 'on', intro: opts.intro }) };
       if (room.role === 'host') {
         if (!room.code) return;
         room.active = true;
@@ -1051,7 +1052,7 @@
   $('btn-netstat').addEventListener('click', () => { opts.netstat = opts.netstat === 'off' ? 'on' : 'off'; setLabels(); updateNetstat(true); });
   $('btn-vo').addEventListener('click', () => { PH.audio.setVo(!PH.audio.voOn); saveV(); });
   function skipReplay() { if (screen === 'play' && !paused && G.replay && G.replay.age >= REPLAY_MIN) G.replay.skip = true; }
-  canvas.addEventListener('pointerdown', skipReplay);
+  canvas.addEventListener('pointerdown', () => { if (skipScene()) skipPress(); else skipReplay(); });
   $('btn-fb').addEventListener('click', () => { opts.fb = opts.fb === 'detail' ? 'simple' : 'detail'; G.fb = opts.fb; if (typeof refreshMenu === 'function') refreshMenu(); setLabels(); });
   // ---------- 动作演示 ----------
   let tipsSave = null;
@@ -2019,7 +2020,8 @@
       else if (I.sysPressed('PadRight') || I.sysPressed('PadDown')) $('replay-cancel').focus();
       I.clearSys(); return;
     }
-    if (replay) { I.clearSys(); if (key || button) skipReplay(); return; }
+    if (replay) { I.clearSys(); if (key || button) { if (skipScene()) skipPress(); else skipReplay(); } return; }
+    if (skipScene() && !paused) { if (I.sysAny() || button) skipPress(); I.clearSys(); return; }
     if (screen === 'play' && G.intro && !paused) { if (I.sysPressed('Escape') || I.sysPressed('PadStart') || I.sysPressed('PadB')) GM.introEnd(); else if (I.sysAny() || button) GM.introPress(); I.clearSys(); return; }
     if (I.sysPressed('KeyM')) toggleMusic();
     if (I.sysPressed('KeyI') && screen === 'play') toggleInfo();
@@ -2193,6 +2195,7 @@
   function tickMatch() {
     if (PH.tapeView.open) return;
     if (screen === 'play5') { if (!paused) tick5(DT); return; }
+    skipTick();
     if (G.intro) { GM.introTick(DT); PH.input.endTick(); roomAudio.length = 0; return; }
     if (!matchConfig) { GM.tick(DT); return; }
     const p = G.players[localSlot], a = p && p.action, t3 = G.mode === 't3', I = PH.input;
@@ -2325,6 +2328,7 @@
     updateNetstat(false);
     if (aiOn && !aiAllowed()) aiSet(false);
     show('btn-ai', aiAllowed() && !paused);
+    skipUi();
     const r5 = PH.render5.rpl, replay = screen === 'play' ? G.replay : screen === 'play5' && r5.on ? r5 : null;
     const progress = screen === 'play' && !paused && !replay ? GM.replayFlow.foulProgress(G.banner) : 1;
     const foulLabel = progress < 1 ? G.banner.text : '';
@@ -2363,7 +2367,44 @@
     const n = L.done ? L.t.length : Math.min(L.t.length, Math.floor((G.time - I.lt) * 30));
     $('talk-text').textContent = L.t.slice(0, n); box.classList.toggle('done', n >= L.t.length);
   }
-  $('talk').addEventListener('pointerdown', (e) => { e.stopPropagation(); GM.introPress(); });
+  $('talk').addEventListener('pointerdown', (e) => { e.stopPropagation(); if (skipScene()) skipPress(); else GM.introPress(); });
+  // 在线真人 1V1：进场动画 / 回放要两人都按任意键才跳过；房主计票，客机只发自己的一票（通道可能丢包，未结束前每 0.5 秒补发）
+  const SKIP = { scene: '', votes: new Set(), n: 0, mine: false, endIn: 0, resend: 0 };
+  function skipScene() {
+    if (screen !== 'play' || !matchConfig || matchConfig.mode !== 'online' || !room.active || PH.tapeView.open) return '';
+    return G.intro ? 'intro' : G.replay ? 'replay' : '';
+  }
+  function skipReset(sc = '') { Object.assign(SKIP, { scene: sc, n: 0, mine: false, endIn: 0, resend: 0 }); SKIP.votes.clear(); }
+  function skipSync() {
+    const sc = skipScene();
+    if (sc !== SKIP.scene) skipReset(sc);
+    return sc;
+  }
+  function skipPress() {
+    const sc = skipSync(); if (!sc || SKIP.mine) return;
+    SKIP.mine = true;
+    if (room.role === 'host') skipVote({ scene: sc }, localSlot);
+    else { SKIP.n = Math.max(SKIP.n, 1); rooms.skip(sc); }
+  }
+  function skipVote(msg, slot) {
+    const sc = skipSync(); if (!sc || !msg || msg.scene !== sc) return;
+    if (room.role !== 'host') { SKIP.n = Math.max(SKIP.mine ? 1 : 0, Math.min(2, msg.n | 0)); return; }
+    SKIP.votes.add(slot); SKIP.n = Math.min(2, SKIP.votes.size);
+    rooms.broadcast({ type: 'skip', scene: sc, n: SKIP.n });
+    if (SKIP.n >= 2 && !SKIP.endIn) SKIP.endIn = 24;
+  }
+  function skipTick() {
+    const sc = skipSync(); if (!sc) return;
+    if (room.role === 'guest') { if (SKIP.mine && SKIP.n < 2 && ++SKIP.resend % 30 === 0) rooms.skip(sc); return; }
+    if (SKIP.endIn && --SKIP.endIn === 0) { if (sc === 'intro') GM.introEnd(); else G.replay.skip = true; }
+  }
+  function skipUi() {
+    const sc = skipSync(), el = $('skipvote');
+    stage.classList.toggle('vote', !!sc); show('skipvote', !!sc);
+    if (!sc) return;
+    const cls = 's' + SKIP.n;
+    if (el.dataset.s !== cls) { el.dataset.s = cls; el.className = cls; $('skipvote-n').textContent = SKIP.n + '/2'; }
+  }
   $('intro-skip').addEventListener('pointerdown', (e) => { e.stopPropagation(); GM.introEnd(); });
   function cutin() {
     const c = G.cutin, el = $('cutin');
