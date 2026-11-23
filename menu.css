@@ -392,6 +392,7 @@ button.pick.fighter-pick .pk-c { font-size:11px; color:var(--fighter-color); }
 }
 
 /* Approved F home: left court, stacked primary entries, then training and tools. */
+#menu .menu-panel .foot { display:none; }
 #menu[data-view=home] {
   padding:0; overflow:hidden; outline:0;
   background:linear-gradient(180deg,#0d1424b0,transparent 28%),linear-gradient(90deg,#0d14242b,#0d14243b 40%,#0d1424cf 57%,#0d1424f5 79%,#0d1424);
