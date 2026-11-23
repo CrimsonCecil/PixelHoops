@@ -127,8 +127,8 @@
       <section class="front-home" data-view-panel="home">
         <div class="front-intro"><h1>PIXEL<span>HOOPS</span></h1></div>
         <nav class="front-home-nav" aria-label="游玩模式"><div class="front-entries"><button id="front-solo" data-testid="home-solo"><b>本地开打</b><em aria-hidden="true">↗</em></button><button id="front-online" data-testid="home-online"><b>在线对战</b><em aria-hidden="true">↗</em></button></div>
-        <button class="front-home-train" data-home-format="train" data-testid="home-train">自由训练<em aria-hidden="true">↗</em></button></nav>
-        <div class="front-tools"><button data-tool="help"><span aria-hidden="true">?</span>操作说明</button><button data-tool="set"><span aria-hidden="true">⚙</span>设置</button></div>
+        <div class="front-home-sub"><button class="front-home-train" data-home-format="train" data-testid="home-train"><b>自由训练</b><em aria-hidden="true">↗</em></button>
+        <div class="front-tools"><button data-tool="help"><span aria-hidden="true">?</span>操作说明</button><button data-tool="set"><span aria-hidden="true">⚙</span>设置</button></div></div></nav>
       </section>
       <section class="front-page front-solo" data-view-panel="solo"><header><button data-home>← 主页</button></header>
         <button class="front-king" data-format="king" data-testid="solo-king"><strong>♛ 斗牛之王</strong></button>

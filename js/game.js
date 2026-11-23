@@ -7468,7 +7468,7 @@
     if (G.banner) { G.banner.t += dt; if (G.banner.t > G.banner.dur) G.banner = null; }
     // 相机
     const b = G.ball, cp = G.cel && G.phase === 'dead' && G.time >= G.cel.t0 - 0.4 ? ps[G.cel.id] : null, fx = cp ? cp.x : b.state === 'held' ? ps[b.holder].x : b.x, fy = cp ? cp.y : b.state === 'held' ? ps[b.holder].y : Math.min(b.y, 9, Math.min(ps[0].off ? 99 : ps[0].y, ps[1].off ? 99 : ps[1].y) + 4.2);
-    const CV = PH.render.CAMV, sx = 3.4 + Math.max(0, CV.zoom - 1) * 6, tx = clamp(fx * CV.follow, -sx, sx), ty = clamp(fy - CV.dist, 2 - CV.dist, 9 - CV.dist), kc = Math.min(1, dt * K.camFolK);
+    const CV = PH.render.CAMV, sx = 3.4 + Math.max(0, CV.zoom - 1) * 6, mx = G.mode === 'demo' ? G.camMinX : null, tx = mx != null ? clamp(fx, mx, sx) : clamp(fx * CV.follow, -sx, sx), ty = clamp(fy - CV.dist, 2 - CV.dist, 9 - CV.dist), kc = Math.min(1, dt * K.camFolK);
     G.focus.cx = lerp(G.focus.cx, tx, kc); G.focus.cy = lerp(G.focus.cy, ty, kc);
     if (!(b.state === 'held' && G.phase === 'live')) G.camK = (G.camK || 0) * Math.max(0, 1 - dt * K.camRimOut);
     if (G.foulStop) {

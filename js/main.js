@@ -41,8 +41,10 @@
   window.addEventListener('resize', layout);
   const narrow = () => window.innerWidth <= 700 || window.innerHeight <= 420;
   function camShift() {
-    if (screen === 'menu') G.camShift = narrow() ? 0 : 3.6;
-    else G.camShift = 0; // 训练场参数面板开关不改镜头
+    // 主页：油漆区靠近画面中央；球往右走时镜头跟过去，球员不钻到右侧菜单后面
+    const home = screen === 'menu' && !narrow();
+    G.camShift = home ? 0.8 : 0; // 训练场参数面板开关不改镜头
+    G.camMinX = home ? 0 : null;
   }
 
   // ---------- 菜单 ----------
