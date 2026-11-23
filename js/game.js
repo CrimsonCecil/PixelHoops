@@ -5003,7 +5003,7 @@
           if (!a.postOrigin && hT < a.fkT && pl.ctrl !== 'cpu') { pumpFake(pl, 0.15, true); pl.vz = Math.min(pl.vz, -1.5); pl.vx *= 0.3; pl.vy *= 0.3; return; }
           releaseJumpShot(pl, clamp((a.t - TI) / 0.2, -1, 1));
         } else if (a.t > TI + 0.22) releaseJumpShot(pl, 1);
-      } else if (pl.z <= 0 && a.t > (a.jT || K.shotJump) + 0.2) { pl.action = null; landRecover(pl); }
+      } else if (pl.z <= 0 && a.t > (a.jT || K.shotJump) + 0.2) { pl.action = null; if (a.jumped) landRecover(pl); }
     } else if (a.type === 'fake') {
       if (a.jf && pl.z > 0) pl.vz = Math.min(pl.vz, -1.5); // 起跳假投：压着落地，0.12–0.18 秒收势
       if (pl.uuFake) pl.uuFake.until = G.time + K.uuWin;
@@ -5149,7 +5149,7 @@
       }
     } else if (a.type === 'block') {
       if (pl.z <= 0 && a.t > 0.1) {
-        pl.action = null; pl.cd = a.rbS && pl.hasBall ? a.rcv * landK(pl) : K.bkLandCd * landK(pl); landRecover(pl);
+        pl.action = null; pl.cd = a.rbS && pl.hasBall ? a.rcv * landK(pl) : K.bkLandCd * landK(pl); if (a.zmax) landRecover(pl);
         if (a.reb && !a.rodSecond && !a.rodClaimed && !a.rbS && rodReach(pl)) { pl.sk.rodUntil = G.time + K.rodWindow; pl.sk.rodLandCd = pl.cd; }
         if (a.rbS && pl.hasBall) { pl.recT = G.time + pl.cd; pl.landS = a.rbS; pl.landT = G.time; }
       }
