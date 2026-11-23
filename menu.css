@@ -495,7 +495,7 @@ button.pick.fighter-pick .pk-c { font-size:11px; color:var(--fighter-color); }
 #menu[data-view=home] .front-entries button:is(:focus-visible,.pf) em,
 #menu[data-view=home]:not(:has(button:is(:focus-visible,.pf))) .front-entries button:hover em { color:var(--entry-accent); }
 #menu[data-view=home] button:is(:focus-visible,.pf) { outline:0; filter:none; }
-#menu[data-view=home] .front-home-sub { display:flex; align-items:stretch; justify-content:space-between; gap:clamp(12px,1.25vw,24px); margin-top:clamp(22px,3.8cqh,36px); }
+#menu[data-view=home] .front-home-sub { display:flex; flex-wrap:wrap; align-items:stretch; justify-content:space-between; gap:clamp(12px,1.25vw,24px); margin-top:clamp(22px,3.8cqh,36px); }
 #menu[data-view=home] .front-home-train { display:flex; align-items:center; gap:24px; width:max-content; max-width:100%; min-height:clamp(52px,8.66cqh,84px); padding:12px 24px; border:3px solid #4a5c78; border-bottom-color:#62738b; background:#18243ae6; box-shadow:0 6px #070d19; text-align:left; transition:transform .42s,background-color .42s,border-color .42s; }
 #menu[data-view=home] .front-home-train em { font-size:clamp(24px,round(nearest,1.875vw,12px),36px); }
 #menu[data-view=home] .front-tools { display:flex; align-items:stretch; gap:clamp(12px,1.25vw,24px); margin:0; }
@@ -529,7 +529,16 @@ button.pick.fighter-pick .pk-c { font-size:11px; color:var(--fighter-color); }
   #menu[data-view=home] .front-home-sub { margin-top:16px; }
   #menu[data-view=home] .front-home-train { min-height:44px; padding:8px 12px; }
   #menu[data-view=home] .front-home-train :is(b,em) { font-size:24px; }
+  /* No room under 自由训练: pin the tools to the menu's bottom-right (#menu's size containment makes it their containing block). */
+  #menu[data-view=home] .front-tools { position:fixed; right:5%; bottom:5%; }
   #menu[data-view=home] .front-tools button { padding:7px 12px; font-size:12px; }
+}
+@container(max-height:320px) {
+  #menu[data-view=home] .front-home-nav { top:18%; }
+  #menu[data-view=home] .front-entries { gap:8px; }
+  #menu[data-view=home] .front-entries button { min-height:44px; padding:8px 14px; }
+  #menu[data-view=home] .front-home-sub { margin-top:8px; }
+  #menu[data-view=home] .front-home-train { min-height:36px; padding:4px 12px; }
 }
 @media(prefers-reduced-motion:reduce) {
   #menu[data-view=home] button, #menu[data-view=home] button::after, #menu[data-view=home] em { transition:none; }
