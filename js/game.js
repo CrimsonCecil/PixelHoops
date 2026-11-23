@@ -708,9 +708,13 @@
     ['rbCvChin', 'reb', '落地硬直 护球落地', 0.42, 0, 1, 0.01, '秒'],
     ['rbCvRip', 'reb', '落地硬直 强抢', 0.36, 0, 1, 0.01, '秒'],
     ['rbCvTip', 'reb', '落地硬直 拨球', 0.2, 0, 1, 0.01, '秒'],
-    ['lndRec', 'reb', '落地恢复 基础时间', 0.3, 0, 1, 0.01, '秒：跳投 / 盖帽 / 抢板落地后跑不快的时间 × 二次起跳倍率（弹簧腿徽章再缩短）；抢到篮板的落地硬直和再次起跳冷却也乘同一倍率'],
+    ['lndRec', 'reb', '落地恢复 基础时间', 0.3, 0, 1, 0.01, '秒：跳投落地后跑不快的时间 × 二次起跳倍率（弹簧腿徽章再缩短）；盖帽 / 抢板落地只有超过平均倍率的部分才会变慢'],
     ['lndSpd', 'reb', '落地恢复 移动速度', 0.45, 0, 1, 0.01, '比例：刚落地时的最高跑速比例，恢复期内逐渐回到 1'],
     ['lndAcc', 'reb', '落地恢复 加速比例', 0.4, 0, 1, 0.01, '比例：恢复期内的起步 / 变向加速度'],
+    ['rebJ0', 'reb', '二次起跳 平均线', 0.7, 0.3, 1, 0.01, '二次起跳值：等于这个的人盖帽 / 抢板落地后的再起跳冷却和硬直保持原样（全名单平均约 0.70）'],
+    ['rebJS', 'reb', '二次起跳 差距', 3, 0, 6, 0.1, '倍率斜率：二次起跳每比平均线高 / 低 0.1，盖帽 / 抢板落地后的冷却和硬直少 / 多 ×0.1 × 这个'],
+    ['rebJLo', 'reb', '二次起跳 最快倍率', 0.3, 0.1, 1, 0.01, '倍率下限：二次起跳怪兽最快能缩到原时间的多少（弹簧腿徽章再乘）'],
+    ['rebJHi', 'reb', '二次起跳 最慢倍率', 2.2, 1, 4, 0.1, '倍率上限：体重大弹跳低的人最多慢到原时间的多少倍'],
     ['rbTipV', 'reb', '拨球 弹出速度', 1.2, 0, 4, 0.05, '米/秒'],
     ['rbTipNP', 'reb', '拨球 不可拾取', 0.3, 0, 1, 0.01, '秒'],
     ['rbRipPush', 'reb', '强抢 推开对手速度', 2.4, 0, 6, 0.1, '米/秒'],
@@ -1722,7 +1726,9 @@
   const ba = (pl, b, v) => { const t = btier(pl, b); return t ? v * tierF(t) : 0; };
   // 落地恢复：二次起跳（弹跳为主）越低、落地后越久跑不快 / 再起跳；弹簧腿徽章缩短
   const landK = (p) => rejK(p) * bk(p, 'pogo', K.bgPogo);
-  function landRecover(p) { p.lndT0 = G.time; p.lndT = G.time + K.lndRec * landK(p); }
+  // 盖帽 / 抢板落地：以全名单平均二次起跳为 1，怪兽明显更快、体重大弹跳低的明显更慢
+  const rebK = (p) => clamp(1 + K.rebJS * (K.rebJ0 - (p.r.rej || K.rebJ0)), K.rebJLo, K.rebJHi) * bk(p, 'pogo', K.bgPogo);
+  function landRecover(p, k = landK(p)) { if (k <= 0) return; p.lndT0 = G.time; p.lndT = G.time + K.lndRec * k; }
   const TEAMS = [
     { name: '蓝队', css: '#4aa3ff', jersey: '#3b8cf0', shorts: '#2459b8', trim: '#ffffff', shoe: '#f4f0e0' },
     { name: '红队', css: '#ff6b5e', jersey: '#e8483e', shorts: '#a82a2a', trim: '#ffe14a', shoe: '#2a2740' },
@@ -5149,7 +5155,7 @@
       }
     } else if (a.type === 'block') {
       if (pl.z <= 0 && a.t > 0.1) {
-        pl.action = null; pl.cd = a.rbS && pl.hasBall ? a.rcv * landK(pl) : K.bkLandCd * landK(pl); if (a.zmax) landRecover(pl);
+        pl.action = null; const rk = rebK(pl); pl.cd = (a.rbS && pl.hasBall ? a.rcv : K.bkLandCd * (1 + 2.4 * (0.85 - K.rebJ0))) * rk; if (a.zmax) landRecover(pl, rk - 1);
         if (a.reb && !a.rodSecond && !a.rodClaimed && !a.rbS && rodReach(pl)) { pl.sk.rodUntil = G.time + K.rodWindow; pl.sk.rodLandCd = pl.cd; }
         if (a.rbS && pl.hasBall) { pl.recT = G.time + pl.cd; pl.landS = a.rbS; pl.landT = G.time; }
       }
@@ -5211,7 +5217,7 @@
     const d = distHoop(pl);
     if (pl.hasBall) {
       if (G.phase !== 'live') return;
-      if (pl.recT > G.time && pl.landT && G.time - pl.landT < 0.6 * Math.max(1, landK(pl))) return;
+      if (pl.recT > G.time && pl.landT && G.time - pl.landT < 0.6 * Math.max(1, rebK(pl))) return;
       if (pr.a1 || pr.a2) {
         if (G.needClear) { G.clearPing = G.time; G.illId = pl.id; }
         if (cancelVariant) { startShot(pl, inp, 'a1', cancelVariant); return; }
@@ -5319,7 +5325,7 @@
   // 这一帧能不能直接响应 key（不能 = 按下的键进缓冲）
   function ibReady(pl, key) {
     if (pl.stun > 0 || pl.action || pl.z > 0.05) return false;
-    if (pl.hasBall) { if (key === 'a3') return pl.cd <= 0; return !(pl.recT > G.time && pl.landT && G.time - pl.landT < 0.6 * Math.max(1, landK(pl))); } // 运球招式本来就不受落地硬直限制
+    if (pl.hasBall) { if (key === 'a3') return pl.cd <= 0; return !(pl.recT > G.time && pl.landT && G.time - pl.landT < 0.6 * Math.max(1, rebK(pl))); } // 运球招式本来就不受落地硬直限制
     return pl.cd <= 0 || key === 'a1' && rodReady(pl);
   }
   // 持球动作里自己的键另有用途（蓄力出手 / 二次按键转身上篮 / 双击扣篮 / 运球连招自带缓存），这些时候不进缓冲
@@ -5451,7 +5457,7 @@
       const live = G.phase === 'live' && !G.ball.dead && !frozen;
       if (!live) { pl.ib = null; if (pr.a1 && !pl.hasBall) pl.jbuf = G.time; }
       else {
-        if (pl.z > 0.05 || (pl.hasBall && pl.recT > G.time && pl.landT && G.time - pl.landT < 0.6 * Math.max(1, landK(pl)))) ibuf.hold(pl, G.time);
+        if (pl.z > 0.05 || (pl.hasBall && pl.recT > G.time && pl.landT && G.time - pl.landT < 0.6 * Math.max(1, rebK(pl)))) ibuf.hold(pl, G.time);
         if (pl.ib) trackHesitation(pl, pl.ib.hesi, raw);
         // 缓存中的投篮键：记下松手时刻（实际按住时长 hd），执行时回放；5V5 接球前 team5 不把 X 传进来，直接读手柄/键盘的 X
         if (pl.ib && pl.ib.k === 'a1' && pl.ib.hd == null && !ibDown(pl, raw)) pl.ib.hd = G.time - pl.ib.t;
@@ -8474,7 +8480,11 @@
     rbOneV: ['单手摘板 弹跳门槛', '越小弹跳较弱者也能单手摘板；能力值，0–1'],
     rbOneR: ['单手摘板 篮板门槛', '越小篮板较弱者也能单手摘板；能力值，0–1'],
     rbOneZ: ['单手摘板 球高门槛', '越小较低的球也会触发单手摘板；离地球高的身高倍数'],
-    lndRec: ['落地恢复 基础时间', '越大跳投 / 盖帽 / 抢板落地后越久跑不快，二次起跳越低的人越久；秒'],
+    lndRec: ['落地恢复 基础时间', '越大跳投落地后越久跑不快，二次起跳越低的人越久；盖帽 / 抢板落地只有二次起跳低于平均的人会变慢；秒'],
+    rebJ0: ['二次起跳 平均线', '越大平均线越高，更多人落地后再起跳变慢；二次起跳等于这个的人保持原样'],
+    rebJS: ['二次起跳 差距', '越大二次起跳怪兽和低弹跳大个落地后的再起跳速度差距越大'],
+    rebJLo: ['二次起跳 最快倍率', '越小二次起跳怪兽落地后越快能再起跳'],
+    rebJHi: ['二次起跳 最慢倍率', '越大体重大弹跳低的人落地后越久才能再起跳'],
     lndSpd: ['落地恢复 移动速度', '越大刚落地时跑得越快；最高跑速比例'],
     lndAcc: ['落地恢复 加速比例', '越大落地恢复期内起步 / 变向越快；加速度比例'],
     rbCvOne: ['落地恢复 单手摘板', '越大单手摘板后越久才能恢复动作；秒'],

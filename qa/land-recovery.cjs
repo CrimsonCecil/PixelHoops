@@ -28,7 +28,7 @@ function run(arch, how, pogo) {
   } else gm._dbg.startBlock(p, inp);
   for (let i = 0; i < 600 && (p.action || p.z > 0); i++) { const hold = how === 'shot' && !(p.action?.jumped && p.vz < 0); inp = { mx: 0, my: 0, dx: 0, dy: 0, a1: hold }; gm.tick(1 / 120); }
   assert(!p.action && p.z <= 0, `${arch} ${how}: landed`);
-  const rec = p.lndT - G.time;
+  const rec = (p.lndT || 0) > G.time ? p.lndT - G.time : 0, cd = p.cd, rej = p.r.rej;
   Object.assign(p, { vx: 0, vy: 0, cd: 0, x: 3, y: 6.5 }); p.hasBall = false;
   if (how === 'block') {
   Object.assign(G, { phase: 'live', off: o.id, needClear: false });
@@ -39,20 +39,22 @@ function run(arch, how, pogo) {
   const x0 = p.x, y0 = p.y;
   inp = { mx: -1, my: 0, dx: 0, dy: 0 };
   for (let i = 0; i < 60; i++) { ctx.PH.input.read = () => inp; gm.tick(1 / 120); o.stun = 99; }
-  return { rec, run: Math.hypot(p.x - x0, p.y - y0) };
+  return { rej, rec, cd, run: Math.hypot(p.x - x0, p.y - y0) };
 }
 
 const out = {};
-for (const how of ['block', 'shot']) for (const arch of ['harden', 'curry', 'morant', 'rodman']) {
-  out[how + ' ' + arch] = run(arch, how);
-}
+const ARCH = ['edey', 'harden', 'barrett', 'curry', 'morant', 'rodman', 'giannis'];
+for (const how of ['block', 'shot']) for (const arch of ARCH) out[how + ' ' + arch] = run(arch, how);
 console.table(out);
-for (const how of ['block', 'shot']) {
-  const r = a => out[how + ' ' + a];
-  assert(r('harden').rec > r('curry').rec && r('curry').rec > r('morant').rec, `${how}: rec follows rej`);
-  assert(r('morant').run > r('harden').run * 1.05, `${how}: high jumper runs farther in first 0.5s`);
-  assert(r('rodman').rec < r('morant').rec, `${how}: pogo badge shortens recovery`);
-}
+const S = a => out['shot ' + a], B = a => out['block ' + a];
+assert(S('harden').rec > S('curry').rec && S('curry').rec > S('morant').rec, 'shot: rec follows rej');
+assert(S('morant').run > S('harden').run * 1.05, 'shot: high jumper runs farther in first 0.5s');
+assert(S('rodman').rec < S('morant').rec, 'shot: pogo badge shortens recovery');
+const old = a => 0.12 * Math.min(2.6, Math.max(0.7, 1 + 2.4 * (0.85 - B(a).rej)));   // 改动前的盖帽落地冷却
+assert(Math.abs(B('barrett').cd - old('barrett')) < 0.02, 'block: average second jump keeps the old re-jump cooldown');
+assert(B('edey').cd > B('harden').cd && B('harden').cd > B('barrett').cd && B('barrett').cd > B('morant').cd, 'block: cd follows rej');
+assert(B('morant').cd < old('morant') * 0.6, 'block: second-jump monster re-jumps much sooner than before');
+assert(B('edey').rec > 0 && B('morant').rec === 0 && B('barrett').rec < 0.02, 'block: only below-average jumpers are slowed on landing');
 const a = run('harden', 'block', false), b = run('harden', 'block', true);
-assert(b.rec < a.rec * 0.8, 'pogo badge on same player');
+assert(b.cd < a.cd * 0.8, 'pogo badge on same player');
 console.log('land-recovery ok');
