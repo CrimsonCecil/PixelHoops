@@ -157,11 +157,15 @@
       if (b.id === 'front-retry' || b.id === 'front-refresh') loadRooms();
       if (b.dataset.filter) { filter = b.dataset.filter; $('front-filters').querySelectorAll('button').forEach((x) => { x.classList.toggle('on', x === b); x.setAttribute('aria-pressed', String(x === b)); }); renderRooms(); }
     });
-    // Mouse hover owns the home highlight; keyboard/gamepad focus uses the same treatment.
+    // Hovering an action transfers selection; moving over empty court must not cancel it.
     $('menu').querySelector('.front-home').addEventListener('pointermove', (e) => {
-      if (e.pointerType === 'touch') return;
-      $('menu').querySelectorAll('.pf').forEach((b) => b.classList.remove('pf'));
-      if (e.currentTarget.contains(document.activeElement)) document.activeElement.blur();
+      const button = e.target.closest('button');
+      if (e.pointerType === 'touch' || !button) return;
+      if (e.currentTarget.querySelector('button.pf,button:focus-visible')) {
+        e.currentTarget.querySelectorAll('.pf').forEach((b) => b.classList.remove('pf'));
+        button.classList.add('pf');
+        if (e.currentTarget.contains(document.activeElement)) document.activeElement.blur();
+      }
     });
     $('front-create-open').onclick = () => { $('front-create').classList.remove('hidden'); $('front-room-name').focus(); };
     $('front-create-cancel').onclick = () => $('front-create').classList.add('hidden');
