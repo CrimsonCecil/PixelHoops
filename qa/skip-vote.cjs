@@ -72,6 +72,12 @@ async function shot(page, name) {
     }
     await shot(host, 'vote-0');
 
+    // 走位阶段重开：旧票不带进新进场
+    await press(host, 'Escape'); await step(host);
+    assert.equal((await view(host)).cls, 's1');
+    await host.evaluate(() => { window.__out.length = 0; window.__h.start({ mode: 'online', arch0: 'wemby', arch1: 'sga', target: 21, clock: 24, glen: 0, diff: 1, fb: 'simple' }); window.advanceTime(50); });
+    assert.equal((await view(host)).cls, 's0', 'restart clears old votes');
+
     await press(host, 'Escape');
     await step(host); await pump(host, guest); await step(guest);
     for (const page of [host, guest]) assert.equal((await view(page)).cls, 's1', 'first vote shows 1/2 on both screens');
@@ -81,7 +87,7 @@ async function shot(page, name) {
     assert.ok((await view(host)).intro && (await view(guest)).intro, 'one vote does not skip the intro');
     assert.match((await view(host)).n, /1\/2/, 'repeat presses count once');
 
-    await press(guest, 'KeyA');
+    await guest.bringToFront(); await guest.mouse.click(640, 300);
     await step(guest); await pump(host, guest); await step(host, 16); await pump(host, guest); await step(guest, 16);
     for (const page of [host, guest]) assert.equal((await view(page)).cls, 's2', 'second vote fills the circle green');
     await shot(guest, 'vote-2');
