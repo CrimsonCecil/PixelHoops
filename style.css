@@ -313,6 +313,7 @@ button.pick .pk-c { grid-row: 1 / 3; grid-column: 3; font-size: var(--fs-xs); co
 #room-code { min-width: 0; flex: 1; padding: 3px 7px; font: inherit; font-size: var(--fs-sm); color: var(--text); background: #0b1026; border: 1px solid var(--line); }
 #room-code:is(:focus-visible, .pf) { outline: 2px solid var(--gold); outline-offset: -1px; }
 .menu-status { margin: calc(var(--u) * 3) 0 0; color: var(--gold); font-size: var(--fs-xs); }
+.net-toast { position: fixed; left: 50%; top: 14%; transform: translateX(-50%); z-index: 1000; max-width: 90vw; padding: calc(var(--u) * 3) calc(var(--u) * 6); background: var(--panel-2); color: var(--gold); border: calc(var(--u) * 1) solid var(--ink); box-shadow: 0 calc(var(--u) * 2) 0 var(--ink); font-size: var(--fs-sm); text-align: center; pointer-events: none; }
 @media (max-width: 700px), (max-height: 420px) {
   #menu .menu-panel { width: min(100%, 420px); }
 }
