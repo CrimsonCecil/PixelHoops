@@ -9,11 +9,13 @@
   const SOLO_EXTRA = { up: ['ArrowUp'], down: ['ArrowDown'], left: ['ArrowLeft'], right: ['ArrowRight'] };
   const touch = { mx: 0, my: 0, a1: false, a2: false, a3: false, alt: false, sprint: false, on: false };
   const sys = {};
+  const sysEdge = {}, blockedNav = {};
+  let padEdge = false;
   const blockedKeys = {}, blockedPad = {}, blockedTouch = {};
 
   window.addEventListener('keydown', (e) => {
     if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Slash', 'Tab'].includes(e.code)) e.preventDefault();
-    if (!e.repeat) { delete blockedKeys[e.code]; keys[e.code] = true; latch[e.code] = true; sys[e.code] = true; }
+    if (!e.repeat) { if (!blockedKeys[e.code]) sysEdge[e.code] = true; delete blockedKeys[e.code]; keys[e.code] = true; latch[e.code] = true; sys[e.code] = true; }
   });
   window.addEventListener('keyup', (e) => { keys[e.code] = false; delete blockedKeys[e.code]; });
   window.addEventListener('blur', () => { for (const k in keys) keys[k] = false; for (const k in blockedKeys) delete blockedKeys[k]; });
@@ -140,12 +142,14 @@
   function pollPads() {
     const cur = {}, nextButtons = {}, now = performance.now();
     let pressed = false;
+    padEdge = false;
     pressSlot = -1;
     pads().forEach((gp, slot) => {
       const blk = blockedPad[gp.index];
       if (blk) for (const i in blk) if (!gpBtn(gp, +i)) delete blk[i];
       const prev = padPrev[gp.index] || [], buttons = nextButtons[gp.index] = gp.buttons.map((b) => b.pressed);
       if (buttons.some((b, i) => b && !prev[i])) { pressed = true; pressSlot = slot; }
+      if (buttons.some((b, i) => b && !prev[i] && !blk?.[i])) padEdge = true;
       const B = (i) => buttons[i], ax = gp.axes[0] || 0, ay = gp.axes[1] || 0, rx = gp.axes[2] || 0;
       if (B(12) || ay < -0.6) cur.PadUp = true; if (B(13) || ay > 0.6) cur.PadDown = true; if (B(14) || ax < -0.6) cur.PadLeft = true; if (B(15) || ax > 0.6) cur.PadRight = true;
       if (B(0)) cur.PadA = true; if (B(1)) cur.PadB = true; if (B(9)) cur.PadStart = true; if (B(8)) cur.PadBack = true;
@@ -153,7 +157,8 @@
       if (rx < -0.6) cur.PadRLeft = true; if (rx > 0.6) cur.PadRRight = true;
     });
     for (const k of ['PadUp', 'PadDown', 'PadLeft', 'PadRight', 'PadA', 'PadB', 'PadStart', 'PadBack', 'PadX', 'PadY', 'PadLB', 'PadRB', 'PadRLeft', 'PadRRight']) {
-      if (cur[k] && !navPrev[k]) { sys[k] = true; navRep[k] = now + 380; }
+      if (!cur[k]) delete blockedNav[k];
+      if (cur[k] && !navPrev[k]) { sys[k] = true; if (!blockedNav[k]) sysEdge[k] = true; navRep[k] = now + 380; }
       else if (cur[k] && REPEAT[k] && now >= navRep[k]) { sys[k] = true; navRep[k] = now + 85; }
       navPrev[k] = !!cur[k];
     }
@@ -176,6 +181,9 @@
     }
   }
   function flush() {
+    pollPads();
+    for (const k in navPrev) if (navPrev[k]) blockedNav[k] = true;
+    clearSys();
     endTick();
     yTaps.length = 0;
     for (const k in blockedKeys) delete blockedKeys[k];
@@ -191,7 +199,8 @@
   }
   function sysPressed(code) { if (sys[code]) { delete sys[code]; return true; } return false; }
   function sysAny() { const n = Object.keys(sys).length > 0; return n; }
-  function clearSys() { for (const k in sys) delete sys[k]; }
+  function clearSys() { for (const k in sys) delete sys[k]; for (const k in sysEdge) delete sysEdge[k]; padEdge = false; }
+  function introPressed() { return padEdge || Object.keys(sysEdge).length > 0; }
 
   // 触屏
   function initTouch(root) {
@@ -217,5 +226,5 @@
     });
   }
 
-  PH.input = { read: read, read3: read3, read5: read5, endTick: endTick, flush: flush, blockRebound: blockRebound, sysPressed: sysPressed, sysAny: sysAny, clearSys: clearSys, initTouch: initTouch, pollPads: pollPads, pressSlot: () => pressSlot, rstick: rstick, lock: lock, pads: pads, keys: keys, touch: touch };
+  PH.input = { read: read, read3: read3, read5: read5, endTick: endTick, flush: flush, blockRebound: blockRebound, sysPressed: sysPressed, sysAny: sysAny, introPressed: introPressed, clearSys: clearSys, initTouch: initTouch, pollPads: pollPads, pressSlot: () => pressSlot, rstick: rstick, lock: lock, pads: pads, keys: keys, touch: touch };
 })();

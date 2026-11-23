@@ -375,7 +375,7 @@ function runIntro(Gm, G) {
     console.log('PASS: walk-in + intro dialogue never repeat a voice clip across all 9 rivalries and small voice packs.');
 
     const audio = audioCtx.PH.audio;
-    ctx.PH.audio.voPreload = audio.voPreload;
+    ctx.PH.audio.voPreload = (keys) => { audio.voPreload(keys); };
     const walkClip = manifest.shaq.lines.dunk[2];
     ctx.PH.audio.vo = (k, ev, mode) => {
       assert.equal(ev, 'walk');
