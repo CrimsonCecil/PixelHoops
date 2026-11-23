@@ -1161,6 +1161,8 @@
   // 进入失败（不算用户操作的手柄按键等）就等下一次输入再试；带前缀的 WebKit 接口不返回 Promise，只发 error 事件
   function fsFail() { if (FS.on && !fsEl()) FS.done = false; }
   for (const ev of ['fullscreenerror', 'webkitfullscreenerror']) document.addEventListener(ev, fsFail);
+  // 没有键盘锁的浏览器（Firefox / Safari）按 Esc 只会退出全屏、收不到按键：比赛中退出全屏就当作暂停
+  for (const ev of ['fullscreenchange', 'webkitfullscreenchange']) document.addEventListener(ev, () => { if (!fsEl() && !paused) setPause(true); });
   for (const ev of ['pointerup', 'touchend', 'click', 'keydown']) window.addEventListener(ev, fsAuto, true);
   show('btn-fs', !!fsReq);
   $('btn-fs').addEventListener('click', () => {
