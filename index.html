@@ -128,6 +128,7 @@ document.write('<link rel="stylesheet" href="menu.css?v=' + window.__V__ + '">')
       <div class="row" id="row-diff"><label>难度</label><div class="seg" data-opt="diff"><button data-v="0">简单</button><button data-v="1" class="on">普通</button><button data-v="2">困难</button></div></div>
       <div class="row hidden" id="row-teams"><label>对阵</label><div class="t5pair"><button class="pick t5b" id="team0" data-testid="pick-home"></button><button class="pick t5b" id="team1" data-testid="pick-away"></button></div></div>
       <div class="row hidden" id="row-side"><label>我控制</label><div class="seg" data-opt="side"><button data-v="0" class="on" data-testid="side-home">主队</button><button data-v="1" data-testid="side-away">客队</button><button data-v="-1" data-testid="side-watch">观战</button></div></div>
+      <div class="selection-lineup">
       <div class="duel-lineup">
       <div class="row" id="row-p1"><label id="lab-p1">你的球员</label><button class="pick" id="pick0" data-testid="pick-p1"></button></div>
       <div class="row" id="row-p2"><label id="lab-p2">对手</label><button class="pick" id="pick1" data-testid="pick-p2"></button></div>
@@ -141,9 +142,11 @@ document.write('<link rel="stylesheet" href="menu.css?v=' + window.__V__ + '">')
         </div>
       </section>
       <section id="lobbyK" class="hidden" data-testid="king-ladder">
-        <div class="lk-head"><h2>挑战阶梯</h2><span>一关比一关强 · 规则可在设置里调</span><span id="lk-lives"></span><button id="lk-quit" class="hidden" data-testid="king-quit">放弃进度</button></div>
-        <ol id="lk-list"></ol>
+        <div class="lk-head"><span id="lk-lives"></span><button id="lk-quit" class="hidden" data-testid="king-quit">放弃进度</button></div>
+        <ol id="lk-list" aria-label="五位逐渐增强的挑战对手"></ol>
       </section>
+      </div>
+      <div id="king-start" class="king-start hidden"></div>
       <div class="menu-rooms hidden" id="menu-rooms">
         <button id="btn-room-create">建房间</button>
         <input id="room-code" type="text" aria-label="房间号" placeholder="输入房间号" autocomplete="off">

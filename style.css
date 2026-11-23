@@ -566,20 +566,24 @@ button.pick .pk-c { grid-row: 1 / 3; grid-column: 3; font-size: var(--fs-xs); co
 .bcol { bottom: auto; --bcol-top: 40%; top: max(var(--bcol-top), calc(var(--pcard-bottom, 0px) + var(--u) * 2)); }
 #stage.touch .bcol { --bcol-top: 34%; }
 #shotcard { top: auto; bottom: calc(var(--u) * 16); }
-/* V2.3 等级配色与属性数值同一色阶：S 绿（发光）/ A 黄绿 / B 金 / C 铜 / D 灰红 */
-:root { --tS: #5dff8a; --tA: #c6f060; --tB: #ffd24a; --tC: #c98a5a; --tD: #a8707a; }
+/* 档位字母沿用属性色阶（main.js vcl）：S 金 / A 紫 / B 蓝 / C 绿 / D 灰 */
+:root { --tS: var(--rating-gold); --tA: var(--rating-purple); --tB: var(--rating-blue); --tC: var(--rating-green); --tD: var(--rating-grey); }
 .tS { --tc: var(--tS); } .tA { --tc: var(--tA); } .tB { --tc: var(--tB); } .tC { --tc: var(--tC); } .tD { --tc: var(--tD); } .tX { --tc: #4a5070; }
 .pcard i.tS, .pcard i.tA, .pcard i.tB, .pcard i.tC, .pcard i.tD, .pcard em.tS, .pcard em.tA, .pcard em.tB, .pcard em.tC { color: var(--tc); }
+/* 总评与属性同一色阶（main.js vcl）：总评所在的卡、按钮、数字都取 --rating */
+:is(.pkc, button.pick, .pkd-h em, .pcard em)[class*="rating-"] { --tc: var(--rating); }
+.pcard em[class*="rating-"] { color: var(--tc); text-shadow: var(--rating-glow, none); }
 .pxi { width: 1em; height: 1em; vertical-align: -0.12em; flex: none; }
 .pxi.hi { margin-right: 0.35em; color: var(--gold); }
 /* 选人卡：左侧色条 + 总评颜色 = 档位 */
 .pk-grid .pkc { border-left: calc(var(--u) * 2) solid var(--tc, var(--line)); }
 .pk-grid .pkc .pko { color: var(--tc); text-shadow: 0 0 calc(var(--u) * 2) color-mix(in srgb, var(--tc) 45%, transparent); }
-.pk-grid .pkc.tS { background: linear-gradient(90deg, rgba(93, 255, 138, 0.18), transparent 62%); box-shadow: inset 0 0 calc(var(--u) * 3) rgba(93, 255, 138, 0.25); }
-.pk-grid .pkc.tA { background: linear-gradient(90deg, rgba(198, 240, 96, 0.10), transparent 60%); }
-.pk-grid .pkc.tS .pko { text-shadow: 0 0 calc(var(--u) * 3) rgba(93, 255, 138, 0.8); }
+.pk-grid .pkc:is(.rating-gold, .rating-orange) { background: linear-gradient(90deg, color-mix(in srgb, var(--rating) 18%, transparent), transparent 62%); box-shadow: inset 0 0 calc(var(--u) * 3) color-mix(in srgb, var(--rating) 25%, transparent); }
+.pk-grid .pkc.rating-purple { background: linear-gradient(90deg, color-mix(in srgb, var(--rating) 12%, transparent), transparent 60%); }
+.pk-grid .pkc:is(.rating-gold, .rating-orange) .pko { text-shadow: var(--rating-glow); }
 .pcard em.tS { text-shadow: 0 0 4px rgba(93, 255, 138, 0.7); }
 .pk-grid .pkc.on { background: var(--blue); }
+.pk-grid .pkc.on .pko { color: #0b2a55; text-shadow: none; }
 .pkc .pkst { display: inline-block; margin-left: 0.3em; color: var(--tS); }
 .pk-tier { display: flex; align-items: center; gap: calc(var(--u) * 2); color: var(--tc, var(--gold)); border-bottom-color: color-mix(in srgb, var(--tc, var(--gold)) 50%, transparent); }
 .pk-tier i { font-style: normal; width: 1.5em; height: 1.5em; display: grid; place-items: center; background: var(--tc); color: #0a0c1c; clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%); }
@@ -612,7 +616,7 @@ button.pick .pk-c { grid-row: 1 / 3; grid-column: 3; font-size: var(--fs-xs); co
 .pkb .bdg.tr1 b { color: #e0a070; } .pkb .bdg.tr2 b { color: #dfe6ee; } .pkb .bdg.tr3 b { color: #f2c14e; } .pkb .bdg.tr4 b { color: #d99bff; }
 .pkb b sup { font-size: 0.7em; color: #ff9a3c; margin-left: 2px; }
 /* 菜单里的选人按钮 */
-button.pick.tS, button.pick.tA, button.pick.tB, button.pick.tC { border-left: calc(var(--u) * 2) solid var(--tc); }
+button.pick[class*="rating-"] { border-left: calc(var(--u) * 2) solid var(--tc); }
 button.pick .pk-n small { color: var(--tc, var(--gold)); }
 /* 球员卡实时数据 */
 .pcard .pcs { color: var(--muted); white-space: nowrap; margin-top: 1px; }
@@ -632,11 +636,11 @@ button.pick .pk-n small { color: var(--tc, var(--gold)); }
 
 /* V2.2：属性数值按高低配色（越高越醒目），主宰加成 */
 :root { --rating-grey: #7a8098; --rating-white: #e8ecf5; --rating-green: #3ad46a; --rating-blue: #3d9bff; --rating-purple: #b46cff; --rating-orange: #ff8c1a; --rating-gold: #ffd700; }
-.rating-grey { --rating: var(--rating-grey); }
-.rating-white { --rating: var(--rating-white); }
-.rating-green { --rating: var(--rating-green); }
-.rating-blue { --rating: var(--rating-blue); }
-.rating-purple { --rating: var(--rating-purple); }
+.rating-grey { --rating: var(--rating-grey); --rating-weight: normal; --rating-glow: none; }
+.rating-white { --rating: var(--rating-white); --rating-weight: normal; --rating-glow: none; }
+.rating-green { --rating: var(--rating-green); --rating-weight: normal; --rating-glow: none; }
+.rating-blue { --rating: var(--rating-blue); --rating-weight: normal; --rating-glow: none; }
+.rating-purple { --rating: var(--rating-purple); --rating-weight: normal; --rating-glow: none; }
 .rating-orange { --rating: var(--rating-orange); --rating-weight: bold; --rating-glow: 0 0 6px var(--rating-orange); }
 .rating-gold { --rating: var(--rating-gold); --rating-weight: bold; --rating-glow: 0 0 6px var(--rating-gold); }
 .pcard { background: rgba(8, 10, 22, 0.92); }

@@ -86,7 +86,7 @@
   function pkCard(key) {
     if (key === 'random') return '<button class="pkc rnd" data-pk="random" data-testid="pk-random"><span class="pkf q">?</span><span class="pkn">随机</span><span class="pkp">任意球员</span></button>';
     const a = GM.ARCH[key];
-    return '<button class="pkc t' + TT[a.tier] + '" data-pk="' + key + '" data-testid="pk-' + key + '"><canvas class="pkf" width="32" height="32"></canvas><span class="pkn">' + a.name + (a.skill ? '<i class="pkst">' + IC.svg('takeover') + '</i>' : '') + '</span><span class="pkp">' + (pkSlot === null ? a.pos : positionBadge(a, true)) + '<small class="pkh"> · ' + listedHeight(a) + '</small></span><span class="pko">' + a.ovr + '</span></button>';
+    return '<button class="pkc ' + vcl(a.ovr) + '" data-pk="' + key + '" data-testid="pk-' + key + '"><canvas class="pkf" width="32" height="32"></canvas><span class="pkn">' + a.name + (a.skill ? '<i class="pkst">' + IC.svg('takeover') + '</i>' : '') + '</span><span class="pkp">' + (pkSlot === null ? a.pos : positionBadge(a, true)) + '<small class="pkh"> · ' + listedHeight(a) + '</small></span><span class="pko">' + a.ovr + '</span></button>';
   }
   const LTIP = { normal: 'lay' };
   let pkShown = '';
@@ -134,7 +134,7 @@
     if (key === 'random') { el.innerHTML = '<div class="pkd-h"><b>随机对手</b></div><p class="tnote">每局开赛重新抽一位（不会抽到你自己选的人，一轮之内不重复）。</p>'; return; }
     const a = GM.ARCH[key];
     const tm = a.team && GM.NBA[a.team], tmS = tm ? (a.team === 'LEG' ? '传奇' : tm.city + tm.name) + ' · ' : a.tier === 'rook' ? '新秀 · ' : '';
-    let h = '<div class="pkd-h"><canvas class="pkf big" width="64" height="64"></canvas><div><b>' + a.full + '</b><span>' + tmS + a.pos + ' · ' + listedHeight(a) + ' 米 · ' + a.num + ' 号</span><span class="pkd-desc">' + a.desc + '</span></div><em class="t' + TT[a.tier] + '">' + a.ovr + '<small>' + GM.TIERS[a.tier] + '</small></em></div>';
+    let h = '<div class="pkd-h"><canvas class="pkf big" width="64" height="64"></canvas><div><b>' + a.full + '</b><span>' + tmS + a.pos + ' · ' + listedHeight(a) + ' 米 · ' + a.num + ' 号</span><span class="pkd-desc">' + a.desc + '</span></div><em class="' + vcl(a.ovr) + '">' + a.ovr + '<small>' + GM.TIERS[a.tier] + '</small></em></div>';
     const pt = PH.PT.of(a);
     h += '<p class="pkform" data-testid="ptype"><canvas width="' + PH.PT.SIZE + '" height="' + PH.PT.SIZE + '" data-ptype="' + pt.id + '" style="width:26px;height:26px;image-rendering:pixelated;vertical-align:middle"></canvas> <b>' + pt.name + '</b> · ' + (pt.desc || '') + '</p>';
     h += '<div class="pkd-tabs" data-testid="pk-tabs">' + PK_TABS.map((t) => '<button data-nonav="1" data-pkt="' + t[0] + '" class="' + (t[0] === pkTab ? 'on' : '') + '" data-testid="pkt-tab-' + t[0] + '">' + t[1] + '</button>').join('') + '<span class="pkd-lr">LB</span><span class="pkd-lr r">RB</span></div>';
@@ -278,14 +278,14 @@
     const el = $(id);
     if (key === 'random') { el.className = 'pick fighter-pick fighter-random'; el.setAttribute('aria-label', 'P2 随机球星，更换球员'); el.innerHTML = '<span class="fighter-figure"><span class="fighter-question">?</span><span class="fighter-ring"></span></span><span class="fighter-info"><span class="fighter-label">P2</span><span class="pk-n">随机球星</span></span>'; return; }
     const a = GM.ARCH[key];
-    el.className = 'pick t' + TT[a.tier]; el.innerHTML = '<canvas class="pkf" width="32" height="32"></canvas><span class="pk-n">' + a.name + ' <small>' + a.ovr + '</small></span>' + (t3 ? positionBadge(a) : '<span class="pk-s">' + (a.skill ? '必杀技 · ' + a.skill.name : a.pos + ' · ' + GM.TIERS[a.tier]) + '</span><span class="pk-c">更换</span>');
+    el.className = 'pick ' + vcl(a.ovr); el.innerHTML = '<canvas class="pkf" width="32" height="32"></canvas><span class="pk-n">' + a.name + ' <small>' + a.ovr + '</small></span>' + (t3 ? positionBadge(a) : '<span class="pk-s">' + (a.skill ? '必杀技 · ' + a.skill.name : a.pos + ' · ' + GM.TIERS[a.tier]) + '</span><span class="pk-c">更换</span>');
     if (!t3) {
       el.classList.add('fighter-pick');
       el.setAttribute('aria-label', 'P' + (side + 1) + ' ' + a.full + '，更换球员');
       el.innerHTML = '<span class="fighter-figure"><span class="fighter-number">' + a.num + '</span><canvas class="fighter-body" width="300" height="440" aria-label="' + a.full + '全身像"></canvas><span class="fighter-ring"></span></span>' +
-        '<span class="fighter-info"><span class="fighter-label">P' + (side + 1) + '</span><span class="fighter-name"><span class="pk-n">' + a.name + '</span><strong aria-label="总评 ' + a.ovr + '">' + a.ovr + '</strong></span>' +
+        '<span class="fighter-info"><span class="fighter-label">P' + (side + 1) + '</span><span class="fighter-name"><span class="pk-n">' + a.name + '</span><strong class="' + vcl(a.ovr) + '" aria-label="总评 ' + a.ovr + '">' + a.ovr + '</strong></span>' +
         '<span class="pk-s">' + a.pos + ' · ' + listedHeight(a) + ' 米 · #' + a.num + '</span>' +
-        '<span class="fighter-stats">' + [['three','三分'],['mid','中投'],['lay','上篮'],['dunk','扣篮'],['hnd','控球'],['spd','速度'],['def','防守'],['str','力量']].map(([k,n]) => '<span>' + n + '<b class="' + vcl(A99(a[k])) + '">' + A99(a[k]) + '</b><i style="--rating:' + A99(a[k]) + '%"></i></span>').join('') + '</span>' +
+        '<span class="fighter-stats">' + [['three','三分'],['mid','中投'],['lay','上篮'],['dunk','扣篮'],['hnd','控球'],['spd','速度'],['def','防守'],['str','力量']].map(([k,n]) => '<span class="' + vcl(A99(a[k])) + '">' + n + '<b>' + A99(a[k]) + '</b><i style="--pct:' + A99(a[k]) + '%"></i></span>').join('') + '</span>' +
         '<span class="fighter-badges">' + bList(a, true).map(([k,t]) => '<span title="' + GM.BADGES[k].desc + '">' + bHex(k,t) + GM.BADGES[k].name + '</span>').join('') + '</span></span>';
       R.playerPreview(el.querySelector('canvas'), a, side);
     } else {
@@ -523,6 +523,9 @@
     show('btn-start', !guest && (!online || room.role === 'host' && room.links.has(1)));
     $('row-diff').classList.toggle('hidden', opts.mode !== 'cpu' && !t5 && !t3);
     const kg = opts.mode === 'king';
+    const startSlot = kg ? $('king-start') : $('menu').querySelector('.menu-actions');
+    if ($('btn-start').parentElement !== startSlot) startSlot.prepend($('btn-start'));
+    show('king-start', kg);
     show('row-p1', setup && !t5); show('row-p2', setup && !t5 && !kg); show('lobbyK', kg);
     for (const id of ['row-teams', 'row-side']) $(id).classList.toggle('hidden', !t5);
     const clkS = opts.clock ? opts.clock + ' 秒进攻' : '不限进攻';
@@ -538,7 +541,7 @@
     $('lab-p2').textContent = online ? (guest ? '你 · 球友' : '球友') : opts.mode === '2p' ? '玩家 2' : tr ? '假人体型' : '对手';
     $('btn-start').textContent = tr ? '进入训练场' : '开始比赛';
     $('menu-foot').textContent = tr ? '训练场：无比分无时限，可设置假人防守方式，比赛中按 Tab 开关训练参数面板。' : online ? '建房间并分享房间号，对手加入后由房主开始 · ' + opts.target + ' 分制 · ' + clkS + '。' : '规则：先到 ' + opts.target + ' 分（领先 2 分胜）· ' + clkS + ' · ' + lenS + ' · 失分方球权，抢断需出三分线。';
-    if (kg) { const sv = kingSaved(); $('btn-start').textContent = sv ? '继续闯关 · 第 ' + (sv.stage + 1) + ' 关' : '开始闯关'; $('menu-foot').textContent = '斗牛之王：选好你的球员，连赢五位越来越强的对手 · 每关先到 ' + (sv ? sv.target : opts.ktarget) + ' 分（领先 2 分胜）· ' + clkS + ' · 三次重来机会。'; kingLadderView(); }
+    if (kg) { const sv = kingSaved(); $('btn-start').textContent = sv ? '继续闯关' : '开始闯关'; $('menu-foot').textContent = ''; kingLadderView(); }
     const a = GM.ARCH[opts.arch0];
     pickBtn('pick0', opts.arch0); pickBtn('pick1', online && room.role === 'host' && !room.links.has(1) ? 'random' : opts.arch1);
     $('arch-desc').textContent = a.full + '：' + a.desc + (a.skill ? '。必杀技「' + a.skill.name + '」，条件和效果见“更换”。' : '。');
@@ -653,11 +656,20 @@
     const sv = kingSaved();
     if (sv) kingLadder = sv.ladder.slice();
     else if (!kingLadder || kingLadder.includes(opts.arch0)) kingRoll();
-    const tg = sv ? sv.tags : kingTags(kingLadder), at = sv ? sv.stage : -1, see = (i) => sv ? sv.open || i < at || i === at && sv.retry > 0 : opts.kreveal === 'show';
+    const at = sv ? sv.stage : 0, see = (i) => sv ? sv.open || i < at || i === at && sv.retry > 0 : opts.kreveal === 'show';
     $('lk-lives').innerHTML = kingLives(sv ? sv.lives : KING_LIVES);
     show('lk-quit', !!sv);
-    $('lk-list').innerHTML = kingLadder.map((k, i) => '<li class="lk-i s' + i + (i < at ? ' done' : i === at ? ' cur' : '') + '" data-testid="king-rung-' + (i + 1) + '"><em>' + (i + 1) + '</em><canvas width="32" height="32" data-k="' + k + '"></canvas><span class="lk-n">' + (see(i) ? GM.ARCH[k].name : '???') + '<small class="ktag">' + tg[i] + '</small></span>' + (i < at ? '<i class="lk-st">已击败</i>' : '') + '<b class="lk-o">' + (see(i) ? GM.ARCH[k].ovr : '??') + '</b></li>').join('');
-    $('lk-list').querySelectorAll('canvas').forEach((cv) => portrait(cv, GM.ARCH[cv.getAttribute('data-k')], GM.TEAMS[1]));
+    $('lk-list').innerHTML = kingLadder.map((k, i) => kingRung(k, i, see(i), at)).join('');
+    $('lk-list').querySelectorAll('canvas').forEach((cv) => R.playerPreview(cv, GM.ARCH[cv.getAttribute('data-k')], 1));
+  }
+  function kingRung(key, i, known, at) {
+    const a = GM.ARCH[key], current = i === at, done = i < at;
+    const silhouette = '<svg class="lk-mystery" viewBox="0 0 120 260" aria-hidden="true"><g class="lk-silhouette"><path d="M46 9H76V17H82V55H75V63H46V55H38V17H46Z"/><path d="M30 74H90L98 170H22Z"/><path d="M18 76H30L26 170H14ZM90 76H102L106 170H94ZM30 170H54V244H30ZM66 170H90V244H66Z"/></g><text x="60" y="140" text-anchor="middle">?</text></svg>';
+    return '<li class="lk-i s' + i + (done ? ' done' : current ? ' cur' : '') + (known ? ' revealed' : ' mystery') + '" data-testid="king-rung-' + (i + 1) + '"' + (current ? ' aria-current="step"' : '') + ' aria-label="' + (current ? '当前挑战：' : done ? '已击败：' : '待挑战：') + (known ? a.name : '神秘对手') + '">' +
+      (current ? '<span class="lk-arrow" aria-hidden="true">▼</span>' : '') +
+      '<span class="lk-figure">' + (known ? '<canvas width="180" height="320" data-k="' + key + '" aria-label="' + a.full + '全身像"></canvas>' : silhouette) + '</span>' +
+      (known ? '<span class="lk-name">' + a.name + '</span><b class="lk-rating">' + a.ovr + '</b>' : '') +
+      (done ? '<span class="lk-defeated" aria-hidden="true">✓</span>' : '') + '</li>';
   }
   const KING_LIVES = 3;
   const KING_AT = [AT_CLOSE, ['mid', '中投'], ['three', '三分'], ['fade', '后仰'], ['lay', '上篮'], ['flo', '抛投'], ['dunk', '扣篮'], ['post', '背打'], ['hnd', '控球'], ['spd', '速度'], ['str', '力量'], ['def', '外防'], ['intD', '内防'], ['stl', '抢断'], ['blk', '盖帽'], ['dreb', '篮板']];
@@ -1153,7 +1165,7 @@
     // V4.5 信息卡徽章行（1V1 / 5V5 同一套）：档位配色的六边形图标，正在触发的徽章高亮
     const bl = bList(pl, is5), hot = new Set((G.bpops || []).filter((x) => G.time - x.t0 < 1.8 && G.time >= x.t0 && G.players[x.pid] === pl).map((x) => x.key));
     const brow = bl.length ? '<div class="pcb" data-testid="pc-badges">' + bl.map((x) => '<span class="tr' + x[1] + (hot.has(x[0]) ? ' hot' : '') + '" title="' + GM.BADGES[x[0]].name + '">' + bHex(x[0], x[1]) + '</span>').join('') + '</div>' : '';
-    const name = '<b>' + a.name + '</b>', ovr = '<em class="t' + TT[a.tier] + '">' + a.ovr + '</em>';
+    const name = '<b>' + a.name + '</b>', ovr = '<em class="' + vcl(a.ovr) + '">' + a.ovr + '</em>';
     const role = '<u class="' + (isOff ? 'ro' : 'rd') + '">' + (isOff ? '进攻' : '防守') + '</u>';
     const head = '<span class="pc-id">' + name + ovr + (G.mode === 't3' ? positionBadge(a) : '') + '</span>' + role;
     return '<div class="pch">' + head + '</div>' + sl + '<div class="pcg">' + cells + '</div>' + brow + tkl + '<div class="pctk' + (tkOn ? ' on' : '') + '"><span>主宰</span><s><b style="width:' + Math.round(pl.tk) + '%"></b></s></div>';
