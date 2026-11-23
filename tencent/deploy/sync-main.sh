@@ -30,6 +30,23 @@ publish() {
     mv -Tf -- "$link" "$app"
 }
 
+refresh_static() {
+    local target=$1 outgoing=$2 stamp pack
+    stamp=$(date +%s)
+    if [[ $(stat -c %Y "$outgoing/index.html") == "$stamp" ]]; then
+        sleep 1
+        stamp=$(date +%s)
+    fi
+    # Voice packs use unversioned URLs; on rollback their archived mtime alone would allow a stale 304.
+    for pack in "$target"/vo/p/*.mp3; do
+        [[ -f $pack ]] || continue
+        if ! cmp -s "$pack" "$outgoing/vo/p/${pack##*/}"; then
+            as_app touch -d "@$stamp" -- "$pack" || return 1
+        fi
+    done
+    as_app touch -d "@$stamp" -- "$target/index.html"
+}
+
 check_live() {
     curl -fsS --max-time 5 --retry 3 --retry-connrefused "$local_http/api/health" |
         grep -Eq '"ok":[[:space:]]*true' || return 1
@@ -91,7 +108,7 @@ for path in tencent/server.mjs tencent/lib tencent/package.json tencent/package-
     if ! diff -qr "$current/$path" "$next/$path" >/dev/null; then restart=1; break; fi
 done
 if (( restart )) && [[ $mode == sync ]]; then as_app node "$next/tencent/test/run.mjs"; fi
-as_app touch "$next/index.html"
+if [[ -n $static_dir ]]; then refresh_static "$next" "$current"; fi
 
 if [[ ! -L $app ]]; then
     old=$(as_app git -C "$app" rev-parse HEAD)
@@ -110,7 +127,9 @@ else
     if [[ $mode == sync ]]; then
         : > "$rejected/$sha" || echo "Could not record rejected release $sha" >&2
     fi
-    as_app touch "$current/index.html"
+    if [[ -n $static_dir ]]; then
+        refresh_static "$current" "$next" || echo "Could not refresh static timestamps while reverting" >&2
+    fi
     publish "$current"
     if (( restart )); then systemctl restart pixelhoops.service; fi
     check_live "$current"
