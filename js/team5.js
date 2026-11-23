@@ -757,7 +757,8 @@
   }
   function nearestTo(list, x, y, ex) { let best = null, bd = 1e9; for (const p of list) { if (p === ex) continue; const d = hyp(p.x - x, p.y - y); if (d < bd) { bd = d; best = p; } } return best; }
   function autoDef() { if (T.hum < 0 || T.hum === G.off) return; const b = G.ball; setCtl(nearestTo(T.tm[T.hum].on, b.x, b.y), 'auto'); }
-  function flt(text, p, col) { A5.float(text, p, col || '#ffffff', 1); }
+  // 出界、24 秒和压哨是比赛状态提示，不随普通动作小字隐藏。
+  function flt(text, p, col) { A5.float(text, p, col || '#ffffff', 2); }
   // 抢断 / 断球飘字：不绑定球员 id，避免同一帧该球员的其他飘字把它顶掉（每次被断都必须看得到）
   function fltS(text, p) { A5.float(text, { x: p.x, y: p.y, z: p.z || 0, h: p.h || 2 }, '#5ee0ff', 1); }
 

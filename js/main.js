@@ -1493,7 +1493,9 @@
     if (sbE && sbE.offsetParent && screen === 'play') { const cv = stage.getBoundingClientRect(), r = sbE.getBoundingClientRect(); if (r.width) sb = { x0: (r.left - cv.left) / scale, x1: (r.right - cv.left) / scale, y1: (r.bottom - cv.top) / scale }; }
     for (let i = fpool.length - 1; i >= 0; i--) {
       const f = G.floats[i], d = fpool[i];
-      if (!f) { d.style.display = 'none'; continue; }
+      // 局内不再用小字解释动作；保留投篮反馈和明确标记的关键事件。
+      // 操作说明的演示仍显示动作标签，便于对照学习。
+      if (!f || screen !== 'tips' && !f.shot && !f.prominent) { d.style.display = 'none'; continue; }
       const p = R.proj(f.x, f.y, f.z + f.t * 0.5), pw = (f.shot ? 44 : f.text.length * 7 + 6) / 2, ph = f.shot ? 26 : 13;
       let y = p.y;
       const inSb = (yy) => sb && p.x + pw > sb.x0 && p.x - pw < sb.x1 && yy - ph < sb.y1 + 1;
@@ -1549,7 +1551,7 @@
       const B = '<b>' + kb.d1 + '</b> 抢篮板 <b>' + kb.st + '</b> 卡位 <b>' + kb.sp + '</b> 加速';
       const P = '背打中　<b>' + kb.a1 + '</b> 勾手 / 按住后方向后仰 <b>' + kb.a2 + '</b> 转身终结　松开时按左右 转身';
       const D = '<b>' + kb.d1 + '</b> 封盖 <b>' + kb.d2 + '</b> 抢断 <b>' + kb.st + '</b> 举手干扰 <b>' + kb.sp + '</b> 加速';
-      show('hint', !!ft || train || !!(t3 && local) || opts.fb === 'detail');
+      show('hint', !ft && (train || !!(t3 && local) || opts.fb === 'detail'));
       const passing = t3 && local && off ? offBall ? '　<b>' + (hasPad ? 'A' : 'E') + '</b> 要球' : hasPad
         ? '　<b>A</b> 胸传　<b>RT+A</b> 过顶　<b>LB+A</b> 击地　<b>LT+A</b> 高吊　<b>双击 Y / LB+LT+A</b> 空接'
         : '　<b>E</b> 胸传　<b>Shift+E</b> 过顶　<b>Z</b> 击地　<b>X</b> 高吊　<b>V</b> 空接' : '';
@@ -1558,12 +1560,6 @@
       $('hint').innerHTML = two ? (padN >= 2 ? '手柄 1 = 玩家 1　手柄 2 = 玩家 2　' + padKeys
         : (padN === 1 ? '玩家 1：手柄 1（' + padKeys + '）' : '玩家 1：WASD + J K L，H 犹豫步，U 背打，V 自抛空接') + '　玩家 2：方向键 + 小键盘 1 2 3，小键盘 5 犹豫步，O 背打，Num4 自抛空接' + (padN === 1 ? '（第 2 个手柄按任意键即可接管）' : '；手柄双击 Y 自抛空接，接球自动终结')) : (post ? P : off ? '进攻　' + (offBall ? B : O) : '防守　' + D) + passing + (offBall ? '　<b>' + (hasPad ? 'R3' : 'F') + '</b> 掩护' : '') + (train ? '　<b>' + (hasPad ? 'View' : 'Tab') + '</b> 参数 <b>R</b> 重置' : '');
       if (t3) $('hint').innerHTML += alleyHelp;
-      if (ft) {
-        const shooter = G.players[ft.id];
-        const key = hasPad ? 'X' : two && ft.id === 1 ? '小键盘 1' : kb.a1;
-        const help = shooter.ctrl === 'cpu' || !two && shooter !== local ? '等待对手罚球' : '按住 <b>' + key + '</b>，到绿区松手罚球';
-        $('hint').innerHTML = '罚球能力 ' + A99(shooter.r.ft) + ' · ' + help;
-      }
       if (isTouch) {
         $('tb1').textContent = ft && ft.id === local?.id ? '罚球' : offBall ? '篮板' : off ? '投篮' : '盖帽'; $('tb2').textContent = offBall ? '扑球' : off ? '终结' : '抢断'; $('tb3').textContent = offBall ? '卡位' : off ? '运球' : '姿态'; $('tbalt').textContent = '背打';
         show('tbalt', off && !offBall); show('tbscreen', offBall);
