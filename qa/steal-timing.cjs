@@ -283,7 +283,7 @@ for (const mode of ['2p', 't5', 't3']) for (const fps of [60, 120]) for (const h
     for (let i = 0; i < fps / 2; i++) step();
     const stanceRig = visual.rig(d), position = [d.x, d.y, d.z];
     p.drib = phase; _qa.updateBall(0); _qa.startSteal(d);
-    const action = d.action, label = `${mode} ${fps}fps ${hit ? 'hit' : 'miss'} ${range}m phase=${phase} hand=${hand}`;
+    const action = d.action, label = `${mode} ${fps}fps ${hit ? 'hit' : 'miss'} ${range}m phase=${phase} hand=${hand} ${action.sv}`;
     const joints = () => {
       const rig = visual.rig(d);
       return { elbows: [d.pose.aLe, d.pose.aRe], wrists: [rig.handL, rig.handR] };

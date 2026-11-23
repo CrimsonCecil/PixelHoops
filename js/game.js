@@ -630,6 +630,11 @@
     ['stlLungeDrop', 'def', '抢断动画 弓步下沉', 0.2, 0, 0.4, 0.01, '米：伸手时髋部下沉，随身高缩放；只影响动画，不改位置或判定'],
     ['stlLungeStep', 'def', '抢断动画 弓步步长', 0.6, 0, 0.9, 0.05, '米：伸手侧脚向前跨步，随身高缩放；只影响动画，不改移动或抢断距离'],
     ['stlMissStumble', 'def', '抢断动画 落空失衡倍率', 1.6, 1, 3, 0.05, '倍：落空后的身体失衡加大，手臂仍快速收回；不改动作时长'],
+    ['stlAnim', 'def', '抢断动画 动作选择', 0, 0, 5, 1, '越大越靠后的固定动作：0=按球的位置自动选，1=侧身捅球，2=低手上掏，3=侧向横扫，4=高手下劈，5=前扑长捅；只影响动画'],
+    ['stlLowZ', 'def', '抢断动画 低手上掏高度', 0.5, 0.2, 0.9, 0.05, '越大越常用低手上掏：球低于这个高度（米，随身高缩放）时从下往上掏；只影响动画'],
+    ['stlHighZ', 'def', '抢断动画 高手下劈高度', 1.2, 0.9, 1.8, 0.05, '越大越少用高手下劈：球高于这个高度（米，随身高缩放）时举手往下劈；只影响动画'],
+    ['stlSideX', 'def', '抢断动画 侧向横扫距离', 0.6, 0.3, 1.2, 0.05, '越大越少用侧向横扫：球偏向一侧超过这个距离（米，随身高缩放）时侧身横扫；只影响动画'],
+    ['stlFarY', 'def', '抢断动画 前扑长捅距离', 1.05, 0.6, 1.6, 0.05, '越大越少用前扑长捅：球在身前超过这个距离（米，随身高缩放）时前扑直捅；只影响动画'],
     // V4.5 盖帽公式 / 起跳 / 被盖球飞行（原写死，默认值不变）
     ['bkQ0', 'def', '盖帽 起跳时机基础', 0.62, 0, 1.5, 0.01, '倍率：时机系数 = 基础 + 增益 × 起跳到最高点的比例'],
     ['bkQ1', 'def', '盖帽 起跳时机增益', 0.5, 0, 1.5, 0.01, '倍率'],
@@ -4991,7 +4996,16 @@
   }
   // 起跳时机：越接近最高点越好（0~1）
   function jumpQ(p) { const a = p.action; return a && a.type === 'block' && a.zmax ? clamp(p.z / a.zmax, 0, 1) : 0; }
-  function startSteal(pl) { pl.sqv = (pl.sqv || 0) - K.stlSqv; pl.action = { type: 'steal', t: 0, T: K.stlT, done: false }; pl.animT = 0; pl.action.swipe = (G.ball.x - pl.x) * Math.sin(pl.face) - (G.ball.y - pl.y) * Math.cos(pl.face) < 0 ? -1 : 1; spendStamina(pl, K.stlCost * ST.cost); }
+  // 抢断动画按球相对防守人的位置挑选：离哪只手近就用哪只手，球低上掏、球高下劈、偏侧横扫、远处前扑、其余侧身捅球
+  const STEAL_VARS = ['poke', 'scoop', 'swipe', 'chop', 'stab'];
+  function stealVariant(pl) {
+    if (K.stlAnim > 0) return STEAL_VARS[Math.round(K.stlAnim) - 1] || 'poke';
+    const Hh = pl.h / 1.95, fx = Math.cos(pl.face), fy = Math.sin(pl.face), bx = G.ball.x - pl.x, by = G.ball.y - pl.y;
+    const lat = Math.abs(bx * fy - by * fx) / Hh, fwd = (bx * fx + by * fy) / Hh, bz = (G.ball.z - pl.z) / Hh;
+    return bz > K.stlHighZ ? 'chop' : bz < K.stlLowZ ? 'scoop' : lat > K.stlSideX ? 'swipe' : fwd > K.stlFarY ? 'stab' : 'poke';
+  }
+  const STEAL_STEP = { poke: [1, 0], scoop: [1, 0], swipe: [0.85, 0.45], chop: [0.6, 0], stab: [1, 0] };   // 跨步占 stlLungeStep 的比例、朝伸手侧偏转角
+  function startSteal(pl) { pl.sqv = (pl.sqv || 0) - K.stlSqv; pl.action = { type: 'steal', t: 0, T: K.stlT, done: false }; pl.animT = 0; pl.action.swipe = (G.ball.x - pl.x) * Math.sin(pl.face) - (G.ball.y - pl.y) * Math.cos(pl.face) < 0 ? -1 : 1; pl.action.sv = stealVariant(pl); spendStamina(pl, K.stlCost * ST.cost); }
   // 飞身扑球（参考 2K 的 Hustle / Dive for loose ball）：散球时按抢断键，朝球扑出去。
   // 拼劲（速度/爆发/篮板/抢断）决定扑多远、多快；体重大的人扑得短、起来慢；扑空要趴在地上一会儿
   function hustle(p) { return clamp(0.55 * (K.huSpd * p.r.spd + K.huAcc * p.r.acc + K.huReb * (p.r.oreb + p.r.dreb) / 2 + K.huStl * p.r.stl + K.huVrt * p.r.vert) + 0.45 * ((p.r.hus || 0.85) - 0.1), 0, 1); }
@@ -5866,10 +5880,10 @@
     }
     if (an === 'steal' && pl.stun > 0) a.footDone = true;
     if (an === 'steal' && !a.footDone && (!pl.stealFoot || pl.stealFoot.action !== a)) {
-      const side = a.swipe < 0 ? 'L' : 'R', start = PH.rig(pl)['foot' + side].slice(), length = K.stlLungeStep * pl.h / 1.95;
+      const side = a.swipe < 0 ? 'L' : 'R', start = PH.rig(pl)['foot' + side].slice(), sv = STEAL_STEP[a.sv] || STEAL_STEP.poke, length = K.stlLungeStep * sv[0] * pl.h / 1.95, ang = pl.face - a.swipe * sv[1];
       const stance = Object.assign(Object.create(pl), { anim: 'def', action: null, stealFoot: null, slide: null, sq: 1, speed: 0 });
       const home = PH.rig(stance, poseTarget(stance), false)['foot' + side], floor = pl.z + 0.06 * (1 + (pl.h / 1.95 - 1) * 1.7);
-      pl.stealFoot = { action: a, side, start, end: [home[0] + Math.cos(pl.face) * length, home[1] + Math.sin(pl.face) * length, floor], pos: start.slice(), t: 0 };
+      pl.stealFoot = { action: a, side, start, end: [home[0] + Math.cos(ang) * length, home[1] + Math.sin(ang) * length, floor], pos: start.slice(), t: 0 };
     }
     const T = poseTarget(pl), P = pl.pose, kq = postBlend ? 1 - Math.exp(-2 * dt / blendT) : Math.min(1, dt * 22);
     if (postBlend && T.yaw == null) T.yaw = 0;
@@ -6142,20 +6156,39 @@
     else if (an === 'steal') {
       const hit = Math.max(0.02, K.stlHitT), u = 1 - Math.pow(1 - clamp(t / hit, 0, 1), 3), after = Math.max(0, t - hit);
       const r = clamp(after / Math.max(0.02, (a ? a.T : K.stlT) - hit), 0, 1), settle = sm(r), weight = u * Math.pow(1 - r, 2);
-      const q = clamp(after / K.stlRecoilT, 0, 1) - 1, recoil = 1 + 1.8 * q * q * q + 0.8 * q * q;
-      const side = a && a.swipe < 0 ? -1 : 1, miss = a && a.done && !a.poked ? K.stlMissStumble : 1;
-      const sway = K.stlStumble * miss * weight, wave = Math.sin(r * Math.PI * 2), step = sway * (0.6 + 0.4 * Math.sin(r * Math.PI));
+      const q = clamp(after / (K.stlRecoilT * (a && a.sv === 'scoop' ? 1.4 : 1)), 0, 1) - 1, recoil = 1 + 1.8 * q * q * q + 0.8 * q * q;   // 上掏顺势上撩，收手稍慢
+      const side = a && a.swipe < 0 ? -1 : 1, miss = a && a.done && !a.poked ? K.stlMissStumble : 1, v = a && a.sv || 'poke';
+      const bal = 1.25 - 0.5 * clamp(pl.r && pl.r.stl != null ? pl.r.stl : 0.6, 0, 1);   // 抢断能力越高，出手后身体越稳
+      const sway = K.stlStumble * miss * bal * weight, wave = Math.sin(r * Math.PI * 2), step = sway * (0.6 + 0.4 * Math.sin(r * Math.PI));
       const lunge = u * (1 - clamp(after / Math.max(0.02, Math.min(0.22, (a ? a.T : K.stlT) - hit)), 0, 1)), Hh = pl.h / 1.95;
-      set({ lean: 0.25 + 0.65 * lunge + sway * wave, tilt: side * sway * (0.4 + 0.6 * Math.sin(r * Math.PI)), yaw: -side * 0.2 * weight,
-        bob: -K.stlLungeDrop * lunge + 0.025 * wave * weight, lA: 0.45 + 0.1 * lunge - step * 0.15, lB: 0.85 + 0.55 * lunge + step * 0.3,
-        rA: 0.45 + 0.9 * lunge + step * 0.3, rB: 0.85 + 0.85 * lunge + step * 0.4,
-        crab: 1, footLX: -0.28 * Hh, footRX: 0.28 * Hh, footLY: (-0.04 - 0.25 * lunge) * Hh, footRY: (0.04 + K.stlLungeStep * lunge) * Hh, footLZ: 0, footRZ: 0,
-        lS: 0.32 + step * 0.2, rS: 0.32, aRp: lerp(0.75 + 0.5 * u, 1.75 - 0.5 * settle, recoil),
-        aRe: lerp(0.6 - 0.55 * u, 1.25 - 0.65 * settle, recoil), aRq: lerp(0.9 * (1 - u), 0.9, recoil), aLp: 0.65, aLq: 1, aLe: 0.75 });
+      const rock = sway * wave, lean0 = sway * (0.4 + 0.6 * Math.sin(r * Math.PI));
+      // 以右手出手写好，左手出手时整体镜像；判定后各动作统一快速收回防守手位
+      const S = {
+        poke: { lean: 0.25 + 0.65 * lunge, tilt: 0.06 * u, yaw: -0.2 * weight, drop: 1, lA: 0.45 + 0.1 * lunge, lB: 0.85 + 0.55 * lunge, rA: 0.45 + 0.9 * lunge, rB: 0.85 + 0.85 * lunge,
+          fx: 0, fy: K.stlLungeStep, bY: 0.25, aRp: 0.75 + 0.5 * u, aRe: 0.6 - 0.55 * u, aRq: 0.9 * (1 - u), aLp: 0.55, aLq: 1.15, aLe: 0.55 },
+        scoop: { lean: 0.3 + 0.55 * lunge, tilt: 0.12 * u, yaw: -0.15 * weight, drop: 1.05, lA: 0.5 + 0.1 * lunge, lB: 0.95 + 0.5 * lunge, rA: 0.5 + 0.85 * lunge, rB: 0.9 + 0.85 * lunge,
+          fx: 0.05, fy: K.stlLungeStep, bY: 0.25, aRp: 1.05 - 0.15 * u, aRe: 0.5 - 0.38 * u, aRq: 0.4 - 0.25 * u, aLp: 0.25, aLq: 0.75, aLe: 0.45 },
+        swipe: { lean: 0.3 + 0.45 * lunge, tilt: 0.22 * u, yaw: -0.38 * weight, drop: 0.9, lA: 0.4 + 0.1 * lunge, lB: 0.8 + 0.4 * lunge, rA: 0.5 + 0.8 * lunge, rB: 0.9 + 0.8 * lunge,
+          fx: 0.3 * u, fy: 0.7 * K.stlLungeStep, bY: 0.15, aRp: 0.95 + 0.3 * u, aRe: 0.35 - 0.3 * u, aRq: 1.35 - 0.8 * u, aLp: 0.4, aLq: 1.4, aLe: 0.45 },
+        chop: (() => { const up = sm(clamp(t / (hit * 0.5), 0, 1)), dn = sm(clamp((t - hit * 0.5) / (hit * 0.5), 0, 1));
+          return { lean: 0.1 + 0.55 * dn * lunge, tilt: 0.08 * u, yaw: -0.25 * weight, drop: 0.6, lA: 0.4 + 0.1 * lunge, lB: 0.8 + 0.4 * lunge, rA: 0.45 + 0.6 * lunge, rB: 0.85 + 0.6 * lunge,
+            fx: 0, fy: 0.6 * K.stlLungeStep, bY: 0.15, aRp: lerp(lerp(0.9, 2.6, up), 1.3, dn), aRe: 0.45 - 0.35 * up, aRq: 0.35, aLp: 0.9, aLq: 0.6, aLe: 1.2 }; })(),
+        stab: { lean: 0.35 + 0.95 * lunge, tilt: 0.04 * u, yaw: -0.1 * weight, drop: 1.15, lA: 0.25 - 0.1 * lunge, lB: 0.35 + 0.2 * lunge, rA: 0.55 + 1.05 * lunge, rB: 0.85 + 0.75 * lunge,
+          fx: 0, fy: K.stlLungeStep, bY: 0.4, aRp: 0.9 + 0.6 * u, aRe: 0.4 - 0.38 * u, aRq: 0.15 * (1 - u), aLp: 0.3 - 0.75 * u, aLq: 0.6, aLe: 0.35 },
+      }[v] || null;
+      const P0 = S, guard = sm(clamp(after / Math.max(0.02, 2 * K.stlRecoilT), 0, 1));
+      set({ lean: P0.lean + rock, tilt: side * (P0.tilt * (1 - settle) + lean0), yaw: side * P0.yaw,
+        bob: -K.stlLungeDrop * P0.drop * lunge + 0.025 * wave * weight, lA: P0.lA - step * 0.15, lB: P0.lB + step * 0.3,
+        rA: P0.rA + step * 0.3, rB: P0.rB + step * 0.4,
+        crab: 1, footLX: -0.28 * Hh, footRX: (0.28 + P0.fx * lunge) * Hh, footLY: (-0.04 - P0.bY * lunge) * Hh, footRY: (0.04 + P0.fy * lunge) * Hh, footLZ: 0, footRZ: 0,
+        lS: 0.32 + step * 0.2, rS: 0.32, aRp: lerp(P0.aRp, 1.75 - 0.5 * settle, recoil),
+        aRe: lerp(P0.aRe, 1.25 - 0.65 * settle, recoil), aRq: lerp(P0.aRq, 0.9, recoil),
+        aLp: lerp(P0.aLp, 0.65, guard), aLq: lerp(P0.aLq, 1, guard), aLe: lerp(P0.aLe, 0.75, guard) });
       if (side < 0) {
         for (const pair of [['aLp', 'aRp'], ['aLq', 'aRq'], ['aLe', 'aRe'], ['lA', 'rA'], ['lB', 'rB'], ['lS', 'rS'], ['footLY', 'footRY']]) {
           const v = T[pair[0]]; T[pair[0]] = T[pair[1]]; T[pair[1]] = v;
         }
+        const x = T.footLX; T.footLX = -T.footRX; T.footRX = -x;
       }
       if (a && a.reach) {
         const w = 0.2 * Math.max(0, 1 - recoil), arm = a.reach.arm ? ['aRp', 'aRq', 'aRe'] : ['aLp', 'aLq', 'aLe'];
