@@ -3,9 +3,10 @@
   const PH = window.PH;
   const alphabet = '23456789ABCDEFGHJKMNPQRSTUVWXYZ';
   const PROTOCOL = 1, VERSION_ERROR = '版本不一致，请刷新页面后重试。';
-  const MAX_FRAME = 1024 * 1024, RELAY_BUFFER_LIMIT = 8 * 1024, P2P_BUFFER_LIMIT = 32 * 1024, INPUT_HEARTBEAT_MS = 100;
+  const MAX_FRAME = 1024 * 1024, RELAY_BUFFER_LIMIT = 8 * 1024, P2P_BUFFER_LIMIT = 12 * 1024, INPUT_HEARTBEAT_MS = 100;
   // Fallback only. google STUN is unreachable from mainland China, so it is no longer listed.
-  const FALLBACK_ICE = [{ urls: ['stun:stun.qq.com:3478', 'stun:stun.miwifi.com:3478'] }];
+  // stun.hitv.com also answers over IPv6, which gives most mainland home connections a public, punchable address.
+  const FALLBACK_ICE = [{ urls: ['stun:stun.miwifi.com:3478', 'stun:stun.chat.bilibili.com:3478', 'stun:stun.hitv.com:3478', 'stun:stun.qq.com:3478'] }];
   const ICE_REFRESH_MS = 60 * 60 * 1000;
   let iceServers = FALLBACK_ICE, iceAt = -Infinity, iceBusy = false, icePending = null;
   // Fetch short-lived TURN credentials from our own backend (GET /api/turn). Never blocks room setup:
@@ -31,6 +32,15 @@
   if (PH.TUNE) PH.TUNE.reg([{ k: 'net_direct', cat: 'net', sub: '连接', label: '强制直连', v: 0, mode: 'bool', note: '开 = 联机只尝试直连（P2P），不走 TURN、也不走 Worker 中继；直连不通时双方都提示「直连失败」。以房主的设置为准' }]);
   const DIRECT_MS = 8000, DIRECT_FAIL = '直连失败：两台电脑之间无法直接连通（已开启「强制直连」，不走中继）。';
   const forceDirect = () => !!(PH.TUNE && PH.TUNE.get('net_direct'));
+  // Public addresses each side found via STUN (srflx), so 直连失败 says whether hole punching even had a chance.
+  function iceFamilies(set) { const f = [...set].sort(); return f.length ? f.join('+') : '无'; }
+  function candFamily(c) {
+    const line = typeof c === 'string' ? c : c && typeof c.candidate === 'string' ? c.candidate : '';
+    const m = / typ (\w+)/.exec(line);
+    if (!m || (m[1] !== 'srflx' && m[1] !== 'prflx')) return '';
+    const addr = (c && c.address) || line.split(' ')[4] || '';
+    return addr.includes(':') ? 'IPv6' : 'IPv4';
+  }
   function directIce(list) {
     const out = [];
     for (const s of list) {
@@ -79,6 +89,11 @@
     }
     return true;
   }
+  function deltaOk() {
+    let any = false;
+    for (const link of room.links.values()) if (link.conn.open) { if (!link.conn.delta) return false; any = true; }
+    return any;
+  }
   function relaying() {
     if (room.role === 'guest') return room.transport === 'relay';
     for (const link of room.links.values()) if (link.conn.open && link.conn.transport !== 'p2p') return true;
@@ -118,11 +133,14 @@
   function createLink(relaySend, relayEnd, relayBuffered, isHost, direct = false) {
     const listeners = new Map();
     let pc = null, ctrl = null, stateCh = null, inCh = null, pendingIce = [], closed = false, relayAlive = true, directTimer;
+    const pubLocal = new Set(), pubRemote = new Set();
+    const directFail = () => DIRECT_FAIL + '（本机公网地址：' + iceFamilies(pubLocal) + '；对方：' + iceFamilies(pubRemote) + '）';
     const link = {
       open: false,
       transport: 'relay',
       route: '',            // 'direct' | 'turn' | '' : which ICE path the data channel really uses (diagnostics only)
       direct: false,        // net_direct: P2P without TURN only; the Worker carries signaling, never game data
+      delta: false,         // guest merges delta state snapshots (sent in its join)
       reason: '',           // why the link was failed (shown to the user)
       on(type, fn) { if (!listeners.has(type)) listeners.set(type, []); listeners.get(type).push(fn); return this; },
       emit(type, msg) { for (const fn of listeners.get(type) || []) fn(msg); },
@@ -153,7 +171,7 @@
         if (this.direct || closed) return;
         this.direct = true;
         syncTransport();
-        directTimer = setTimeout(() => { if (!(ctrl && ctrl.readyState === 'open')) this.fail(DIRECT_FAIL); }, DIRECT_MS);
+        directTimer = setTimeout(() => { if (!(ctrl && ctrl.readyState === 'open')) this.fail(directFail()); }, DIRECT_MS);
       },
       fail(reason) {
         if (closed) return;
@@ -181,7 +199,7 @@
       },
       handleRtc(msg) {
         if (closed || !msg) return;
-        if (msg.kind === 'fail') { if (this.direct) { this.reason = DIRECT_FAIL; this.close(); } return; }
+        if (msg.kind === 'fail') { if (this.direct) { this.reason = directFail(); this.close(); } return; }
         if (msg.kind === 'offer' && !isHost && msg.direct === true) this.armDirect();
         if (typeof window.RTCPeerConnection !== 'function') return;
         if (msg.kind === 'offer' && !isHost && msg.sdp && !pc && icePending) {
@@ -197,6 +215,8 @@
         } else if (msg.kind === 'answer' && isHost && pc && msg.sdp) {
           pc.setRemoteDescription(msg.sdp).then(() => flushIce()).catch(() => dropPc());
         } else if (msg.kind === 'ice' && msg.candidate) {
+          const fam = candFamily(msg.candidate);
+          if (fam) pubRemote.add(fam);
           if (pc && pc.remoteDescription) pc.addIceCandidate(msg.candidate).catch(() => {});
           else if (pendingIce.length < 64) pendingIce.push(msg.candidate);
         }
@@ -245,7 +265,7 @@
         old.onicecandidate = old.onconnectionstatechange = old.ondatachannel = null;
         try { old.close(); } catch { /* Ignore close errors. */ }
       }
-      if (!closed && link.direct) link.fail(DIRECT_FAIL);
+      if (!closed && link.direct) link.fail(directFail());
       else if (!closed && !relayAlive) link.close();
     }
     function attachChannel(ch, kind) {
@@ -269,7 +289,7 @@
       ch.onclose = () => {
         if (isCtrl && ctrl === ch) {
           ctrl = null; link.transport = 'relay'; syncTransport();
-          if (!closed && link.direct) link.fail(DIRECT_FAIL);
+          if (!closed && link.direct) link.fail(directFail());
           else if (!closed && !relayAlive) link.close();
         }
         if (kind === 'state' && stateCh === ch) stateCh = null;
@@ -280,7 +300,10 @@
     function setupPc(direct) {
       pc = new window.RTCPeerConnection({ iceServers: direct ? directIce(iceServers) : iceServers });
       pc.onicecandidate = (ev) => {
-        if (!closed && ev.candidate) relaySend({ type: 'rtc', kind: 'ice', candidate: ev.candidate });
+        if (closed || !ev.candidate) return;
+        const fam = candFamily(ev.candidate);
+        if (fam) pubLocal.add(fam);
+        relaySend({ type: 'rtc', kind: 'ice', candidate: ev.candidate });
       };
       pc.onconnectionstatechange = () => {
         if (!pc) return;
@@ -333,6 +356,7 @@
         slot = room.active ? -1 : handlers.reserve(msg.mode, room.links);
         if (slot < 0) { write(conn, { type: 'reject' }); return; }
         clearTimeout(watch);
+        conn.delta = msg.delta === 1;
         room.links.set(slot, { conn, input: null, last: 0, ping: null });
         syncTransport();
         write(conn, { type: 'joined', slot, protocol: PROTOCOL });
@@ -406,7 +430,7 @@
         if (!alive() || expired()) { conn.close(); return; }
         pending = conn;
         syncTransport();
-        write(conn, { type: 'join', mode, protocol: PROTOCOL });
+        write(conn, { type: 'join', mode, protocol: PROTOCOL, delta: 1 });
       });
       conn.on('close', () => { if (alive() && pending === conn) fail(conn.reason || relayError || '已与房主断开连接。'); });
       conn.on('error', () => { if (alive() && pending === conn) fail(relayError || '无法建立连接。'); });
@@ -565,5 +589,5 @@
     else if (room.role === 'guest' && pending && room.code) write(pending, { type: 'ping', t });
   }
   const valid = (code) => code.length === 5 && [...code].every((c) => alphabet.includes(c));
-  PH.rooms = { room, open, close, iceServers: () => iceServers, broadcast, congested, relaying, input, inputs, aiSlots, ping, valid, skip: (scene) => { if (pending && room.active) write(pending, { type: 'skip', scene }); }, sendLobby: (data) => { if (pending && !room.active) write(pending, { ...data, type: 'lobby' }); } };
+  PH.rooms = { room, open, close, iceServers: () => iceServers, broadcast, congested, relaying, deltaOk, input, inputs, aiSlots, ping, valid, skip: (scene) => { if (pending && room.active) write(pending, { type: 'skip', scene }); }, sendLobby: (data) => { if (pending && !room.active) write(pending, { ...data, type: 'lobby' }); } };
 })();

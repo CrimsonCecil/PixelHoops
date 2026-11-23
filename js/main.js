@@ -362,13 +362,58 @@
       const value = G[key];
       state[key] = roundNet(key === 'hzV' && value ? { z: value.z, l: value.l } : value);
     }
-    state.players = G.players.map(({ opp, arch, team, b5in, r, col, ai, prev, headScreen, rBase, id, tm, tendency, ring, ...p }) => {
+    state.players = G.players.map(({ opp, arch, team, b5in, r, col, ai, prev, headScreen, rBase, id, tm, tendency, ring, sty, ...p }) => {
       const out = roundNet(p);
       out.oppId = opp ? opp.id : -1;
       return out;
     });
     if (roomAudio.length) state.audio = roomAudio.splice(0);
     return state;
+  }
+  // Delta snapshots: a full keyframe every NET_KEYFRAME packets, otherwise only keys (top-level and per player) that
+  // changed within the last NET_REPEAT packets, so a lost unreliable packet is covered by the next ones. The guest
+  // merges onto its last state. Halves a 1V1 snapshot (~2/3 off in 3V3); with the TURN stride, ~1.4 Mbps becomes ~0.5 Mbps.
+  const NET_KEYFRAME = 45, NET_REPEAT = 6;
+  let netTx = null, netRx = null;
+  function netDelta(state, delta) {
+    const tx = netTx && netTx.players === state.players.length ? netTx : (netTx = { n: 0, players: state.players.length, top: new Map(), pl: [] });
+    const n = ++tx.n, full = !delta || n % NET_KEYFRAME === 1;
+    const pick = (seen, k, v, out) => {
+      const j = v === undefined ? '\u0000' : JSON.stringify(v);
+      let e = seen.get(k);
+      if (!e || e.j !== j) seen.set(k, e = { j, at: n });
+      if (full || n - e.at < NET_REPEAT) { out[k] = v; return v === undefined; }
+      return false;
+    };
+    // Keys that vanished count as a change to undefined, so a later reappearance with the old value is resent.
+    const vanish = (seen, obj, mark) => { for (const k of seen.keys()) if (!(k in obj)) mark(k); };
+    const out = {}, gone = [];
+    for (const k in state) if (k !== 'players' && k !== 'audio' && pick(tx.top, k, state[k], out)) gone.push(k);
+    vanish(tx.top, state, (k) => { if (pick(tx.top, k, undefined, out)) gone.push(k); delete out[k]; });
+    out.players = state.players.map((p, i) => {
+      const seen = tx.pl[i] || (tx.pl[i] = new Map()), o = {};
+      for (const k in p) pick(seen, k, p[k], o);
+      vanish(seen, p, (k) => { pick(seen, k, undefined, o); delete o[k]; });
+      return o;
+    });
+    if (state.audio) out.audio = state.audio;
+    if (!full) { out.dl = 1; if (gone.length) out.gone = gone; }
+    return out;
+  }
+  function netMerge(state) {
+    if (!state || !Array.isArray(state.players)) return state;
+    const { dl, gone, audio, ...rest } = state;
+    let merged;
+    if (!dl) merged = rest;
+    else if (!netRx || netRx.players.length !== rest.players.length) return audio ? { audio } : null;
+    else {
+      merged = { ...netRx, ...rest, players: rest.players.map((p, i) => ({ ...netRx.players[i], ...p })) };
+      if (Array.isArray(gone)) for (const k of gone) if (NET_STATE.includes(k)) merged[k] = undefined;
+    }
+    netRx = merged;
+    const copy = structuredClone(merged);
+    if (audio) copy.audio = audio;
+    return copy;
   }
   function captureNetPose() {
     return {
@@ -492,7 +537,7 @@
         if (!config || config.mode !== mode || (mode === 't3' && (!Array.isArray(config.slots) || config.slots.length !== 6 || !config.slots.every((s) => GM.ARCH[s.arch])))) return;
         launchRoomMatch(config, roomSlot);
       },
-      state: roomState,
+      state: (state) => roomState(netMerge(state)),
       skip: (msg, slot) => skipVote(msg, slot),
       error: (message) => { const wasPlay = screen === 'play'; if (wasPlay) toMenu(); menuStatus(message); refreshMenu(); if (wasPlay && /^直连失败/.test(message)) netToast(message); },
       notice: (message) => { if (screen === 'menu') menuStatus(message); else netToast(message); }
@@ -575,7 +620,7 @@
     PH.frontend.started();
     tuneClose();
     PH.audio.ensure(); PH.audio.play('start'); PH.audio.startMusic();
-    localSlot = slot; matchConfig = config; netFrame = 0; netInterp = null; aiReset(); skipReset();
+    localSlot = slot; matchConfig = config; netFrame = 0; netInterp = null; netTx = null; netRx = null; aiReset(); skipReset();
     resetRoomAudio();
     if (config.mode === 't3') PH.T3.start({ ...config, local: slot, replay: !room.active });
     else { CFG.shotClock = config.clock; GM.newGame({ ...config, mode: '2p' }); }
@@ -2229,8 +2274,8 @@
     aiSync();
     if (t3) { PH.T3.tick(DT, inputs); I.endTick(); }
     else GM.tick(DT, (pl) => inputs[pl.id] || GM.t5.zeroInp());
-    const stride = rooms.relaying() ? 3 : 2;
-    if (room.active && ++netFrame % stride === 0 && room.links.size && (roomAudio.length || !rooms.congested())) rooms.broadcast({ type: 'state', state: roomSnapshot() });
+    const stride = rooms.relaying() || room.route === 'turn' ? 3 : 2;
+    if (room.active && ++netFrame % stride === 0 && room.links.size && (roomAudio.length || !rooms.congested())) rooms.broadcast({ type: 'state', state: netDelta(roomSnapshot(), rooms.deltaOk()) });
   }
   function aiAllowed() { return screen === 'play' && !!matchConfig && localSlot >= 0 && !G.intro && !G.replay && G.phase !== 'over' && !PH.tapeView.open; }
   function aiSet(on) {
