@@ -5651,7 +5651,7 @@
     if (a) { if (a.type === 'shot') ctl = a.jumped ? 0 : 0.12; else if (a.type === 'fake') ctl = 0; else if (a.type === 'steal') ctl = 0.25; else ctl = 0; }
     if (!pl.hasBall) { if (pl.gather) gatherOff(pl); }
     else if (pl.passCatchT != null && pl.gaCatch !== pl.passCatchT) { pl.gaCatch = pl.passCatchT; if (!a) gatherOn(pl, false); }   // 传球接住（5V5 接球不走 pickup）
-    else if (pl.gather && !a && !pl.post && G.phase === 'live') {
+    else if (pl.gather && !a && G.phase === 'live') {
       if (!moving) pl.gaT = 0;
       else if (!pl.dribDead) gatherOff(pl);
       else { ctl = 0; pl.face = Math.atan2(inp.my, inp.mx); if ((pl.gaT += dt) > K.gaTravelT && violation(pl, '走步')) return; }
