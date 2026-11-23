@@ -2022,7 +2022,7 @@
     }
     if (replay) { I.clearSys(); if (key || button) { if (skipScene()) skipPress(); else skipReplay(); } return; }
     if (skipScene() && !paused) { if (I.sysAny() || button) skipPress(); I.clearSys(); return; }
-    if (screen === 'play' && G.intro && !paused) { if (I.sysPressed('Escape') || I.sysPressed('PadStart') || I.sysPressed('PadB')) GM.introEnd(); else if (I.introPressed()) GM.introPress(); I.clearSys(); return; }
+    if (screen === 'play' && G.intro && !paused) { if (I.introPressed('Escape') || I.introPressed('PadStart') || I.introPressed('PadB')) GM.introEnd(); else if (I.introPressed()) GM.introPress(); I.clearSys(); return; }
     if (I.sysPressed('KeyM')) toggleMusic();
     if (I.sysPressed('KeyI') && screen === 'play') toggleInfo();
     if (I.sysPressed('KeyC') && screen === 'play' && G.phase !== 'over') toggleCam();
