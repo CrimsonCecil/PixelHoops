@@ -8,6 +8,9 @@
   const lobby3 = ['curry', 'lebron', 'jokic', 'edwards', 'durant', 'giannis'].map((arch, i) => ({ arch, role: i === 0 ? 'human' : i % 3 === 2 ? 'waiting' : 'cpu' }));
   const rooms = PH.rooms, room = rooms.room;
   let localSlot = -1, roomSlot = -1, matchConfig = null, netFrame = 0;
+  // 托管：在线对局里让电脑接手本机球员，按任意键 / 手柄键 / 触屏收回。主机把托管中的球员 ctrl 临时改成 cpu，aiTk 记原值
+  let aiOn = false, aiPadBase = null;
+  const aiTk = {};
   GM.isOnline = () => room.active;
   let scale = 2, paused = false, manual = false, screen = 'menu', last = 0, acc = 0, fps = 60, debug = /[?&]debug/.test(location.search);
   const isTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
@@ -463,7 +466,7 @@
       reserve: (requested, links) => requested !== mode ? -1 : mode === 't3'
         ? lobby3.findIndex((s, i) => s.role === 'waiting' && !links.has(i)) : links.has(1) ? -1 : 1,
       change: (left, reason) => {
-        if (screen === 'play' && left != null && G.mode === 't3') { G.players[left].ctrl = 'cpu'; if (reason) netToast(reason); }
+        if (screen === 'play' && left != null && G.mode === 't3') { delete aiTk[left]; G.players[left].ctrl = 'cpu'; if (reason) netToast(reason); }
         if (screen === 'play' && left != null && G.mode !== 't3') { toMenu(); menuStatus(reason || '对手已断开连接。'); if (reason) netToast(reason); }
         if (screen === 'menu' && room.role) { roomStatus(); PH.frontend.changed(); refreshMenu(); if (reason) menuStatus(reason); }
         if (left == null && room.links.size) { pingAt = performance.now(); rooms.ping(); }
@@ -537,7 +540,7 @@
   function startDemo() { GM.newGame({ mode: 'demo', arch0: 'curry', arch1: 'lebron', target: 11 }); }
   function toMenu() {
     tuneClose(); kingPark();
-    rooms.close(); resetRoomAudio(); syncBackgroundMatch(); PH.T3.stop(); localSlot = -1; matchConfig = null; netInterp = null; menuStatus(''); refreshMenu();
+    rooms.close(); resetRoomAudio(); syncBackgroundMatch(); PH.T3.stop(); localSlot = -1; matchConfig = null; netInterp = null; aiReset(); menuStatus(''); refreshMenu();
     screen = 'menu'; paused = false; clearPf(); camOpen = false; camFromSet = false; show('campanel', false); pcards();
     show('menu', true); show('king', false); $('king-fx').innerHTML = ''; show('qvol', false); show('picker', false); show('cutin', false); show('hud', false); show('pause', false); show('over', false); show('help', false); show('touch', false); show('banner', false); show('train', false); show('shotcard', false); stage.classList.remove('panel');
     if (PH.T5) { PH.T5.stop(); PH.render5.restore(); } show('hud5', false); show('over5', false); show('tpicker', false); show('btn-cam', true); show('btn-disp', true); show('btn-box5', false); if (PH.box5 && PH.box5.isOpen()) PH.box5.close();
@@ -553,7 +556,7 @@
     PH.frontend.started();
     tuneClose();
     PH.audio.ensure(); PH.audio.play('start'); PH.audio.startMusic();
-    localSlot = slot; matchConfig = config; netFrame = 0; netInterp = null;
+    localSlot = slot; matchConfig = config; netFrame = 0; netInterp = null; aiReset();
     resetRoomAudio();
     if (config.mode === 't3') PH.T3.start({ ...config, local: slot, replay: !room.active });
     else { CFG.shotClock = config.clock; GM.newGame({ ...config, mode: '2p' }); }
@@ -2193,14 +2196,58 @@
     const p = G.players[localSlot], a = p && p.action, t3 = G.mode === 't3', I = PH.input;
     const off = !!(p && (p.hasBall || a && ['shot', 'layup', 'dunk', 'fake'].includes(a.type)));
     const local = !p || paused || (room.active && document.hidden) ? GM.t5.zeroInp() : t3 ? I.read3(off) : I.read(0, off, true);
-    if (room.role === 'guest') { rooms.input(local); I.endTick(); return; }
+    if (aiOn && aiPadPressed()) aiSet(false);
+    if (room.role === 'guest') { rooms.input(aiOn && !paused ? { ...GM.t5.zeroInp(), ai: true } : local); I.endTick(); return; }
     const inputs = rooms.inputs();
     if (p) inputs[localSlot] = local;
+    aiSync();
     if (t3) { PH.T3.tick(DT, inputs); I.endTick(); }
     else GM.tick(DT, (pl) => inputs[pl.id] || GM.t5.zeroInp());
     const stride = rooms.relaying() ? 3 : 2;
     if (room.active && ++netFrame % stride === 0 && room.links.size && (roomAudio.length || !rooms.congested())) rooms.broadcast({ type: 'state', state: roomSnapshot() });
   }
+  function aiAllowed() { return screen === 'play' && !!matchConfig && localSlot >= 0 && !G.intro && !G.replay && G.phase !== 'over' && !PH.tapeView.open; }
+  function aiSet(on) {
+    on = !!on && aiAllowed();
+    if (on === aiOn) return;
+    aiOn = on;
+    aiPadBase = on ? PH.input.pads().map((gp) => gp.buttons.map((b) => b.pressed)) : null;
+    PH.input.flush();
+    aiLabel();
+  }
+  function aiLabel() {
+    const b = $('btn-ai');
+    b.classList.toggle('on', aiOn);
+    b.textContent = aiOn ? '托管中 · 按任意键接管' : '托管';
+    b.setAttribute('aria-pressed', aiOn ? 'true' : 'false');
+  }
+  function aiReset() {
+    for (const k in aiTk) delete aiTk[k];
+    aiOn = false; aiPadBase = null; aiLabel();
+  }
+  // 托管时手柄按下新按键或推摇杆 → 收回控制（托管开始时已按住的键要先松开才算）
+  function aiPadPressed() {
+    let hit = false;
+    PH.input.pads().forEach((gp, i) => {
+      const base = aiPadBase && aiPadBase[i] || [];
+      gp.buttons.forEach((b, j) => { if (!b.pressed) base[j] = false; else if (!base[j]) hit = true; });
+      if (gp.axes.some((a) => Math.abs(a) > 0.5)) hit = true;
+    });
+    return hit;
+  }
+  // 主机：本机与各客机的托管状态 → 球员 ctrl
+  function aiSync() {
+    const remote = rooms.aiSlots(), slots = new Set([localSlot, ...room.links.keys(), ...Object.keys(aiTk).map(Number)]);
+    for (const s of slots) {
+      const p = G.players[s]; if (!p) continue;
+      const want = s === localSlot ? aiOn && !paused : remote.has(s) && room.links.has(s);
+      if (want && !(s in aiTk) && p.ctrl !== 'cpu') { aiTk[s] = p.ctrl; p.ctrl = 'cpu'; }
+      else if (!want && s in aiTk) { p.ctrl = aiTk[s]; delete aiTk[s]; p.prev.a1 = p.prev.a2 = p.prev.a3 = true; }
+    }
+  }
+  $('btn-ai').addEventListener('click', (e) => { e.stopPropagation(); aiSet(!aiOn); e.currentTarget.blur(); });
+  window.addEventListener('keydown', (e) => { if (aiOn && !e.repeat && e.code !== 'Escape' && !isTextInput(e.target)) aiSet(false); });
+  $('touch').addEventListener('touchstart', () => { if (aiOn) aiSet(false); });
   let bgTimer = null, bgWorker = null;
   function syncBackgroundMatch() {
     clearInterval(bgTimer); bgTimer = null;
@@ -2286,6 +2333,8 @@
     PH.audio.setPaused((screen === 'play' || screen === 'play5') && paused);
     musicPick();
     updateNetstat(false);
+    if (aiOn && !aiAllowed()) aiSet(false);
+    show('btn-ai', aiAllowed() && !paused);
     const r5 = PH.render5.rpl, replay = screen === 'play' ? G.replay : screen === 'play5' && r5.on ? r5 : null;
     show('replay-badge', !!replay?.view && !paused && !PH.tapeView.open);
     if (PH.tapeView.open) { PH.tapeView.render(dt); return; }

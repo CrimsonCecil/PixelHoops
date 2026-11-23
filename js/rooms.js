@@ -29,7 +29,7 @@
   }
   // 调参台「联机 强制直连」（存进云端配置 C1 等）：开 = 只走直连 P2P，不用 TURN，也不用 Worker 中继传数据（Worker 只做信令）；
   // 直连不通时两边都提示「直连失败」。以房主的开关为准：随 offer 发给客人，整个房间一起生效。
-  if (PH.TUNE) PH.TUNE.reg([{ k: 'net_direct', cat: 'pace', sub: '联机', label: '联机 强制直连', v: 0, mode: 'bool', note: '开 = 联机只尝试直连（P2P），不走 TURN、也不走 Worker 中继；直连不通时双方都提示「直连失败」。以房主的设置为准' }]);
+  if (PH.TUNE) PH.TUNE.reg([{ k: 'net_direct', cat: 'net', sub: '连接', label: '强制直连', v: 0, mode: 'bool', note: '开 = 联机只尝试直连（P2P），不走 TURN、也不走 Worker 中继；直连不通时双方都提示「直连失败」。以房主的设置为准' }]);
   const DIRECT_MS = 8000, DIRECT_FAIL = '直连失败：两台电脑之间无法直接连通（已开启「强制直连」，不走中继）。';
   const forceDirect = () => !!(PH.TUNE && PH.TUNE.get('net_direct'));
   function directIce(list) {
@@ -423,7 +423,7 @@
     if (!input || typeof input !== 'object') return null;
     const o = {};
     for (const key of ['mx', 'my', 'dx', 'dy']) o[key] = Number.isFinite(input[key]) ? Math.max(-1, Math.min(1, input[key])) : 0;
-    for (const key of ['sprint', 'a1', 'a2', 'a3', 'post', 'dribble', 'hesi', 'rs', 'rsPad', 'pass', 'screen', 'selfAlley']) o[key] = input[key] === true;
+    for (const key of ['sprint', 'a1', 'a2', 'a3', 'post', 'dribble', 'hesi', 'rs', 'rsPad', 'pass', 'screen', 'selfAlley', 'ai']) o[key] = input[key] === true;
     if (o.pass && ['chest', 'skip', 'bounce', 'lob', 'alley'].includes(input.passKind)) o.passKind = input.passKind;
     return o;
   }
@@ -666,11 +666,16 @@
     for (const [slot, link] of room.links) if (link.input && now - link.last < 500) out[slot] = link.input;
     return out;
   }
+  function aiSlots() {
+    const out = new Set();
+    for (const [slot, link] of room.links) if (link.input && link.input.ai) out.add(slot);
+    return out;
+  }
   function ping() {
     const t = performance.now();
     if (room.role === 'host') { if (room.links.size) broadcast({ type: 'ping', t }); }
     else if (room.role === 'guest' && pending && room.code) write(pending, { type: 'ping', t });
   }
   const valid = (code) => code.length === 5 && [...code].every((c) => alphabet.includes(c));
-  PH.rooms = { room, open, close, iceServers: () => iceServers, broadcast, congested, relaying, input, inputs, ping, valid, sendLobby: (data) => { if (pending && !room.active) write(pending, { ...data, type: 'lobby' }); } };
+  PH.rooms = { room, open, close, iceServers: () => iceServers, broadcast, congested, relaying, input, inputs, aiSlots, ping, valid, sendLobby: (data) => { if (pending && !room.active) write(pending, { ...data, type: 'lobby' }); } };
 })();
