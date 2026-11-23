@@ -3295,6 +3295,7 @@
   Object.assign(IWALK, { tmac: ['wave', 'point'], nash: ['wave', 'point'], rip: ['point', 'wave'] });
   const IWA = 3.8;
   const IVO_WAIT = 8, IVO_LOAD = 20;
+  const introVoEnabled = () => PH.audio?.voOn !== false && PH.audio?.sfxOn !== false;
   const introVoUntil = (I, dur, started) => Math.max(performance.now() + Math.max(IVO_WAIT, (Number.isFinite(dur) ? dur : 0) + 2) * 1000, started ? 0 : I.voLoadUntil || 0);
   Object.assign(IWALK, { rodman: ['wag', 'shrug'], bwallace: ['raise', 'flex'], rallen: ['wave', 'cool'] });
   // 非宿敌对局：按双方最强项套模板开场 + 回呛，最后用语音包里的真实嘲讽收尾
@@ -3361,7 +3362,7 @@
       (star ? [pre, ent] : [ent]).forEach((ty, j) => { const main = !star || j === 1; walk.push({ id: p.id, ty: ty, lv: main ? lv : -1, t0: s.w0 + (star ? 0.3 + j * 1.75 : 0.9 + (p.id % 3) * 0.3), T: 1.6, fx: false, sig: star && j === 1, vo: star && j === 0, voAt: s.w0 + (p === fa ? 0.25 : 0), voDone: false }); }); }
     walk.sort((a, b) => a.voAt - b.voAt);
     const foc0 = { x: fa.x, y: fa.y, u: G.mode === 't3' ? 0.08 : 0.3, mode: 'walk', snap: true };
-    const ready = PH.audio?.voPreload?.([fa.arch.key, fb.arch.key], true);
+    const ready = introVoEnabled() ? PH.audio?.voPreload?.([fa.arch.key, fb.arch.key], true) : null;
     G.intro = { t0: t0, duo: [fa.id, fb.id], walk: walk, spots: spots, lines: lines, li: -1, lt: 0, ld: 0, tT: t0 + 2 * IWA + 0.15, cam: foc0, foc: foc0, banner: G.banner, phaseT: G.phaseT,
       sig: [], confettiT: 0, usedVo: new Set(), loadUntil: performance.now() + IVO_WAIT * 1000, voLoadUntil: performance.now() + IVO_LOAD * 1000 };
     if (ready?.then) {
@@ -3385,9 +3386,9 @@
     G.cutin = null; fxUpdate(dt); G.time += dt;
     if (G.banner) { G.banner.t += dt; if (G.banner.t > G.banner.dur) G.banner = null; }
     const now = G.time;
-    if (performance.now() >= I.loadUntil) I.loading = false;
+    if (!introVoEnabled() || performance.now() >= I.loadUntil) I.loading = false;
     const W = I.voWait;
-    if (W && performance.now() >= W.until) {
+    if (W && (!introVoEnabled() || performance.now() >= W.until)) {
       W.expired = true; I.voWait = null; I.walkWait = false; I.walkUntil = 0;
       if (I.lines[I.li] === W.line) { W.line.waitVo = false; I.ld = 0; }
       PH.audio?.voStop?.();
@@ -3401,7 +3402,7 @@
     if (I.li < 0) for (const S of I.walk) {
       if (S.vo && !S.voDone && !I.loading && !I.walkWait && now >= (I.walkUntil || 0) && now >= (S.voAt != null ? S.voAt : S.t0)) {
         S.voDone = true; const p = plById(S.id);
-        if (G.mode !== 'demo' && PH.audio?.vo) {
+        if (G.mode !== 'demo' && introVoEnabled() && PH.audio?.vo) {
           const W = I.voWait = { line: S, until: introVoUntil(I) };
           const finish = () => { if (!W.expired && I.voWait === W) { I.voWait = null; I.walkWait = false; } };
           const speak = () => {
@@ -3463,7 +3464,8 @@
     if (I.li >= I.lines.length) { introEnd(); return; }
     const L = I.lines[I.li], p = plById(L.id);
     if (L.v) {
-      const W = I.voWait = { line: L, until: introVoUntil(I) };
+      const W = { line: L, until: introVoUntil(I) };
+      if (introVoEnabled()) I.voWait = W;
       const finish = () => { if (!W.expired) { L.waitVo = false; if (I.voWait === W) I.voWait = null; } };
       const sayVo = () => {
         if (W.expired || G.intro !== I || I.lines[I.li] !== L) return false;
@@ -3473,6 +3475,7 @@
         L.t = it.t; L.d = it.d;
         W.until = introVoUntil(I, L.d);
         G.intro.ld = Math.max(clamp(0.8 + L.t.length * 0.1, 1.9, 4.5), (L.d || 0) + 0.55);
+        if (!introVoEnabled()) { finish(); return true; }
         if (G.mode !== 'demo') {
           const pending = PH.audio.voSay(it, (playDur, ended) => {
             if (W.expired || G.intro !== I || I.lines[I.li] !== L) return;
@@ -3487,7 +3490,7 @@
         }
         return true;
       };
-      if (!sayVo() && PH.audio?.voWhenReady) {
+      if (!sayVo() && introVoEnabled() && PH.audio?.voWhenReady) {
         L.waitVo = true;
         PH.audio.voWhenReady((ok) => { if (ok === false || !sayVo()) finish(); });
       }

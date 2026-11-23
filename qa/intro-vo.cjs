@@ -62,6 +62,8 @@ async function scenario(name, options = {}) {
   vm.runInContext('let seed=7; Math.random=()=>((seed=(Math.imul(seed,1664525)+1013904223)>>>0)/4294967296)', ctx);
   for (const file of ['tune', 'ptype', 'render', 'roster', 'measurements', 'r5', 'game', 'team3', 'input', 'audio']) vm.runInContext(read(file), ctx, { filename: file + '.js' });
   const A = ctx.PH.audio, GM = ctx.PH.game, G = GM.G;
+  if (options.voicesOff) A.setVo(false);
+  if (options.sfxOff) A.setSfx(false);
   if (options.muted) A.setMix('vo', 0);
   A.play = () => {}; A.scene = () => {};
   Object.assign(ctx, { screen: 'play', G, GM, paused: false });
@@ -93,6 +95,10 @@ async function scenario(name, options = {}) {
     }
     input.runInContext(ctx);
     if (G.intro) GM.introTick(1 / 60);
+    if ((options.voicesOff || options.sfxOff) && G.intro) {
+      assert.ok(!G.intro.loading && !G.intro.walkWait && !G.intro.lines[G.intro.li]?.waitVo, 'disabled voices never wait for assets');
+      assert.equal(G.intro.usedVo.size, 0, 'disabled voices are not counted as spoken');
+    }
     await settle();
   }
   for (let i = 0; i < (options.exhausted || 0); i++) {
@@ -116,7 +122,7 @@ async function scenario(name, options = {}) {
     }
     assert.equal(A.voSay({ f: 'tmac_dom_text' }), false, 'text is not voiced success');
     assert.equal(A.voSay(null), false, 'empty voice is safe');
-    expected += (options.dialogueAt ? 0 : 2) + G.intro.lines.length;
+    expected += options.voicesOff || options.sfxOff ? 0 : (options.dialogueAt ? 0 : 2) + G.intro.lines.length;
     const limit = now + 90000;
     while (G.intro && now < limit) await step();
     assert.equal(G.intro, null, name + ': intro finishes');
@@ -135,6 +141,7 @@ async function scenario(name, options = {}) {
   if (options.failManifest && !options.fallback) assert.ok(fetches['vo/manifest.json'] > options.failManifest);
   if (options.failDecode) assert.ok(log.filter(r => r.event === 'start').every(r => decodes[r.f] > options.failDecode));
   if (options.noEnded) assert.ok(now < 80000, 'missing completion signals have bounded waits');
+  if (options.voicesOff || options.sfxOff) assert.ok(now < 25000, 'text-only intro finishes without audio readiness delays');
   if (options.fallback) {
     assert.ok(now < 80000, name + ': bounded finish without input');
     if (!options.hiddenAt) assert.equal(starts, 0, 'unavailable audio never reports success');
@@ -234,5 +241,8 @@ function pointerAdvance() {
   await scenario('sprite-never-resolves', { hangSprite: true, fallback: true });
   await scenario('all-retries-exhausted', { failSprite: Infinity, failManifest: Infinity, fallback: true });
   await scenario('muted-voice-volume', { muted: true });
+  await scenario('voices-off-manifest-18s', { voicesOff: true, manifestDelay: 18000 });
+  await scenario('voices-off-manifest-never-resolves', { voicesOff: true, hangManifest: true });
+  await scenario('sfx-off-manifest-never-resolves', { sfxOff: true, hangManifest: true });
   await scenario('hidden-tab-resume', { hiddenAt: 1000, fallback: true });
 })().catch(e => { console.error(e); process.exitCode = 1; });
