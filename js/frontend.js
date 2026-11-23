@@ -9,21 +9,23 @@
   const fmt = () => ctx.opts.format === 't3' ? 't3' : 'online';
   const members = () => [0, ...ctx.room.links.keys()];
   function go(next) {
+    const restoreFocus = document.activeElement !== $('menu') && $('menu').contains(document.activeElement);
     generation++; clearInterval(listTimer); listTimer = null; listBusy = false;
     view = next; $('menu').dataset.view = view;
     $('front-breadcrumb').textContent = { home: '你的球场，随时开场。', solo: '单机游玩', lobby: '在线大厅', select: '选择阵容' }[next];
     if (next === 'lobby') { loadRooms(); listTimer = setInterval(() => loadRooms(true), 10000); }
     refresh();
     const first = $('menu').querySelector('[data-view-panel="' + next + '"] button, .menu-panel button:not(.hidden)');
-    if (first && first.offsetParent) first.focus({ preventScroll: true });
+    if (first && first.offsetParent && (next !== 'home' || restoreFocus)) first.focus({ preventScroll: true });
+    else if (next === 'home') { $('menu').tabIndex = -1; $('menu').focus({ preventScroll: true }); }
   }
   function leave(next) {
     PH.directory.stop(); published = ''; ctx.rooms.close(); synced.clear(); remoteMembers = []; ctx.status('');
     ctx.opts.opponent = 'cpu'; ctx.redraw(); go(next);
   }
-  function choose(format, online = false) {
+  function choose(format, online = false, returnView = 'solo') {
     ctx.opts.format = format; ctx.opts.opponent = online ? 'online' : format === 'duel' && PH.input.pads().length >= 2 ? '2p' : 'cpu';
-    previous = online ? 'lobby' : 'solo'; synced.clear(); remoteMembers = []; ctx.redraw(); go('select');
+    previous = online ? 'lobby' : returnView; synced.clear(); remoteMembers = []; ctx.redraw(); go('select');
   }
   function capacity() { return ctx.opts.format === 't3' ? 1 + ctx.lobby.filter((s, i) => i !== 0 && s.role === 'waiting').length : 2; }
   function publish() {
@@ -102,7 +104,7 @@
       $('front-directory-status').textContent = '大厅每 10 秒自动刷新 · 房间点一下即可加入'; renderRooms();
     } catch (e) {
       if (token !== generation) return;
-      $('front-room-list').innerHTML = '<div class="front-empty"><b>暂时连不上大厅</b><p>可以重试，或建房后使用下方直连入口；不会影响单机游玩。</p><button id="front-retry">重试</button></div>';
+      $('front-room-list').innerHTML = '<div class="front-empty"><b>暂时连不上大厅</b><button id="front-retry">重试</button></div>';
       $('front-directory-status').textContent = '公开大厅暂不可用';
     } finally { if (token === generation) listBusy = false; }
   }
@@ -110,7 +112,7 @@
     $('front-filters').querySelectorAll('button').forEach((b) => { const on = b.dataset.filter === filter; b.classList.toggle('on', on); b.setAttribute('aria-pressed', String(on)); });
     const q = $('front-room-search').value.trim().toLowerCase();
     const list = roomsList.filter((r) => (filter === 'all' || r.mode === filter) && String(r.name).toLowerCase().includes(q));
-    $('front-room-list').innerHTML = list.length ? list.map((r) => '<button class="front-room" data-join="' + esc(r.code) + '"><span class="front-room-mode">' + (r.mode === 't3' ? '3V3' : '1V1') + '</span><span><b>' + esc(r.name) + '</b><small>等待开赛 · ' + r.players + ' / ' + r.capacity + ' 人</small></span><strong>加入 →</strong></button>').join('') : '<div class="front-empty"><b>还没有合适的房间</b><p>来做今天的第一位房主吧，球友会在这里看到你。</p></div>';
+    $('front-room-list').innerHTML = list.length ? list.map((r) => '<button class="front-room" data-join="' + esc(r.code) + '"><span class="front-room-mode">' + (r.mode === 't3' ? '3V3' : '1V1') + '</span><span><b>' + esc(r.name) + '</b><small>' + r.players + ' / ' + r.capacity + ' 人</small></span><strong>加入 →</strong></button>').join('') : '<div class="front-empty"><b>暂无房间</b></div>';
   }
   function joinRoom(code, mode) {
     if (!ctx.rooms.valid(code)) { $('front-directory-status').textContent = '请输入有效的 5 位直连码'; return; }
@@ -123,24 +125,23 @@
     $('menu').insertAdjacentHTML('afterbegin', `
       <header class="front-top"><a class="front-brand" href="#" data-home>PIXEL <i>HOOPS</i></a><span id="front-breadcrumb">你的球场，随时开场。</span><span class="front-edition">● 街机球馆</span></header>
       <section class="front-home" data-view-panel="home">
-        <div class="front-intro"><p class="front-eyebrow">PICK YOUR GAME</p><h1>PIXEL<br><span>HOOPS</span></h1><p class="front-tagline">从今晚的球场，到你的传奇。<br>选一位球星，把热爱交给自己。</p><p class="front-live">● LIVE COURT <span>球场永不打烊</span></p></div>
-        <div class="front-home-nav"><div class="front-entries"><button id="front-solo" data-testid="home-solo"><small>01</small><div><b>本地开打</b><span>挑战电脑 · 同屏双人 · 自选球员</span></div><em>↗</em></button><button id="front-online" data-testid="home-online"><small>02</small><div><b>在线对战</b><span>查看在线球场，点击房间即加入</span></div><em>↗</em></button></div>
-        <div class="front-utility"><button data-home-format="train"><strong>自由训练</strong><span>热热手感，打磨动作 ↗</span></button><button data-home-format="king"><strong>斗牛之王</strong><span>五关挑战，谁上王座 ↗</span></button></div>
-        <div class="front-tools"><button data-tool="help">操作说明</button><button data-tool="replays">录像</button><button data-tool="set">设置</button></div>
-        </div>
+        <div class="front-intro"><h1>PIXEL<span>HOOPS</span></h1></div>
+        <nav class="front-home-nav" aria-label="游玩模式"><div class="front-entries"><button id="front-solo" data-testid="home-solo"><b>本地开打</b><em aria-hidden="true">↗</em></button><button id="front-online" data-testid="home-online"><b>在线对战</b><em aria-hidden="true">↗</em></button></div>
+        <button class="front-home-train" data-home-format="train" data-testid="home-train">自由训练<em aria-hidden="true">↗</em></button></nav>
+        <div class="front-tools"><button data-tool="help"><span aria-hidden="true">?</span>操作说明</button><button data-tool="set"><span aria-hidden="true">⚙</span>设置</button></div>
       </section>
-      <section class="front-page front-solo" data-view-panel="solo"><header><button data-home>← 主页</button><span>PLAY SOLO / 单机游玩</span></header>
-        <button class="front-king" data-format="king" data-testid="solo-king"><span class="front-eyebrow">主打玩法 · 五关挑战</span><strong>♛ 斗牛之王</strong><b>KING OF THE COURT</b><span>从街头新人到球场之王。选一位球星，连胜五位对手。</span><em>登上王座 →</em></button>
-        <h2>也可以，来一场自由比赛</h2><div class="front-formats"><button data-format="duel" data-testid="solo-1v1"><b>1V1</b><span>半场斗牛</span><small>对战电脑 / 本地双人</small></button><button data-format="t3" data-testid="solo-t3"><b>3V3</b><span>半场组队</span><small>搭配三人阵容</small></button><button data-format="t5" data-testid="solo-t5"><b>5V5</b><span>全场比赛</span><small>完整球队对抗</small></button></div>
+      <section class="front-page front-solo" data-view-panel="solo"><header><button data-home>← 主页</button></header>
+        <button class="front-king" data-format="king" data-testid="solo-king"><strong>♛ 斗牛之王</strong></button>
+        <h2>自由比赛</h2><div class="front-formats"><button data-format="duel" data-testid="solo-1v1"><b>1V1</b></button><button data-format="t3" data-testid="solo-t3"><b>3V3</b></button><button data-format="t5" data-testid="solo-t5"><b>5V5</b></button></div>
         <button class="front-train" data-format="train">训练场 · 自由练习动作 →</button>
       </section>
-      <section class="front-page front-lobby" data-view-panel="lobby"><header><button data-home>← 返回主页</button><span>ONLINE PLAY / 02</span></header><div class="front-lobby-head"><div><p class="front-eyebrow">找到球友，直接上场</p><h2>有人在等你上场。</h2><p>公开房间都在这里。看到想打的局，直接加入。</p></div></div>
-        <div class="front-lobby-layout"><aside class="front-lobby-aside"><p class="front-eyebrow">YOUR COURT</p><div class="front-plus">＋</div><h3>自己开一场</h3><p>跟好友切磋或结交球友。<br>朋友看见球场，点一下就能来。</p><button class="primary" id="front-create-open">创建房间 →</button><small>不用记房间号。<br>加入后再选球员。</small></aside><div class="front-lobby-main">
+      <section class="front-page front-lobby" data-view-panel="lobby"><header><button data-home>← 返回主页</button></header><div class="front-lobby-head"><h2>在线大厅</h2></div>
+        <div class="front-lobby-layout"><aside class="front-lobby-aside"><div class="front-plus" aria-hidden="true">＋</div><button class="primary" id="front-create-open">创建房间 →</button></aside><div class="front-lobby-main">
         <div class="front-lobby-tools"><div class="seg" id="front-filters"><button data-filter="all" class="on">全部</button><button data-filter="online">1V1</button><button data-filter="t3">3V3</button></div><input id="front-room-search" type="search" placeholder="搜索房间名称" aria-label="搜索房间名称"><button id="front-refresh">刷新</button></div>
         <p id="front-directory-status" role="status"></p><div id="front-room-list"></div>
         <form id="front-create" class="hidden"><h3>建立公开房间</h3><label>房间名称<input id="front-room-name" maxlength="24" value="来一场像素斗牛" required></label><label>比赛形式<select id="front-room-mode"><option value="duel">1V1 半场斗牛</option><option value="t3">3V3 半场组队</option></select></label><button type="submit" class="primary">建房并选人 →</button><button type="button" id="front-create-cancel">取消</button></form>
-        <details class="front-direct"><summary>朋友直连 / 大厅不可用时使用</summary><div><input id="front-direct-code" maxlength="5" placeholder="朋友的直连码" aria-label="朋友的直连码"><select id="front-direct-mode" aria-label="直连比赛形式"><option value="online">1V1</option><option value="t3">3V3</option></select><button id="front-direct-join">直连加入</button></div><small>通常无需直连码，点击公开房间即可。</small></details>
-        </div></div></section><footer class="front-footer"><span><kbd>↑ ↓ ← →</kbd> 选择 <kbd>Enter</kbd> 确认 <kbd>Esc</kbd> 返回</span><span>像素球场 · 每一场都是新故事</span></footer>`);
+        <details class="front-direct"><summary>朋友直连</summary><div><input id="front-direct-code" maxlength="5" placeholder="朋友的直连码" aria-label="朋友的直连码"><select id="front-direct-mode" aria-label="直连比赛形式"><option value="online">1V1</option><option value="t3">3V3</option></select><button id="front-direct-join">直连加入</button></div></details>
+        </div></div></section>`);
     $('menu').querySelector('.menu-panel').insertAdjacentHTML('afterbegin', '<header class="front-select-head"><button id="front-back">← 返回</button><div><h2 id="front-select-title"></h2><small id="front-room-info"></small></div><b>选择球星</b></header>');
     $('btn-start').insertAdjacentHTML('beforebegin', '<details id="front-invite" class="front-direct hidden"><summary>邀请朋友（可选直连）</summary><p>直连码 <strong id="front-invite-code"></strong> · 朋友在大厅下方打开「朋友直连」，选择相同比赛形式即可加入。</p></details><p id="front-ready-state" role="status"></p>');
     $('btn-start').insertAdjacentHTML('afterend', '<span id="front-guest-wait" class="hidden" role="status">等待房主开始...</span>');
@@ -150,12 +151,22 @@
       const b = e.target.closest('button, a[data-home]'); if (!b) return;
       if (b.matches('a')) e.preventDefault();
       if (b.hasAttribute('data-home')) leave('home');
-      if (b.dataset.homeFormat) { previous = 'solo'; choose(b.dataset.homeFormat); }
+      if (b.dataset.homeFormat) choose(b.dataset.homeFormat, false, 'home');
       if (b.dataset.format) choose(b.dataset.format);
       if (b.dataset.tool) $('btn-' + b.dataset.tool).click();
       if (b.dataset.join) { const r = roomsList.find((r) => r.code === b.dataset.join); if (r) joinRoom(r.code, r.mode); }
       if (b.id === 'front-retry' || b.id === 'front-refresh') loadRooms();
       if (b.dataset.filter) { filter = b.dataset.filter; $('front-filters').querySelectorAll('button').forEach((x) => { x.classList.toggle('on', x === b); x.setAttribute('aria-pressed', String(x === b)); }); renderRooms(); }
+    });
+    // Hovering an action transfers selection; moving over empty court must not cancel it.
+    $('menu').querySelector('.front-home').addEventListener('pointermove', (e) => {
+      const button = e.target.closest('button');
+      if (e.pointerType === 'touch' || !button) return;
+      if (e.currentTarget.querySelector('button.pf,button:focus-visible')) {
+        e.currentTarget.querySelectorAll('.pf').forEach((b) => b.classList.remove('pf'));
+        button.classList.add('pf');
+        if (e.currentTarget.contains(document.activeElement)) document.activeElement.blur();
+      }
     });
     $('front-create-open').onclick = () => { $('front-create').classList.remove('hidden'); $('front-room-name').focus(); };
     $('front-create-cancel').onclick = () => $('front-create').classList.add('hidden');

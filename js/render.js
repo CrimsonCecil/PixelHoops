@@ -2137,13 +2137,13 @@
       ctx.scale(scale, scale); ctx.textAlign = 'right'; ctx.textBaseline = 'middle'; ctx.lineJoin = 'round';
       ctx.shadowColor = '#140d29'; ctx.shadowBlur = 0; ctx.shadowOffsetX = 2; ctx.shadowOffsetY = 3;
       const line = (text, y, font, col) => { ctx.font = font; ctx.lineWidth = 3; ctx.strokeStyle = '#23102e'; ctx.strokeText(text, 0, y, W * 0.33 / scale); ctx.fillStyle = col; ctx.fillText(text, 0, y, W * 0.33 / scale); };
-      line(String(c.shown), -14, 'italic 900 32px sans-serif', heat > 0.65 ? '#ff6342' : heat > 0.25 ? '#ffac32' : '#ffe66a');
-      line('HITS', 8, 'italic 900 11px sans-serif', '#fff5cf');
+      line(String(c.shown), -14, "italic 900 32px 'Fusion Pixel 12px Proportional SC', monospace", heat > 0.65 ? '#ff6342' : heat > 0.25 ? '#ffac32' : '#ffe66a');
+      line('HITS', 8, "italic 900 11px 'Fusion Pixel 12px Proportional SC', monospace", '#fff5cf');
       ctx.restore();
       ctx.save(); ctx.globalAlpha = fade; ctx.textAlign = 'right'; ctx.textBaseline = 'middle'; ctx.lineJoin = 'round';
       ctx.translate(Math.round(W - 12), Math.round(H * (G.mode === 't5' ? 0.34 : 0.29) + 46 * scale + 19));
       ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0; ctx.shadowOffsetX = ctx.shadowOffsetY = 0;
-      ctx.font = "900 16px 'Microsoft YaHei', 'PingFang SC', 'Noto Sans CJK SC', 'Fusion Pixel 12px Proportional SC', sans-serif";
+      ctx.font = "900 16px 'Fusion Pixel 12px Proportional SC', monospace";
       ctx.strokeStyle = '#090d19'; ctx.lineWidth = 4; ctx.strokeText(c.name, 0, 0);
       ctx.fillStyle = '#ffe073'; ctx.fillText(c.name, 0, 0); ctx.restore();
     }
