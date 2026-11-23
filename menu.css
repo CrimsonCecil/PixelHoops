@@ -342,6 +342,7 @@ button.pick.fighter-pick .pk-c { font-size:11px; color:var(--fighter-color); }
 #menu[data-view=select] .front-footer { display:none; }
 #menu[data-view=select] .front-roster { position:relative; margin-top:0; padding-top:0; border:0; }
 #menu[data-view=select] .front-target { position:absolute; bottom:100%; right:0; margin:0 0 8px; gap:10px; }
+#menu[data-view=select][data-format=t3] .front-target { position:static; justify-content:flex-end; }
 #menu[data-view=select] #front-player-detail { padding:2px 8px; font-size:18px; }
 #menu[data-view=select] #front-positions { display:flex; align-items:center; gap:7px; margin:0 0 12px; padding:8px 12px; background:#141f34; border:1px solid var(--front-line); border-top:0; }
 #menu[data-view=select] #front-teams { margin:0; }
