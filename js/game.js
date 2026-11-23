@@ -4961,7 +4961,7 @@
   }
   function startHesitation(pl, inp, h, inputAt) {
     startMove(pl, inp, 'hesi', inputAt);
-    if (pl.ctrl !== 'cpu' && h) { pl.action.hesiHold = h.key; pl.action.hesiExit = h.exit; }
+    if (pl.ctrl !== 'cpu' && h && pl.action) { pl.action.hesiHold = h.key; pl.action.hesiExit = h.exit; }
   }
   function blendHeldBall() {
     const b = G.ball;
