@@ -385,14 +385,15 @@
     if (roomAudio.length) state.audio = roomAudio.splice(0);
     return state;
   }
-  // Delta snapshots: a full keyframe every NET_KEYFRAME packets, otherwise only keys (top-level and per player) that
+  // Delta snapshots: the first NET_REPEAT packets and every NET_KEYFRAME-th are full keyframes (a lost first one
+  // cannot stall kickoff), otherwise only keys (top-level and per player) that
   // changed within the last NET_REPEAT packets, so a lost unreliable packet is covered by the next ones. The guest
   // merges onto its last state. Halves a 1V1 snapshot (~2/3 off in 3V3); with the TURN stride, ~1.4 Mbps becomes ~0.5 Mbps.
   const NET_KEYFRAME = 45, NET_REPEAT = 6;
   let netTx = null, netRx = null;
   function netDelta(state, delta) {
     const tx = netTx && netTx.players === state.players.length ? netTx : (netTx = { n: 0, players: state.players.length, top: new Map(), pl: [] });
-    const n = ++tx.n, full = !delta || n % NET_KEYFRAME === 1;
+    const n = ++tx.n, full = !delta || n <= NET_REPEAT || n % NET_KEYFRAME === 1;
     const pick = (seen, k, v, out) => {
       const j = v === undefined ? '\u0000' : JSON.stringify(v);
       let e = seen.get(k);
