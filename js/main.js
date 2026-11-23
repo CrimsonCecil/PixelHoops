@@ -19,6 +19,9 @@
   if (isTouch) document.getElementById('stage').classList.add('touch');
   const DT = 1 / 60;
   const REPLAY_MIN = 1;
+  // 自动全屏开关（记在本机）；done：本次打开页面已尝试过自动进入
+  const FS = { on: true, done: false };
+  try { FS.on = localStorage.getItem('ph_autofs') !== 'off'; } catch (e) { /* 隐私模式 */ }
   let panelOpen = true, hasPad = false, padN = 0, padIds = [], padToastT = 0;
 
   function layout() {
@@ -882,6 +885,7 @@
     $('btn-hz').textContent = '热区显示 ' + (G.vopt.hz !== false ? '开' : '关');
     $('btn-stamina').textContent = '体力条 ' + (G.vopt.stamina !== false ? '开' : '关');
     $('btn-netstat').textContent = '帧数与延迟 ' + (opts.netstat !== 'off' ? '开' : '关');
+    $('btn-fs').textContent = '自动全屏 ' + (FS.on ? '开' : '关');
     $('btn-vo').textContent = '球员配音 ' + (PH.audio.voOn ? '开' : '关');
   }
   function togglePanel(on) { if (screen !== 'play' || G.mode !== 'train') return; panelOpen = on == null ? !panelOpen : on; show('train', panelOpen); stage.classList.toggle('panel', panelOpen); camShift(); if (panelOpen) buildPanel(); }
@@ -1141,6 +1145,28 @@
   $('btn-stamina').addEventListener('click', () => { G.vopt.stamina = G.vopt.stamina === false; saveV(); });
   $('btn-netstat').addEventListener('click', () => { opts.netstat = opts.netstat === 'off' ? 'on' : 'off'; setLabels(); updateNetstat(true); });
   $('btn-vo').addEventListener('click', () => { PH.audio.setVo(!PH.audio.voOn); saveV(); });
+  // ---------- 自动全屏：浏览器只允许在用户操作里进全屏，所以第一次点击 / 触摸 / 按键 / 手柄按键时进入；开关记在本机 ----------
+  const docEl = document.documentElement, fsReq = docEl.requestFullscreen || docEl.webkitRequestFullscreen;
+  const fsEl = () => document.fullscreenElement || document.webkitFullscreenElement;
+  function fsEnter() {
+    if (!fsReq || fsEl()) return Promise.resolve();
+    // 全屏后锁住 Esc，Esc 仍是暂停键（长按 Esc 退出全屏）
+    return Promise.resolve(fsReq.call(docEl, { navigationUI: 'hide' })).then(() => { if (navigator.keyboard && navigator.keyboard.lock) navigator.keyboard.lock(['Escape']).catch(() => {}); });
+  }
+  function fsAuto() {
+    if (!FS.on || FS.done || !fsReq) return;
+    FS.done = true;
+    try { fsEnter().catch(() => { FS.done = false; }); } catch (e) { FS.done = false; }
+  }
+  for (const ev of ['pointerup', 'touchend', 'click', 'keydown']) window.addEventListener(ev, fsAuto, true);
+  show('btn-fs', !!fsReq);
+  $('btn-fs').addEventListener('click', () => {
+    FS.on = !FS.on; FS.done = true;
+    try { localStorage.setItem('ph_autofs', FS.on ? 'on' : 'off'); } catch (e) { /* 隐私模式 */ }
+    if (FS.on) fsEnter().catch(() => {});
+    else if (fsEl()) (document.exitFullscreen || document.webkitExitFullscreen).call(document);
+    saveV();
+  });
   function skipReplay() { if (screen === 'play' && !paused && G.replay && G.replay.age >= REPLAY_MIN) G.replay.skip = true; }
   canvas.addEventListener('pointerdown', () => { if (skipScene()) skipPress(); else skipReplay(); });
   $('btn-fb').addEventListener('click', () => { opts.fb = opts.fb === 'detail' ? 'simple' : 'detail'; G.fb = opts.fb; if (typeof refreshMenu === 'function') refreshMenu(); setLabels(); });
@@ -2089,6 +2115,7 @@
     const I = PH.input, replay = screen === 'play' && G.replay && !paused;
     const key = replay && I.sysAny(); // 先读键盘，避免把手柄导航连发当成新按键
     const button = I.pollPads(), padSlot = I.pressSlot();
+    if (button) fsAuto();
     if (padSlot >= 0 && padSlot < 2 && padSlot !== inlineSide && screen === 'menu' && opts.mode === '2p' && $('menu').dataset.view === 'select' && $('picker').classList.contains('hidden')) {
       const f = document.activeElement, focused = f && f.closest && f.closest('#front-grid [data-pk]');
       const cur = $('front-grid').querySelector('[data-pk].pf') || focused, pk = cur ? cur.getAttribute('data-pk') : null;
