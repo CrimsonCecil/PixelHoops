@@ -131,7 +131,7 @@
         <div class="front-tools"><button data-tool="help"><span aria-hidden="true">?</span>操作说明</button><button data-tool="set"><span aria-hidden="true">⚙</span>设置</button></div>
       </section>
       <section class="front-page front-solo" data-view-panel="solo"><header><button data-home>← 主页</button></header>
-        <button class="front-king" data-format="king" data-testid="solo-king"><strong>♛ 斗牛之王</strong><em aria-hidden="true">→</em></button>
+        <button class="front-king" data-format="king" data-testid="solo-king"><strong>♛ 斗牛之王</strong></button>
         <h2>自由比赛</h2><div class="front-formats"><button data-format="duel" data-testid="solo-1v1"><b>1V1</b></button><button data-format="t3" data-testid="solo-t3"><b>3V3</b></button><button data-format="t5" data-testid="solo-t5"><b>5V5</b></button></div>
         <button class="front-train" data-format="train">训练场 · 自由练习动作 →</button>
       </section>
