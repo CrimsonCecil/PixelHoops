@@ -31,12 +31,13 @@ function costs(seq, badges, tier) {
 
 const single = {};
 for (const k of new Set(SEQ)) single[k] = costs([k], [], 3)[0].drop;
+const hndX = K.mvHndSt * Math.min(1, Math.max(0, (0.9 - G.players[0].r.hnd) / 0.2));   // 低控球耗体加成和连招递增相加，不连乘
 const ramp = (r) => (1 + K.cbStep * (r.combo - 1)) * (1 + K.cbCost * r.dcn) - 1;
 
 const plain = costs(SEQ, [], 3);
 plain.forEach((r, i) => {
   assert.equal(r.combo, i + 1, 'move ' + (i + 1) + ' must extend the chain');
-  close(r.drop / single[SEQ[i]], 1 + ramp(r), 'no badge: move ' + (i + 1) + ' ramp');
+  close(r.drop / single[SEQ[i]], (1 + ramp(r) + hndX) / (1 + hndX), 'no badge: move ' + (i + 1) + ' ramp');
   if (i) assert(r.drop / single[SEQ[i]] > plain[i - 1].drop / single[SEQ[i - 1]], 'each extra chained move costs more than the last');
 });
 assert(plain[3].drop / single.cross >= 2.5, 'fourth chained move costs at least 2.5x a single move');
@@ -45,7 +46,7 @@ for (const [badge, tier, tf] of [['tight', 3, K.bgT3], ['ankle', 3, K.bgT3], ['a
   const flat = Object.fromEntries(Object.keys(single).map((k) => [k, costs([k], [badge], tier)[0].drop]));
   const bgK = 1 + (K.bgChainSt - 1) * tf;
   costs(SEQ, [badge], tier).forEach((r, i) => {
-    close(r.drop / flat[SEQ[i]], 1 + ramp(r) * bgK, badge + ' tier ' + tier + ': move ' + (i + 1) + ' ramp');
+    close(r.drop / flat[SEQ[i]], (1 + ramp(r) * bgK + hndX) / (1 + hndX), badge + ' tier ' + tier + ': move ' + (i + 1) + ' ramp');
     if (i) assert(r.drop / flat[SEQ[i]] < plain[i].drop / single[SEQ[i]], badge + ' ramps up more slowly');
   });
 }

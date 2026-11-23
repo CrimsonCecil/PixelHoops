@@ -340,6 +340,21 @@
   }
   const NET_STATE = ['time', 'phase', 'phaseT', 'score', 'stats', 'target', 'shotClock', 'glen', 'gclock', 'sd', 'mp', 'needClear', 'off', 'winner',
     'ball', 'banner', 'floats', 'fx', 'net', 'focus', 'camK', 'cz', 'cutin', 'hero', 'bpops', 'lastShot', 'hzV', 'clearOk', 'clearPing', 'ft'];
+  const ROOM_INTRO_WAIT = 20000;
+  const roomIntro = { done: new Set(), until: 0, sent: false };
+  function resetRoomIntro() { roomIntro.done.clear(); roomIntro.until = 0; roomIntro.sent = false; }
+  function roomIntroDone(msg, slot) { if (room.role === 'host' && room.active && room.links.has(slot)) roomIntro.done.add(slot); }
+  function roomIntroEnd(explicit) {
+    if (!room.active || !matchConfig) return true;
+    if (room.role === 'guest') {
+      if (!roomIntro.sent) { roomIntro.sent = true; rooms.introDone(); }
+      return true;
+    }
+    if (room.role !== 'host' || explicit || [...room.links.keys()].every((slot) => roomIntro.done.has(slot))) return true;
+    if (!roomIntro.until) roomIntro.until = performance.now() + ROOM_INTRO_WAIT;
+    return performance.now() >= roomIntro.until;
+  }
+  GM.introEndGate = roomIntroEnd;
   const roomAudio = [];
   let netInterp = null;
   function resetRoomAudio() {
@@ -538,6 +553,7 @@
         launchRoomMatch(config, roomSlot);
       },
       state: (state) => roomState(netMerge(state)),
+      introDone: roomIntroDone,
       skip: (msg, slot) => skipVote(msg, slot),
       error: (message) => { const wasPlay = screen === 'play'; if (wasPlay) toMenu(); menuStatus(message); refreshMenu(); if (wasPlay && /^直连失败/.test(message)) netToast(message); },
       notice: (message) => { if (screen === 'menu') menuStatus(message); else netToast(message); }
@@ -620,13 +636,14 @@
     PH.frontend.started();
     tuneClose();
     PH.audio.ensure(); PH.audio.play('start'); PH.audio.startMusic();
-    localSlot = slot; matchConfig = config; netFrame = 0; netInterp = null; netTx = null; netRx = null; aiReset(); skipReset();
+    localSlot = slot; matchConfig = config; netFrame = 0; netInterp = null; netTx = null; netRx = null; aiReset(); skipReset(); resetRoomIntro();
     resetRoomAudio();
     if (config.mode === 't3') PH.T3.start({ ...config, local: slot, replay: !room.active });
     else { CFG.shotClock = config.clock; GM.newGame({ ...config, mode: '2p' }); }
     replaySaveReset();
     PH.audio.voPreload(G.players.map((p) => p.arch.key));
     if ((config.intro || opts.intro) !== 'off') GM.introStart();
+    if (!G.intro && room.role === 'guest') roomIntroEnd(false);
     stage.classList.toggle('intro', !!G.intro);
     screen = 'play'; paused = false; panelOpen = false; overShown = false; PH.input.clearSys(); PH.input.flush(); clearPf(); camShift();
     syncBackgroundMatch();
@@ -2087,7 +2104,7 @@
       I.clearSys(); return;
     }
     if (replay) { I.clearSys(); if (key || button) { if (skipScene()) skipPress(); else skipReplay(); } return; }
-    if (skipScene() && !paused) { if (I.sysAny() || button) skipPress(); I.clearSys(); return; }
+    if (skipScene() && !paused) { if (G.intro && room.role === 'host' && (I.introPressed('Escape') || I.introPressed('PadStart') || I.introPressed('PadB'))) GM.introEnd(); else if (I.sysAny() || button) skipPress(); I.clearSys(); return; }
     if (screen === 'play' && G.intro && !paused) { if (I.introPressed('Escape') || I.introPressed('PadStart') || I.introPressed('PadB')) GM.introEnd(); else if (I.introPressed()) GM.introPress(); I.clearSys(); return; }
     if (I.sysPressed('KeyM')) toggleMusic();
     if (I.sysPressed('KeyI') && screen === 'play') toggleInfo();
@@ -2433,7 +2450,7 @@
     const n = L.done ? L.t.length : Math.min(L.t.length, Math.floor((G.time - I.lt) * 30));
     $('talk-text').textContent = L.t.slice(0, n); box.classList.toggle('done', n >= L.t.length);
   }
-  $('talk').addEventListener('pointerdown', (e) => { e.stopPropagation(); if (skipScene()) skipPress(); else GM.introPress(); });
+  $('talk').addEventListener('pointerdown', (e) => { e.stopPropagation(); if (G.intro?.waitPeers && room.role === 'host') GM.introEnd(); else if (skipScene()) skipPress(); else GM.introPress(); });
   // 在线真人 1V1：进场动画 / 回放要两人都按任意键才跳过；房主计票，客机只发自己的一票（通道可能丢包，未结束前每 0.5 秒补发）
   const SKIP = { scene: '', votes: new Set(), n: 0, mine: false, endIn: 0, resend: 0 };
   function skipScene() {
