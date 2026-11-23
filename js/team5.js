@@ -691,7 +691,7 @@
     return p;
   }
   function start(o) {
-    A5 = PH.game.t5; G = PH.game.G; o = o || {};
+    A5 = PH.game.t5; G = PH.game.G; o = o || {}; G.travel = o.travel !== false;
     t5Tune();   // V4.0 tune.js 晚于本文件加载时在这里补注册
     // V3.9h 输入缓冲：5V5 人控球员和 1V1 同一套（硬直 / 落地 / 动作锁定时按的 a1/a2/a3 进缓冲，能动第一帧释放）
     if (PH.game.ibuf) { PH.game.ibuf.on5 = true; PH.game.ibuf.clearAll(); }

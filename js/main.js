@@ -5,7 +5,7 @@
   const stage = $('stage'), canvas = $('game'), replayWipe = $('replay-wipe');
   const wipeTitle = replayWipe.querySelector('strong');
   const replayTitle = wipeTitle.textContent;
-  const opts = { format: 'duel', opponent: 'cpu', get mode() { return this.format === 'duel' ? this.opponent : this.format; }, diff: 1, target: 21, clock: 24, glen: 0, fouls: 'on', arch0: GM.ROSTER[(Math.random() * GM.ROSTER.length) | 0], arch1: 'random', fb: 'simple', info: 'show', intro: 'on', netstat: 'on', home: 'LAL', away: 'BOS', qlen: 300, side: 0, ktarget: 21, kreveal: 'hide' };
+  const opts = { format: 'duel', opponent: 'cpu', get mode() { return this.format === 'duel' ? this.opponent : this.format; }, diff: 1, target: 21, clock: 24, glen: 0, fouls: 'on', travel: 'on', arch0: GM.ROSTER[(Math.random() * GM.ROSTER.length) | 0], arch1: 'random', fb: 'simple', info: 'show', intro: 'on', netstat: 'on', home: 'LAL', away: 'BOS', qlen: 300, side: 0, ktarget: 21, kreveal: 'hide' };
   const lobbyRoles = { human: '你', cpu: '电脑', waiting: '等待玩家' };
   const lobby3 = ['curry', 'lebron', 'jokic', 'edwards', 'durant', 'giannis'].map((arch, i) => ({ arch, role: i === 0 ? 'human' : i % 3 === 2 ? 'waiting' : 'cpu' }));
   const rooms = PH.rooms, room = rooms.room;
@@ -757,9 +757,9 @@
     if (opts.mode === 't3' || opts.mode === 'online') {
       const t3 = opts.mode === 't3';
       if (!t3 && !room.links.has(1)) return;
-      const config = same && !t3 && matchConfig ? { ...matchConfig, intro: opts.intro } : { mode: opts.mode, clock: opts.clock, target: opts.target, diff: opts.diff, fb: opts.fb, glen: opts.glen,
+      const config = same && !t3 && matchConfig ? { ...matchConfig, intro: opts.intro } : { mode: opts.mode, clock: opts.clock, target: opts.target, diff: opts.diff, fb: opts.fb, glen: opts.glen, travel: opts.travel === 'on',
         ...(t3 ? { slots: lobby3.map((s, i) => ({ arch: s.arch, role: room.links.has(i) ? 'remote' : s.role === 'waiting' ? 'cpu' : s.role })) }
-          : { arch0: opts.arch0, arch1: pickArch(opts.arch1, opts.arch0), fouls: opts.fouls === 'on', intro: opts.intro }) };
+          : { arch0: opts.arch0, arch1: pickArch(opts.arch1, opts.arch0), fouls: opts.fouls === 'on', travel: opts.travel === 'on', intro: opts.intro }) };
       if (room.role === 'host') {
         if (!room.code) return;
         room.active = true;
@@ -776,8 +776,8 @@
     if (!kg && (!same || !lastArch || opts.arch1 === 'random')) lastArch = { a0: opts.arch0, a1: pickArch(opts.arch1, opts.arch0) };
     const tr = opts.mode === 'train';
     if (!tr) CFG.shotClock = opts.clock;
-    if (kg) GM.newGame({ mode: 'cpu', diff: Math.min(2, KING_T[KR.stage]), target: KR.target, arch0: KR.arch, arch1: KR.ladder[KR.stage], fb: opts.fb, glen: 0, cpuD: kingD(KR.stage), fouls: opts.fouls === 'on' });
-    else GM.newGame({ mode: opts.mode, diff: opts.diff, target: opts.target, arch0: lastArch.a0, arch1: lastArch.a1, fb: opts.fb, glen: opts.glen, fouls: opts.fouls === 'on' });
+    if (kg) GM.newGame({ mode: 'cpu', diff: Math.min(2, KING_T[KR.stage]), target: KR.target, arch0: KR.arch, arch1: KR.ladder[KR.stage], fb: opts.fb, glen: 0, cpuD: kingD(KR.stage), fouls: opts.fouls === 'on', travel: opts.travel === 'on' });
+    else GM.newGame({ mode: opts.mode, diff: opts.diff, target: opts.target, arch0: lastArch.a0, arch1: lastArch.a1, fb: opts.fb, glen: opts.glen, fouls: opts.fouls === 'on', travel: opts.travel === 'on' });
     replaySaveReset();
     PH.audio.voPreload(G.players.map((p) => p.arch.key));
     if (opts.intro !== 'off') GM.introStart();
@@ -1784,7 +1784,7 @@
   $('team1').addEventListener('click', () => openTP(1));
   let over5Shown = false, h5 = {};
   function start5() {
-    T5.start({ home: opts.home, away: opts.away, qlen: opts.qlen, diff: opts.diff, human: opts.side });
+    T5.start({ home: opts.home, away: opts.away, qlen: opts.qlen, diff: opts.diff, human: opts.side, travel: opts.travel === 'on' });
     replaySaveReset();
     screen = 'play5'; paused = false; over5Shown = false; h5 = {}; fdReset(); PH.input.clearSys(); clearPf();
     show('menu', false); show('picker', false); show('tpicker', false); show('pause', false); show('over', false); show('over5', false); show('help', false);

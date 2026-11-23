@@ -260,6 +260,21 @@
     ['uuTimeHigh', 'drib', '上下步 高能力时长', 0.92, 0.1, 2, 0.01, '倍率'],
     ['uuBiteLow', 'drib', '上下步 低能力假投骗跳', 0.35, 0, 2, 0.01, '倍率：普通假投'],
     ['uuBiteHigh', 'drib', '上下步 高能力假投骗跳', 1.15, 0, 2, 0.01, '倍率：普通假投'],
+    ['gaJabT', 'drib', '试探步 动作时长', 0.3, 0.12, 0.8, 0.01, '秒：中枢脚不动，迈出再收回；控球加速越高越快'],
+    ['gaJabStep', 'drib', '试探步 迈步距离', 0.55, 0.1, 1.2, 0.01, '米：迈出去那只脚的距离'],
+    ['gaJabBite', 'drib', '试探步 晃人系数', 0.75, 0, 2, 0.01, '倍率：与犹豫步同一套晃人判定'],
+    ['gaJabWin', 'drib', '试探步 衔接窗口', 0.5, 0, 1.5, 0.01, '秒：试探步收回后可接爆发突破 / 再试探'],
+    ['gaGoSp', 'drib', '试探步 爆发速度', 8.4, 3, 14, 0.1, '米/秒：试探步后突破的第一步'],
+    ['gaGoT', 'drib', '试探步 爆发时长', 0.34, 0.1, 0.8, 0.01, '秒'],
+    ['gaGoBite', 'drib', '试探步 爆发晃人', 1.15, 0, 2, 0.01, '倍率'],
+    ['gaGoLow', 'drib', '试探步 低能力爆发', 0.72, 0, 2, 0.01, '倍率：速度与加速平均值低'],
+    ['gaGoHigh', 'drib', '试探步 高能力爆发', 1.2, 0, 2, 0.01, '倍率'],
+    ['gaQMin', 'drib', '试探步 熟练度下限', 0.55, 0, 1, 0.01, '能力：控球与加速平均值'],
+    ['gaQMax', 'drib', '试探步 熟练度上限', 0.92, 0, 1, 0.01, '能力：达到此值获得完整熟练度'],
+    ['gaCost', 'drib', '试探步 体力系数', 0.4, 0, 2, 0.01, '倍率：基础运球消耗；爆发突破按 1 倍'],
+    ['gaTravelT', 'rules', '走步 判罚宽限', 0.22, 0, 1, 0.01, '秒：合球后已运过球时推摇杆超过此时长判走步'],
+    ['aiJab', 'ai', '电脑 合球试探步频率', 1.2, 0, 6, 0.05, '次/秒：接球合球的短暂停顿内'],
+    ['aiGaHold', 'ai', '电脑 合球停顿', 0.35, 0, 1.5, 0.01, '秒：接球后先合球观察再决定运球 / 试探 / 出手'],
     ['uuMiss', 'shot', '上下步 低能力失误惩罚', 0.1, 0, 1, 0.01, '比例：出手命中率最多下降此比例'],
     ['dmKiller', 'drib', '杀手变向 位移倍数', 1, 0.3, 2.5, 0.01, '倍率：运球包招式（不再乘基础动作的倍数）。原来 ≈ 后撤步的 110%'],
     ['dmLegsx', 'drib', '胯下变向 位移倍数', 1.25, 0.3, 2.5, 0.01, '倍率：原来 ≈ 后撤步的 65~67%，1.25 ≈ 82%'],
@@ -1356,6 +1371,8 @@
     postdrop: { name: '前转身', T: 0.28, sp: 4.8, bite: 1.2, cost: 1, safe: true },
     postface: { name: '面框', T: 0.25, sp: 2.2, bite: 0, cost: 0.5, safe: true },
     postshim: { name: '晃肩', T: 0.32, sp: 0, bite: 1.2, cost: 0.6, safe: true },
+    jab: { name: '试探步', T: 0.3, sp: 0, bite: 0.75, cost: 0.4, safe: true },
+    jabgo: { name: '试探步突破', T: 0.34, sp: 8.4, bite: 1.15, cost: 1 },
   };
   // 连招（类似格斗游戏搓招）：短时间内按方向序列 + 突破键，控球够才能出
   const CB = {
@@ -1950,7 +1967,7 @@
   function newTrainStats() { return { n: 0, made: 0, blocked: 0, sumC: 0, zones: { three: [0, 0], mid: [0, 0], lay: [0, 0] }, timing: [0, 0, 0, 0, 0], last: [] }; }
   function newGame(o) {
     o = o || {};
-    G.fouls = o.fouls !== false; G.ft = null; G.foulStop = null; G.ftTrips = 0; G.foulDrought = 0;
+    G.fouls = o.fouls !== false; G.travel = o.travel !== false; G.ft = null; G.foulStop = null; G.ftTrips = 0; G.foulDrought = 0;
     G.bumpT = -9; G.postBumpT = -9; G.pushT = -9;
     G.tips = null; G.mode = o.mode || 'cpu'; G.diff = o.diff == null ? 1 : o.diff; G.target = o.target || 21; G.glen = G.mode === 'cpu' || G.mode === '2p' ? (o.glen || 0) : 0; G.gclock = G.glen; G.sd = false; G.gEnd = false; G.mp = -1; G.mpT = 0; G.clkTick = 99; G.fb = o.fb || 'simple'; G.bpops = []; G.shotN = 0; G.hero = null; G.cz = null; G.hlQ = null; G.rec = []; G.replay = null;
     const c0 = G.mode === 'demo' ? 'cpu' : 'p1', c1 = G.mode === '2p' ? 'p2' : 'cpu';
@@ -3589,7 +3606,7 @@
     if (reason !== 'intercept' && b.state === 'loose' && pl.ctrl !== 'cpu' && G.phase === 'live') { b.fl = 0.5; pl.grabT = G.time; if (!b.wasShot) sfx('grab'); G.fx.rings.push({ x: pl.x, y: pl.y, z: 0.1, t: 0, T: 0.42, col: '#ffffff', R: 1.5 }, { x: pl.x, y: pl.y, z: 0.1, t: -0.08, T: 0.4, col: pl.team.css || '#5ee0ff', R: 1.0 }); burst(b.x, b.y, b.z, 8, ['#ffffff', '#fff6c8', '#ffd24a'], 2.2, 0.3, 8); }
     b.state = 'held'; b.holder = pl.id; pl.hasBall = true; b.shot = null; b.under = false; b.trail = null;
     b.blockWag = null;
-    pl.drib = 0; pl.gotT = G.time; pl.passCatchT = null; pl.catchDribbled = false;
+    pl.drib = 0; pl.gotT = G.time; pl.passCatchT = null; pl.catchDribbled = false; gatherOn(pl, false);
     const change = !isO(pl), keepClk = (teamPlay() || poke) && !change && !b.wasShot, clk0 = G.shotClock, wasShot = b.wasShot, train = G.mode === 'train' && G.train.role === 'off';
     if (change) { if (playCPU(pl)) { pl.ai.call = null; pl.ai.su = null; } G.illId = -1; G.off = TM(pl); G.needClear = !train && G.mode !== 't5' && !isThree(pl.x, pl.y); if (!train && G.mode !== 't5') float(G.needClear ? '球权转换 · 先出三分线' : '球权转换', pl, '#5ee0ff', 0); }
     if (wasShot) {
@@ -4343,6 +4360,8 @@
     }
     switch (a.kind) {
       case 'uu': return [h0 * 0.12, 0.38 + 0.12 * Math.sin(PI * u), 1.0 - 0.2 * Math.sin(PI * u)];
+      case 'jab': return [h0 * 0.16, 0.24 + 0.08 * Math.sin(PI * u), 0.9 - 0.12 * Math.sin(PI * u)];
+      case 'jabgo': return [h0 * lerp(0.16, 0.34, s), lerp(0.24, 0.5, s), lerp(0.9, 0.1, Math.sin(PI * Math.min(1, u * 1.6)) * (u < 0.62 ? 1 : 0.6))];
       case 'cross': return [lerp(h0 * 0.36, h1 * 0.36, s), 0.38, 0.1 + 0.68 * ab(cs(PI * u))];
       case 'legs': return [lerp(h0 * 0.34, h1 * 0.34, s), 0.06 + 0.3 * ab(2 * u - 1), 0.1 + 0.62 * ab(cs(PI * u))];
       case 'behind': return [lerp(h0 * 0.34, h1 * 0.34, s), 0.25 - 0.58 * Math.sin(PI * u), 0.12 + 0.62 * ab(cs(PI * u))];
@@ -4537,12 +4556,54 @@
       }
       float('背身假投', pl, '#f6efe0', 1); return;
     }
-    pl.action = { type: 'fake', t: 0, T: T, jf: !!jumped }; pl.animT = 0;
+    pl.action = { type: 'fake', t: 0, T: T, jf: !!jumped }; pl.animT = 0; if (pl.hasBall) gatherOn(pl, pl.catchDribbled);
     pl.uuFake = { until: G.time + T + K.uuWin, def: -1, bitUntil: -1 };
     pl.uuShot = null;
     float('假动作', pl, '#f6efe0');
   }
+  // 合球：接球 / 假投后双手抱球（三威胁）。合球后只能运一次球，已运过再合球时再运球判二次运球、拖动中枢脚判走步
+  function travelRule() { return G.travel !== false && G.mode !== 'train' && G.mode !== 'demo'; }
+  function gatherOn(pl, dead) { pl.gather = true; pl.dribDead = !!dead && travelRule(); pl.gaT = 0; }
+  function gatherOff(pl) { pl.gather = false; pl.dribDead = false; pl.gaT = 0; }
+  function gaQ(pl, a, b) { return clamp(((a + b) / 2 - K.gaQMin) / Math.max(0.001, K.gaQMax - K.gaQMin), 0, 1); }
+  function violation(pl, msg) {
+    if (!travelRule() || G.phase !== 'live' || !pl.hasBall) return false;
+    const to = teamPlay() ? nearestDefender(pl) || G.players.find(q => q.tm !== pl.tm) : G.players[1 - pl.id];
+    gatherOff(pl); pl.action = null; pl.vx = pl.vy = 0;
+    float(msg, pl, '#ff6b5e');
+    turnover(to.id, msg, 'foulWhistle');
+    if (G.banner && G.banner.text === msg) G.banner.foul = true;
+    return true;
+  }
+  function startJab(pl, inp, inputAt) {
+    const a = pl.action, q = inDir(pl, inp, true), h = q.h;
+    const after = a && a.type === 'move' && a.kind === 'jab' ? a : pl.lastMove === 'jab' && inputAt - pl.mvEndT <= K.gaJabWin ? {} : null;
+    const df = OP(pl), qa = gaQ(pl, pl.r.hnd, pl.r.acc);
+    let dx = q.l > 0.3 ? q.x / q.l : h.x, dy = q.l > 0.3 ? q.y / q.l : h.y;
+    if (after && q.l > 0.3 && q.fwd > -0.3) {
+      if (pl.dribDead && violation(pl, '二次运球')) return;
+      const qg = gaQ(pl, pl.r.spd, pl.r.acc), T = K.gaGoT, sp = K.gaGoSp * lerp(K.gaGoLow, K.gaGoHigh, qg) * (1 - 0.3 * fat(pl));
+      gatherOff(pl); pl.catchDribbled = true;
+      const M = Object.assign({}, MV.jabgo, { sp, bite: MV.jabgo.bite * K.gaGoBite / 1.15 * lerp(0.7, 1.2, qg) });
+      pl.action = { type: 'move', kind: 'jabgo', mv: 'jabgo', t: 0, T, sp, dx, dy, hx: h.x, hy: h.y, h0: pl.hand || 1, h1: pl.hand || 1, f0: pl.face, v0x: pl.vx, v0y: pl.vy, os: 0, sd: 0, cw: 0.6 };
+      pl.face = Math.atan2(dy, dx); pl.lastMove = 'jabgo'; pl.lastMoveT = inputAt;
+      spendStamina(pl, M.cost * CFG.moveCost * (1 + K.mvHndSt * lowHnd(pl.r.hnd)) * stamK(pl)); pl.cd = T; pl.boost = 0.75;
+      float(M.name, pl, '#ffd24a');
+      if (df) moveDefense(pl, 'inout', dx, dy, { M, MT: T });
+      return;
+    }
+    const T = K.gaJabT * lerp(1.25, 0.85, qa), side = Math.sign(q.l > 0.3 ? q.lat : 0) || 0;
+    const M = Object.assign({}, MV.jab, { T, bite: K.gaJabBite * lerp(0.6, 1.25, qa) });
+    pl.action = { type: 'move', kind: 'jab', mv: 'jab', t: 0, T, sp: 0, dx, dy, hx: h.x, hy: h.y, side, step: K.gaJabStep * (pl.h / 1.95), h0: pl.hand || 1, h1: pl.hand || 1, f0: pl.face, v0x: 0, v0y: 0, os: 0, sd: 0, cw: 0.55 };
+    pl.vx = pl.vy = 0; pl.lastMove = 'jab'; pl.lastMoveT = inputAt;
+    spendStamina(pl, K.gaCost * CFG.moveCost * (1 + K.mvHndSt * lowHnd(pl.r.hnd)) * stamK(pl)); pl.cd = T * 0.8;
+    float(M.name, pl, '#f6efe0');
+    if (df) moveDefense(pl, 'hesi', dx, dy, { M, MT: T });
+  }
   function startMove(pl, inp, force, inputAt = G.time) {
+    if (pl.gather && pl.hasBall && !isPostMove(force) && !(force && MVX[force] && MVX[force].kind === 'uu') && !pl.post) {
+      startJab(pl, inp, inputAt); return;
+    }
     if (!(inp.rs && pl.rsGesture && pl.rsGesture.post)) pl.postFakeCount = 0;
     comboTick(pl, inputAt);
     const prev = pl.dribbleCombo, moving = pl.action && pl.action.type === 'move';
@@ -5121,7 +5182,9 @@
       if (a.kind === 'hesi' && updateHesitation(pl, a, inp)) return;
       const u = clamp(a.t / a.T, 0, 1), kd = a.kind, sp = a.sp;
       let vx, vy;
-      if (kd === 'uu') {
+      if (kd === 'jab') { vx = 0; vy = 0; }
+      else if (kd === 'jabgo') { const s = sp * (1 - u * 0.45); vx = a.dx * s; vy = a.dy * s; }
+      else if (kd === 'uu') {
         vx = a.dx * sp * Math.PI / 2 * Math.sin(Math.PI * u);
         vy = a.dy * sp * Math.PI / 2 * Math.sin(Math.PI * u);
       } else if ((kd === 'cross' || kd === 'legs' || kd === 'behind') && !a.hesiDrive) {
@@ -5584,6 +5647,13 @@
     if (!pl.hasBall && pl.arch.skill && pl.arch.skill.id === 'lebron' && pl.sk.hint === 'ready') ms *= 1.2; if (pl.boost > 0) ms *= 1.15; if (pl.post) { ms *= 0.5; acc = 24; } if (pl.box) { ms *= 0.72; acc = 30; }
     if (pl.lndT > G.time && pl.z <= 0) { ms *= lerp(K.lndSpd, 1, clamp((G.time - pl.lndT0) / Math.max(0.01, pl.lndT - pl.lndT0), 0, 1)); acc *= K.lndAcc; }
     if (a) { if (a.type === 'shot') ctl = a.jumped ? 0 : 0.12; else if (a.type === 'fake') ctl = 0; else if (a.type === 'steal') ctl = 0.25; else ctl = 0; }
+    if (!pl.hasBall) { if (pl.gather) gatherOff(pl); }
+    else if (pl.passCatchT != null && pl.gaCatch !== pl.passCatchT) { pl.gaCatch = pl.passCatchT; if (!a) gatherOn(pl, false); }   // 传球接住（5V5 接球不走 pickup）
+    else if (pl.gather && !a && !pl.post && G.phase === 'live') {
+      if (!moving) pl.gaT = 0;
+      else if (!pl.dribDead) gatherOff(pl);
+      else { ctl = 0; pl.face = Math.atan2(inp.my, inp.mx); if ((pl.gaT += dt) > K.gaTravelT && violation(pl, '走步')) return; }
+    }
     if (a && (a.type === 'move' || a.type === 'dive' || a.type === 'shot' && a.stride && a.stride.moving || (a.type === 'dunk' && !a.done) || a.inSteps)) { /* 脚本位移 */ }
     else if (air) { pl.vx *= 1 - 0.8 * dt; pl.vy *= 1 - 0.8 * dt; }
     else {
@@ -5689,7 +5759,7 @@
         if (pl.ctrl !== 'cpu' && pl.stam < 20 && G.phase === 'live') { pl.paT = (pl.paT || 0) + 1; if (pl.paT % 2 === 0) sfx('pant'); }
       }
     }
-    if (pl.hasBall && !a && an !== 'ftPrep') {
+    if (pl.hasBall && !a && an !== 'ftPrep' && !pl.gather) {
       const p0 = Math.sin(pl.drib); pl.drib += dt * (PH.gait ? PH.gait.drib(pl) : 6.2 + pl.speed * 0.45);
       if (p0 * Math.sin(pl.drib) < 0) { if (!(pl.f5 && pl.f5.ck)) { pl.catchDribbled = true; if (pl.arch.key === 'rallen') pl.sk.rayDribN = (pl.sk.rayDribN || 0) + 1; } sfx('bounce'); if (pl.z <= 0.01) pl.sqv = (pl.sqv || 0) - 3.0; }
     }
@@ -6007,6 +6077,13 @@
       const w = Math.sin(G.time * 9);
       set({ lean: -0.15 + 0.25 * w, lA: 0.3 + 0.3 * w, lB: 0.9, rA: 0.3 - 0.3 * w, rB: 0.95, lS: -0.12, rS: -0.12, aLp: 0.9 + 0.5 * w, aLq: 1.2, aLe: 0.8, aRp: 0.9 - 0.5 * w, aRq: 1.2, aRe: 0.8 });
     } else if (an === 'stun') { const w = Math.sin(G.time * 22) * 0.2; set({ lean: -0.25, lA: 0.1, lB: 0.55, rA: 0.25, rB: 0.6, lS: 0.3, rS: 0.3, aLp: 0.7 + w, aLq: 1.3, aLe: 0.4, aRp: 0.7 - w, aRq: 1.3, aRe: 0.4 }); }
+    else if (an === 'move' && a.kind === 'jab') {
+      // 试探步：中枢脚不动，另一只脚朝摇杆方向迈出再收回，上身压低护球
+      const u = clamp(a.t / a.T, 0, 1), w = Math.sin(Math.PI * u), L = (a.side || pl.hand || 1) > 0;
+      const J = { lean: 0.42 * w + 0.12, yaw: (L ? 0.55 : -0.55) * w * (a.side ? 1 : 0.4), tilt: (L ? 0.1 : -0.1) * w, lS: 0.3, rS: 0.3 };
+      Object.assign(J, L ? { lA: 1.05 * w + 0.15, lB: 0.35 + 0.25 * w, rA: -0.2 * w + 0.2, rB: 0.85 + 0.2 * w } : { rA: 1.05 * w + 0.15, rB: 0.35 + 0.25 * w, lA: -0.2 * w + 0.2, lB: 0.85 + 0.2 * w });
+      set(J);
+    }
     else if (an === 'move' && a.kind === 'uu') {
       const u = clamp(a.t / a.T, 0, 1), w = Math.sin(Math.PI * u), back = a.mv === 'uuBack';
       const side = a.mv === 'uuLeft' ? 1 : a.mv === 'uuRight' ? -1 : a.h0;
@@ -6018,7 +6095,7 @@
       let kd = a ? a.kind : 'cross', u = a ? clamp(a.t / a.T, 0, 1) : 1;
       if (a && a.bp === 'btbsb' && u < 0.45) { kd = 'behind'; u = u / 0.45; }
       else if (a && a.bp === 'tbb') { kd = u < 0.5 ? 'legs' : 'behind'; u = (u % 0.5) * 2; }
-      const fr = MKF[kd] || MKF.cross, hh1 = a && a.bp === 'tbb' && kd === 'legs' ? -a.h0 : a ? a.h1 : 1;
+      const fr = MKF[kd === 'jabgo' ? 'inout' : kd] || MKF.cross, hh1 = a && a.bp === 'tbb' && kd === 'legs' ? -a.h0 : a ? a.h1 : 1;
       // V4.2 横向招式的身体朝向按实际位移的横向（摇杆那一侧）镜像，不按持球手：肩扛强突不换手、胯下接背后前半段是反向假动作
       const latM = a ? a.dx * -(a.hy || 0) + a.dy * (a.hx || 0) : 0, tbb1 = a && a.bp === 'tbb' && kd === 'legs';
       const left = kd === 'cross' || kd === 'legs' || kd === 'behind' ? (Math.abs(latM) > 0.05 ? (tbb1 ? latM < 0 : latM > 0) : hh1 < 0) : (a ? (kd === 'stepback' && a.h1 != null ? a.h1 : a.h0) : 1) > 0;   // 后撤类按收招后的持球手（背后后撤 / 拉回变向已换到摇杆那一侧）
@@ -6056,8 +6133,12 @@
     }
     if (pl.hasBall && an === 'move' && a && a.kind !== 'hesi') {
       const bp = movePath(a, clamp(a.t / a.T, 0, 1)), Hh = pl.h / 1.95;
-      if (a.kind === 'uu' || a.kind === 'stepback' && a.t / a.T > 0.6) { armTo(T, 1, bp[0] + 0.1, bp[1], bp[2], Hh); armTo(T, -1, bp[0] - 0.1, bp[1], bp[2], Hh); }
+      if (a.kind === 'uu' || a.kind === 'jab' || a.kind === 'jabgo' && a.t / a.T < 0.3 || a.kind === 'stepback' && a.t / a.T > 0.6) { armTo(T, 1, bp[0] + 0.1, bp[1], bp[2], Hh); armTo(T, -1, bp[0] - 0.1, bp[1], bp[2], Hh); }
       else armTo(T, bp[0] >= 0 ? 1 : -1, bp[0], bp[1], bp[2] + 0.12, Hh);
+    } else if (pl.hasBall && pl.gather && !a && (an === 'run' || an === 'idle')) {
+      // 合球：双手抱球护在持球手一侧腰前（三威胁）
+      const Hh = pl.h / 1.95, sd = pl.hand || 1; set({ lean: T.lean + 0.14, lB: T.lB + 0.3, rB: T.rB + 0.3, lA: T.lA + 0.12, rA: T.rA + 0.12 });
+      armTo(T, 1, sd * 0.34 + 0.1, 0.14, 0.88, Hh); armTo(T, -1, sd * 0.34 - 0.1, 0.14, 0.88, Hh);
     } else if (pl.hasBall && (an === 'run' || an === 'idle' || an === 'post')) {
       const u = Math.abs(Math.sin(pl.drib)), p = 0.34 + 0.3 * u, e = 0.25 + 0.6 * u, low = an === 'move' ? 0.2 : 0;
       if (pl.handX > 0) set({ aRp: p - low, aRe: e - low, aRq: 0.22 }); else set({ aLp: p - low, aLe: e - low, aLq: 0.22 });
@@ -6191,6 +6272,8 @@
           const bp = movePath(a, clamp(a.t / a.T, 0, 1)), lx = bp[0] * Hh, ly = bp[1] * Hh;
           b.x = pl.x + fy * lx + fx * ly; b.y = pl.y - fx * lx + fy * ly; b.z = Math.max(0.13, bp[2] * Hh + (a.kind === 'stepback' && a.t / a.T > 0.45 ? pl.z : 0));
           const ph = Math.cos(Math.PI * (a.kind === 'inout' ? 1.5 : 1) * a.t / a.T); if (a.lastPh != null && a.lastPh * ph < 0 && b.z < 0.4) sfx('bounce'); a.lastPh = ph;
+        } else if (pl.gather) {
+          const k = PH.rig(pl); b.x = (k.handL[0] + k.handR[0]) / 2 + fx * 0.05; b.y = (k.handL[1] + k.handR[1]) / 2 + fy * 0.05; b.z = (k.handL[2] + k.handR[2]) / 2;
         } else {
           // 原地 / 跑动运球：球的水平位置跟着运球那只手（骨骼手的位置），换手时在两手之间过渡；被身体挡住就挡住
           const k = PH.rig(pl), w = clamp((pl.handX / 0.33 + 1) / 2, 0, 1), fw = pl.post ? 0.02 : 0.06;
@@ -6665,6 +6748,20 @@
       }
     }
     if (playCPU(pl) && pl.hasBall) {
+      // 合球：电脑与玩家同一套规则；已运过球的合球不再走动，只能投 / 传 / 假投 / 试探步
+      const ga = pl.gather && G.phase === 'live' && !pl.post && (!pl.action || pl.action.type === 'move' && pl.action.kind === 'jab');
+      if (!ga) pl.ai.gaT = 0;
+      else {
+        pl.ai.gaT = (pl.ai.gaT || 0) + dt;
+        const dead = pl.dribDead, hold = dead || pl.ai.gaT < K.aiGaHold;
+        if (hold) { o.mx = o.my = 0; o.sprint = false; }
+        if (dead && o.a3 && !pl.uuFake) o.a3 = false;
+        if (dead && pl.ai.gaT > K.aiGaHold + 0.25 && !o.a2 && !pl.action) o.a1 = true;
+        if (hold && !o.a1 && !o.a2 && rnd() < 1 - Math.exp(-K.aiJab * dt)) {
+          const h = hoopDir(pl), s = rnd() < 0.5 ? 1 : -1, go = pl.lastMove === 'jab' && !dead;
+          o.a3 = true; o.dx = go ? h.x : h.x * 0.6 - h.y * s * 0.8; o.dy = go ? h.y : h.y * 0.6 + h.x * s * 0.8;
+        }
+      }
       if (pl.x > 6.6 && o.mx > 0) o.mx = -0.5; if (pl.x < -6.6 && o.mx < 0) o.mx = 0.5;
       if (pl.y < 0.9 && o.my < 0) o.my = 0.5; if (pl.y > 13 && o.my > 0) o.my = -0.5;
       if (o.a3) {
@@ -8588,6 +8685,21 @@
     uuTimeHigh: ['上下步 高熟练时长倍数', '越大高熟练者上下步越慢；1 = 基准，位移不变'],
     uuBiteLow: ['假投 低熟练骗跳倍数', '越大低熟练者普通假投越容易骗电脑起跳；1 = 基准'],
     uuBiteHigh: ['假投 高熟练骗跳倍数', '越大高熟练者普通假投越容易骗电脑起跳；1 = 基准'],
+    gaJabT: ['试探步 动作用时', '越大试探步迈出收回越慢；秒，控球与加速越高越快'],
+    gaJabStep: ['试探步 迈步距离', '越大试探步那只脚迈得越远；米，中枢脚不动'],
+    gaJabBite: ['试探步 晃人', '越大试探步越容易让防守人重心偏移；倍率'],
+    gaJabWin: ['试探步 衔接窗口', '越大试探步收回后越久仍能接爆发突破；秒'],
+    gaGoSp: ['试探步 爆发速度', '越大试探步后突破第一步越快；米/秒'],
+    gaGoT: ['试探步 爆发用时', '越大试探步突破第一步持续越久；秒'],
+    gaGoBite: ['试探步 爆发晃人', '越大试探步后突破越容易过人；倍率'],
+    gaGoLow: ['试探步 低能力爆发', '越大速度加速差的人试探步突破越快；倍率'],
+    gaGoHigh: ['试探步 高能力爆发', '越大速度加速好的人试探步突破越快；倍率'],
+    gaQMin: ['试探步 熟练度起点', '越大需要越高的控球加速才开始提升试探步；能力'],
+    gaQMax: ['试探步 熟练度满值', '越大需要越高的控球加速才拿满试探步效果；能力'],
+    gaCost: ['试探步 耗体倍数', '越大每次试探步耗体越多；倍率，基础运球消耗'],
+    gaTravelT: ['走步 判罚宽限', '越大合球后再走动越久才吹走步；秒'],
+    aiJab: ['电脑 试探步频率', '越大电脑接球合球时越常做试探步；次/秒'],
+    aiGaHold: ['电脑 合球停顿', '越大电脑接球后合球观察越久；秒'],
     uuMiss: ['上下步 低熟练命中折损', '越大低熟练者上下步后投篮越不准；折损比例'],
     poFollow: ['背打 接招窗口', '越大背打变招后越久仍能衔接背打投篮；秒'],
     poDropT: ['前转身 动作用时', '越大前转身越慢、位移越远；秒，再按体型调整'],

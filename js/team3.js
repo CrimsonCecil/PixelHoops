@@ -164,7 +164,7 @@
       oob: (id) => lost(G.players[id], '球出界', G.players[id] ? 1 - G.players[id].tm : 1 - G.off)
     } });
     for (const st of G.stats) st.ast = 0;
-    G.fb = o.fb || 'simple';
+    G.fb = o.fb || 'simple'; G.travel = o.travel !== false;
     G.focus = { cx: 0, cy: -10.5 };
     check(0, '开球');
     if (PH.TAPE) PH.TAPE.start(G);

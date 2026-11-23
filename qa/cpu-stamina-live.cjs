@@ -12,7 +12,7 @@ function matchedMove(ctrl, held, cpuD, diff = 2) {
   const p = G.players[ctrl === 'cpu' ? 1 : 0], d = G.players[1 - p.id];
   if (cpuD) assert.equal(G.players[1].D, cpuD, 'newGame must install King cpuD on player 1');
   G.off = p.id; G.ball.holder = p.id;
-  Object.assign(p, { ctrl, stam: 60, speed: 2, x: 0, y: 5, vx: 0, vy: 0, hasBall: true, opp: d });
+  Object.assign(p, { ctrl, stam: 60, speed: 2, x: 0, y: 5, vx: 0, vy: 0, hasBall: true, gather: false, opp: d });
   Object.assign(d, { off: true, opp: p });
   let gross = 0, elapsed = 0;
   qa.updatePlayer(p, { ...gm.t5.zeroInp(), mx: held ? 0.5 : 0, a3: true, dx: 1 }, dt);
