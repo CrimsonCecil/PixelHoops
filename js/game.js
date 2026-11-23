@@ -4715,7 +4715,7 @@
   function sameMvNext(pl, a, B, inp) {
     if (a.kind === 'uu' || a.kind === 'jab' || a.kind === 'jabgo' || a.cb || pl.gather) return false;
     if (B.hesi || B.l <= 0.3) return a.kind === 'hesi';
-    if (a.kind === 'hesi' || a.ix == null) return false;
+    if (a.ix == null) return false;
     const q = inDir(pl, Object.assign({}, inp, { dx: B.x, dy: B.y, mx: B.x, my: B.y }), true);
     if (q.l <= 0.3 || (q.x * a.ix + q.y * a.iy) / q.l < 0.5) return false;
     let kind, mvx = null;
