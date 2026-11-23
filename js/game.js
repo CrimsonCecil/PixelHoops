@@ -3277,7 +3277,7 @@
       if (G.mode !== 'demo' && G.vopt.close) G.cz = { x: (p.x * 2 + o.x) / 3, y: (p.y * 2 + o.y) / 3, z: 1.1, t: 0, T: C.T + 0.2, u: C.big ? 0.55 : 0.45, px: p.x, py: p.y };
       if (C.lv === 3) { led(SIG_LED[C.ty] || ISIG_CN[C.ty], p.team.css, C.T + 0.4); spawnConfetti(36, [p.team.css, '#ffd24a', '#ffffff'], 'burst'); flash('#ffd24a', 0.12); G.fx.cheer = Math.max(G.fx.cheer, 3.2); }
       else if (C.lv === 2) { spawnConfetti(18, [p.team.css, '#ffd24a', '#ffffff'], 'burst'); G.fx.cheer = Math.max(G.fx.cheer, 2.4); }
-      vo(p, C.ev === 'make' || (/^(dunk|three)$/.test(C.ev) && rnd() < 0.55) ? 'taunt' : C.ev, 'pri'); setTimeout(() => vo(o, C.vic || 'hurt', 'q'), 50);
+      if (!C.quiet) { vo(p, C.ev === 'make' || (/^(dunk|three)$/.test(C.ev) && rnd() < 0.55) ? 'taunt' : C.ev, 'pri'); setTimeout(() => vo(o, C.vic || 'hurt', 'q'), 50); }
     }
   }
   function celInput(p, inp) {
@@ -3519,8 +3519,11 @@
     const poster = kind === 'dunk' && (/隔人/.test(name || '') || (pa && pa.v === 'poster' && pa.edge != null && !OP(G.players[id]).off && Math.hypot(OP(G.players[id]).x - pl.x, OP(G.players[id]).y - pl.y) < 1.6));
     const ev = win || clutch ? 'clutch' : poster ? 'poster' : hot && G.streak[id] === 3 ? 'hot' : kind === 'dunk' ? 'dunk' : pts === 3 ? 'three' : 'make';
     G.cel = null;
-    if (!andOne && !train && G.mode !== 'train' && (win || tier >= 1 || hot || lsk || rnd() < 0.4)) { celStart(pl, kind, pts, lsk ? 2 : Math.max(Math.min(tier, 2), hot ? 1 : 0), win ? 'win' : null); G.cel.ev = ev; G.cel.vic = poster ? 'posterized' : null; }
-    else if (!win) { vo(pl, ev); if (poster) vic(OP(G.players[id]), 'posterized'); }
+    // 每个进球都庆祝并推近镜头；普通两分里原来不庆祝的那些（loud=false）只说原来那句台词，不加对手回嘴
+    const cel = !andOne && !train && G.mode !== 'train', loud = cel && (win || tier >= 1 || hot || lsk || rnd() < 0.4);
+    if (cel) { celStart(pl, kind, pts, lsk ? 2 : Math.max(Math.min(tier, 2), hot ? 1 : 0), win ? 'win' : null); G.cel.ev = ev; G.cel.vic = poster ? 'posterized' : null; G.cel.quiet = !loud; }
+    if (loud) return;
+    if (!win) { vo(pl, ev); if (poster) vic(OP(G.players[id]), 'posterized'); }
     else vo(pl, 'clutch', 'pri');
   }
 
