@@ -252,8 +252,10 @@
     if (!PH.frontend.allowed(inlineSide, inlineSlot)) { inlineSlot = opts.format === 't3' ? roomSlot : null; inlineSide = room.role === 'guest' ? 1 : 0; }
     const current = inlineSlot === null ? (inlineSide ? opts.arch1 : opts.arch0) : lobby3[inlineSlot]?.arch;
     $('front-roster-title').textContent = inlineSlot === null ? (inlineSide ? 'P2' : 'P1') : lobbySlotName(inlineSlot);
+    const conferenceScroll = Array.from($('front-teams').querySelectorAll('.pk-team-row'), (row) => row.scrollLeft);
     pkTeams(); pkPositionChips();
     $('front-teams').innerHTML = $('pk-teams').innerHTML.replace(/data-testid=/g, 'data-original-testid=');
+    $('front-teams').querySelectorAll('.pk-team-row').forEach((row, i) => { row.scrollLeft = conferenceScroll[i] || 0; });
     $('front-positions').innerHTML = $('pk-positions').innerHTML;
     const keys = GM.ROSTER.filter((k) => { const a = GM.ARCH[k]; return (pkTeam === 'all' || (pkTeam === 'rook' ? a.tier === 'rook' : a.team === pkTeam)) && (!pkPositions.size || playerPositions(a).some((p) => pkPositions.has(p))); });
     $('front-grid').innerHTML = (inlineSide && inlineSlot === null && !room.role ? pkCard('random') : '') + keys.map(pkCard).join('') || '<p class="tnote">没有符合条件的球员，试试其他球队或位置。</p>';
