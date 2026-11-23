@@ -90,6 +90,12 @@ module.exports = (async () => {
   const audio = ctx.PH.audio;
   audio.play('foulWhistle');
   assert.deepEqual(tones, [1, 1, 1.155, 1.155], 'two distinct whistle blasts');
+  const foulGain = gainNodes[5];
+  assert.equal(foulGain.gain.value, 1.3, 'the foul whistle is boosted locally');
+  assert.equal(foulGain.dest, gainNodes[3], 'the boost still uses the SFX bus');
+  const foulLayers = gainNodes.slice(6);
+  assert.equal(foulLayers.length, 6, 'two tones and a noise layer per blast');
+  assert(foulLayers.every(layer => layer.dest === foulGain), 'all whistle layers share the boost');
   for (const [event, key, index, line] of [
     ['foulCharge', 'daniels', 1, '啧，碰一下也算我犯规？'],
     ['foulShot', 'edwards', 1, '嘶，裁判你看见没？'],
