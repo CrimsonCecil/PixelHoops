@@ -47,7 +47,7 @@ function client({ relay = true, rtc = false, direct = false, ice = null } = {}) 
   const rooms = win.PH.rooms;
   const open = (host = false) => rooms.open(host ? '' : 'ABCDE', 'online', {
     error: (message) => events.push(message), joined: () => events.push('joined'), start: () => events.push('start'), ready: () => events.push('ready'),
-    reserve: (mode, links) => links.has(1) ? -1 : 1, change: () => {}, state: () => events.push('state'), message: (msg, slot) => messages.push({ ...msg, senderSlot: slot })
+    reserve: (mode, links) => links.has(1) ? -1 : 1, change: () => {}, notice: (message) => events.push(message), state: () => events.push('state'), message: (msg, slot) => messages.push({ ...msg, senderSlot: slot })
   });
   const next = () => {
     const [id, timer] = [...timers].sort((a, b) => a[1].delay - b[1].delay)[0];
@@ -220,7 +220,7 @@ function client({ relay = true, rtc = false, direct = false, ice = null } = {}) 
   guest.rooms.close();
   console.log('PASS: self-hosted WebRTC P2P upgrade, dual-channel routing, relay fallback, and dead-relay cleanup');
 
-  // 7b. net_direct: host strips TURN from its ICE config and tells the guest, who strips it too even with the switch off
+  // 7b. net_direct: the host's switch governs the room; it strips TURN on both peers
   const TURN_ICE = [{ urls: ['stun:t.example:3478', 'turn:t.example:3478?transport=udp', 'turns:t.example:5349'], username: 'u', credential: 'c' }, { urls: 'turn:only.example' }];
   for (const hostDirect of [false, true]) {
     const h = client({ rtc: true, direct: hostDirect, ice: TURN_ICE }), g = client({ rtc: true, ice: TURN_ICE });
@@ -244,6 +244,56 @@ function client({ relay = true, rtc = false, direct = false, ice = null } = {}) 
     assert.equal(g.rooms.room.direct, false);
   }
   console.log('PASS: net_direct strips TURN servers on host and guest; off keeps them');
+
+  // 7c. net_direct: the Worker only carries signaling; a failed direct connection fails both sides with 直连失败
+  const DIRECT_FAIL = /^直连失败/;
+  const directPair = async () => {
+    const h = client({ rtc: true, direct: true }), g = client({ rtc: true });
+    await h.open(true); await new Promise((r) => setImmediate(r)); h.sockets[0].opened();
+    await g.open(); await new Promise((r) => setImmediate(r)); g.sockets[0].opened(); g.sockets[0].receive({ type: 'relay-ready' });
+    h.sockets[0].receive({ type: 'peer-open', id: 1 });
+    await new Promise((r) => setImmediate(r));
+    g.sockets[0].receive(h.sockets[0].sent.find((m) => m.msg?.kind === 'offer').msg);
+    await new Promise((r) => setImmediate(r));
+    // The join went out over the Worker before the guest knew the room is direct-only: the host ignores it.
+    h.sockets[0].receive({ from: 1, msg: g.sockets[0].sent.find((m) => m.type === 'join') });
+    assert.equal(h.rooms.room.links.size, 0);
+    assert.ok(!h.sockets[0].sent.some((m) => m.msg && m.msg.type !== 'rtc'));
+    return { h, g };
+  };
+  let dp = await directPair();
+  const dhCtrl = dp.h.pcs[0].channels.get('ctrl'), dgCtrl = dp.g.pcs[0].emitDataChannel('ctrl', { ordered: true });
+  dhCtrl.open(); dgCtrl.open();
+  dhCtrl.receive(dgCtrl.sent.find((m) => m.type === 'join'));
+  dgCtrl.receive(dhCtrl.sent.find((m) => m.type === 'joined'));
+  assert.ok(dp.g.events.includes('joined'));
+  assert.equal(dp.h.rooms.room.links.size, 1);
+  assert.equal(dp.g.rooms.room.transport, 'p2p'); assert.equal(dp.g.rooms.room.direct, true);
+  // P2P drops mid-room while the Worker is still up: no relay fallback, both sides told
+  dp.h.rooms.room.active = true;
+  dhCtrl.close();
+  assert.ok(DIRECT_FAIL.test(dp.h.events.at(-1)));
+  const hFail = dp.h.sockets[0].sent.find((m) => m.msg?.kind === 'fail');
+  assert.ok(hFail); assert.ok(!dp.h.sockets[0].sent.some((m) => m.msg?.type === 'state'));
+  dp.g.sockets[0].receive(hFail.msg);
+  assert.ok(DIRECT_FAIL.test(dp.g.events.at(-1)));
+  assert.equal(dp.g.rooms.room.role, '');
+  dp.h.rooms.close();
+  // Direct never connects: host gives up after the direct timeout and tells the guest
+  dp = await directPair();
+  dp.h.next();
+  assert.ok(DIRECT_FAIL.test(dp.h.events.at(-1)));
+  dp.g.sockets[0].receive(dp.h.sockets[0].sent.find((m) => m.msg?.kind === 'fail').msg);
+  assert.ok(DIRECT_FAIL.test(dp.g.events.at(-1)));
+  dp.h.rooms.close();
+  // ICE fails on the guest first: guest shows 直连失败 and tells the host
+  dp = await directPair();
+  dp.g.pcs[0].connectionState = 'failed'; dp.g.pcs[0].onconnectionstatechange();
+  assert.ok(DIRECT_FAIL.test(dp.g.events.at(-1)));
+  dp.h.sockets[0].receive({ from: 1, msg: dp.g.sockets[0].sent.find((m) => m.kind === 'fail') });
+  assert.ok(DIRECT_FAIL.test(dp.h.events.at(-1)));
+  dp.h.rooms.close();
+  console.log('PASS: net_direct never relays game data; direct failure shows 直连失败 on host and guest');
 
   // 8. Guest & host ping/pong RTT measurement
   c = client(); await c.open(); c.sockets[0].opened();

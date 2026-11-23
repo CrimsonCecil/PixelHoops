@@ -25,9 +25,10 @@
       .catch(() => {})
       .then(() => { iceBusy = false; icePending = null; });
   }
-  // 调参台「联机 强制直连」（存进云端配置 C1 等）：开 = 不把 TURN 服务器交给 WebRTC，只走直连；直连不通时仍用 Worker 中继。
-  // 房主的开关随 offer 发给客人，所以房主开着就对整个房间生效。
-  if (PH.TUNE) PH.TUNE.reg([{ k: 'net_direct', cat: 'pace', sub: '联机', label: '联机 强制直连', v: 0, mode: 'bool', note: '开 = 联机不走 TURN 服务器，只尝试直连（P2P）；直连不通时退回 Worker 中继。房主开着就对整个房间生效' }]);
+  // 调参台「联机 强制直连」（存进云端配置 C1 等）：开 = 只走直连 P2P，不用 TURN，也不用 Worker 中继传数据（Worker 只做信令）；
+  // 直连不通时两边都提示「直连失败」。以房主的开关为准：随 offer 发给客人，整个房间一起生效。
+  if (PH.TUNE) PH.TUNE.reg([{ k: 'net_direct', cat: 'pace', sub: '联机', label: '联机 强制直连', v: 0, mode: 'bool', note: '开 = 联机只尝试直连（P2P），不走 TURN、也不走 Worker 中继；直连不通时双方都提示「直连失败」。以房主的设置为准' }]);
+  const DIRECT_MS = 8000, DIRECT_FAIL = '直连失败：两台电脑之间无法直接连通（已开启「强制直连」，不走中继）。';
   const forceDirect = () => !!(PH.TUNE && PH.TUNE.get('net_direct'));
   function directIce(list) {
     const out = [];
@@ -113,14 +114,15 @@
       return url.href;
     } catch { return ''; }
   }
-  function createLink(relaySend, relayEnd, relayBuffered, isHost) {
+  function createLink(relaySend, relayEnd, relayBuffered, isHost, direct = false) {
     const listeners = new Map();
-    let pc = null, ctrl = null, stateCh = null, inCh = null, pendingIce = [], closed = false, relayAlive = true;
+    let pc = null, ctrl = null, stateCh = null, inCh = null, pendingIce = [], closed = false, relayAlive = true, directTimer;
     const link = {
       open: false,
       transport: 'relay',
       route: '',            // 'direct' | 'turn' | '' : which ICE path the data channel really uses (diagnostics only)
-      direct: false,        // net_direct: this peer connection was built without TURN servers
+      direct: false,        // net_direct: P2P without TURN only; the Worker carries signaling, never game data
+      reason: '',           // why the link was failed (shown to the user)
       on(type, fn) { if (!listeners.has(type)) listeners.set(type, []); listeners.get(type).push(fn); return this; },
       emit(type, msg) { for (const fn of listeners.get(type) || []) fn(msg); },
       bufferInfo() {
@@ -144,7 +146,19 @@
             if (new TextEncoder().encode(raw).length <= MAX_FRAME) { ch.send(raw); return; }
           } catch { /* Fall back to relay if DataChannel send fails. */ }
         }
-        relaySend(msg);
+        if (!this.direct) relaySend(msg);
+      },
+      armDirect() {
+        if (this.direct || closed) return;
+        this.direct = true;
+        syncTransport();
+        directTimer = setTimeout(() => { if (!(ctrl && ctrl.readyState === 'open')) this.fail(DIRECT_FAIL); }, DIRECT_MS);
+      },
+      fail(reason) {
+        if (closed) return;
+        this.reason = reason;
+        relaySend({ type: 'rtc', kind: 'fail' });
+        this.close();
       },
       detachRelay() {
         relayAlive = false;
@@ -153,7 +167,7 @@
       startRtc() {
         if (closed || pc || typeof window.RTCPeerConnection !== 'function') return;
         if (icePending) { whenIce(() => { if (!closed && !pc) this.startRtc(); }); return; }
-        setupPc(forceDirect());
+        setupPc(this.direct);
         try {
           attachChannel(pc.createDataChannel('ctrl', { ordered: true }), 'ctrl');
           attachChannel(pc.createDataChannel('state', { ordered: false, maxRetransmits: 0 }), 'state');
@@ -165,11 +179,14 @@
         } catch { dropPc(); }
       },
       handleRtc(msg) {
-        if (closed || !msg || typeof window.RTCPeerConnection !== 'function') return;
+        if (closed || !msg) return;
+        if (msg.kind === 'fail') { if (this.direct) { this.reason = DIRECT_FAIL; this.close(); } return; }
+        if (msg.kind === 'offer' && !isHost && msg.direct === true) this.armDirect();
+        if (typeof window.RTCPeerConnection !== 'function') return;
         if (msg.kind === 'offer' && !isHost && msg.sdp && !pc && icePending) {
           whenIce(() => { if (!closed) this.handleRtc(msg); });
         } else if (msg.kind === 'offer' && !isHost && msg.sdp) {
-          if (!pc) setupPc(forceDirect() || msg.direct === true);
+          if (!pc) setupPc(this.direct);
           pc.setRemoteDescription(msg.sdp)
             .then(() => flushIce())
             .then(() => pc && pc.createAnswer())
@@ -186,6 +203,7 @@
       close() {
         if (!this.open && closed) return;
         closed = true;
+        clearTimeout(directTimer);
         const wasOpen = this.open;
         this.open = false;
         dropPc();
@@ -226,14 +244,20 @@
         old.onicecandidate = old.onconnectionstatechange = old.ondatachannel = null;
         try { old.close(); } catch { /* Ignore close errors. */ }
       }
-      if (!closed && !relayAlive) link.close();
+      if (!closed && link.direct) link.fail(DIRECT_FAIL);
+      else if (!closed && !relayAlive) link.close();
     }
     function attachChannel(ch, kind) {
       const isCtrl = kind === 'ctrl';
       if (kind === 'ctrl') ctrl = ch; else if (kind === 'state') stateCh = ch; else inCh = ch;
       ch.onopen = () => {
         if (closed) { try { ch.close(); } catch {} return; }
-        if (isCtrl) { link.transport = 'p2p'; syncTransport(); probeRoute(); setTimeout(probeRoute, 3000); }
+        if (isCtrl) {
+          clearTimeout(directTimer);
+          link.transport = 'p2p'; syncTransport(); probeRoute(); setTimeout(probeRoute, 3000);
+          // Direct-only: the join sent over the Worker was ignored by the host, so say hello again over P2P.
+          if (!isHost && link.direct && link.open) link.emit('open');
+        }
       };
       ch.onmessage = (ev) => {
         if (closed || !link.open || typeof ev.data !== 'string') return;
@@ -244,7 +268,8 @@
       ch.onclose = () => {
         if (isCtrl && ctrl === ch) {
           ctrl = null; link.transport = 'relay'; syncTransport();
-          if (!closed && !relayAlive) link.close();
+          if (!closed && link.direct) link.fail(DIRECT_FAIL);
+          else if (!closed && !relayAlive) link.close();
         }
         if (kind === 'state' && stateCh === ch) stateCh = null;
         if (kind === 'input' && inCh === ch) inCh = null;
@@ -252,8 +277,6 @@
       ch.onerror = () => {};
     }
     function setupPc(direct) {
-      link.direct = !!direct;
-      syncTransport();
       pc = new window.RTCPeerConnection({ iceServers: direct ? directIce(iceServers) : iceServers });
       pc.onicecandidate = (ev) => {
         if (!closed && ev.candidate) relaySend({ type: 'rtc', kind: 'ice', candidate: ev.candidate });
@@ -270,6 +293,7 @@
         };
       }
     }
+    if (direct) link.armDirect();
     return link;
   }
   function close() {
@@ -380,7 +404,7 @@
         syncTransport();
         write(conn, { type: 'join', mode });
       });
-      conn.on('close', () => { if (alive() && pending === conn) fail(relayError || '已与房主断开连接。'); });
+      conn.on('close', () => { if (alive() && pending === conn) fail(conn.reason || relayError || '已与房主断开连接。'); });
       conn.on('error', () => { if (alive() && pending === conn) fail(relayError || '无法建立连接。'); });
       conn.on('data', (msg) => {
         if (!alive() || pending !== conn || !msg) return;
@@ -441,17 +465,19 @@
           }
           if (msg?.type === 'relay-close') conn.close();
           else if (msg?.type === 'rtc') conn.handleRtc(msg);
-          else conn.emit('data', msg);
+          else if (!conn.direct) conn.emit('data', msg);
         } else if (msg?.type === 'peer-open' && Number.isInteger(msg.id)) {
           if (relayGuests.has(msg.id)) return;
           const link = createLink(
             (data) => send({ to: msg.id, msg: data }),
             () => { relayGuests.delete(msg.id); send({ to: msg.id, msg: { type: 'relay-close' } }); },
             () => ws.bufferedAmount || 0,
-            true
+            true,
+            forceDirect()
           );
           relayGuests.set(msg.id, link);
           incoming(link, handlers, token);
+          link.on('close', () => { if (link.reason && alive()) handlers.notice?.(link.reason); });
           link.open = true;
           link.emit('open');
           link.startRtc();
@@ -463,7 +489,7 @@
           const link = relayGuests.get(msg.from);
           if (!link) return;
           if (msg.msg?.type === 'rtc') link.handleRtc(msg.msg);
-          else link.emit('data', msg.msg);
+          else if (!link.direct) link.emit('data', msg.msg);
         }
       };
       ws.onerror = () => { /* WebSocket close carries the failure code. */ };
@@ -472,7 +498,7 @@
         relaySocket = null; relayUp = false; clearTimeout(relayWatch);
         if (!host) {
           relayDone = true;
-          relayError = event.code === 4404 ? '找不到该房间。' : '房间中继已断开（' + event.code + '）。';
+          relayError = conn?.reason || (event.code === 4404 ? '找不到该房间。' : '房间中继已断开（' + event.code + '）。');
           if (conn) conn.detachRelay();
           if (conn && conn.open) return;
           fail(relayError);

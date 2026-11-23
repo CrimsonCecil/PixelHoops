@@ -461,7 +461,8 @@
         launchRoomMatch(config, roomSlot);
       },
       state: roomState,
-      error: (message) => { if (screen === 'play') toMenu(); menuStatus(message); refreshMenu(); }
+      error: (message) => { if (screen === 'play') toMenu(); menuStatus(message); refreshMenu(); },
+      notice: (message) => { if (screen === 'menu') menuStatus(message); }
     });
     refreshMenu();
     PH.audio.play('ui');
@@ -2237,7 +2238,8 @@
     netstatAt = now;
     const fpsText = Math.round(fps) + ' FPS';
     const p = room.ping;
-    const via = (room.transport === 'p2p' ? (room.route === 'turn' ? ' P2P/TURN' : ' P2P') : room.transport === 'relay' ? ' 中继' : '') + (room.transport && room.direct ? '·强制直连' : '');
+    const via = room.direct ? (room.transport === 'p2p' ? ' P2P·强制直连' : room.transport ? ' 直连中…' : '')
+      : room.transport === 'p2p' ? (room.route === 'turn' ? ' P2P/TURN' : ' P2P') : room.transport === 'relay' ? ' 中继' : '';
     const pingText = (p != null ? 'PING ' + p + 'ms' : 'PING --') + via;
     const pingCls = p == null ? '' : p < 60 ? 'good' : p < 120 ? 'warn' : 'bad';
     if (fpsText !== lastFpsText) { $('netstat-fps').textContent = fpsText; lastFpsText = fpsText; }
