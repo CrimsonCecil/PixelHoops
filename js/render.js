@@ -1307,13 +1307,14 @@
     const sl = Math.sin(P.lean), cl = Math.cos(P.lean);
     const ti = Math.sin(P.tilt || 0), tc = Math.cos(P.tilt || 0);
     const chest = [ti * to, sl * to, cl * tc * to + bz];
-    const head = [ti * (to + 0.29 * Hh), sl * (to + 0.29 * Hh), cl * tc * (to + 0.29 * Hh) + bz * 0.8];
+    const hn = to + 0.29 * Hh * ((body && body.neckLen) || 1);
+    const head = [ti * hn, sl * hn, cl * tc * hn + bz * 0.8];
     function arm(side, p, q, e) {
       // 美卡式拉伸：盖帽 / 抢断瞬间手臂可以拉长去够球
       const ks = Math.min(1.6, ((pl.armS && pl.armS[side < 0 ? 0 : 1]) || 1) * (P[side < 0 ? 'reachL' : 'reachR'] || 1)), ua = ua0 * ks, fa = fa0 * ks;
       const s0 = [chest[0] + side * sw * tc, chest[1], chest[2] - 0.03 - side * sw * ti];
       const el = [s0[0] + side * Math.sin(q) * ua, s0[1] + Math.sin(p) * Math.cos(q) * ua, s0[2] - Math.cos(p) * Math.cos(q) * ua];
-      const p2 = p + e, q2 = q * 0.4;
+      const p2 = p + e, q2 = q * 0.4 + (P[side < 0 ? 'aLf' : 'aRf'] || 0);   // aLf/aRf：小臂额外横摆（横搭在脸前看表）
       const hd = [el[0] + side * Math.sin(q2) * fa, el[1] + Math.sin(p2) * Math.cos(q2) * fa, el[2] - Math.cos(p2) * Math.cos(q2) * fa];
       return [s0, el, hd];
     }
