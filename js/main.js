@@ -340,6 +340,21 @@
   }
   const NET_STATE = ['time', 'phase', 'phaseT', 'score', 'stats', 'target', 'shotClock', 'glen', 'gclock', 'sd', 'mp', 'needClear', 'off', 'winner',
     'ball', 'banner', 'floats', 'fx', 'net', 'focus', 'camK', 'cz', 'cutin', 'hero', 'bpops', 'lastShot', 'hzV', 'clearOk', 'clearPing', 'ft'];
+  const ROOM_INTRO_WAIT = 20000;
+  const roomIntro = { done: new Set(), until: 0, sent: false };
+  function resetRoomIntro() { roomIntro.done.clear(); roomIntro.until = 0; roomIntro.sent = false; }
+  function roomIntroDone(msg, slot) { if (room.role === 'host' && room.active && room.links.has(slot)) roomIntro.done.add(slot); }
+  function roomIntroEnd(explicit) {
+    if (!room.active || !matchConfig) return true;
+    if (room.role === 'guest') {
+      if (!roomIntro.sent) { roomIntro.sent = true; rooms.introDone(); }
+      return true;
+    }
+    if (room.role !== 'host' || explicit || [...room.links.keys()].every((slot) => roomIntro.done.has(slot))) return true;
+    if (!roomIntro.until) roomIntro.until = performance.now() + ROOM_INTRO_WAIT;
+    return performance.now() >= roomIntro.until;
+  }
+  GM.introEndGate = roomIntroEnd;
   const roomAudio = [];
   let netInterp = null;
   function resetRoomAudio() {
@@ -493,6 +508,7 @@
         launchRoomMatch(config, roomSlot);
       },
       state: roomState,
+      introDone: roomIntroDone,
       skip: (msg, slot) => skipVote(msg, slot),
       error: (message) => { const wasPlay = screen === 'play'; if (wasPlay) toMenu(); menuStatus(message); refreshMenu(); if (wasPlay && /^直连失败/.test(message)) netToast(message); },
       notice: (message) => { if (screen === 'menu') menuStatus(message); else netToast(message); }
@@ -575,7 +591,7 @@
     PH.frontend.started();
     tuneClose();
     PH.audio.ensure(); PH.audio.play('start'); PH.audio.startMusic();
-    localSlot = slot; matchConfig = config; netFrame = 0; netInterp = null; aiReset(); skipReset();
+    localSlot = slot; matchConfig = config; netFrame = 0; netInterp = null; aiReset(); skipReset(); resetRoomIntro();
     resetRoomAudio();
     if (config.mode === 't3') PH.T3.start({ ...config, local: slot, replay: !room.active });
     else { CFG.shotClock = config.clock; GM.newGame({ ...config, mode: '2p' }); }
@@ -2042,7 +2058,7 @@
       I.clearSys(); return;
     }
     if (replay) { I.clearSys(); if (key || button) { if (skipScene()) skipPress(); else skipReplay(); } return; }
-    if (skipScene() && !paused) { if (I.sysAny() || button) skipPress(); I.clearSys(); return; }
+    if (skipScene() && !paused) { if (G.intro && room.role === 'host' && (I.introPressed('Escape') || I.introPressed('PadStart') || I.introPressed('PadB'))) GM.introEnd(); else if (I.sysAny() || button) skipPress(); I.clearSys(); return; }
     if (screen === 'play' && G.intro && !paused) { if (I.introPressed('Escape') || I.introPressed('PadStart') || I.introPressed('PadB')) GM.introEnd(); else if (I.introPressed()) GM.introPress(); I.clearSys(); return; }
     if (I.sysPressed('KeyM')) toggleMusic();
     if (I.sysPressed('KeyI') && screen === 'play') toggleInfo();

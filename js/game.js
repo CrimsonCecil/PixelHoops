@@ -3407,6 +3407,7 @@
   function introCam(p, u) { const I = G.intro; I.cam = p ? { x: p.x, y: p.y, u: u } : null; }
   function introTick(dt) {
     const I = G.intro; if (!I || G.state !== 'play') return;
+    if (I.waitPeers) { introEnd(false); return; }
     G.cutin = null; fxUpdate(dt); G.time += dt;
     if (G.banner) { G.banner.t += dt; if (G.banner.t > G.banner.dur) G.banner = null; }
     const now = G.time;
@@ -3485,7 +3486,7 @@
     if (I.voWait) { I.voWait.expired = true; I.voWait = null; PH.audio?.voStop?.(); }
     if (I.li < 0 && G.time < I.tT) { for (const s of I.spots) Object.assign(s.p, { x: s.x, y: s.y, vx: 0, vy: 0, speed: 0 }); for (const S of I.sig) { S.on = true; S.fx = true; S.t0 = -99; } for (const S of I.walk) { S.fx = true; S.voDone = true; } G.banner = null; I.snap = true; }
     I.li++;
-    if (I.li >= I.lines.length) { introEnd(); return; }
+    if (I.li >= I.lines.length) { introEnd(false); return; }
     const L = I.lines[I.li], p = plById(L.id);
     if (L.v) {
       const W = { line: L, until: introVoUntil(I) };
@@ -3528,8 +3529,9 @@
     if (L && !L.done && (G.time - I.lt) * 30 < L.t.length) { L.done = true; return; }
     introNext();
   }
-  function introEnd() {
+  function introEnd(explicit = true) {
     const I = G.intro; if (!I) return;
+    if (PH.game.introEndGate?.(explicit) === false) { I.waitPeers = true; I.li = Math.min(I.li, I.lines.length - 1); return; }
     if (I.voWait) I.voWait.expired = true;
     for (const s of I.spots) Object.assign(s.p, { x: s.x, y: s.y, face: s.face, vx: 0, vy: 0, speed: 0 });
     G.intro = null; G.cz = null; G.phase = 'check'; G.phaseT = I.phaseT;

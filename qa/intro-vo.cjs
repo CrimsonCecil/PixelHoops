@@ -94,12 +94,42 @@ async function scenario(name, options = {}) {
       assert.equal(G.intro.usedVo.size, 0, 'pending lines are not counted as voiced');
     }
     input.runInContext(ctx);
-    if (G.intro) GM.introTick(1 / 60);
+    if (options.peer) ctx.tickMatch(); else if (G.intro) GM.introTick(1 / 60);
     if ((options.voicesOff || options.sfxOff) && G.intro) {
       assert.ok(!G.intro.loading && !G.intro.walkWait && !G.intro.lines[G.intro.li]?.waitVo, 'disabled voices never wait for assets');
       assert.equal(G.intro.usedVo.size, 0, 'disabled voices are not counted as spoken');
     }
     await settle();
+  }
+  if (options.peer) {
+    const main = read('main'), gate = main.slice(main.indexOf('  const ROOM_INTRO_WAIT'), main.indexOf('  const roomAudio'));
+    const room = { role: options.peer, active: true, links: new Map(options.peer === 'host' ? [[1, {}]] : []) };
+    const rooms = { introDone: () => options.onDone?.(), input() {}, inputs: () => ({}), relaying: () => true, congested: () => false, broadcast() {} };
+    Object.assign(ctx, { room, rooms, matchConfig: { mode: 'online' }, localSlot: options.peer === 'host' ? 0 : 1, netFrame: 0,
+      DT: 1 / 60, roomAudio: [], skipTick() {}, aiOn: false, aiSync() {}, document: { hidden: false }, roomSnapshot: () => ({ players: G.players }) });
+    ctx.PH.tapeView = { open: false };
+    vm.runInContext(gate + main.slice(main.indexOf('  function tickMatch()'), main.indexOf('  function aiAllowed()')), ctx);
+    GM.tick = dt => { G.time += dt; emit('gameplay'); };
+    A.ensure(); GM.newGame({ mode: '2p', arch0: 'lebron', arch1: 'curry' }); A.voPreload(['lebron', 'curry']); GM.introStart(); ctx.PH.input.flush();
+    const snapshotStart = main.indexOf('  function roomState(state)');
+    const snapshot = main.slice(snapshotStart, main.indexOf('    const now = performance.now();', snapshotStart)) + '\n}';
+    return { G, GM, room, rooms, log, step, now: () => now, receive: slot => ctx.roomIntroDone({}, slot),
+      snapshot: () => vm.runInContext(snapshot + ';roomState({players:G.players});', ctx),
+      reset: () => { ctx.resetRoomIntro(); GM.newGame({ mode: '2p', arch0: 'lebron', arch1: 'curry' }); GM.introStart(); },
+      skip: key => {
+        if (key === 'pointer') {
+          let handler;
+          ctx.$ = () => ({ addEventListener: (name, fn) => { handler = fn; } });
+          vm.runInContext(main.split('\n').find(s => s.includes("$('intro-skip').addEventListener('pointerdown'")), ctx);
+          handler({ stopPropagation() {} }); return;
+        }
+        const original = ctx.PH.input.introPressed;
+        ctx.PH.input.introPressed = code => code === key;
+        ctx.skipScene = () => 'intro'; ctx.skipPress = () => { throw new Error('host explicit skip must not become a vote'); };
+        vm.runInContext('(function(){const I=PH.input,button=false;' + main.split('\n').find(s => s.includes('if (skipScene() && !paused)')) + '})()', ctx);
+        ctx.PH.input.introPressed = original;
+      }
+    };
   }
   for (let i = 0; i < (options.exhausted || 0); i++) {
     let done = false, result;
@@ -216,6 +246,69 @@ function pointerAdvance() {
   console.log('PASS intro pointer input: touch tap and mouse click advance; typing, online voting and explicit skip preserved');
 }
 
+async function onlineScenario(name, options = {}) {
+  let messages = 0, host, firstSnapshot = 0, waitingAt = 0, frozenState, acted = false, guestDoneAt = 0;
+  const guest = await scenario('guest', { peer: 'guest', spriteDelay: 18000, onDone: () => { messages++; guestDoneAt = guest.now(); host.receive(1); } });
+  host = await scenario('host', { peer: 'host' });
+  if (options.old) host.GM.introEndGate = undefined;
+  if (options.noAck) guest.GM.introEndGate = undefined;
+  if (options.extraGuest) host.room.links.set(2, {});
+  host.rooms.broadcast = () => { if (!firstSnapshot) firstSnapshot = host.now(); guest.snapshot(); };
+  const frame = () => JSON.stringify([host.G.time, host.G.shotClock, host.G.gclock, host.G.phaseT, host.G.players.map(p => [p.x, p.y, p.face])]);
+  while (host.now() < 65000) {
+    if (!acted && (options.skip && (options.skipWait ? waitingAt && host.now() >= waitingAt + 1000 : host.now() >= 1000) || options.disconnect && waitingAt && host.now() >= waitingAt + 1000 || options.extraGuest && guestDoneAt && host.now() >= guestDoneAt + 1000)) {
+      acted = true;
+      if (options.skip) host.skip(options.skip);
+      if (options.disconnect) host.room.links.delete(1);
+      if (options.extraGuest) host.receive(2);
+    }
+    await host.step(); await guest.step();
+    if (host.G.intro?.waitPeers) {
+      if (!waitingAt) { waitingAt = host.now(); frozenState = frame(); }
+      assert.equal(frame(), frozenState, 'host clocks and players are frozen at intro end-frame');
+      assert.equal(host.log.filter(r => r.event === 'gameplay').length, 0, 'no host gameplay while waiting');
+      assert.equal(firstSnapshot, 0, 'no gameplay snapshots while waiting');
+    }
+    if (!host.G.intro && host.log.some(r => r.event === 'gameplay') && (firstSnapshot || !host.room.links.size)) break;
+  }
+  assert.equal(host.G.intro, null, 'host tip-off is bounded');
+  const cuts = guest.log.filter(r => r.event === 'cut').length, starts = guest.log.filter(r => r.event === 'start').length;
+  if (options.old) {
+    assert.ok(cuts > 0 && starts < 6, 'old ungated snapshot cuts guest speech and loses remaining lines');
+    console.log('PASS online negative control: old ungated first snapshot cuts guest speech and drops dialogue');
+  } else if (options.noAck) {
+    assert.equal(messages, 0, 'legacy guest sends no completion message');
+    assert.ok(firstSnapshot - waitingAt >= 20000 && firstSnapshot - waitingAt < 20100, 'legacy timeout releases host at 20s');
+    console.log('PASS online timeout: guest never sends introDone; host releases after 20s');
+  } else if (options.skip) {
+    if (options.skipWait) assert.ok(firstSnapshot - waitingAt >= 1000 && firstSnapshot - waitingAt < 1100, 'explicit skip immediately releases an existing wait');
+    else assert.ok(firstSnapshot < 1100 && !waitingAt, 'host explicit skip bypasses the gate');
+    assert.equal(guest.G.intro, null, 'first snapshot still ends guest intro');
+    assert.equal(messages, 1, 'snapshot-induced guest exit sends completion once');
+    console.log(`PASS online host ${options.skip}: explicit skip bypasses wait and first snapshot ends guest intro`);
+  } else if (options.disconnect) {
+    assert.ok(host.now() - waitingAt < 1100, 'disconnected peer no longer blocks host');
+    console.log('PASS online disconnect: removing the waiting guest releases host immediately');
+  } else {
+    assert.equal(guest.G.intro, null); assert.equal(messages, 1);
+    assert.equal(starts, 6, 'all guest entrance/dialogue voices start'); assert.equal(cuts, 0, 'guest finishes without cuts');
+    assert.ok(firstSnapshot > waitingAt && firstSnapshot - waitingAt < 20000, 'guest completion releases host before timeout');
+    if (options.extraGuest) assert.ok(firstSnapshot - guestDoneAt >= 1000, 'host waits for every connected guest');
+    else assert.ok(firstSnapshot - guestDoneAt < 100, 'completion releases host immediately');
+    console.log(`PASS online ${name}: 18s guest load, 6 starts, 0 cuts; host waits for guest and releases before 20s`);
+  }
+}
+
+async function guestCompletion() {
+  let messages = 0;
+  const guest = await scenario('guest-watchdog', { peer: 'guest', unlockAt: Infinity, onDone: () => { messages++; } });
+  while (guest.G.intro && guest.now() < 80000) await guest.step();
+  assert.equal(guest.G.intro, null); assert.equal(messages, 1, 'watchdog fallback sends completion once');
+  guest.GM.introEnd(); assert.equal(messages, 1);
+  guest.reset(); guest.GM.introEnd(); guest.GM.introEnd(); assert.equal(messages, 2, 'new match resets once-only completion');
+  console.log('PASS online guest completion: watchdog and explicit exits send once; rematch resets completion');
+}
+
 (async () => {
   inputEdges();
   pointerAdvance();
@@ -245,4 +338,12 @@ function pointerAdvance() {
   await scenario('voices-off-manifest-never-resolves', { voicesOff: true, hangManifest: true });
   await scenario('sfx-off-manifest-never-resolves', { sfxOff: true, hangManifest: true });
   await scenario('hidden-tab-resume', { hiddenAt: 1000, fallback: true });
+  await onlineScenario('negative', { old: true });
+  await onlineScenario('completion');
+  await onlineScenario('legacy', { noAck: true });
+  for (const skip of ['Escape', 'PadStart', 'PadB']) await onlineScenario('skip', { skip });
+  await onlineScenario('skip-during-wait', { skip: 'pointer', skipWait: true });
+  await onlineScenario('disconnect', { disconnect: true });
+  await onlineScenario('all-guests', { extraGuest: true });
+  await guestCompletion();
 })().catch(e => { console.error(e); process.exitCode = 1; });

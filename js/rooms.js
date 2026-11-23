@@ -346,6 +346,8 @@
         handlers.message?.(msg, slot);
       } else if (slot >= 0 && msg.type === 'skip' && room.active && room.links.get(slot)?.conn === conn) {
         handlers.skip?.(msg, slot);
+      } else if (slot >= 0 && msg.type === 'introDone' && room.active && room.links.get(slot)?.conn === conn) {
+        handlers.introDone?.(msg, slot);
       } else if (slot >= 0 && msg.type === 'input' && room.active) {
         const link = room.links.get(slot);
         if (!link || link.conn !== conn) return;
@@ -565,5 +567,5 @@
     else if (room.role === 'guest' && pending && room.code) write(pending, { type: 'ping', t });
   }
   const valid = (code) => code.length === 5 && [...code].every((c) => alphabet.includes(c));
-  PH.rooms = { room, open, close, iceServers: () => iceServers, broadcast, congested, relaying, input, inputs, aiSlots, ping, valid, skip: (scene) => { if (pending && room.active) write(pending, { type: 'skip', scene }); }, sendLobby: (data) => { if (pending && !room.active) write(pending, { ...data, type: 'lobby' }); } };
+  PH.rooms = { room, open, close, iceServers: () => iceServers, broadcast, congested, relaying, input, inputs, aiSlots, ping, valid, introDone: () => { if (room.role === 'guest' && pending && room.active) write(pending, { type: 'introDone' }); }, skip: (scene) => { if (pending && room.active) write(pending, { type: 'skip', scene }); }, sendLobby: (data) => { if (pending && !room.active) write(pending, { ...data, type: 'lobby' }); } };
 })();
