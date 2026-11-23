@@ -2005,12 +2005,12 @@
   function isO(p) { return TM(p) === G.off; }
   function OP(pl) { return teamPlay() ? pl.opp || OFFP : G.players[1 - pl.id]; }
   function hoopDir(p) { let x = HOOP.x - p.x, y = HOOP.y - p.y; const l = Math.hypot(x, y) || 1; return { x: x / l, y: y / l, l: l }; }
-  // lvl：1=精简模式也显示（盖帽/抢断/晃倒等关键事件），0=只在详细模式显示
+  // lvl：2=保留的关键提示（盖帽名称/规则），1=普通动作，0=详细反馈；普通动作不在局内显示。
   function float(text, pl, color, lvl) {
     if (G.fb !== 'detail' && !lvl) return;
     const pid = pl.id != null ? pl.id : -1;
     if (G.fb !== 'detail' && pid >= 0) G.floats = G.floats.filter((f) => f.pid !== pid || f.t > 0.9);
-    G.floats.push({ text: text, pid: pid, x: pl.x, y: pl.y, z: pl.h + pl.z * 0.5 + 0.45, t: 0, color: color || '#fff' }); if (G.floats.length > 4) G.floats.shift();
+    G.floats.push({ text: text, prominent: lvl === 2, pid: pid, x: pl.x, y: pl.y, z: pl.h + pl.z * 0.5 + 0.45, t: 0, color: color || '#fff' }); if (G.floats.length > 4) G.floats.shift();
   }
   function banner(text, sub, color, dur) { G.banner = { text: text, sub: sub || '', color: color || '#ffd24a', t: 0, dur: dur || 1.3 }; }
   // 徽章触发提示（类似 2K：屏幕下方角落弹出徽章），同一徽章 2.5 秒内不重复弹
@@ -2984,13 +2984,13 @@
     if (df.action && df.action.type === 'block') { df.action.bst = st; df.action.hitT = df.action.t; }
     if (st === 'chase') {
       const S = df.arch.skill, gen = S && S.type === 'block', nm = gen ? S.name : '追身大帽';
-      float(nm, df, '#ffd24a', 1); sfx('block');
+      float(nm, df, '#ffd24a', 2); sfx('block');
       hype(3, df, { x: df.x, y: df.y, z: df.z + df.h, col: '#ffd24a', cols: ['#ffffff', '#ffd24a', '#ff6b5e'], led: gen ? S.en + '  ' + S.name : 'CHASE DOWN BLOCK  追身大帽  钉板', sfx: 'bigblock', hero: [nm, df.arch.name + ' · ' + (gen ? S.en : 'CHASE DOWN')] });
       return;
     }
     if (df.action && df.action.q > 0.85 && df.action.type === 'block') float('完美时机', df, '#ffe14d', 0);
     const perfect = df.action && df.action.q > 0.85;
-    float(pin ? '钉板大帽' : { swat: '大帽', catch: '抓帽', facial: '呼脸大帽', chase: '追身封盖' }[st], df, st === 'catch' ? '#5ee0ff' : '#ff6b5e', 1);
+    float(pin ? '钉板大帽' : { swat: '大帽', catch: '抓帽', facial: '呼脸大帽', chase: '追身封盖' }[st], df, st === 'catch' ? '#5ee0ff' : '#ff6b5e', 2);
     const tier = perfect || pin || st === 'facial' || st === 'chase' ? 2 : 1;
     bigPlay('block', df, hp.x, hp.y, hp.z, tier, (pin ? 15 : 0) + (perfect ? 8 : 0) + (st === 'facial' ? 12 : st === 'chase' ? 10 : st === 'catch' ? 6 : 0));
     if (st === 'facial') { shake(9); impactFx(sh.x, sh.y, true, 1.4); }
