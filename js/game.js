@@ -252,6 +252,9 @@
     ['uuSide', 'drib', '上下步 横移距离', 1.25, 0.2, 3, 0.05, '米'],
     ['rsHold', 'drib', '右摇杆 长推投篮阈值', 0.2, 0.1, 0.4, 0.01, '秒：推杆立即运球，持续长推转投篮；上下步接出手，回中松手定时；突破终结仍按住计时'],
     ['rsCancel', 'drib', '右摇杆 接招取消点', 0, 0, 1, 0.01, '动作进度：新推杆或换方向接招；0立即取消，1沿用原连招窗口；不影响B键运球'],
+    ['mvDead', 'drib', '换招 基础死区', 0.3, 0, 1, 0.01, '动作进度：别的运球招式最早到这一进度才能打断当前招（右摇杆和B键都算）；投篮按急停干拔规则（控球/徽章）'],
+    ['mvSame', 'drib', '同招不互断', 1, 0, 1, 1, '开关：同一招（同招式、同方向）不能打断自己，要等这一招做完才接下一下', 'bool'],
+    ['rsTurn', 'drib', '右摇杆 换向判定角度', 45, 0, 180, 1, '度：按住右摇杆转向超过这个角度才算新一下接招，防止推杆抖动连出同一招'],
     ['uuReq', 'drib', '上下步 能力门槛', 0, 0, 1, 0.01, '背控、近投、控球三者最高值；0 为人人可用'],
     ['uuCost', 'drib', '上下步 体力系数', 0.3, 0, 1, 0.01, '倍率：基础运球消耗'],
     ['uuBonus', 'shot', '上下步 骗跳命中加成', 0.08, 0, 0.3, 0.01, '概率：最近防守人被假投骗跳或仍在落地恢复'],
@@ -4696,6 +4699,35 @@
     float(M.name, pl, '#f6efe0');
     if (df) moveDefense(pl, 'hesi', dx, dy, { M, MT: T });
   }
+  // 方向 → 槽位 → 这个人的运球包里这个槽位是什么招
+  function mvPick(pl, q, dd, front) {
+    const PK = dpkOf(pl.arch), tight = dd < 1.7 && front > 0.4;
+    const latSlot = pl.speed < 1.6 ? 'Ss' : (dd < 1.35 && front > 0.3) ? 'St' : 'S';
+    let slot = q.fwd < (PK.m.BD ? -0.85 : -0.6) ? 'B' : q.fwd > 0.75 ? (tight ? 'Ft' : 'F') : latSlot;
+    if (q.fwd > 0.3 && q.fwd <= 0.75 && PK.m.FD) slot = 'FD'; else if (q.fwd < -0.25 && q.fwd >= -0.85 && PK.m.BD) slot = 'BD';
+    const defK = { B: 'stepback', F: 'inout', Ft: 'spin', S: 'cross', Ss: 'legs', St: 'behind' };
+    let id = PK.m[slot] || defK[slot] || defK[latSlot];
+    if (MVX[id] && !(MVX[id].req ? MVX[id].req.f(pl.r) : true) && (SIG_MV[pl.arch.key] || []).indexOf(id) < 0) id = defK[slot] || (slot === 'FD' || slot === 'BD' ? (MVX[PK.m[latSlot]] ? defK[latSlot] : PK.m[latSlot] || defK[latSlot]) : defK[latSlot]);
+    const mvx = MVX[id] ? id : null;
+    return { mvx, kind: mvx ? MVX[id].kind : id };
+  }
+  // 缓存的这一下运球键接出来会不会还是当前这一招（同类招式、同方向；运球包变体算同一招）：同招不能打断同招
+  function sameMvNext(pl, a, B, inp) {
+    if (a.kind === 'uu' || a.kind === 'jab' || a.kind === 'jabgo' || a.cb || pl.gather) return false;
+    if (B.hesi || B.l <= 0.3) return a.kind === 'hesi';
+    if (a.kind === 'hesi' || a.ix == null) return false;
+    const q = inDir(pl, Object.assign({}, inp, { dx: B.x, dy: B.y, mx: B.x, my: B.y }), true);
+    if (q.l <= 0.3 || (q.x * a.ix + q.y * a.iy) / q.l < 0.5) return false;
+    let kind, mvx = null;
+    if (pl.post || inp.post || isPostMove(a.kind)) kind = postMoveOf(q);
+    else {
+      const df = OP(pl), dd = Math.hypot(df.x - pl.x, df.y - pl.y), h = q.h;
+      const front = df.off ? -1 : ((df.x - pl.x) * h.x + (df.y - pl.y) * h.y) / (dd || 1);
+      ({ mvx, kind } = mvPick(pl, q, dd, front));
+      if (!mvx && !canMv(pl, kind)) kind = kind === 'legs' || kind === 'behind' || kind === 'spin' ? 'cross' : 'hesi';
+    }
+    return kind === a.kind;
+  }
   function startMove(pl, inp, force, inputAt = G.time) {
     if (pl.gather && pl.hasBall && !isPostMove(force) && !(force && MVX[force] && MVX[force].kind === 'uu') && !pl.post) {
       startJab(pl, inp, inputAt); return;
@@ -4733,14 +4765,7 @@
         if (kind === 'cross') pl.hand = -h0;
         if (kind === 'inout' && q.fwd < 0.45) { const s = Math.sign(q.lat); dx = hx * 0.72 - hy * s * 0.69; dy = hy * 0.72 + hx * s * 0.69; }
       } else {
-        // 方向 → 槽位 → 这个人的运球包里这个槽位是什么招
-        const latSlot = pl.speed < 1.6 ? 'Ss' : (dd < 1.35 && front > 0.3) ? 'St' : 'S';
-        let slot = q.fwd < (PK.m.BD ? -0.85 : -0.6) ? 'B' : q.fwd > 0.75 ? (tight ? 'Ft' : 'F') : latSlot;
-        if (q.fwd > 0.3 && q.fwd <= 0.75 && PK.m.FD) slot = 'FD'; else if (q.fwd < -0.25 && q.fwd >= -0.85 && PK.m.BD) slot = 'BD';
-        const defK = { B: 'stepback', F: 'inout', Ft: 'spin', S: 'cross', Ss: 'legs', St: 'behind' };
-        let id = PK.m[slot] || defK[slot] || defK[latSlot];
-        if (MVX[id] && !(MVX[id].req ? MVX[id].req.f(pl.r) : true) && (SIG_MV[pl.arch.key] || []).indexOf(id) < 0) id = defK[slot] || (slot === 'FD' || slot === 'BD' ? (MVX[PK.m[latSlot]] ? defK[latSlot] : PK.m[latSlot] || defK[latSlot]) : defK[latSlot]);
-        mvx = MVX[id] ? id : null; kind = mvx ? MVX[id].kind : id;
+        ({ mvx, kind } = mvPick(pl, q, dd, front));
         const X = mvx ? MVX[mvx] : null, dir = X && X.dir;
         if (kind === 'spin') {
           const fx = Math.cos(pl.face), fy = Math.sin(pl.face);
@@ -4798,6 +4823,7 @@
     // V4.2 胯下接背后：最后一下背后换到摇杆那一侧的手（先胯下换走、再背后换回）
     let spH0 = mvx === 'tbb' ? pl.hand : h0; if (kind === 'spin' || kind === 'postspin') spH0 = -pl.hand;
     pl.action = { type: 'move', kind: kind, cb: cb, t: 0, T: MT, cw: clamp(0.95 - 0.55 * hnd, 0.4, 0.9), dx: dx, dy: dy, sp: sp * (CBk ? CBk.sp : 1), name: CBk ? CBk.name : M.name, mv: mvx, bp: X ? X.bp : null, f0: pl.face, sd: pl.hand, hx: hx, hy: hy, os: openS, h0: spH0, h1: pl.hand, v0x: pl.vx, v0y: pl.vy };
+    if (q.l > 0.3) { pl.action.ix = q.x / q.l; pl.action.iy = q.y / q.l; }
     if (answer) { pl.action.sigMove = 'iverson'; pl.action.hesiDrive = true; pl.action.name = pl.arch.skill.name; fireSkill(pl); }
     if (kind === 'uu') {
       const quality = uuQuality(pl);
@@ -5542,13 +5568,14 @@
       inp = Object.assign({}, inp, { a3: !!(inp.dribble || inp.hesi) });
       if (held) {
         const dir = (Math.round(Math.atan2(inp.dy, inp.dx) / (Math.PI / 4)) + 8) % 8;
-        if (rs && !rs.finish && !rs.shot && pl.action && pl.action.type === 'move' && rs.dir !== dir) rs = null;
+        const ang = Math.atan2(inp.dy, inp.dx);
+        if (rs && !rs.finish && !rs.shot && pl.action && pl.action.type === 'move' && rs.dir !== dir && Math.abs(Math.atan2(Math.sin(ang - rs.a), Math.cos(ang - rs.a))) * 180 / Math.PI > K.rsTurn) rs = null;
         if (!rs) {
           const P = !pl.action && !pl.post && !inp.post && !pl.uuFake && finPlan(pl);
           const q = inDir(pl, inp, true);
           const finish = P && P.fv > 2 && (inp.sprint && P.dunk || (P.inside || P.back) &&
             (P.lay || P.flo && q.fwd < -0.75 && P.d > 1.4 && canLay(pl, 'floater')));
-          rs = pl.rsGesture = { t: G.time, x: inp.dx, y: inp.dy, dir, d: distHoop(pl), shot: false, finish: !!finish, follow: pl.postMove };
+          rs = pl.rsGesture = { t: G.time, x: inp.dx, y: inp.dy, dir, a: ang, d: distHoop(pl), shot: false, finish: !!finish, follow: pl.postMove };
           inp.a3 = inp.rsFlick = true;
         }
         rs.x = inp.dx; rs.y = inp.dy;
@@ -5689,7 +5716,7 @@
           pl.vx = pl.vy = pl.vz = pl.z = pl.speed = 0;
           if (a.kind !== 'stepback') float('急停干拔', pl, '#f6efe0', 1);
         }
-      } else if (a.t >= a.T * (shot ? 1 : B.rs ? Math.min(K.rsCancel, a.cw || 0.55) : (a.cw || 0.55))) { pl.action = null; pl.cd = 0; pl.mvEndT = G.time; }
+      } else if (a.t >= a.T * (shot || B.a3 && K.mvSame && sameMvNext(pl, a, B, inp) ? 1 : Math.max(K.mvDead, B.rs ? Math.min(K.rsCancel, a.cw || 0.55) : (a.cw || 0.55)))) { pl.action = null; pl.cd = 0; pl.mvEndT = G.time; }
     }
     if (pl.buf && !pl.action) {
       const B = pl.buf; pl.buf = null;
@@ -7966,7 +7993,10 @@
     layNoStop: ['冲筐 出手前禁用顿帧', '开：上篮或扣篮未出手时不触发撞人顿帧与慢动作'],
     pcHnd: ['急停干拔 控球门槛', '越小较低控球也能取消运球起跳；能力值，指定徽章可豁免'],
     rsHold: ['右摇杆 长推转投篮延迟', '越大推杆后越久才从运球转为投篮；秒'],
-    rsCancel: ['右摇杆 接招取消进度', '越小新推杆越早能取消当前运球接招；进度比例，0 = 立即'],
+    rsCancel: ['右摇杆 接招取消进度', '越小新推杆越早能取消当前运球接招；进度比例，0 = 立即（仍受换招基础死区限制）'],
+    mvDead: ['换招 基础死区', '越大别的运球招式要等当前招做得越久才能打断；进度比例，投篮不受此限'],
+    mvSame: ['同招不互断', '开：同一招同方向不能打断自己，要等这一招做完'],
+    rsTurn: ['右摇杆 换向判定角度', '越大按住右摇杆要转得越多才算新一下接招；度，防止推杆抖动连出同一招'],
     hesiBack: ['犹豫步 后退距离', '越大犹豫步起手向后移得越远；米'],
     hesiBackT: ['犹豫步 后退用时比例', '越大犹豫步完成后退越慢；动作时长比例'],
     rayWindow: ['退角一抬 移动记忆时间', '越大外移到三分线外后越久仍能站定触发；秒'],
