@@ -5102,7 +5102,7 @@
     const dx = pl.x - df.x, dy = pl.y - df.y, dd = Math.hypot(dx, dy) || 1;
     const fx = Math.cos(df.face), fy = Math.sin(df.face);
     const front = (dx * fx + dy * fy) / dd;
-    const ballX = moving ? a.kind === 'hesi' ? a.h0 : movePath(a, clamp((a.t + ahead) / a.T, 0, 1))[0] : df.handX;
+    const ballX = moving ? a.kind === 'hesi' ? a.h0 : postHold(a.kind) ? a.h1 : movePath(a, clamp((a.t + ahead) / a.T, 0, 1))[0] : df.handX;
     const side = (dx * fy - dy * fx) / dd * Math.sign(ballX);
     const across = Math.max(0, -side), ballSide = Math.max(0, side);
     const poor = Math.max(0, -front) * (1 - ballSide);
