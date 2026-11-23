@@ -4150,7 +4150,7 @@
   // 扣篮飞行途中被挡：上篮能力强的人在空中改成上篮，按当前高度接着下落出手
   function d2lAir(f, a, bump) {
     const u = a.t / (a.T * 0.8);
-    if (a.done || u >= K.cvD2LU || !cvOk(f, true) || rnd() >= K.cvD2LAir * clamp(0.4 + (f.r.lay - K.cvA) * 4, 0.3, 1)) return false;
+    if (a.done || f.z < 0.4 || u >= K.cvD2LU || !cvOk(f, true) || rnd() >= K.cvD2LAir * clamp(0.4 + (f.r.lay - K.cvA) * 4, 0.3, 1)) return false;
     const z = f.z, x = f.x, y = f.y;
     if (!d2l(f, a, bump, true)) return false;
     const na = f.action, h = hoopDir(f), vz = 1.2, left = (vz + Math.sqrt(vz * vz + 2 * GP * z)) / GP, dd = Math.max(0, distHoop(f) - 0.6);
