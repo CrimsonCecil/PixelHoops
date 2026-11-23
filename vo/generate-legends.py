@@ -12,19 +12,22 @@ import urllib.error
 import urllib.request
 
 VOICES = {
-    "tmac": "charon", "nash": "puck", "rip": "iapetus",
+    "tmac": "charon", "nash": "orus", "rip": "iapetus",
     "rodman": "fenrir", "bwallace": "algenib", "rallen": "schedar",
     "ginobili": "zubenelgenubi", "iverson": "umbriel", "carter": "alnilam",
 }
 MODEL = "gemini-2.5-flash-preview-tts"
 PROMPT = "用自然的普通话说出以下台词，只说台词，不要读出指令，不要添加任何内容：\n"
+PROMPTS = {
+    "nash": "你是退役NBA控卫史蒂夫·纳什，在比赛里自信、轻松、带点笑意地说话，语气自然有起伏，像真人聊天，不要播音腔。只说台词：\n",
+}
 LAST_REQUEST = 0.0
 
 
-def synthesize(text, voice, cache, take, attempt=0, model=MODEL):
+def synthesize(text, voice, cache, take, attempt=0, model=MODEL, prefix=PROMPT):
     global LAST_REQUEST
     if attempt < 6:
-        prompt = PROMPT + text
+        prompt = prefix + text
     elif attempt < 12:
         prompt = "Say in Mandarin, only the following line: " + text + " "
     elif attempt < 18:
@@ -76,7 +79,7 @@ def synthesize(text, voice, cache, take, attempt=0, model=MODEL):
     audio = [p["inlineData"] for p in parts if "inlineData" in p]
     if not audio or not all(a["mimeType"].startswith("audio/") for a in audio):
         if attempt < 23:
-            return synthesize(text, voice, cache, take, attempt=attempt + 1, model=model)
+            return synthesize(text, voice, cache, take, attempt=attempt + 1, model=model, prefix=prefix)
         raise ValueError(f"Gemini returned no audio: {response}")
     return b"".join(base64.b64decode(a["data"], validate=True) for a in audio)
 
@@ -96,7 +99,8 @@ def generate(args):
         for entries in pack["lines"].values():
             for entry in entries:
                 take = takes.get(entry["f"], args.take) if args.take == 0 else args.take
-                pcm = synthesize(entry["t"], VOICES[key], args.cache, take, model=args.model)
+                pcm = synthesize(entry["t"], VOICES[key], args.cache, take, model=args.model,
+                                 prefix=PROMPTS.get(key, PROMPT))
                 clip = args.cache / entry["f"]
                 trim = "silenceremove=start_periods=1:start_threshold=-45dB:start_silence=0.05"
                 analysis = subprocess.run([

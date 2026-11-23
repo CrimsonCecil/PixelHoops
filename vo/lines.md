@@ -1,7 +1,7 @@
 # 球员配音台词
 
 九位传奇均使用 Gemini `gemini-2.5-flash-preview-tts` 预设音色，不模仿真人。
-音色：tmac charon、nash puck、rip iapetus、rodman fenrir、bwallace algenib、
+音色：tmac charon、nash orus（另加口语化风格提示，见生成器 PROMPTS）、rip iapetus、rodman fenrir、bwallace algenib、
 rallen schedar、ginobili zubenelgenubi、iverson umbriel、carter alnilam。
 复现：安装 FFmpeg，设置环境变量 `GEMINI_API_KEY` 后运行 `python3 vo/generate-legends.py`。
 台词直接读取 manifest；原始响应缓存于仓库外 `~/.cache/pixelhoops-voice/gemini`，
@@ -26,7 +26,7 @@ API 请求间隔至少 8 秒；每分钟限额按 retryDelay 重试，每日限�
 - win：今天的手感，刚刚好。
 - hurt：这一回合算你的，接着来。
 
-## 史蒂夫·纳什（nash，音色 puck）
+## 史蒂夫·纳什（nash，音色 orus）
 
 - dom：你盯我，顺下的那位谁管？ ／ 球在走，机会就会来。
 - taunt：抬头看看，队友已经跑到了。 ／ 你没跟出来？那这球我自己投。
