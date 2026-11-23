@@ -47,7 +47,7 @@ function client({ relay = true, rtc = false, direct = false, ice = null } = {}) 
   const rooms = win.PH.rooms;
   const open = (host = false) => rooms.open(host ? '' : 'ABCDE', 'online', {
     error: (message) => events.push(message), joined: () => events.push('joined'), start: () => events.push('start'), ready: () => events.push('ready'),
-    reserve: (mode, links) => links.has(1) ? -1 : 1, change: () => {}, notice: (message) => events.push(message), state: () => events.push('state'), message: (msg, slot) => messages.push({ ...msg, senderSlot: slot })
+    reserve: (mode, links) => links.has(1) ? -1 : 1, change: (slot, reason) => { if (reason) events.push(reason); }, notice: (message) => events.push(message), state: () => events.push('state'), message: (msg, slot) => messages.push({ ...msg, senderSlot: slot })
   });
   const next = () => {
     const [id, timer] = [...timers].sort((a, b) => a[1].delay - b[1].delay)[0];
@@ -271,8 +271,10 @@ function client({ relay = true, rtc = false, direct = false, ice = null } = {}) 
   assert.equal(dp.g.rooms.room.transport, 'p2p'); assert.equal(dp.g.rooms.room.direct, true);
   // P2P drops mid-room while the Worker is still up: no relay fallback, both sides told
   dp.h.rooms.room.active = true;
+  const before = dp.h.events.length;
   dhCtrl.close();
   assert.ok(DIRECT_FAIL.test(dp.h.events.at(-1)));
+  assert.equal(dp.h.events.length, before + 1); // via change(slot, reason) only, not notice too
   const hFail = dp.h.sockets[0].sent.find((m) => m.msg?.kind === 'fail');
   assert.ok(hFail); assert.ok(!dp.h.sockets[0].sent.some((m) => m.msg?.type === 'state'));
   dp.g.sockets[0].receive(hFail.msg);

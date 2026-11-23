@@ -358,7 +358,7 @@
         room.links.delete(slot);
         syncHostPing();
         syncTransport();
-        if (token === attempt) handlers.change(slot);
+        if (token === attempt) handlers.change(slot, conn.reason || '');
       }
     };
     conn.on('close', end); conn.on('error', end);
@@ -476,8 +476,9 @@
             forceDirect()
           );
           relayGuests.set(msg.id, link);
+          // Joined guests report the reason through change(); this covers a link that failed before joining.
+          link.on('close', () => { if (link.reason && alive() && ![...room.links.values()].some((l) => l.conn === link)) handlers.notice?.(link.reason); });
           incoming(link, handlers, token);
-          link.on('close', () => { if (link.reason && alive()) handlers.notice?.(link.reason); });
           link.open = true;
           link.emit('open');
           link.startRtc();

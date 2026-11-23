@@ -448,10 +448,10 @@
       ready: (id) => { field.value = id; roomStatus(); PH.frontend.changed(); refreshMenu(); },
       reserve: (requested, links) => requested !== mode ? -1 : mode === 't3'
         ? lobby3.findIndex((s, i) => s.role === 'waiting' && !links.has(i)) : links.has(1) ? -1 : 1,
-      change: (left) => {
+      change: (left, reason) => {
         if (screen === 'play' && left != null && G.mode === 't3') G.players[left].ctrl = 'cpu';
-        if (screen === 'play' && left != null && G.mode !== 't3') { toMenu(); menuStatus('对手已断开连接。'); }
-        if (screen === 'menu' && room.role) { roomStatus(); PH.frontend.changed(); refreshMenu(); }
+        if (screen === 'play' && left != null && G.mode !== 't3') { toMenu(); menuStatus(reason || '对手已断开连接。'); }
+        if (screen === 'menu' && room.role) { roomStatus(); PH.frontend.changed(); refreshMenu(); if (reason) menuStatus(reason); }
         if (left == null && room.links.size) { pingAt = performance.now(); rooms.ping(); }
       },
       joined: (slot) => { roomSlot = slot; menuStatus('已加入房间 · 选好球星，等待房主开始'); PH.frontend.joined(); refreshMenu(); pingAt = performance.now(); rooms.ping(); },
