@@ -5155,7 +5155,7 @@
       }
     } else if (a.type === 'block') {
       if (pl.z <= 0 && a.t > 0.1) {
-        pl.action = null; const rk = rebK(pl); pl.cd = (a.rbS && pl.hasBall ? a.rcv : K.bkLandCd * (1 + 2.4 * (0.85 - K.rebJ0))) * rk; if (a.zmax) landRecover(pl, rk - 1);
+        pl.action = null; const rk = rebK(pl); pl.cd = (a.rbS && pl.hasBall ? a.rcv : K.bkLandCd * Math.max(0.7, 1 + 2.4 * (0.85 - K.rebJ0))) * rk; if (a.zmax) landRecover(pl, rk - 1);
         if (a.reb && !a.rodSecond && !a.rodClaimed && !a.rbS && rodReach(pl)) { pl.sk.rodUntil = G.time + K.rodWindow; pl.sk.rodLandCd = pl.cd; }
         if (a.rbS && pl.hasBall) { pl.recT = G.time + pl.cd; pl.landS = a.rbS; pl.landT = G.time; }
       }
