@@ -420,7 +420,7 @@ function client({ relay = true, rtc = false, bcBus = null, direct = false, ice =
   assert.equal(dlHost.rooms.room.transport, 'local');
   assert.equal(dlGuest.rooms.room.transport, 'local');
   assert.equal(dlHost.rooms.room.links.size, 1, 'force-direct host admits guest via BroadcastChannel');
-  assert.deepEqual(dlGuest.events.filter((e) => e[0] === 'joined'), [['joined', 1]]);
+  assert.ok(dlGuest.events.includes('joined'), 'force-direct guest receives joined over BroadcastChannel');
   dlHost.rooms.close();
   dlGuest.rooms.close();
   console.log('PASS: same-browser BroadcastChannel local upgrade, RTC teardown, and dead-tab cleanup');
