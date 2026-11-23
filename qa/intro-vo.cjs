@@ -73,6 +73,7 @@ async function scenario(name, options = {}) {
     A[method] = (...args) => {
       const it = original(...args);
       if (method === 'voSay' ? it : it?.f) emit('request', method === 'voSay' ? args[0].f : it.f);
+      if (method === 'vo' && it?.f) emit('walk-player', args[0]);
       return it;
     };
   }
@@ -108,6 +109,11 @@ async function scenario(name, options = {}) {
     const keys = options.keys || ['lebron', 'curry'];
     GM.newGame({ mode: 'cpu', arch0: keys[0], arch1: keys[1] });
     A.voPreload(keys); GM.introStart(); ctx.PH.input.flush();
+    if (options.walkOrder) {
+      const expectedOrder = G.intro.walk.filter(s => s.vo).slice().sort((a, b) => a.voAt - b.voAt).map(s => G.players.find(p => p.id === s.id).arch.key);
+      assert.notDeepEqual(Array.from(expectedOrder), keys, 'fixture entrance order differs from roster order');
+      options.walkOrder = Array.from(expectedOrder);
+    }
     assert.equal(A.voSay({ f: 'tmac_dom_text' }), false, 'text is not voiced success');
     assert.equal(A.voSay(null), false, 'empty voice is safe');
     expected += (options.dialogueAt ? 0 : 2) + G.intro.lines.length;
@@ -118,6 +124,7 @@ async function scenario(name, options = {}) {
   const requests = log.filter(r => r.event === 'request').length;
   const starts = log.filter(r => r.event === 'start').length;
   const cuts = log.filter(r => r.event === 'cut').length;
+  if (options.walkOrder) assert.deepEqual(log.filter(r => r.event === 'walk-player').map(r => r.f), options.walkOrder, 'delayed walk voices retain entrance order');
   if (!options.fallback) {
     assert.equal(starts, expected, name + ': every entrance/dialogue line starts');
     assert.equal(requests, starts, name + ': no requested line lost');
@@ -208,6 +215,8 @@ function pointerAdvance() {
   await scenario('normal-back-to-back', { repeat: true });
   await scenario('held-pad-right', { held: true });
   await scenario('held-pad-right-sprite-2s', { held: true, spriteDelay: 2000 });
+  await scenario('reversed-roster-sprite-5s', { keys: ['curry', 'lebron'], spriteDelay: 5000, walkOrder: true });
+  await scenario('reversed-roster-manifest-9s', { keys: ['curry', 'lebron'], manifestDelay: 9000, walkOrder: true });
   await scenario('sprite-18s', { spriteDelay: 18000 });
   await scenario('manifest-9s', { manifestDelay: 9000, keys: ['tmac', 'nash'] });
   await scenario('manifest-18s', { manifestDelay: 18000 });

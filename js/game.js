@@ -3359,6 +3359,7 @@
       let pre = (IWALK[p.arch.key] || ['wave'])[0]; if (pre === ent) pre = ent === 'wave' ? 'raise' : 'wave';
       s.w0 = t0 + (TM(p) === TM(fa) ? 0 : IWA); s.w1 = s.w0 + IWA;
       (star ? [pre, ent] : [ent]).forEach((ty, j) => { const main = !star || j === 1; walk.push({ id: p.id, ty: ty, lv: main ? lv : -1, t0: s.w0 + (star ? 0.3 + j * 1.75 : 0.9 + (p.id % 3) * 0.3), T: 1.6, fx: false, sig: star && j === 1, vo: star && j === 0, voAt: s.w0 + (p === fa ? 0.25 : 0), voDone: false }); }); }
+    walk.sort((a, b) => a.voAt - b.voAt);
     const foc0 = { x: fa.x, y: fa.y, u: G.mode === 't3' ? 0.08 : 0.3, mode: 'walk', snap: true };
     const ready = PH.audio?.voPreload?.([fa.arch.key, fb.arch.key], true);
     G.intro = { t0: t0, duo: [fa.id, fb.id], walk: walk, spots: spots, lines: lines, li: -1, lt: 0, ld: 0, tT: t0 + 2 * IWA + 0.15, cam: foc0, foc: foc0, banner: G.banner, phaseT: G.phaseT,
