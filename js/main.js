@@ -598,6 +598,7 @@
     replaySaveReset();
     PH.audio.voPreload(G.players.map((p) => p.arch.key));
     if ((config.intro || opts.intro) !== 'off') GM.introStart();
+    if (!G.intro && room.role === 'guest') roomIntroEnd(false);
     stage.classList.toggle('intro', !!G.intro);
     screen = 'play'; paused = false; panelOpen = false; overShown = false; PH.input.clearSys(); PH.input.flush(); clearPf(); camShift();
     syncBackgroundMatch();

@@ -105,12 +105,18 @@ async function scenario(name, options = {}) {
     const main = read('main'), gate = main.slice(main.indexOf('  const ROOM_INTRO_WAIT'), main.indexOf('  const roomAudio'));
     const room = { role: options.peer, active: true, links: new Map(options.peer === 'host' ? [[1, {}]] : []) };
     const rooms = { introDone: () => options.onDone?.(), input() {}, inputs: () => ({}), relaying: () => true, congested: () => false, broadcast() {} };
-    Object.assign(ctx, { room, rooms, matchConfig: { mode: 'online' }, localSlot: options.peer === 'host' ? 0 : 1, netFrame: 0,
+    Object.assign(ctx, { room, rooms, matchConfig: { mode: options.mode || 'online' }, localSlot: options.peer === 'host' ? 0 : 1, netFrame: 0,
       DT: 1 / 60, roomAudio: [], skipTick() {}, aiOn: false, aiSync() {}, document: { hidden: false }, roomSnapshot: () => ({ players: G.players }) });
     ctx.PH.tapeView = { open: false };
     vm.runInContext(gate + main.slice(main.indexOf('  function tickMatch()'), main.indexOf('  function aiAllowed()')), ctx);
     GM.tick = dt => { G.time += dt; emit('gameplay'); };
-    A.ensure(); GM.newGame({ mode: '2p', arch0: 'lebron', arch1: 'curry' }); A.voPreload(['lebron', 'curry']); GM.introStart(); ctx.PH.input.flush();
+    Object.assign(ctx, { CFG: GM.CFG, opts: { intro: options.introOff ? 'off' : 'on' }, replaySaveReset() {},
+      launchConfig: { mode: options.mode || 'online', arch0: 'lebron', arch1: 'curry', clock: 24,
+        slots: Array.from({ length: 6 }, (_, i) => ({ arch: i < 3 ? 'lebron' : 'curry', role: 'human' })) } });
+    const launchStart = main.indexOf("    if (config.mode === 't3')", main.indexOf('  function launchRoomMatch'));
+    A.ensure();
+    vm.runInContext('(function(config,slot){' + main.slice(launchStart, main.indexOf('    stage.classList.toggle', launchStart)) + '})(launchConfig,localSlot)', ctx);
+    ctx.PH.input.flush();
     const snapshotStart = main.indexOf('  function roomState(state)');
     const snapshot = main.slice(snapshotStart, main.indexOf('    const now = performance.now();', snapshotStart)) + '\n}';
     return { G, GM, room, rooms, log, step, now: () => now, receive: slot => ctx.roomIntroDone({}, slot),
@@ -248,8 +254,10 @@ function pointerAdvance() {
 
 async function onlineScenario(name, options = {}) {
   let messages = 0, host, firstSnapshot = 0, waitingAt = 0, frozenState, acted = false, guestDoneAt = 0;
-  const guest = await scenario('guest', { peer: 'guest', spriteDelay: 18000, onDone: () => { messages++; guestDoneAt = guest.now(); host.receive(1); } });
-  host = await scenario('host', { peer: 'host' });
+  let guest;
+  host = await scenario('host', { peer: 'host', mode: options.mode });
+  guest = await scenario('guest', { peer: 'guest', mode: options.mode, introOff: options.introOff, spriteDelay: 18000, onDone: () => { messages++; guestDoneAt = guest ? guest.now() : 0; host.receive(1); } });
+  if (options.introOff) { assert.equal(guest.G.intro, null); assert.equal(messages, 1, 'intro-disabled guest acknowledges immediately'); }
   if (options.old) host.GM.introEndGate = undefined;
   if (options.noAck) guest.GM.introEndGate = undefined;
   if (options.extraGuest) host.room.links.set(2, {});
@@ -273,7 +281,12 @@ async function onlineScenario(name, options = {}) {
   }
   assert.equal(host.G.intro, null, 'host tip-off is bounded');
   const cuts = guest.log.filter(r => r.event === 'cut').length, starts = guest.log.filter(r => r.event === 'start').length;
-  if (options.old) {
+  if (options.introOff) {
+    assert.equal(messages, 1, 'intro-disabled guest acknowledges once per match'); assert.equal(starts, 0);
+    assert.equal(waitingAt, 0, 'intro-disabled guest never delays the host');
+    assert.ok(firstSnapshot > 0 && firstSnapshot < 30000);
+    console.log(`PASS online ${name}: guest intros off sends introDone immediately; host never waits`);
+  } else if (options.old) {
     assert.ok(cuts > 0 && starts < 6, 'old ungated snapshot cuts guest speech and loses remaining lines');
     console.log('PASS online negative control: old ungated first snapshot cuts guest speech and drops dialogue');
   } else if (options.noAck) {
@@ -340,6 +353,8 @@ async function guestCompletion() {
   await scenario('hidden-tab-resume', { hiddenAt: 1000, fallback: true });
   await onlineScenario('negative', { old: true });
   await onlineScenario('completion');
+  await onlineScenario('intro-off', { introOff: true });
+  await onlineScenario('intro-off-3V3', { introOff: true, mode: 't3' });
   await onlineScenario('legacy', { noAck: true });
   for (const skip of ['Escape', 'PadStart', 'PadB']) await onlineScenario('skip', { skip });
   await onlineScenario('skip-during-wait', { skip: 'pointer', skipWait: true });
