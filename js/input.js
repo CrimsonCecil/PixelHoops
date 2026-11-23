@@ -9,11 +9,13 @@
   const SOLO_EXTRA = { up: ['ArrowUp'], down: ['ArrowDown'], left: ['ArrowLeft'], right: ['ArrowRight'] };
   const touch = { mx: 0, my: 0, a1: false, a2: false, a3: false, alt: false, sprint: false, on: false };
   const sys = {};
+  const sysEdge = {}, blockedNav = {};
+  let padEdge = false;
   const blockedKeys = {}, blockedPad = {}, blockedTouch = {};
 
   window.addEventListener('keydown', (e) => {
     if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Slash', 'Tab'].includes(e.code)) e.preventDefault();
-    if (!e.repeat) { delete blockedKeys[e.code]; keys[e.code] = true; latch[e.code] = true; sys[e.code] = true; }
+    if (!e.repeat) { if (!blockedKeys[e.code]) sysEdge[e.code] = true; delete blockedKeys[e.code]; keys[e.code] = true; latch[e.code] = true; sys[e.code] = true; }
   });
   window.addEventListener('keyup', (e) => { keys[e.code] = false; delete blockedKeys[e.code]; });
   window.addEventListener('blur', () => { for (const k in keys) keys[k] = false; for (const k in blockedKeys) delete blockedKeys[k]; });
@@ -137,23 +139,29 @@
   // 每帧轮询手柄的菜单按键（上下左右 / A / B / Menu）
   const navPrev = {}, navRep = {}, REPEAT = { PadUp: 1, PadDown: 1, PadLeft: 1, PadRight: 1 };
   let pressSlot = -1; // 本帧新按下按键的手柄序号（0 = 手柄 1 = 玩家 1，1 = 手柄 2 = 玩家 2）
+  function padNav(gp, cur) {
+    const B = (i) => gp.buttons[i]?.pressed, ax = gp.axes[0] || 0, ay = gp.axes[1] || 0, rx = gp.axes[2] || 0;
+    if (B(12) || ay < -0.6) cur.PadUp = true; if (B(13) || ay > 0.6) cur.PadDown = true; if (B(14) || ax < -0.6) cur.PadLeft = true; if (B(15) || ax > 0.6) cur.PadRight = true;
+    if (B(0)) cur.PadA = true; if (B(1)) cur.PadB = true; if (B(9)) cur.PadStart = true; if (B(8)) cur.PadBack = true;
+    if (B(2)) cur.PadX = true; if (B(3)) cur.PadY = true; if (B(4)) cur.PadLB = true; if (B(5)) cur.PadRB = true;
+    if (rx < -0.6) cur.PadRLeft = true; if (rx > 0.6) cur.PadRRight = true;
+  }
   function pollPads() {
     const cur = {}, nextButtons = {}, now = performance.now();
     let pressed = false;
+    padEdge = false;
     pressSlot = -1;
     pads().forEach((gp, slot) => {
       const blk = blockedPad[gp.index];
       if (blk) for (const i in blk) if (!gpBtn(gp, +i)) delete blk[i];
       const prev = padPrev[gp.index] || [], buttons = nextButtons[gp.index] = gp.buttons.map((b) => b.pressed);
       if (buttons.some((b, i) => b && !prev[i])) { pressed = true; pressSlot = slot; }
-      const B = (i) => buttons[i], ax = gp.axes[0] || 0, ay = gp.axes[1] || 0, rx = gp.axes[2] || 0;
-      if (B(12) || ay < -0.6) cur.PadUp = true; if (B(13) || ay > 0.6) cur.PadDown = true; if (B(14) || ax < -0.6) cur.PadLeft = true; if (B(15) || ax > 0.6) cur.PadRight = true;
-      if (B(0)) cur.PadA = true; if (B(1)) cur.PadB = true; if (B(9)) cur.PadStart = true; if (B(8)) cur.PadBack = true;
-      if (B(2)) cur.PadX = true; if (B(3)) cur.PadY = true; if (B(4)) cur.PadLB = true; if (B(5)) cur.PadRB = true;
-      if (rx < -0.6) cur.PadRLeft = true; if (rx > 0.6) cur.PadRRight = true;
+      if (buttons.some((b, i) => b && !prev[i] && !blk?.[i])) padEdge = true;
+      padNav(gp, cur);
     });
     for (const k of ['PadUp', 'PadDown', 'PadLeft', 'PadRight', 'PadA', 'PadB', 'PadStart', 'PadBack', 'PadX', 'PadY', 'PadLB', 'PadRB', 'PadRLeft', 'PadRRight']) {
-      if (cur[k] && !navPrev[k]) { sys[k] = true; navRep[k] = now + 380; }
+      if (!cur[k]) delete blockedNav[k];
+      if (cur[k] && !navPrev[k]) { sys[k] = true; if (!blockedNav[k]) sysEdge[k] = true; navRep[k] = now + 380; }
       else if (cur[k] && REPEAT[k] && now >= navRep[k]) { sys[k] = true; navRep[k] = now + 85; }
       navPrev[k] = !!cur[k];
     }
@@ -176,12 +184,16 @@
     }
   }
   function flush() {
+    for (const k in blockedNav) delete blockedNav[k];
+    for (const k in sysEdge) delete sysEdge[k];
+    padEdge = false;
     endTick();
     yTaps.length = 0;
     for (const k in blockedKeys) delete blockedKeys[k];
     for (const k in keys) if (keys[k]) blockedKeys[k] = true;
     for (const k in blockedPad) delete blockedPad[k];
     for (const gp of pads()) {
+      padNav(gp, blockedNav);
       const b = {};
       for (let i = 0; i < gp.buttons.length; i++) if (gpBtn(gp, i)) b[i] = true;
       blockedPad[gp.index] = b;
@@ -191,7 +203,8 @@
   }
   function sysPressed(code) { if (sys[code]) { delete sys[code]; return true; } return false; }
   function sysAny() { const n = Object.keys(sys).length > 0; return n; }
-  function clearSys() { for (const k in sys) delete sys[k]; }
+  function clearSys() { for (const k in sys) delete sys[k]; for (const k in sysEdge) delete sysEdge[k]; padEdge = false; }
+  function introPressed(code) { return code ? !!sysEdge[code] : padEdge || Object.keys(sysEdge).length > 0; }
 
   // 触屏
   function initTouch(root) {
@@ -217,5 +230,5 @@
     });
   }
 
-  PH.input = { read: read, read3: read3, read5: read5, endTick: endTick, flush: flush, blockRebound: blockRebound, sysPressed: sysPressed, sysAny: sysAny, clearSys: clearSys, initTouch: initTouch, pollPads: pollPads, pressSlot: () => pressSlot, rstick: rstick, lock: lock, pads: pads, keys: keys, touch: touch };
+  PH.input = { read: read, read3: read3, read5: read5, endTick: endTick, flush: flush, blockRebound: blockRebound, sysPressed: sysPressed, sysAny: sysAny, introPressed: introPressed, clearSys: clearSys, initTouch: initTouch, pollPads: pollPads, pressSlot: () => pressSlot, rstick: rstick, lock: lock, pads: pads, keys: keys, touch: touch };
 })();

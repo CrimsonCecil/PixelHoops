@@ -8,7 +8,7 @@
   let musicOn = true, sfxOn = true, timer = null;
 
   function ensure() {
-    if (ac) { if (ac.state === 'suspended') ac.resume(); return true; }
+    if (ac) { if (ac.state === 'suspended') ac.resume().catch(() => {}); return true; }
     const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return false;
     try { ac = new AC(); } catch (e) { return false; }
     buildBus(ac.destination);
@@ -314,15 +314,43 @@
   };
   // 每名球员的全部语音合成一个文件（vo/p/<球员>.mp3，40kbps 定长帧，每帧 120 字节、24ms），清单里记每句的起始帧 o 和帧数 n
   const voIdx = {}, voSpr = {};
-  const voReady = fetch('vo/manifest.json' + (window.__V__ !== undefined ? '?v=' + window.__V__ : '')).then((r) => r.ok ? r.json() : null).then((j) => {
-    voM = j && j.voices;
-    if (voM) for (const k in voM) { const V = voM[k]; for (const ev in V.lines) for (const it of V.lines[ev]) if (V.s && it.n > 0) voIdx[it.f] = { s: V.s, it }; }
-    return voM;
-  }).catch(() => null);
-  function voFile(s) { if (!voSpr[s]) voSpr[s] = fetch('vo/' + s).then((r) => r.ok ? r.arrayBuffer() : null).catch(() => { delete voSpr[s]; return null; }); return voSpr[s]; }
+  async function voRetry(run, n = 0) {
+    try { return await run(); } catch (e) {
+      if (n >= 2) throw e;
+      await new Promise((ok) => setTimeout(ok, 250 * Math.pow(2, n)));
+      return voRetry(run, n + 1);
+    }
+  }
+  let voReady = null;
+  function voManifest() {
+    if (voM) return Promise.resolve(voM);
+    if (!voReady) voReady = voRetry(async () => {
+      const r = await fetch('vo/manifest.json' + (window.__V__ !== undefined ? '?v=' + window.__V__ : ''));
+      if (!r.ok) throw new Error('VO manifest');
+      const j = await r.json(); if (!j?.voices) throw new Error('VO manifest');
+      voM = j.voices;
+      for (const k in voM) { const V = voM[k]; for (const ev in V.lines) for (const it of V.lines[ev]) if (V.s && it.n > 0) voIdx[it.f] = { s: V.s, it }; }
+      return voM;
+    }).catch(() => { voReady = null; return null; });
+    return voReady;
+  }
+  voManifest();
+  function voFile(s) {
+    if (!voSpr[s]) voSpr[s] = voRetry(async () => {
+      const r = await fetch('vo/' + s); if (!r.ok) throw new Error('VO sprite');
+      return r.arrayBuffer();
+    }).catch(() => { delete voSpr[s]; return null; });
+    return voSpr[s];
+  }
   // 语音解码成缓冲走 WebAudio，和音乐、音效同一套总线
   const voCache = {};
-  function voBuf(f) { const X = voIdx[f]; if (!X) return Promise.resolve(null); const { o, n } = X.it; if (!voCache[f]) voCache[f] = voFile(X.s).then((ab) => ab ? new Promise((ok, no) => ac.decodeAudioData(ab.slice(o * 120, (o + n) * 120), ok, no)) : null).catch(() => { delete voCache[f]; return null; }); return voCache[f]; }
+  function voBuf(f) {
+    const X = voIdx[f]; if (!X) return Promise.resolve(null);
+    const { o, n } = X.it;
+    if (!voCache[f]) voCache[f] = voFile(X.s).then((ab) => ab ? voRetry(() => new Promise((ok, no) => ac.decodeAudioData(ab.slice(o * 120, (o + n) * 120), ok, no))) : null)
+      .then((buf) => { if (!buf) delete voCache[f]; return buf; }).catch(() => { delete voCache[f]; delete voSpr[X.s]; return null; });
+    return voCache[f];
+  }
   // 跳过 TTS 音频开头的长静音/低噪（保留 50ms 气口），避免台词字幕已出完语音才响
   function voLead(buf) {
     if (!buf || !buf.getChannelData) return 0.1;
@@ -337,14 +365,23 @@
     }
     return (buf._voLead = lead);
   }
-  function voPreload(keys) {
-    const run = () => { if (!voM) return; for (const k of keys) {
-      const V = voM[k]; if (V?.s) voFile(V.s);
-      const alias = voM[VO_ALIAS[k]?.key]; if (alias?.s) voFile(alias.s);
-      const walk = voIdx[VO_WALK[k]]; if (walk) voFile(walk.s);
-      if (!V?.lines?.intro?.length) for (const f of VO_INTRO[k]?.flat() || []) { if (voIdx[f]) voFile(voIdx[f].s); }
-    } };
-    if (voM) run(); else voReady.then(run);
+  function voPreload(keys, decode) {
+    const run = () => {
+      if (!voM || !ensure()) return false;
+      const files = new Set();
+      for (const k of keys) {
+        const V = voM[k], alias = voM[VO_ALIAS[k]?.key];
+        if (V?.s) voFile(V.s);
+        if (alias?.s) voFile(alias.s);
+        for (const ev of ['intro', 'reply', 'taunt', 'dom', 'win']) for (const it of voLines(k, ev) || []) files.add(it.f);
+        if (voIdx[VO_WALK[k]]) files.add(VO_WALK[k]);
+        if (!voM[k]?.lines?.intro?.length) for (const f of VO_INTRO[k]?.flat() || []) if (voIdx[f]) files.add(f);
+      }
+      for (const f of files) if (voIdx[f]) voFile(voIdx[f].s);
+      return decode ? Promise.all(Array.from(files, voBuf)).then((bufs) => bufs.every(Boolean)) : true;
+    };
+    if (decode) return voM ? Promise.resolve(run()) : voManifest().then(run);
+    if (voM) run(); else voManifest().then(run);
   }
   // 新事件没有录到时退回到相近的事件
   const VO_FB = { poster: 'dunk', fall: 'ankle', pin: 'block', clutch: 'make', hot: 'make', stop: 'taunt', rejected: 'hurt', dropped: 'hurt', posterized: 'hurt', stolen: 'hurt' };
@@ -361,7 +398,7 @@
     const it = i != null && voM && voM[alias.key]?.lines?.[ev]?.[i];
     return it ? [it] : null;
   }
-  function vo(key, ev, mode) {
+  function vo(key, ev, mode, onStart) {
     if (!voOn || !sfxOn || !voM || pauseOn) return null;
     const pri = mode === 'pri';
     if (mode === 'q' && performance.now() < voBusy) {
@@ -387,9 +424,17 @@
     if (voQTimer) { clearTimeout(voQTimer); voQTimer = null; }
     if (voCur && pri) { try { voCur.stop(); } catch (e) { /* 已停 */ } voCur = null; }
     const seq = ++voSeq, start = ac.currentTime + delay;
-    voBuf(it.f).then((buf) => { if (!buf || !voOn || !sfxOn || pauseOn || seq !== voSeq) return; if (ac.state === 'suspended') ac.resume(); const lead = voLead(buf), src = ac.createBufferSource(); src.buffer = buf; src.connect(voGain); src.start(delay ? start : 0, lead); voCur = src; if (lead > 0.1) voBusy = Math.min(voBusy, performance.now() + (delay + Math.max(0.3, (buf.duration || it.d || 1.5) - lead)) * 1000 + 250); }).catch(() => {});
+    voBuf(it.f).then(async (buf) => {
+      if (!buf || !await voRunning(seq) || !voOn || !sfxOn || pauseOn) { if (onStart) onStart(0); return; }
+      const lead = voLead(buf), src = ac.createBufferSource(); src.buffer = buf; src.connect(voGain);
+      const ended = new Promise((ok) => { src.onended = ok; });
+      src.start(delay ? start : 0, lead); voCur = src;
+      const playDur = Math.max(0.3, (buf.duration || it.d || 1.5) - lead);
+      if (lead > 0.1) voBusy = Math.min(voBusy, performance.now() + (delay + playDur) * 1000 + 250);
+      if (onStart) onStart(playDur, ended);
+    }).catch(() => { if (onStart) onStart(0); });
     voBusy = now + (delay + (it.d || 1.5)) * 1000 + 250;
-    return it;
+    return onStart ? Object.assign({}, it, { pending: true }) : it;
   }
   // 指定一条语音（开场对话用）：voLine 按序号取条目，voSay 打断当前语音直接播
   function voLine(key, ev, i, skip) {
@@ -426,21 +471,27 @@
   }
   function voHas(key, ev) { return !!voM?.[key]?.lines?.[ev]?.length; }
   function voStop() { voSeq++; voSayF = ''; if (voQTimer) { clearTimeout(voQTimer); voQTimer = null; } if (voCur) { try { voCur.stop(); } catch (e) { /* 已停 */ } voCur = null; } voBusy = 0; }
+  async function voRunning(seq) {
+    if (ac.state && ac.state !== 'running') { try { await ac.resume(); } catch (e) { /* 等待解锁 */ } }
+    while (seq === voSeq && ac.state && ac.state !== 'running' && ac.state !== 'closed') await new Promise((ok) => setTimeout(ok, 100));
+    return seq === voSeq && ac.state !== 'closed';
+  }
   function voSay(it, onStart) {
-    if (!it || !voOn || !sfxOn || pauseOn || !ensure()) return false;
+    if (!it || !voIdx[it.f] || !voOn || !sfxOn || pauseOn || !ensure()) return false;
     voStop(); const want = it.f, seq = ++voSeq; voSayF = want;
-    voBuf(it.f).then((buf) => {
-      if (!buf || !voOn || pauseOn || voSayF !== want || seq !== voSeq) { if (onStart && seq === voSeq) onStart(0); return; }
-      if (ac.state === 'suspended') ac.resume();
-      const lead = voLead(buf), src = ac.createBufferSource(); src.buffer = buf; src.connect(voGain); src.start(0, lead); voCur = src;
+    voBuf(it.f).then(async (buf) => {
+      if (!buf || !await voRunning(seq) || !voOn || !sfxOn || pauseOn || voSayF !== want) { if (onStart) onStart(0); return; }
+      const lead = voLead(buf), src = ac.createBufferSource(); src.buffer = buf; src.connect(voGain);
+      const ended = new Promise((ok) => { src.onended = ok; });
+      src.start(0, lead); voCur = src;
       const playDur = Math.max(0.3, (buf.duration || it.d || 1.5) - lead);
       if (lead > 0.1) voBusy = Math.min(voBusy, performance.now() + playDur * 1000 + 250);
-      if (onStart) onStart(playDur);
-    }).catch(() => { if (onStart && seq === voSeq) onStart(0); });
+      if (onStart) onStart(playDur, ended);
+    }).catch(() => { if (onStart) onStart(0); });
     voBusy = performance.now() + ((it.d || 1.5) * 1000) + 250;
     return true;
   }
-  function voWhenReady(cb) { if (voM) cb(); else voReady.then(() => { if (voM) cb(); }); }
+  function voWhenReady(cb) { if (voM) cb(true); else voManifest().then((m) => cb(!!m)); }
   let voSayF = '', voSeq = 0, voQTimer = null;
   // 离线混音测量：用 OfflineAudioContext 按当前总线增益渲染一段（音乐 / 某个音效 / 某条语音），返回采样
   // name 为音乐场景名（加 '!' 后缀 = 关键时刻强度全开）；空名 = 1V1 比赛音乐

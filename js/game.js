@@ -3318,6 +3318,9 @@
   const IWALK = { lebron: ['raise', 'wave'], curry: ['wave', 'shimmy'], kobe: ['wave', 'point'], shaq: ['raise', 'dance'], ginobili: ['point', 'wave'], iverson: ['cool', 'point'], carter: ['raise', 'flex'], giannis: ['chest', 'flex'], luka: ['wave', 'wag'], kyrie: ['point', 'wave'], herb: ['flex', 'chest'] };
   Object.assign(IWALK, { tmac: ['wave', 'point'], nash: ['wave', 'point'], rip: ['point', 'wave'] });
   const IWA = 3.8;
+  const IVO_WAIT = 8, IVO_LOAD = 20;
+  const introVoEnabled = () => PH.audio?.voOn !== false && PH.audio?.sfxOn !== false;
+  const introVoUntil = (I, dur, started) => Math.max(performance.now() + Math.max(IVO_WAIT, (Number.isFinite(dur) ? dur : 0) + 2) * 1000, started ? 0 : I.voLoadUntil || 0);
   Object.assign(IWALK, { rodman: ['wag', 'shrug'], bwallace: ['raise', 'flex'], rallen: ['wave', 'cool'] });
   // 非宿敌对局：按双方最强项套模板开场 + 回呛，最后用语音包里的真实嘲讽收尾
   const TSTAT = {
@@ -3381,10 +3384,16 @@
       let pre = (IWALK[p.arch.key] || ['wave'])[0]; if (pre === ent) pre = ent === 'wave' ? 'raise' : 'wave';
       s.w0 = t0 + (TM(p) === TM(fa) ? 0 : IWA); s.w1 = s.w0 + IWA;
       (star ? [pre, ent] : [ent]).forEach((ty, j) => { const main = !star || j === 1; walk.push({ id: p.id, ty: ty, lv: main ? lv : -1, t0: s.w0 + (star ? 0.3 + j * 1.75 : 0.9 + (p.id % 3) * 0.3), T: 1.6, fx: false, sig: star && j === 1, vo: star && j === 0, voAt: s.w0 + (p === fa ? 0.25 : 0), voDone: false }); }); }
+    walk.sort((a, b) => a.voAt - b.voAt);
     const foc0 = { x: fa.x, y: fa.y, u: G.mode === 't3' ? 0.08 : 0.3, mode: 'walk', snap: true };
-    if (PH.audio && PH.audio.voPreload) PH.audio.voPreload([fa.arch.key, fb.arch.key]);
+    const ready = introVoEnabled() ? PH.audio?.voPreload?.([fa.arch.key, fb.arch.key], true) : null;
     G.intro = { t0: t0, duo: [fa.id, fb.id], walk: walk, spots: spots, lines: lines, li: -1, lt: 0, ld: 0, tT: t0 + 2 * IWA + 0.15, cam: foc0, foc: foc0, banner: G.banner, phaseT: G.phaseT,
-      sig: [], confettiT: 0, usedVo: new Set() };
+      sig: [], confettiT: 0, usedVo: new Set(), loadUntil: performance.now() + IVO_WAIT * 1000, voLoadUntil: performance.now() + IVO_LOAD * 1000 };
+    if (ready?.then) {
+      const I = G.intro; I.loading = true;
+      const timer = setTimeout(() => { I.loading = false; }, IVO_WAIT * 1000);
+      ready.then(() => { I.loading = false; clearTimeout(timer); }, () => { I.loading = false; clearTimeout(timer); });
+    }
     G.cz = null; G.cutin = null; G.phase = 'intro';
   }
   const introSig = (pl) => { const I = G.intro; if (!I) return null; for (const S of I.sig) if (S.id === pl.id && G.time >= S.t0 && G.time < S.t0 + S.T) return S; return null; };
@@ -3401,6 +3410,13 @@
     G.cutin = null; fxUpdate(dt); G.time += dt;
     if (G.banner) { G.banner.t += dt; if (G.banner.t > G.banner.dur) G.banner = null; }
     const now = G.time;
+    if (!introVoEnabled() || performance.now() >= I.loadUntil) I.loading = false;
+    const W = I.voWait;
+    if (W && (!introVoEnabled() || performance.now() >= W.until)) {
+      W.expired = true; I.voWait = null; I.walkWait = false; I.walkUntil = 0;
+      if (I.lines[I.li] === W.line) { W.line.waitVo = false; I.ld = 0; }
+      PH.audio?.voStop?.();
+    }
     for (const s of I.spots) {
       const p = s.p, inp = zeroInp(), dx = s.x - p.x, dy = s.y - p.y, d = Math.hypot(dx, dy);
       if (d > 0.12 && now >= s.w0) { const v = d / Math.max(0.35, s.w1 - 0.35 - now), k = Math.min(1, d / 0.9) * clamp(v / 4.4, 0.22, 0.85); inp.mx = dx / d * k; inp.my = dy / d * k; }
@@ -3408,12 +3424,40 @@
     }
     updateBall(dt);
     if (I.li < 0) for (const S of I.walk) {
-      if (S.vo && !S.voDone && now >= (S.voAt != null ? S.voAt : S.t0)) { S.voDone = true; const p = plById(S.id); if (G.mode !== 'demo' && PH.audio && PH.audio.vo) { const speak = () => { if (G.intro !== I || I.li >= 0) return true; const it = PH.audio.vo(p.arch.key, 'walk', 'pri'); if (it && it.f) I.usedVo.add(it.f); if (it && it.d && p.id === I.duo[1]) I.tT = Math.max(I.tT, G.time + it.d + 0.2); return it; }; if (!speak() && PH.audio.voWhenReady) PH.audio.voWhenReady(speak); } }
+      if (S.vo && !S.voDone && !I.loading && !I.walkWait && now >= (I.walkUntil || 0) && now >= (S.voAt != null ? S.voAt : S.t0)) {
+        S.voDone = true; const p = plById(S.id);
+        if (G.mode !== 'demo' && introVoEnabled() && PH.audio?.vo) {
+          const W = I.voWait = { line: S, until: introVoUntil(I) };
+          const finish = () => { if (!W.expired && I.voWait === W) { I.voWait = null; I.walkWait = false; } };
+          const speak = () => {
+            if (W.expired || G.intro !== I || I.li >= 0) return true;
+            I.walkWait = true;
+            let it;
+            it = PH.audio.vo(p.arch.key, 'walk', 'pri', (dur, ended) => {
+              if (W.expired || G.intro !== I || I.li >= 0) return;
+              if (dur > 0 && it?.f) I.usedVo.add(it.f);
+              W.until = introVoUntil(I, dur, true);
+              I.walkUntil = G.time + dur; I.walkWait = !!ended;
+              if (ended) ended.then(finish, finish); else finish();
+            });
+            W.until = introVoUntil(I, it?.d);
+            if (!it?.pending) {
+              I.walkWait = false;
+              if (it) { finish(); if (it.f) { I.usedVo.add(it.f); I.walkUntil = G.time + (it.d || 0); } }
+            }
+            return it;
+          };
+          if (!speak() && PH.audio.voWhenReady) {
+            I.walkWait = true;
+            PH.audio.voWhenReady((ok) => { if (W.expired) return; I.walkWait = false; if (ok !== false) speak(); else finish(); });
+          }
+        }
+      }
       if (S.ty === 'chalk' && !S.fx && now >= S.t0 + 0.42) { S.fx = true; const p = plById(S.id); burst(p.x, p.y, p.h + 0.45, 70, ['#ffffff', '#f4f1e8', '#e2ded2', '#fffbe9'], 2.3, 1.7, 1.1, 2); spawnConfetti(28, [p.team.css, '#ffd24a', '#ffffff'], 'burst'); }
       else if (S.lv >= 0 && !S.fx && now >= S.t0 + 0.35) { S.fx = true; const p = plById(S.id), X = INTRO_FX[S.lv]; spawnConfetti(X.n, [p.team.css, '#ffd24a', '#ffffff', '#ff8a2a'], 'burst'); if (X.fl) flash('#ffffff', X.fl); G.fx.cheer = Math.max(G.fx.cheer, X.cheer); if (S.lv === 3 && SIG_LED[S.ty]) led(SIG_LED[S.ty], p.team.css, 2.2); }
     }
     const curL = I.li >= 0 ? I.lines[I.li] : null;
-    if (I.li < 0 ? now >= I.tT : (!curL || !curL.waitVo || now - I.lt >= 4) && now >= I.lt + I.ld) introNext();
+    if (I.li < 0 ? !I.loading && !I.walkWait && now >= (I.walkUntil || 0) && I.walk.every((S) => !S.vo || S.voDone) && now >= I.tT : (!curL || !curL.waitVo) && now >= I.lt + I.ld) introNext();
     if (!G.intro) return;
     const A = plById(I.duo[0]), B2 = plById(I.duo[1]), mid = { x: (A.x + B2.x) / 2, y: (A.y + B2.y) / 2 };
     const sh = I.li < 0 ? (now < I.t0 + IWA ? A : B2) : null;
@@ -3438,30 +3482,42 @@
   }
   function introNext() {
     const I = G.intro; if (!I) return;
+    if (I.voWait) { I.voWait.expired = true; I.voWait = null; PH.audio?.voStop?.(); }
     if (I.li < 0 && G.time < I.tT) { for (const s of I.spots) Object.assign(s.p, { x: s.x, y: s.y, vx: 0, vy: 0, speed: 0 }); for (const S of I.sig) { S.on = true; S.fx = true; S.t0 = -99; } for (const S of I.walk) { S.fx = true; S.voDone = true; } G.banner = null; I.snap = true; }
     I.li++;
     if (I.li >= I.lines.length) { introEnd(); return; }
     const L = I.lines[I.li], p = plById(L.id);
     if (L.v) {
+      const W = { line: L, until: introVoUntil(I) };
+      if (introVoEnabled()) I.voWait = W;
+      const finish = () => { if (!W.expired) { L.waitVo = false; if (I.voWait === W) I.voWait = null; } };
       const sayVo = () => {
-        if (!G.intro || G.intro.lines[G.intro.li] !== L) return false;
+        if (W.expired || G.intro !== I || I.lines[I.li] !== L) return false;
         const ev = L.pref && PH.audio?.voHas?.(p.arch.key, L.pref) ? L.pref : L.v;
         const it = PH.audio && PH.audio.voLine ? PH.audio.voLine(p.arch.key, ev, ev === L.pref ? 0 : L.i, G.intro.usedVo) : null;
         if (!it) return false;
-        if (it.f && G.intro.usedVo) G.intro.usedVo.add(it.f);
         L.t = it.t; L.d = it.d;
+        W.until = introVoUntil(I, L.d);
         G.intro.ld = Math.max(clamp(0.8 + L.t.length * 0.1, 1.9, 4.5), (L.d || 0) + 0.55);
+        if (!introVoEnabled()) { finish(); return true; }
         if (G.mode !== 'demo') {
-          const pending = PH.audio.voSay(it, (playDur) => {
-            if (!G.intro || G.intro.lines[G.intro.li] !== L) return;
-            L.waitVo = false;
-            if (playDur > 0) { G.intro.lt = G.time; G.intro.ld = Math.max(clamp(0.8 + L.t.length * 0.1, 1.9, 4.5), playDur + 0.55); }
+          const pending = PH.audio.voSay(it, (playDur, ended) => {
+            if (W.expired || G.intro !== I || I.lines[I.li] !== L) return;
+            L.waitVo = !!ended;
+            W.until = introVoUntil(I, playDur, true);
+            if (ended) ended.then(finish, finish); else finish();
+            if (playDur > 0) { G.intro.usedVo.add(it.f); G.intro.lt = G.time; G.intro.ld = Math.max(clamp(0.8 + L.t.length * 0.1, 1.9, 4.5), playDur + 0.55); }
           });
           if (pending === true) L.waitVo = true;
+          else if (pending === false) return false;
+          else { finish(); if (it.f) G.intro.usedVo.add(it.f); }
         }
         return true;
       };
-      if (!sayVo() && PH.audio && PH.audio.voWhenReady) PH.audio.voWhenReady(sayVo);
+      if (!sayVo() && introVoEnabled() && PH.audio?.voWhenReady) {
+        L.waitVo = true;
+        PH.audio.voWhenReady((ok) => { if (ok === false || !sayVo()) finish(); });
+      }
     }
     if (!L.t) L.t = L.fb || (L.v === 'dom' ? '别急，看看最后谁笑。' : '今天这场，我拿下了！');
     L.done = false; I.lt = G.time; I.ld = Math.max(clamp(0.8 + L.t.length * 0.1, 1.9, 4.5), (L.d || 0) + 0.55);
@@ -3474,6 +3530,7 @@
   }
   function introEnd() {
     const I = G.intro; if (!I) return;
+    if (I.voWait) I.voWait.expired = true;
     for (const s of I.spots) Object.assign(s.p, { x: s.x, y: s.y, face: s.face, vx: 0, vy: 0, speed: 0 });
     G.intro = null; G.cz = null; G.phase = 'check'; G.phaseT = I.phaseT;
     if (G.fx && G.fx.confetti) G.fx.confetti.length = 0;
