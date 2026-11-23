@@ -563,7 +563,7 @@
     else { CFG.shotClock = config.clock; GM.newGame({ ...config, mode: '2p' }); }
     replaySaveReset();
     PH.audio.voPreload(G.players.map((p) => p.arch.key));
-    if (opts.intro !== 'off') GM.introStart();
+    if ((config.intro || opts.intro) !== 'off') GM.introStart();
     stage.classList.toggle('intro', !!G.intro);
     screen = 'play'; paused = false; panelOpen = false; overShown = false; PH.input.clearSys(); PH.input.flush(); clearPf(); camShift();
     syncBackgroundMatch();
@@ -732,7 +732,7 @@
       if (!t3 && !room.links.has(1)) return;
       const config = same && !t3 && matchConfig ? matchConfig : { mode: opts.mode, clock: opts.clock, target: opts.target, diff: opts.diff, fb: opts.fb, glen: opts.glen,
         ...(t3 ? { slots: lobby3.map((s, i) => ({ arch: s.arch, role: room.links.has(i) ? 'remote' : s.role === 'waiting' ? 'cpu' : s.role })) }
-          : { arch0: opts.arch0, arch1: pickArch(opts.arch1, opts.arch0), fouls: opts.fouls === 'on' }) };
+          : { arch0: opts.arch0, arch1: pickArch(opts.arch1, opts.arch0), fouls: opts.fouls === 'on', intro: opts.intro }) };
       if (room.role === 'host') {
         if (!room.code) return;
         room.active = true;
