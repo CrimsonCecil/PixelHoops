@@ -9,7 +9,7 @@
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/fusion-pixel-12px-proportional-sc@5/index.css">
 <script>
-window.__V__ = (Date.parse(document.lastModified) || Date.now()).toString(36) + '-arcade-a-restored-scroll-routing';
+window.__V__ = (Date.parse(document.lastModified) || Date.now()).toString(36) + '-slim-snapshots-protocol';
 document.write('<link rel="stylesheet" href="style.css?v=' + window.__V__ + '">');
 document.write('<link rel="stylesheet" href="menu.css?v=' + window.__V__ + '">');
 </script>
@@ -31,6 +31,7 @@ document.write('<link rel="stylesheet" href="menu.css?v=' + window.__V__ + '">')
       </g>
     </svg>
   </div>
+  <div id="padtoast" class="hidden" role="status" data-testid="padtoast"></div>
 
   <div id="hud" class="hidden">
     <div id="scorebar" class="scoreboard">
@@ -161,6 +162,7 @@ document.write('<link rel="stylesheet" href="menu.css?v=' + window.__V__ + '">')
       <p class="padtag hidden" id="padtag">已连接 Xbox 手柄：十字键 / 左摇杆选择，A 确认，B 返回，LB / RB 切页，右摇杆滚动</p>
     </div>
     <div id="menutop" data-testid="menutop">
+      <span id="padchip" class="hidden" data-testid="padchip"></span>
       <button id="btn-qvol" data-testid="btn-qvol" title="音量" aria-haspopup="true" aria-expanded="false"></button>
       <div id="qvol" class="hidden" data-testid="qvol">
         <label class="mx"><span>总音量</span><input type="range" min="0" max="100" step="1" id="qv-range" data-testid="qv-range"><b id="qv-val"></b></label>

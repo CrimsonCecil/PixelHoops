@@ -2,11 +2,11 @@
 (function () {
   const PH = window.PH, GM = PH.game, $ = (id) => document.getElementById(id);
   const esc = (v) => String(v).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-  let ctx, view = 'home', previous = 'solo', roomName = '来一场像素斗牛', filter = 'all', ready = {}, joined = false;
+  let ctx, view = 'home', previous = 'solo', roomName = '来一场像素斗牛', filter = 'all';
   let listTimer, generation = 0, roomsList = [], published = '', listBusy = false;
+  const synced = new Set();
   const labels = { duel: '1V1 · 半场斗牛', t3: '3V3 · 半场组队', t5: '5V5 · 全场比赛', king: '斗牛之王', train: '自由训练' };
   const fmt = () => ctx.opts.format === 't3' ? 't3' : 'online';
-  const localId = () => ctx.room.role === 'host' ? 0 : ctx.slot();
   const members = () => [0, ...ctx.room.links.keys()];
   function go(next) {
     generation++; clearInterval(listTimer); listTimer = null; listBusy = false;
@@ -18,12 +18,12 @@
     if (first && first.offsetParent) first.focus({ preventScroll: true });
   }
   function leave(next) {
-    PH.directory.stop(); published = ''; ctx.rooms.close(); joined = false; ready = {}; ctx.status('');
+    PH.directory.stop(); published = ''; ctx.rooms.close(); synced.clear(); remoteMembers = []; ctx.status('');
     ctx.opts.opponent = 'cpu'; ctx.redraw(); go(next);
   }
   function choose(format, online = false) {
-    ctx.opts.format = format; ctx.opts.opponent = online ? 'online' : 'cpu';
-    previous = online ? 'lobby' : 'solo'; ready = {}; ctx.redraw(); go('select');
+    ctx.opts.format = format; ctx.opts.opponent = online ? 'online' : format === 'duel' && PH.input.pads().length >= 2 ? '2p' : 'cpu';
+    previous = online ? 'lobby' : 'solo'; synced.clear(); remoteMembers = []; ctx.redraw(); go('select');
   }
   function capacity() { return ctx.opts.format === 't3' ? 1 + ctx.lobby.filter((s, i) => i !== 0 && s.role === 'waiting').length : 2; }
   function publish() {
@@ -36,13 +36,16 @@
   }
   function sync() {
     if (ctx.room.role !== 'host') return;
+    const list = members();
     ctx.rooms.broadcast({ type: 'lobby', name: roomName, arch0: ctx.opts.arch0, arch1: ctx.opts.arch1,
-      slots: ctx.lobby.map((s) => ({ ...s })), ready: { ...ready }, members: members() });
+      slots: ctx.lobby.map((s) => ({ ...s })), ready: Object.fromEntries(list.map((s) => [s, s === 0 || synced.has(s)])), members: list });
   }
-  function changed() { ready = {}; publish(); sync(); refresh(); }
+  function changed() {
+    for (const s of synced) if (!ctx.room.links.has(s)) synced.delete(s);
+    publish(); sync(); refresh();
+  }
   function selectionChanged() {
-    ready = {};
-    if (ctx.room.role === 'guest') ctx.rooms.sendLobby({ arch: ctx.opts.format === 't3' ? ctx.lobby[ctx.slot()]?.arch : ctx.opts.arch1, ready: false });
+    if (ctx.room.role === 'guest') ctx.rooms.sendLobby({ arch: ctx.opts.format === 't3' ? ctx.lobby[ctx.slot()]?.arch : ctx.opts.arch1, ready: true });
     else sync();
     refresh();
   }
@@ -50,12 +53,11 @@
   function message(msg, slot) {
     if (ctx.room.role === 'host') {
       if (GM.ARCH[msg.arch]) { if (ctx.opts.format === 't3') ctx.lobby[slot].arch = msg.arch; else ctx.opts.arch1 = msg.arch; }
-      ready[slot] = msg.ready === true; sync(); ctx.redraw();
+      synced.add(slot); sync(); ctx.redraw(); refresh();
     } else {
       if (GM.ARCH[msg.arch0]) ctx.opts.arch0 = msg.arch0;
       if (GM.ARCH[msg.arch1]) ctx.opts.arch1 = msg.arch1;
       if (Array.isArray(msg.slots) && msg.slots.length === 6 && msg.slots.every((s) => GM.ARCH[s.arch] && ['human', 'cpu', 'waiting'].includes(s.role))) msg.slots.forEach((s, i) => Object.assign(ctx.lobby[i], s));
-      ready = msg.ready && typeof msg.ready === 'object' ? msg.ready : {};
       remoteMembers = Array.isArray(msg.members) ? msg.members : [];
       if (typeof msg.name === 'string') roomName = msg.name.slice(0, 24);
       ctx.redraw();
@@ -69,18 +71,18 @@
   function canStart() {
     if (view !== 'select') return false;
     if (!ctx.room.role) return ctx.opts.opponent !== 'online';
-    return ctx.room.role === 'host' && ctx.room.links.size > 0 && members().every((s) => ready[s]);
+    return ctx.room.role === 'host' && ctx.room.links.size > 0 && [...ctx.room.links.keys()].every((s) => synced.has(s));
   }
   function refresh() {
     if (!ctx) return;
     const r = ctx.room, online = !!r.role || ctx.opts.opponent === 'online';
+    const list = r.role === 'host' ? members() : remoteMembers;
+    const count = r.role === 'host' ? 1 + r.links.size : Math.max(1, remoteMembers.length);
     $('menu').dataset.view = view; $('menu').dataset.format = ctx.opts.format;
     $('front-select-title').textContent = online ? roomName : labels[ctx.opts.format];
-    $('front-room-info').textContent = r.code ? (r.role === 'host' ? '房主' : '球友') + ' · ' + (1 + (r.role === 'host' ? r.links.size : remoteMembers.length - 1)) + ' 人在房间 · 选好球员后准备' : '选择阵容，然后上场';
-    $('front-ready').classList.toggle('hidden', !r.code || r.active || (r.role === 'guest' && !joined));
-    $('front-ready').textContent = ready[localId()] ? '已准备 · 点击取消' : '我准备好了';
-    $('front-ready').classList.toggle('on', !!ready[localId()]);
-    $('front-ready-state').textContent = r.code ? (r.role === 'host' && !r.links.size ? '等待球友加入…' : (r.role === 'host' ? members() : remoteMembers).map((s) => (s === 0 ? '房主' : '球友 ' + s) + (ready[s] ? ' ✓ 已准备' : ' · 选择中')).join('　')) : '';
+    $('front-room-info').textContent = r.code ? (r.role === 'host' ? '房主' : '球友') + ' · ' + count + ' 人在房间 · ' + (r.role === 'host' ? '选好球员即可开始' : '选好球员，等待房主开始') : '选择阵容，然后上场';
+    $('front-ready-state').textContent = r.code ? (r.role === 'host' && !r.links.size ? '等待球友加入…' : list.map((s) => (s === 0 ? '房主' : '球友 ' + s) + (r.role !== 'host' || s === 0 || synced.has(s) ? ' ✓ 已准备' : ' · 加入中…')).join('　')) : '';
+    $('front-guest-wait').classList.toggle('hidden', !(r.role === 'guest' && !r.active && ctx.slot() >= 0));
     $('front-invite').classList.toggle('hidden', !r.code);
     $('front-invite-code').textContent = r.code;
     $('btn-start').disabled = !canStart();
@@ -139,7 +141,8 @@
         <details class="front-direct"><summary>朋友直连 / 大厅不可用时使用</summary><div><input id="front-direct-code" maxlength="5" placeholder="朋友的直连码" aria-label="朋友的直连码"><select id="front-direct-mode" aria-label="直连比赛形式"><option value="online">1V1</option><option value="t3">3V3</option></select><button id="front-direct-join">直连加入</button></div><small>通常无需直连码，点击公开房间即可。</small></details>
         </div></div></section><footer class="front-footer"><span><kbd>↑ ↓ ← →</kbd> 选择 <kbd>Enter</kbd> 确认 <kbd>Esc</kbd> 返回</span><span>像素球场 · 每一场都是新故事</span></footer>`);
     $('menu').querySelector('.menu-panel').insertAdjacentHTML('afterbegin', '<header class="front-select-head"><button id="front-back">← 返回</button><div><h2 id="front-select-title"></h2><small id="front-room-info"></small></div><b>选择球星</b></header>');
-    $('btn-start').insertAdjacentHTML('beforebegin', '<details id="front-invite" class="front-direct hidden"><summary>邀请朋友（可选直连）</summary><p>直连码 <strong id="front-invite-code"></strong> · 朋友在大厅下方打开「朋友直连」，选择相同比赛形式即可加入。</p></details><p id="front-ready-state" role="status"></p><button id="front-ready" class="hidden"></button>');
+    $('btn-start').insertAdjacentHTML('beforebegin', '<details id="front-invite" class="front-direct hidden"><summary>邀请朋友（可选直连）</summary><p>直连码 <strong id="front-invite-code"></strong> · 朋友在大厅下方打开「朋友直连」，选择相同比赛形式即可加入。</p></details><p id="front-ready-state" role="status"></p>');
+    $('btn-start').insertAdjacentHTML('afterend', '<span id="front-guest-wait" class="hidden" role="status">等待房主开始...</span>');
     $('front-solo').onclick = () => go('solo'); $('front-online').onclick = () => { previous = 'lobby'; go('lobby'); };
     $('front-back').onclick = () => leave(previous);
     $('menu').addEventListener('click', (e) => {
@@ -165,11 +168,10 @@
       if (type === 'keydown' && e.key === 'Escape') e.target.blur();
       if (type === 'keydown' && e.key === 'Enter' && e.target.id === 'front-direct-code') { e.preventDefault(); $('front-direct-join').click(); }
     });
-    $('front-ready').onclick = () => { const id = localId(); ready[id] = !ready[id]; if (ctx.room.role === 'guest') ctx.rooms.sendLobby({ ready: ready[id] }); else sync(); refresh(); };
     go('home');
   }
   PH.frontend = { mount, refresh, changed, selectionChanged, message, allowed, canStart,
     reset: () => { if (ctx) leave('home'); }, started: () => { PH.directory.stop(); published = ''; },
-    joined: () => { joined = true; ctx.rooms.sendLobby({ arch: ctx.opts.arch1, ready: false }); refresh(); },
+    joined: () => { ctx.rooms.sendLobby({ arch: ctx.opts.arch1, ready: true }); refresh(); },
     back: () => { if (view === 'home') return false; leave(view === 'select' ? previous : 'home'); return true; } };
 })();

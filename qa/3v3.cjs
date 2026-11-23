@@ -161,7 +161,7 @@ function fixture(options = {}) {
   };
   const ctx = vm.createContext({
     G, GM: Gm, PH: { T3 }, CFG: Gm.CFG, $, stage: $('stage'), cues: [$('cue0'), $('cue1')], screen: 'play',
-    matchConfig: { mode: 't3' }, localSlot: 2, opts: { info: 'show' }, TR: {}, hasPad: true, isTouch: true,
+    matchConfig: { mode: 't3' }, localSlot: 2, opts: { info: 'show' }, TR: {}, hasPad: true, padN: 1, isTouch: true,
     frameN: 9, hintKey: '', lastClock: '', lastTB2: '', lastS0: -1, lastS1: -1,
     TT: {}, pcRatings: noop, bList: () => [], fitBadgePops: noop, pcards5: noop, bpops: noop, drawFloats: noop,
     show: noop, shotCard: noop
