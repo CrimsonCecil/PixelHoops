@@ -7,7 +7,7 @@ const ctx = vm.createContext({ console, performance: { now: () => 0 }, setTimeou
 ctx.window = ctx;
 for (const name of ['tune', 'ptype', 'render', 'roster', 'r5', 'r2k', 'game']) {
   let code = fs.readFileSync(path.join(__dirname, '..', 'js', name + '.js'), 'utf8');
-  if (name === 'game') code = code.replace('PH.game = {', 'PH.ftQA = { shootingFoul, awardFreeThrows, freeThrowInput, tkStart }; PH.game = {');
+  if (name === 'game') code = code.replace('PH.game = {', 'PH.ftQA = { shootingFoul, beginFreeThrow, freeThrowInput, tkStart }; PH.game = {');
   vm.runInContext(code, ctx, { filename: name + '.js' });
 }
 const { game: gm, ftQA: qa, TUNE: tune, R2K } = ctx.PH;
@@ -34,7 +34,8 @@ function startFT(rating, cpu, i = 0) {
   p.r.ft = rating;
   if (cpu) p.ctrl = 'cpu';
   seed(i);
-  qa.awardFreeThrows(0, 2, true);
+  G.ft = { id: 0, index: 1, total: 1 };
+  qa.beginFreeThrow('防守犯规');
   for (let j = 0; !p.action && j < 180; j++) qa.freeThrowInput(dt, { ...zero, a1: !cpu && j >= 60 });
   assert(p.action?.ft);
   return p.action;

@@ -68,7 +68,12 @@ tick();
 assert(G.time > matchTime, 'the match resumes after the wipe');
 console.log('PASS: 5V5 contact replay has a slower wipe in and an unobscured zoom-out at natural completion.');
 
+const flow = game.replayFlow;
+assert.equal(flow.foulProgress({ t: 0.15 }), 1, 'ordinary notices do not start a wipe');
+assert.equal(flow.wipeCover(flow.foulProgress({ t: 0.4, foul: true })), 1, 'hold the foul label at full cover');
+assert.equal(flow.foulProgress({ t: 0.81, foul: true }), 1, 'wipe ends before the next check-ball pass is caught');
 motion.matches = true;
+assert.equal(flow.foulProgress({ t: 0.3, foul: true }), 1, 'reduced motion uses the normal foul banner without a wipe');
 const reduced = { wipeIn: 1, view: {} };
 assert.equal(game.replayFlow.advance(reduced, dt, true), 'done');
 assert.equal(reduced.view, null);

@@ -312,7 +312,7 @@
     if (!input || typeof input !== 'object') return null;
     const o = {};
     for (const key of ['mx', 'my', 'dx', 'dy']) o[key] = Number.isFinite(input[key]) ? Math.max(-1, Math.min(1, input[key])) : 0;
-    for (const key of ['sprint', 'a1', 'a2', 'a3', 'post', 'dribble', 'hesi', 'rs', 'rsPad', 'pass', 'screen', 'selfAlley']) o[key] = input[key] === true;
+    for (const key of ['sprint', 'a1', 'a2', 'a3', 'post', 'dribble', 'hesi', 'rs', 'rsPad', 'pass', 'screen', 'selfAlley', 'ai']) o[key] = input[key] === true;
     if (o.pass && ['chest', 'skip', 'bounce', 'lob', 'alley'].includes(input.passKind)) o.passKind = input.passKind;
     return o;
   }
@@ -551,11 +551,16 @@
     for (const [slot, link] of room.links) if (link.input && now - link.last < 500) out[slot] = link.input;
     return out;
   }
+  function aiSlots() {
+    const out = new Set();
+    for (const [slot, link] of room.links) if (link.input && link.input.ai) out.add(slot);
+    return out;
+  }
   function ping() {
     const t = performance.now();
     if (room.role === 'host') { if (room.links.size) broadcast({ type: 'ping', t }); }
     else if (room.role === 'guest' && pending && room.code) write(pending, { type: 'ping', t });
   }
   const valid = (code) => code.length === 5 && [...code].every((c) => alphabet.includes(c));
-  PH.rooms = { room, open, close, iceServers: () => iceServers, broadcast, congested, relaying, input, inputs, ping, valid, sendLobby: (data) => { if (pending && !room.active) write(pending, { ...data, type: 'lobby' }); } };
+  PH.rooms = { room, open, close, iceServers: () => iceServers, broadcast, congested, relaying, input, inputs, aiSlots, ping, valid, sendLobby: (data) => { if (pending && !room.active) write(pending, { ...data, type: 'lobby' }); } };
 })();

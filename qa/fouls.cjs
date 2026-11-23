@@ -12,6 +12,7 @@ for (const name of ['tune', 'ptype', 'render', 'roster', 'r5', 'r2k', 'game']) {
 }
 const { game: gm, TUNE: tune, foulQA: qa } = ctx.PH;
 const { G, _dbg: dbg, t5: t } = gm;
+G.vopt.replay = false;
 const audio = [];
 let bounces = 0;
 gm.setAudioSink((...event) => {
@@ -20,6 +21,8 @@ gm.setAudioSink((...event) => {
 });
 function heardFoul(event) {
   assert.deepEqual(audio.splice(0), [['play', 'foulWhistle'], ['vo', 'curry', event, 'pri']]);
+  assert.equal(G.banner.text, event === 'foulCharge' ? '进攻犯规' : '防守犯规');
+  assert(G.banner.foul, 'the call is tagged for the shared wipe');
 }
 const dt = 1 / 120;
 const set = (key, value) => tune.set('l1_' + key, value);
@@ -37,7 +40,7 @@ function duel(o = {}) {
   Object.assign(d.r, { def: 0.95, intD: 0.95, dcon: 0.5 });
   return [p, d];
 }
-function jumper(y, made, fouls, hold = true) {
+function releaseJumper(y, made, fouls) {
   const [p, d] = duel({ fouls, glen: 180 });
   p.y = y; d.y = y + 0.4;
   gm.seed(3);
@@ -45,8 +48,12 @@ function jumper(y, made, fouls, hold = true) {
   gm.seed(made ? 9999 : 1730);
   dbg.releaseShot(p, made ? 0 : 1, 'shot');
   assert.equal(G.lastShot.made, made);
-  until(() => G.ball.state !== 'shot', hold);
   return [p, d];
+}
+function jumper(y, made, fouls, hold = true) {
+  const players = releaseJumper(y, made, fouls);
+  until(() => G.ball.state !== 'shot' && (!G.ft || G.phase === 'ft'), hold);
+  return players;
 }
 function freeThrow(green, pause = 0.7, stalled = false) {
   const p = G.players[G.ft.id], phase = G.ft.index;
@@ -231,11 +238,47 @@ for (const kind of ['lay', 'dunk']) {
     gm.seed(7);
     qa.updateAction(p, t.zeroInp(), 0);
   }
+  assert(p.z > 0, 'the contact occurs while the shooter is still airborne');
+  if (kind === 'dunk') assert.equal(G.phase, 'foul', 'a resolved dunk still waits for its landing');
+  assert.equal(gm.replayFlow.foulProgress(G.banner), 1);
+  assert.deepEqual(audio, []);
+  until(() => p.z === 0 && p.knock === 'fall' && p.knockT >= 0.34);
+  assert(G.phase !== 'ft', 'the shooter lands and finishes falling before the cut');
+  const land = G.time;
   until(() => G.phase === 'ft');
+  assert(G.time - land >= 0.2, 'the camera holds briefly on the completed fall');
   assert.equal(G.ft.total, G.lastShot.made ? 1 : 2);
   heardFoul(G.lastShot.made ? 'foulAndOne' : 'foulShot');
 }
 console.log('PASS shooting fouls: jumper, layup, dunk, and-one, three-shot miss, FT timing and both possession outcomes');
+
+G.vopt.replay = true;
+for (const [y, pts, skip] of [[7, 2, false], [4.65, 3, true]]) {
+  releaseJumper(y, true, true);
+  until(() => G.replay);
+  const R = G.replay;
+  assert.equal(R.q.andOne, pts);
+  assert.equal(G.phase, 'foul', 'free throw setup waits for the replay');
+  assert(R.fr.at(-1).p.every(p => p.z === 0), 'the replay keeps the landing');
+  assert.equal(G.score[0], pts);
+  assert.equal(G.stats[1].pf, 1);
+  assert(R.fr.some(f => f.t >= R.q.contactAt && f.t < R.q.contactAt + 0.3 && Math.abs(f.p[0].pose.tilt) > 0.25), 'replay contains visible torso recoil');
+  assert.deepEqual(audio, [], 'the whistle and foul label wait until after the replay');
+  const clock = G.gclock;
+  until(() => R.view);
+  if (skip) R.skip = true;
+  for (let i = 0; G.replay && i < 1600; i++) tick();
+  assert.equal(G.replay, null);
+  assert.equal(G.gclock, clock);
+  assert.equal(G.phase, 'ft');
+  assert.equal(G.ft.total, 1);
+  heardFoul('foulAndOne');
+  assert.equal(gm.replayFlow.foulProgress(G.banner), 0);
+  tick(true);
+  assert.equal(G.players[0].action, null, 'holding shoot across the replay does not start the free throw');
+}
+G.vopt.replay = false;
+console.log('PASS and-ones: two- and three-point highlights include the recoil, then the whistle and one free throw after finish or skip');
 
 set('ctThruHi', -1); set('ctThruP', 1); set('ctThruQMin', 1);
 function chargeTrial(i, edge = 0, fouls) {
@@ -248,16 +291,12 @@ function chargeTrial(i, edge = 0, fouls) {
   p.action.skill = null;
   gm.seed(Math.imul(i + 1, 100003));
   qa.finContact(p, d);
-  if (G.phase !== 'check') {
+  if (G.phase !== 'foul') {
     assert.equal(p.action.thru, 'fall', 'unwhistled contact still performs the existing knockdown');
     return false;
   }
-  assert.equal(G.off, 1);
-  assert.equal(G.stats[0].tov, 1);
   assert.equal(G.stats[0].pf, 1);
   assert.equal(G.score[0], 0);
-  assert.equal(G.banner.text, '进攻犯规');
-  heardFoul('foulCharge');
   return true;
 }
 const rate = (edge, on) => Array.from({ length: 400 }, (_, i) => chargeTrial(i, edge, on)).filter(Boolean).length / 400;
@@ -274,8 +313,16 @@ Object.assign(driver, { vy: 8, y: 8 });
 Object.assign(defender, { y: 8.35 });
 gm.seed(7);
 qa.collide(driver, defender);
-assert.equal(G.banner.text, '进攻犯规');
+assert.equal(G.phase, 'foul');
+assert.equal(defender.knock, 'fall');
+assert.equal(gm.replayFlow.foulProgress(G.banner), 1);
+until(() => defender.knockT >= 0.34);
+assert.equal(G.phase, 'foul', 'the defender finishes falling before the charge wipe');
+const chargeLand = G.time;
+until(() => G.phase === 'check');
+assert(G.time - chargeLand >= 0.2);
 assert.equal(G.off, 1);
+assert.equal(G.stats[0].tov, 1);
 heardFoul('foulCharge');
 console.log('PASS foul audio: exactly one whistle and one priority reaction per foul, no repeat on free throws or with fouls off');
 console.log(`PASS offensive fouls: ${(even * 100).toFixed(1)}% at even ratings, ${(edge * 100).toFixed(1)}% for dominant attacker, live drive charge, no fouls when disabled`);

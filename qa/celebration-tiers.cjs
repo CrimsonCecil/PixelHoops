@@ -54,13 +54,13 @@ console.log('PASS: game winner plays the signature celebration (target score and
 for (const pts of [2, 3]) {
   Gm.newGame({ mode: 'cpu', arch0: 'curry', arch1: 'joe' });
   Object.assign(G, { intro: null, phase: 'live' });
-  Gm.awardFreeThrows(0, pts, true);
+  Gm.awardFreeThrows(0, pts, true, { foulAt: G.time });
   assert.equal(G.cel, null);
   Gm.settleFreeThrow({ shooter: 0, made: true });
   assert.ok(G.cel && G.cel.ty === 'night' && G.phase === 'dead', pts + '+1 made free throw plays night-night');
   Gm.newGame({ mode: 'cpu', arch0: 'curry', arch1: 'joe' });
   Object.assign(G, { intro: null, phase: 'live' });
-  Gm.awardFreeThrows(0, pts, true);
+  Gm.awardFreeThrows(0, pts, true, { foulAt: G.time });
   Gm.settleFreeThrow({ shooter: 0, made: false });
   assert.equal(G.cel, null, pts + '+1 missed free throw: no celebration');
 }
