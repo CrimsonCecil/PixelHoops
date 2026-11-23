@@ -2251,8 +2251,10 @@
           cam.x = c0x + dx * m; cam.y = c0y + dy * m; cam.z = c0z + dz * m;
           const ay = Math.max(1, cz.py - cam.y), az = 1.05 - cam.z, al = Math.hypot(ay, az);
           setPitch(by / bl + (ay / al - by / bl) * k, bz / bl + (az / al - bz / bl) * k);
+          const zc = (cz.py - cam.y) * cam.fy + (1.05 - cam.z) * cam.fz, lim = Math.max(0, W * 0.4 * zc / cam.F - 0.6);
+          cam.x = Math.max(cz.px - lim, Math.min(cz.px + lim, cam.x));
         };
-        const fits = () => { const f = proj(cz.px, cz.py, 0), h = proj(cz.px, cz.py, 2.2); return f.d > 1.5 && f.y <= H * 0.9 && h.y >= H * 0.05; };
+        const fits = () => { const f = proj(cz.px, cz.py, 0), h = proj(cz.px, cz.py, 2.2); return f.d > 1.5 && f.y <= H * 0.9 && h.y >= H * 0.05 && Math.min(f.x, h.x) >= W * 0.06 && Math.max(f.x, h.x) <= W * 0.94; };
         place(1); czAim = true;
         if (!fits()) {
           let lo = 0, hi = 1;
