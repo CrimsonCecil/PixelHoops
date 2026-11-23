@@ -4155,6 +4155,7 @@
     if (!d2l(f, a, bump, true)) return false;
     const na = f.action, h = hoopDir(f), vz = 1.2, left = (vz + Math.sqrt(vz * vz + 2 * GP * z)) / GP, dd = Math.max(0, distHoop(f) - 0.6);
     na.inSteps = false; na.t = 0; na.cAir = true;
+    if (f.ctrl !== 'cpu') na.rearm = true;   // 起跳后的松手不记在 a.rel：按住的会立刻清掉 rearm，松开的走 d2lE 兜底
     f.x = x; f.y = y; f.z = z; f.vz = vz; f.vx = h.x * Math.min(dd / left, 2.5); f.vy = h.y * Math.min(dd / left, 2.5);
     na.ideal = clamp(Math.min(na.ideal, left - 0.08), 0.1, 0.6); layMeter(na);
     return true;
