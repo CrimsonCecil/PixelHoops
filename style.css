@@ -349,6 +349,12 @@ button.pick .pk-c { grid-row: 1 / 3; grid-column: 3; font-size: var(--fs-xs); co
 .pk-team-filters .pkt:focus-visible { outline:2px solid var(--gold); outline-offset:-2px; }
 #picker .pk-tip { display:none; }
 #picker .pk-team-filters { margin-bottom:10px; }
+/* Keep the roster reachable when the fixed filter/header stack exceeds the dialog. */
+@media(max-height:360px) {
+  #picker .panel.pk { overflow-y:auto; }
+  #picker .pk-head,#picker .pk-team-filters,#pk-positions,#picker .actions { flex-shrink:0; }
+  #picker .pk-body { flex:none; height:150px; }
+}
 @media(max-width:1000px) {
   .pk-team-row { grid-template-columns:repeat(15,52px); overflow-x:auto; padding:0 2px 5px; scrollbar-width:thin; scrollbar-color:#425777 transparent; }
 }
