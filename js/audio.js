@@ -58,6 +58,7 @@
     g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.001, t + dur);
     s.connect(f).connect(g).connect(dest || sfxGain); s.start(t); s.stop(t + dur + 0.02);
   }
+  const FOUL_WHISTLE_DUR = 0.46;
   const SFX = {
     badge: () => { tone(880, 0.09, 'square', 0.12, 0, 1320); tone(1320, 0.16, 'triangle', 0.16, 0.08, 1760); },
     bump: () => { tone(80, 0.14, 'sine', 0.45, 0, 45); noise(0.07, 0.22, 420, 1); },
@@ -77,15 +78,22 @@
     buzzer: () => { tone(196, 0.7, 'sawtooth', 0.22); tone(198, 0.7, 'square', 0.12); },
     whistle: () => { tone(2300, 0.22, 'square', 0.1); tone(2350, 0.22, 'sine', 0.1); },
     foulWhistle: () => {
-      const now = ac.currentTime, gain = ac.createGain();
-      gain.gain.value = 1.3;
-      gain.connect(sfxGain);
-      for (const [delay, dur] of [[0, 0.125], [0.155, 0.18]]) {
-        const t = now + delay;
-        tone(2750, dur, 'sine', 0.29, t, 3100, gain);
-        tone(3120, dur, 'triangle', 0.15, t, 3260, gain);
-        noise(dur, 0.14, 3050, 4, t, 3400, 'bandpass', gain);
+      const t = ac.currentTime, end = t + FOUL_WHISTLE_DUR, breath = ac.createGain();
+      breath.gain.setValueAtTime(0, t);
+      breath.gain.linearRampToValueAtTime(1, t + 0.012);
+      breath.gain.exponentialRampToValueAtTime(0.33, end - 0.11);
+      breath.gain.exponentialRampToValueAtTime(0.001, end);
+      breath.connect(sfxGain);
+      for (const [type, from, to, volume] of [['sine', 2750, 3100, 0.42], ['triangle', 3120, 3260, 0.095]]) {
+        const osc = ac.createOscillator(), layer = ac.createGain();
+        osc.type = type;
+        osc.frequency.setValueAtTime(from, t);
+        osc.frequency.exponentialRampToValueAtTime(to, end);
+        layer.gain.value = volume;
+        osc.connect(layer).connect(breath);
+        osc.start(t); osc.stop(end);
       }
+      noise(FOUL_WHISTLE_DUR, 0.085, 3050, 4, t, 3400, 'bandpass', breath);
     },
     squeak: () => { tone(1900, 0.07, 'sine', 0.07, 0, 2600); },
     steal: () => { tone(500, 0.06, 'square', 0.16, 0, 900); noise(0.05, 0.15, 3000, 2); },
@@ -298,7 +306,7 @@
   let voM = null, voOn = true, voCur = null, voLast = {}, voBusy = 0;
   const VO_WALK = { barkley: 'shaq_dunk_2.mp3' };
   const VO_FOUL = { foulCharge: 'daniels_hurt_1.mp3', foulShot: 'edwards_hurt_1.mp3', foulAndOne: 'chet_hurt_1.mp3' };
-  const FOUL_VO_DELAY = 0.36;
+  const FOUL_VO_DELAY = FOUL_WHISTLE_DUR + 0.03;
   const VO_INTRO = {
     barkley: [['shaq_make_1.mp3', 'shaq_make_0.mp3'], ['shaq_dom_1.mp3', 'shaq_block_0.mp3']],
     yao: [['sengun_dom_0.mp3', 'sengun_dom_2.mp3'], ['sengun_taunt_1.mp3', 'sengun_make_0.mp3']],
