@@ -147,6 +147,8 @@ journalctl -u pixelhoops-sync-main.service -n 30 --no-pager
 
 定时器每分钟检查 GitHub 的 `main`。脚本先准备完整版本，再切换 `/opt/pixelhoops/app`；只在后端代码或依赖变更时重启 Node 服务。发布后检查本机健康接口和两份游戏脚本；失败则切回。初次发布前的目录和上一个发布版本都保存在 `/opt/pixelhoops/releases/`，数据库和环境配置不变。启用后不要再用 `setup.sh` 发布代码。
 
+上线检查失败的提交不会每分钟重试；合入新的提交后会自动恢复同步。如果故障与代码无关并需重试同一个提交，先确认服务已恢复，再删除 `/opt/pixelhoops/releases/.rejected/` 下对应提交 SHA 的标记文件。
+
 需要回滚时，先停用定时器（否则下次检查会重新发布 `main`），再运行：
 
 ```bash

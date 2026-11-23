@@ -6,6 +6,7 @@ app=$home/app
 releases=$home/releases
 mirror=$home/main.git
 previous=$releases/previous
+rejected=$releases/.rejected
 upstream=https://github.com/CrimsonCecil/PixelHoops.git
 local_http=http://127.0.0.1:8787
 mode=${1:-sync}
@@ -38,6 +39,7 @@ check_live() {
 }
 
 install -d -m 0755 "$releases"
+install -d -m 0700 "$rejected"
 if [[ $mode != sync ]]; then
     if [[ $mode == rollback-original ]]; then
         original=("$releases"/legacy-*)
@@ -57,6 +59,10 @@ else
     sha=$(git_main rev-parse --verify 'refs/heads/main^{commit}')
     if [[ $current == "$releases/$sha" ]]; then
         echo "Already serving main $sha"
+        exit 0
+    fi
+    if [[ -e $rejected/$sha ]]; then
+        echo "Skipping main $sha: previous activation failed" >&2
         exit 0
     fi
 
@@ -101,6 +107,9 @@ if { (( ! restart )) || systemctl restart pixelhoops.service; } && check_live "$
     echo "Serving $next; rollback available at $current"
 else
     echo "Health check failed; reverting to $current" >&2
+    if [[ $mode == sync ]]; then
+        : > "$rejected/$sha" || echo "Could not record rejected release $sha" >&2
+    fi
     as_app touch "$current/index.html"
     publish "$current"
     if (( restart )); then systemctl restart pixelhoops.service; fi
