@@ -6,8 +6,7 @@
 <title>PIXEL HOOPS 像素斗牛 · 半场 1 对 1</title>
 <meta name="description" content="16 位街机像素风的半场 1 对 1 篮球对抗游戏，2K 视角与 2K 式操作。">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 8' shape-rendering='crispEdges'%3E%3Crect width='8' height='8' fill='%2315101f'/%3E%3Crect x='2' y='1' width='4' height='6' fill='%23ee7f30'/%3E%3Crect x='1' y='2' width='6' height='4' fill='%23ee7f30'/%3E%3Crect x='1' y='4' width='6' height='1' fill='%237a3212'/%3E%3Crect x='4' y='1' width='1' height='6' fill='%237a3212'/%3E%3C/svg%3E">
-<link rel="preconnect" href="https://cdn.jsdelivr.net">
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/fusion-pixel-12px-proportional-sc@5/index.css">
+<link rel="preload" href="fonts/fusion-pixel-sc.woff2" as="font" type="font/woff2" crossorigin>
 <script>
 window.__V__ = (Date.parse(document.lastModified) || Date.now()).toString(36) + '-slim-snapshots-protocol';
 document.write('<link rel="stylesheet" href="style.css?v=' + window.__V__ + '">');
@@ -155,7 +154,6 @@ document.write('<link rel="stylesheet" href="menu.css?v=' + window.__V__ + '">')
         <button class="primary" id="btn-start" data-testid="btn-start">开始比赛</button>
         <div class="actions menu-actions-sub">
           <button id="btn-help" data-testid="btn-help">操作说明</button>
-          <button id="btn-replays">录像</button>
           <button id="btn-set" data-testid="btn-set" title="设置">设置</button>
         </div>
       </div>
@@ -219,6 +217,7 @@ document.write('<link rel="stylesheet" href="menu.css?v=' + window.__V__ + '">')
         <button class="ingame" id="btn-cam" data-testid="btn-cam">镜头</button>
         <button id="btn-disp" data-testid="btn-disp">显示</button>
         <button id="btn-sound" data-testid="btn-sound">声音</button>
+        <button class="inmenu" id="btn-replays" data-testid="settings-replays">录像回放</button>
         <button id="btn-tune2" data-testid="btn-tune2">调参台</button>
         <button class="ingame" id="btn-help2" data-testid="btn-help2">操作说明</button>
         <button class="ingame" id="btn-restart" data-testid="btn-restart">重新开始</button>

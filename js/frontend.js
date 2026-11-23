@@ -9,21 +9,23 @@
   const fmt = () => ctx.opts.format === 't3' ? 't3' : 'online';
   const members = () => [0, ...ctx.room.links.keys()];
   function go(next) {
+    const restoreFocus = document.activeElement !== $('menu') && $('menu').contains(document.activeElement);
     generation++; clearInterval(listTimer); listTimer = null; listBusy = false;
     view = next; $('menu').dataset.view = view;
     $('front-breadcrumb').textContent = { home: '你的球场，随时开场。', solo: '单机游玩', lobby: '在线大厅', select: '选择阵容' }[next];
     if (next === 'lobby') { loadRooms(); listTimer = setInterval(() => loadRooms(true), 10000); }
     refresh();
     const first = $('menu').querySelector('[data-view-panel="' + next + '"] button, .menu-panel button:not(.hidden)');
-    if (first && first.offsetParent) first.focus({ preventScroll: true });
+    if (first && first.offsetParent && (next !== 'home' || restoreFocus)) first.focus({ preventScroll: true });
+    else if (next === 'home') { $('menu').tabIndex = -1; $('menu').focus({ preventScroll: true }); }
   }
   function leave(next) {
     PH.directory.stop(); published = ''; ctx.rooms.close(); synced.clear(); remoteMembers = []; ctx.status('');
     ctx.opts.opponent = 'cpu'; ctx.redraw(); go(next);
   }
-  function choose(format, online = false) {
+  function choose(format, online = false, returnView = 'solo') {
     ctx.opts.format = format; ctx.opts.opponent = online ? 'online' : format === 'duel' && PH.input.pads().length >= 2 ? '2p' : 'cpu';
-    previous = online ? 'lobby' : 'solo'; synced.clear(); remoteMembers = []; ctx.redraw(); go('select');
+    previous = online ? 'lobby' : returnView; synced.clear(); remoteMembers = []; ctx.redraw(); go('select');
   }
   function capacity() { return ctx.opts.format === 't3' ? 1 + ctx.lobby.filter((s, i) => i !== 0 && s.role === 'waiting').length : 2; }
   function publish() {
@@ -122,11 +124,10 @@
     $('menu').insertAdjacentHTML('afterbegin', `
       <header class="front-top"><a class="front-brand" href="#" data-home>PIXEL <i>HOOPS</i></a><span id="front-breadcrumb">你的球场，随时开场。</span><span class="front-edition">● 街机球馆</span></header>
       <section class="front-home" data-view-panel="home">
-        <div class="front-intro"><p class="front-eyebrow">PICK YOUR GAME</p><h1>PIXEL<br><span>HOOPS</span></h1><p class="front-tagline">从今晚的球场，到你的传奇。<br>选一位球星，把热爱交给自己。</p><p class="front-live">● LIVE COURT <span>球场永不打烊</span></p></div>
-        <div class="front-home-nav"><div class="front-entries"><button id="front-solo" data-testid="home-solo"><small>01</small><div><b>本地开打</b><span>挑战电脑 · 同屏双人 · 自选球员</span></div><em>↗</em></button><button id="front-online" data-testid="home-online"><small>02</small><div><b>在线对战</b><span>查看在线球场，点击房间即加入</span></div><em>↗</em></button></div>
-        <div class="front-utility"><button data-home-format="train"><strong>自由训练</strong><span>热热手感，打磨动作 ↗</span></button><button data-home-format="king"><strong>斗牛之王</strong><span>五关挑战，谁上王座 ↗</span></button></div>
-        <div class="front-tools"><button data-tool="help">操作说明</button><button data-tool="replays">录像</button><button data-tool="set">设置</button></div>
-        </div>
+        <div class="front-intro"><h1>PIXEL<span>HOOPS</span></h1></div>
+        <nav class="front-home-nav" aria-label="游玩模式"><div class="front-entries"><button id="front-solo" data-testid="home-solo"><b>本地开打</b><em aria-hidden="true">↗</em></button><button id="front-online" data-testid="home-online"><b>在线对战</b><em aria-hidden="true">↗</em></button></div>
+        <button class="front-home-train" data-home-format="train" data-testid="home-train">自由训练<em aria-hidden="true">↗</em></button></nav>
+        <div class="front-tools"><button data-tool="help"><span aria-hidden="true">?</span>操作说明</button><button data-tool="set"><span aria-hidden="true">⚙</span>设置</button></div>
       </section>
       <section class="front-page front-solo" data-view-panel="solo"><header><button data-home>← 主页</button><span>PLAY SOLO / 单机游玩</span></header>
         <button class="front-king" data-format="king" data-testid="solo-king"><span class="front-eyebrow">主打玩法 · 五关挑战</span><strong>♛ 斗牛之王</strong><b>KING OF THE COURT</b><span>从街头新人到球场之王。选一位球星，连胜五位对手。</span><em>登上王座 →</em></button>
@@ -149,12 +150,18 @@
       const b = e.target.closest('button, a[data-home]'); if (!b) return;
       if (b.matches('a')) e.preventDefault();
       if (b.hasAttribute('data-home')) leave('home');
-      if (b.dataset.homeFormat) { previous = 'solo'; choose(b.dataset.homeFormat); }
+      if (b.dataset.homeFormat) choose(b.dataset.homeFormat, false, 'home');
       if (b.dataset.format) choose(b.dataset.format);
       if (b.dataset.tool) $('btn-' + b.dataset.tool).click();
       if (b.dataset.join) { const r = roomsList.find((r) => r.code === b.dataset.join); if (r) joinRoom(r.code, r.mode); }
       if (b.id === 'front-retry' || b.id === 'front-refresh') loadRooms();
       if (b.dataset.filter) { filter = b.dataset.filter; $('front-filters').querySelectorAll('button').forEach((x) => { x.classList.toggle('on', x === b); x.setAttribute('aria-pressed', String(x === b)); }); renderRooms(); }
+    });
+    // Mouse hover owns the home highlight; keyboard/gamepad focus uses the same treatment.
+    $('menu').querySelector('.front-home').addEventListener('pointermove', (e) => {
+      if (e.pointerType === 'touch') return;
+      $('menu').querySelectorAll('.pf').forEach((b) => b.classList.remove('pf'));
+      if (e.currentTarget.contains(document.activeElement)) document.activeElement.blur();
     });
     $('front-create-open').onclick = () => { $('front-create').classList.remove('hidden'); $('front-room-name').focus(); };
     $('front-create-cancel').onclick = () => $('front-create').classList.add('hidden');

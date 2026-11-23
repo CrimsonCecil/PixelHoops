@@ -1,3 +1,11 @@
+/* Fusion Pixel / TakWolf, SIL OFL 1.1 (fonts/OFL.txt). Shared by every interface. */
+@font-face {
+  font-family: 'Fusion Pixel 12px Proportional SC';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('fonts/fusion-pixel-sc.woff2') format('woff2');
+}
 :root {
   --u: 2px;
   --font: 'Fusion Pixel 12px Proportional SC', 'Courier New', monospace;
@@ -21,6 +29,7 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 html, body { height: 100%; background: var(--bg); overflow: hidden; color: var(--text); font-family: var(--font); -webkit-font-smoothing: none; touch-action: none; user-select: none; -webkit-user-select: none; }
 body { display: flex; align-items: center; justify-content: center; }
+input, select, textarea { font-family: var(--font); }
 #stage { position: relative; width: 960px; height: 540px; overflow: hidden; background: #070a16; }
 #game { position: absolute; inset: 0; width: 100%; height: 100%; image-rendering: pixelated; image-rendering: crisp-edges; display: block; }
 #replay-wipe {
