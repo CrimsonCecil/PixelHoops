@@ -1718,11 +1718,11 @@
     if (G.mode === 't3') { renderBox3(); return; }
     const P = G.players.map((pl, i) => Object.assign(bxStat(i), { ftAbility: A99(pl.r.ft) })), cols = VIEWS[BX.view].concat(BX.adv ? ADVC : []), cat = BX.view !== 'box';
     if (!cat && G.fouls) cols.splice(3, 0, 'FT', 'PF');
-    const nm = [0, 1].map((i) => $('n' + i).dataset.fullName), cw = cat ? VIEWS[BX.view].map((k) => catWin(k, P)) : null;
+    const nm = [0, 1].map((i) => G.players[i].arch.name), cw = cat ? VIEWS[BX.view].map((k) => catWin(k, P)) : null;
     let h = '<thead><tr><th class="pcol">球员</th>' + cols.map((k) => '<th title="' + C[k][3] + '">' + C[k][0] + '</th>').join('') + (cat ? '<th class="cw">胜项</th>' : '') + '</tr></thead><tbody>';
     for (const i of [0, 1]) {
       const p = P[i];
-      h += '<tr class="' + (i === G.winner ? 'win' : '') + '"><td class="pcol ' + (i ? 'r' : 'b') + '">' + nm[i] + '</td>';
+      h += '<tr class="' + (i === G.winner ? 'win' : '') + '"><td class="pcol ' + (i ? 'r' : 'b') + '">' + escH(nm[i]) + '</td>';
       cols.forEach((k, j) => { const c = C[k], v = c[2] ? c[2](p) : c[1](p), hc = BX.heat ? heatCls(k, P, i) : '', won = cat && j < cw.length && cw[j] === i; h += '<td class="' + hc + (won ? ' cwin' : '') + '">' + v + '</td>'; });
       if (cat) { const n = cw.filter((x) => x === i).length, t = cw.filter((x) => x === -1).length; h += '<td class="cw"><b>' + n + '</b><small>-' + (cw.length - n - t) + (t ? '-' + t : '') + '</small></td>'; }
       h += '</tr>';
