@@ -730,7 +730,7 @@
     if (opts.mode === 't3' || opts.mode === 'online') {
       const t3 = opts.mode === 't3';
       if (!t3 && !room.links.has(1)) return;
-      const config = same && !t3 && matchConfig ? matchConfig : { mode: opts.mode, clock: opts.clock, target: opts.target, diff: opts.diff, fb: opts.fb, glen: opts.glen,
+      const config = same && !t3 && matchConfig ? { ...matchConfig, intro: opts.intro } : { mode: opts.mode, clock: opts.clock, target: opts.target, diff: opts.diff, fb: opts.fb, glen: opts.glen,
         ...(t3 ? { slots: lobby3.map((s, i) => ({ arch: s.arch, role: room.links.has(i) ? 'remote' : s.role === 'waiting' ? 'cpu' : s.role })) }
           : { arch0: opts.arch0, arch1: pickArch(opts.arch1, opts.arch0), fouls: opts.fouls === 'on', intro: opts.intro }) };
       if (room.role === 'host') {
