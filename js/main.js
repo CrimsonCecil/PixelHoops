@@ -255,18 +255,21 @@
     if (opts.format !== 't3') inlineSlot = null;
     else if (inlineSlot === null) inlineSlot = 0;
     if (!PH.frontend.allowed(inlineSide, inlineSlot)) { inlineSlot = opts.format === 't3' ? roomSlot : null; inlineSide = room.role === 'guest' ? 1 : 0; }
-    const current = inlineSlot === null ? (inlineSide ? opts.arch1 : opts.arch0) : lobby3[inlineSlot]?.arch;
-    $('front-roster-title').textContent = inlineSlot === null ? (inlineSide ? 'P2' : 'P1') : lobbySlotName(inlineSlot);
+    const current = inlineSlot === null ? (inlineSide ? opts.arch1 : opts.arch0) : lobby3[inlineSlot]?.arch, dual = inlineSlot === null && dualSelect();
+    $('front-roster-title').textContent = dual ? 'P1 · P2' : inlineSlot === null ? (inlineSide ? 'P2' : 'P1') : lobbySlotName(inlineSlot);
+    const curKeys = CUR.map((c) => { const e = $('front-roster').querySelector('.' + c); return e && ['pk', 'tm', 'pos'].map((a) => e.dataset[a] != null ? '[data-' + a + '="' + e.dataset[a] + '"]' : '').find(Boolean); });
     const conferenceScroll = Array.from($('front-teams').querySelectorAll('.pk-team-row'), (row) => row.scrollLeft);
     pkTeams(); pkPositionChips();
     $('front-teams').innerHTML = $('pk-teams').innerHTML.replace(/data-testid=/g, 'data-original-testid=');
     $('front-teams').querySelectorAll('.pk-team-row').forEach((row, i) => { row.scrollLeft = conferenceScroll[i] || 0; });
     $('front-positions').innerHTML = $('pk-positions').innerHTML;
     const keys = GM.ROSTER.filter((k) => { const a = GM.ARCH[k]; return (pkTeam === 'all' || (pkTeam === 'rook' ? a.tier === 'rook' : a.team === pkTeam)) && (!pkPositions.size || playerPositions(a).some((p) => pkPositions.has(p))); });
-    $('front-grid').innerHTML = (inlineSide && inlineSlot === null && !room.role ? pkCard('random') : '') + keys.map(pkCard).join('') || '<p class="tnote">没有符合条件的球员，试试其他球队或位置。</p>';
+    $('front-grid').innerHTML = ((inlineSide || dual) && inlineSlot === null && !room.role ? pkCard('random') : '') + keys.map(pkCard).join('') || '<p class="tnote">没有符合条件的球员，试试其他球队或位置。</p>';
     $('front-grid').querySelectorAll('[data-testid]').forEach((e) => e.removeAttribute('data-testid'));
-    $('front-grid').querySelectorAll('.pkc').forEach((e) => { e.classList.toggle('on', e.dataset.pk === current); e.title = e.dataset.pk === 'random' ? '随机球星' : GM.ARCH[e.dataset.pk].full; const cv = e.querySelector('canvas'); if (cv) portrait(cv, GM.ARCH[e.dataset.pk], GM.TEAMS[inlineSide]); });
-    for (let i = 0; i < 2; i++) $('pick' + i).classList.toggle('on', inlineSlot === null && i === inlineSide);
+    $('front-grid').querySelectorAll('.pkc').forEach((e) => { e.title = e.dataset.pk === 'random' ? '随机球星' : GM.ARCH[e.dataset.pk].full; const cv = e.querySelector('canvas'); if (cv) portrait(cv, GM.ARCH[e.dataset.pk], GM.TEAMS[inlineSide]); });
+    $('front-grid').querySelectorAll('.pkc').forEach((e) => { e.classList.toggle('on', !dual && e.dataset.pk === current); e.classList.toggle('p1on', dual && e.dataset.pk === opts.arch0); e.classList.toggle('p2on', dual && e.dataset.pk === opts.arch1); });
+    for (let i = 0; i < 2; i++) $('pick' + i).classList.toggle('on', inlineSlot === null && (dual || i === inlineSide));
+    curKeys.forEach((k, i) => { const e = k && $('front-roster').querySelector(k); if (e) e.classList.add(CUR[i]); });
   }
   function installInlinePicker() {
     $('menu').querySelector('.menu-actions').insertAdjacentHTML('beforebegin', '<section id="front-roster" class="front-roster"><div class="front-target"><h3 id="front-roster-title" aria-live="polite">P1</h3><button id="front-player-detail" aria-label="球员详情与技能" title="球员详情与技能">↗</button></div><div id="front-teams" class="pk-team-filters" role="group" aria-label="球队筛选"></div><div id="front-positions" role="group" aria-label="位置筛选（可多选）"></div><div id="front-grid" aria-label="可选球星"></div></section>');
@@ -624,7 +627,10 @@
   }));
 
   function show(id, on) { $(id).classList.toggle('hidden', !on); }
-  function clearPf() { document.querySelectorAll('.pf').forEach((e) => e.classList.remove('pf')); }
+  // 手柄光标：.pf = 手柄 1（P1），.pf2 = 手柄 2（P2，只在本地双人选人时单独出现）
+  const CUR = ['pf', 'pf2'];
+  function clearPf(cls) { const c = cls ? [cls] : CUR; document.querySelectorAll(c.map((k) => '.' + k).join(',')).forEach((e) => e.classList.remove(...c)); }
+  const dualSelect = () => screen === 'menu' && opts.mode === '2p' && !room.role && $('menu').dataset.view === 'select' && $('picker').classList.contains('hidden') && PH.input.pads().length >= 2;
   function startDemo() { GM.newGame({ mode: 'demo', arch0: 'curry', arch1: 'lebron', target: 11 }); }
   function toMenu() {
     tuneClose(); kingPark();
@@ -2000,18 +2006,23 @@
     el.value = v; el.dispatchEvent(new Event('input', { bubbles: true }));
     clearTimeout(adj.timer); adj.timer = setTimeout(() => el.dispatchEvent(new Event('change', { bubbles: true })), 260);
   }
-  function navSet(root, el) { clearPf(); el.classList.add('pf'); el.scrollIntoView({ block: 'nearest' }); if (root.id === 'tune') el.dispatchEvent(new FocusEvent('focusin', { bubbles: true })); }
+  function navSet(root, el, s = 0) { clearPf(s ? CUR[s] : undefined); el.classList.add(CUR[s]); el.scrollIntoView({ block: 'nearest' }); if (root.id === 'tune') el.dispatchEvent(new FocusEvent('focusin', { bubbles: true })); }
   // 面板被重建（切页签 / 选项）后，焦点落回原来的位置
-  function navRefocus(root, list, idx, b) {
+  function navRefocus(root, list, idx, b, s = 0) {
     const r2 = navRoot(); if (r2 !== root) return;
-    if (b.isConnected && b.offsetParent !== null) { b.classList.add('pf'); return; }
-    const l2 = navList(root), n = l2[Math.min(Math.max(0, idx), l2.length - 1)]; if (n) navSet(root, n);
+    if (root.querySelector('.' + CUR[s])) return;
+    if (b.isConnected && b.offsetParent !== null) { b.classList.add(CUR[s]); return; }
+    const l2 = navList(root), n = l2[Math.min(Math.max(0, idx), l2.length - 1)]; if (n) navSet(root, n, s);
   }
-  function navMove(dx, dy) {
+  function navMove(dx, dy, s = 0) {
     const root = navRoot(); if (!root) return;
     const list = navList(root); if (!list.length) return;
-    let cur = root.querySelector('.pf');
-    if (!cur || cur.offsetParent === null || !cur.matches(NAV_SEL)) { cur = root.id === 'menu' ? root.querySelector('.menu-modes .on') : navPri(root); if (!list.includes(cur)) cur = list[0]; navSet(root, cur); return; }
+    let cur = root.querySelector('.' + CUR[s]);
+    if (!cur || cur.offsetParent === null || !cur.matches(NAV_SEL)) {
+      // P2 的光标第一次出现时落在自己当前选的球员上
+      cur = s ? $('front-grid').querySelector('[data-pk="' + opts.arch1 + '"]') || $('front-grid').querySelector('[data-pk]') : root.id === 'menu' ? root.querySelector('.menu-modes .on') : navPri(root);
+      if (!list.includes(cur)) cur = list[0]; navSet(root, cur, s); return;
+    }
     if (dx && cur.type === 'range') { navAdjust(cur, dx); return; }
     const r0 = cur.getBoundingClientRect(), cx = r0.left + r0.width / 2, cy = r0.top + r0.height / 2;
     const verticalPicker = dy !== 0 && cur.hasAttribute('data-pk');
@@ -2034,17 +2045,19 @@
         bs = sc; best = b; bestIsPlayer = isPlayer;
       }
     }
-    if (best) { navSet(root, best); PH.audio.play('ui'); if (best.hasAttribute('data-pk')) pkDetail(best.getAttribute('data-pk')); }
+    if (best) { navSet(root, best, s); PH.audio.play('ui'); if (best.hasAttribute('data-pk')) pkDetail(best.getAttribute('data-pk')); }
     else if (dx && cur.tagName === 'SELECT') navAdjust(cur, dx);   // 下拉：左右旁边没有别的控件时才左右切选项（A 也能切下一项）
   }
-  function navClick() {
+  function navClick(s = 0) {
     const root = navRoot(); if (!root) return false;
-    const list = navList(root), b = list.find((el) => el.classList.contains('pf')) || navPri(root) || list[0];
-    if (!b) { if (list[0]) navSet(root, list[0]); return true; }
+    const list = navList(root), b = list.find((el) => el.classList.contains(CUR[s])) || (s ? null : navPri(root) || list[0]);
+    if (!b) { if (s) navMove(0, 0, s); else if (list[0]) navSet(root, list[0]); return true; }
+    // 双人选人：哪个手柄按 A，就给哪一边选人（随机只给 P2）
+    if (dualSelect() && b.closest('#front-grid')) { if (!s && b.dataset.pk === 'random') return true; inlineSide = s; }
     if (b.tagName === 'SELECT') { navAdjust(b, 1); return true; }
     if (isTextInput(b)) { b.focus(); return true; }
     if (b.type === 'range') return true;
-    const idx = list.indexOf(b); b.click(); navRefocus(root, list, idx, b);
+    const idx = list.indexOf(b); b.click(); navRefocus(root, list, idx, b, s);
     return true;
   }
   // LB / RB / 右摇杆左右：切页签；X：把当前参数恢复默认（调参台）；右摇杆上下：滚动
@@ -2067,7 +2080,7 @@
   document.addEventListener('focusin', (e) => {
     const root = navRoot(), el = e.target;
     if (root && root.contains(el) && el.matches(NAV_SEL) && el.offsetParent !== null && !el.disabled) {
-      clearPf(); el.classList.add('pf');
+      clearPf('pf'); el.classList.add('pf');
     }
   });
   document.addEventListener('pointerdown', (e) => {
@@ -2121,9 +2134,11 @@
   function sysKeys() {
     const I = PH.input, replay = screen === 'play' && G.replay && !paused;
     const key = replay && I.sysAny(); // 先读键盘，避免把手柄导航连发当成新按键
+    const dual = dualSelect(); I.split.on = dual && navRoot() === $('menu');
+    if (dual !== $('menu').hasAttribute('data-dual')) { $('menu').toggleAttribute('data-dual', dual); if (!dual) clearPf('pf2'); renderInlinePicker(); }
     const button = I.pollPads(), padSlot = I.pressSlot();
     if (button) fsAuto();
-    if (padSlot >= 0 && padSlot < 2 && padSlot !== inlineSide && screen === 'menu' && opts.mode === '2p' && $('menu').dataset.view === 'select' && $('picker').classList.contains('hidden')) {
+    if (!dual && padSlot >= 0 && padSlot < 2 && padSlot !== inlineSide && screen === 'menu' && opts.mode === '2p' && $('menu').dataset.view === 'select' && $('picker').classList.contains('hidden')) {
       const f = document.activeElement, focused = f && f.closest && f.closest('#front-grid [data-pk]');
       const cur = $('front-grid').querySelector('[data-pk].pf') || focused, pk = cur ? cur.getAttribute('data-pk') : null;
       inlineSide = padSlot; renderInlinePicker();
@@ -2156,6 +2171,14 @@
     const lb = I.sysPressed('PadLB'), rb = I.sysPressed('PadRB'), rl = I.sysPressed('PadRLeft'), rr = I.sysPressed('PadRRight'), px = I.sysPressed('PadX');
     if (screen === 'tips') { if (esc || pb || ok) tipsExit(); I.clearSys(); return; }
     const root = navRoot();
+    if (I.split.on) {
+      const q = (k) => I.sysPressed('P2' + k), u = q('PadUp'), d = q('PadDown'), l = q('PadLeft'), r = q('PadRight'), a = q('PadA'), st = q('PadStart');
+      for (const k of ['PadB', 'PadBack', 'PadX', 'PadY', 'PadLB', 'PadRB', 'PadRLeft', 'PadRRight']) q(k);
+      if (root && root.id === 'menu') {
+        if (u) navMove(0, -1, 1); else if (d) navMove(0, 1, 1); else if (l) navMove(-1, 0, 1); else if (r) navMove(1, 0, 1);
+        if (a) navClick(1); else if (st) startMatch(false);
+      }
+    }
     if (screen === 'menu' && root && (root.id === 'menu' || root.id === 'picker' || root.id === 'pause')) {
       up = I.sysPressed('ArrowUp') || up; dn = I.sysPressed('ArrowDown') || dn; lf = I.sysPressed('ArrowLeft') || lf; rt = I.sysPressed('ArrowRight') || rt;
       const focused = document.activeElement;
