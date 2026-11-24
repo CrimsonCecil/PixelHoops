@@ -111,11 +111,28 @@
   function setTheme(th) {
     const key = th ? th.paint + '|' + th.k1 + th.k2 + '|' + th.words.join(',') : '';
     if (key === themeKey) return; themeKey = key;
-    for (let i = 0; i < LV.length; i++) { PAINT[i] = th ? packHex(th.paint, LV[i] * th.k1) : packHex('#2c62b0', LV[i]); PAINT2[i] = th ? packHex(th.paint, LV[i] * th.k2) : packHex('#2857a0', LV[i]); }
-    WORDS = th ? th.words : WORDS_DEF;
-    if (back) { back = buildBackdrop(false); backB = buildBackdrop(true); }
+    for (let i = 0; i < LV.length; i++) { PAINT[i] = th ? packHex(th.paint, LV[i] * th.k1) : packHex(SCN ? SCN.paint : '#2c62b0', LV[i]); PAINT2[i] = th ? packHex(th.paint, LV[i] * th.k2) : packHex(SCN ? SCN.paint2 : '#2857a0', LV[i]); }
+    WORDS = th ? th.words : SCN ? SCN.words : WORDS_DEF;
+    if (back) { back = buildBackdrop(false); backB = buildBackdrop(true); back3 = null; }
   }
   const APR = [packHex('#1a2342'), packHex('#1e294c')];
+  // 球场场景：null = 主场球馆（上面这套默认配色），其余场景的配色和远景画法在 courts.js
+  let SCN = null, SKY = '#070a16', OUT = 0xff120d0a, LIGHT = 0.2, FLOOR = 0, POLE = ['#2a3a78', '#3d52a0'];
+  function setScene(id) {
+    const sc = (id && PH.COURTS && PH.COURTS.byId(id)) || null;
+    if (sc === SCN) return;
+    SCN = sc;
+    const wood = sc ? sc.wood : WOOD_BASE, woodIn = sc ? sc.woodIn : WOOD_IN, line = sc ? sc.line : '#f6efe0';
+    for (let i = 0; i < LV.length; i++) {
+      for (let j = 0; j < 5; j++) { WOOD[i][j] = packHex(wood[j], LV[i]); WOODI[i][j] = packHex(woodIn[j], LV[i]); }
+      LINE[i] = packHex(line, LV[i]);
+    }
+    APR[0] = packHex(sc ? sc.apron[0] : '#1a2342'); APR[1] = packHex(sc ? sc.apron[1] : '#1e294c');
+    SKY = sc ? sc.sky : '#070a16'; OUT = sc ? packHex(sc.out) : 0xff120d0a; LIGHT = sc ? sc.light : 0.2;
+    FLOOR = sc && sc.art ? 2 : sc && sc.grain ? 1 : 0;
+    POLE = sc ? [sc.pole[1], sc.pole[2]] : ['#2a3a78', '#3d52a0'];
+    themeKey = null; setTheme(null);
+  }
   const BAYER = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5];
 
   let cv, ctx, fcv, fctx, fimg, fbuf, back, backB, back3, spr, sctx, sil, silx;
@@ -143,6 +160,7 @@
   function buildBackdrop(up, words = WORDS, startX = 14) {
     const back = document.createElement('canvas'); back.width = BW; back.height = 170;
     const b = back.getContext('2d');
+    if (SCN && WORDS === SCN.words) { SCN.paint3(b, { BW: BW, BAYER: BAYER, shade: shade, words: SCN.words, startX: startX, up: up }); return back; }
     b.fillStyle = '#070a16'; b.fillRect(0, 0, BW, 170);
     let seed = 7;
     const rnd = () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; };
@@ -214,12 +232,12 @@
         const ax = wx < 0 ? -wx : wx;
         let col;
         if (!yIn || ax > 7.5 + lw) {
-          col = wy > 16.6 ? 0xff120d0a : APR[(Math.floor(wx / 1.5) + Math.floor(wy / 1.5)) & 1];
+          col = wy > 16.6 ? OUT : APR[(Math.floor(wx / 1.5) + Math.floor(wy / 1.5)) & 1];
           fbuf[row + sx] = col; continue;
         }
         // 光照层级（抖动）
         const dl = Math.sqrt(wx * wx * 0.6 + (wy - 9) * (wy - 9));
-        let lv = (dl * 0.2 + BAYER[(sx & 3) + by] / 16 - 0.35) | 0;
+        let lv = (dl * LIGHT + BAYER[(sx & 3) + by] / 16 - 0.35) | 0;
         if (lv < 0) lv = 0; else if (lv > 3) lv = 3;
         let line = false;
         if (yEdge || ax > 7.5 - lw) line = true;
@@ -240,6 +258,8 @@
             else if (Math.abs(d3 - 1.8) < lr3) line = true;
             else if (ax < 2.45 && wy > 8.2) col = ((Math.floor(wx / 0.28) & 1) ? PAINT : PAINT2)[lv];
             else if (d3 < 1.8) col = PAINT2[lv];
+            else if (FLOOR === 2) col = (in3 ? WOODI : WOOD)[lv][PH.COURTS.artCell(wx, wy)];
+            else if (FLOOR === 1) col = (in3 ? WOODI : WOOD)[lv][hash(Math.floor(wx / 0.4) * 31 + Math.floor(wy / 0.4) * 57) % 5];
             else {
               const pl = Math.floor(wx / 0.28);
               const seg = Math.floor((wy + (pl & 3) * 0.9) / 3.2);
@@ -1779,12 +1799,12 @@
     const pb = proj(0, 15.3, 0), pt = proj(0, 15.3, 3.3);
     const pw = Math.max(3, Math.round(0.3 * pb.s));
     ctx.fillStyle = '#15101f'; ctx.fillRect(Math.round(pb.x - pw / 2) - 1, Math.round(pt.y) - 1, pw + 2, Math.round(pb.y - pt.y) + 2);
-    ctx.fillStyle = '#2a3a78'; ctx.fillRect(Math.round(pb.x - pw / 2), Math.round(pt.y), pw, Math.round(pb.y - pt.y));
-    ctx.fillStyle = '#3d52a0'; ctx.fillRect(Math.round(pb.x - pw / 2), Math.round(pt.y), Math.max(1, pw >> 1), Math.round(pb.y - pt.y));
+    ctx.fillStyle = POLE[0]; ctx.fillRect(Math.round(pb.x - pw / 2), Math.round(pt.y), pw, Math.round(pb.y - pt.y));
+    ctx.fillStyle = POLE[1]; ctx.fillRect(Math.round(pb.x - pw / 2), Math.round(pt.y), Math.max(1, pw >> 1), Math.round(pb.y - pt.y));
     const base = proj(0, 15.3, 0); ctx.fillStyle = '#15101f'; ctx.fillRect(Math.round(base.x - pw * 1.6), Math.round(base.y) - 2, Math.round(pw * 3.2), 4);
     const a = proj(-0.9, BOARD_Y, 3.95), c = proj(0.9, BOARD_Y, 2.9);
     const x0 = Math.round(a.x), y0 = Math.round(a.y), w = Math.round(c.x - a.x), h = Math.round(c.y - a.y);
-    ctx.fillStyle = '#2a3a78'; ctx.fillRect(Math.round(pb.x - pw / 2), y0 + (h >> 1), pw, Math.round(pt.y) - y0);
+    ctx.fillStyle = POLE[0]; ctx.fillRect(Math.round(pb.x - pw / 2), y0 + (h >> 1), pw, Math.round(pt.y) - y0);
     ctx.fillStyle = '#15101f'; ctx.fillRect(x0 - 1, y0 - 1, w + 2, h + 2);
     ctx.fillStyle = '#dfe9f5'; ctx.fillRect(x0, y0, w, h);
     ctx.fillStyle = '#b8c8e0'; ctx.fillRect(x0 + 1, y0 + 1, w - 2, h - 2);
@@ -2026,7 +2046,7 @@
   function drawCrowdFx(G, bx, by) {
     const F = G.fx, t = G.time, MP = (G.mp >= 0 || G.sd) && G.phase !== 'over', mpc = G.sd ? '#ffd24a' : G.mpCol || '#ffd24a';
     const chv = Math.max(F.cheer, MP ? 0.55 + 0.2 * Math.sin(t * 2.4) : 0);
-    if (chv > 0) {
+    if (chv > 0 && (!SCN || SCN.crowd)) {
       const lv = Math.min(1, chv / 1.2);
       for (let i = 0; i < BW / 8; i++) {
         const sx = i * 8; if (bx + sx > W || bx + sx < -8) continue;
@@ -2279,11 +2299,11 @@
       offsetX3 = dx; offsetY3 = dy;
     }
     ctx.setTransform(1, 0, 0, 1, 0, 0);
-    ctx.fillStyle = '#070a16'; ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = SKY; ctx.fillRect(0, 0, W, H);
     if (F.shake > 0.3) { const h = hash((G.time * 60) | 0); ctx.setTransform(1, 0, 0, 1, Math.round(((h & 255) / 255 - 0.5) * F.shake), Math.round((((h >>> 8) & 255) / 255 - 0.5) * F.shake)); }
     const first = drawFloor();
     const bx = Math.round(W / 2 - BW / 2 - cam.x * 14);
-    ctx.drawImage(G.mode === 't3' ? back3 || (back3 = buildBackdrop(false, WORDS_3, 58)) : back, bx, first - 170);
+    ctx.drawImage(G.mode === 't3' ? back3 || (back3 = buildBackdrop(false, SCN ? SCN.words : WORDS_3, 58)) : back, bx, first - 170);
     drawCrowdFx(G, bx, first - 170);
     ctx.drawImage(fcv, 0, 0);
     draw3pt(G);
@@ -2374,7 +2394,7 @@
     }
   }
 
-  PH.render = { init: init, resize: resize, get W() { return W; }, get H() { return H; }, render: render, camera1Intro: camera1Intro, replayCamera: replayCamera, particleSize: particleSize, setTheme: setTheme, proj: proj, cam: cam, CAMV: CAMV, CAM_DEF: CAM_DEF, setCam: setCam, camTuned: camTuned, setCamTuned: setCamTuned, resetCamTuned: resetCamTuned, HOOP: HOOP, BOARD_Y: BOARD_Y, BALL_R: BALL_R, curCol: curCol,
+  PH.render = { init: init, resize: resize, get W() { return W; }, get H() { return H; }, render: render, camera1Intro: camera1Intro, replayCamera: replayCamera, particleSize: particleSize, setTheme: setTheme, setScene: setScene, get scene() { return SCN ? SCN.id : 'arena'; }, proj: proj, cam: cam, CAMV: CAMV, CAM_DEF: CAM_DEF, setCam: setCam, camTuned: camTuned, setCamTuned: setCamTuned, resetCamTuned: resetCamTuned, HOOP: HOOP, BOARD_Y: BOARD_Y, BALL_R: BALL_R, curCol: curCol,
     // 5V5 全场模式复用的绘制图元（不影响 1V1）
     drawCombos: drawCombos, drawScreenFx: drawScreenFx, drawMeter: (pl, hp) => drawMeter(pl, hp), drawPlayer: drawPlayer, sprintTrail: sprintTrail, drawHead: drawHead, drawBall: drawBall, shadow: shadow, ellipse: ellipse, ring: ring, brush: brush, getCtx: () => ctx, drawNameTag: curName, BAYER: BAYER };
   const previewCache = new Map();
