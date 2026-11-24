@@ -277,6 +277,7 @@
     $('front-positions').onclick = (e) => { const b = e.target.closest('[data-pos]'); if (b) { const p = b.dataset.pos; if (pkPositions.has(p)) pkPositions.delete(p); else pkPositions.add(p); renderInlinePicker(); } };
     $('front-grid').onclick = (e) => {
       const b = e.target.closest('[data-pk]'); if (!b || !PH.frontend.allowed(inlineSide, inlineSlot)) return;
+      if (inlineSlot === null && b.dataset.pk === 'random') inlineSide = 1;
       if (inlineSlot !== null) lobby3[inlineSlot].arch = b.dataset.pk; else opts[inlineSide ? 'arch1' : 'arch0'] = b.dataset.pk;
       PH.frontend.selectionChanged(); refreshMenu(); PH.audio.play('ui');
     };
