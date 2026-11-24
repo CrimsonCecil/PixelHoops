@@ -132,6 +132,15 @@ let n = 0; const ok = (m) => console.log(`PASS ${++n}. ${m}`);
   const codes = []; for (let i = 0; i < 35; i++) codes.push((await api('GET', '/api/turn')).status);
   assert.ok(codes.includes(429), 'rate limited per IP');
   ok('TURN creds: coturn HMAC-SHA1 REST scheme, 6h expiry, per-IP rate limit');
+  const { makeTurnHandler } = await import('../lib/turn.mjs');
+  const m = makeTurnHandler({ secret: 's3cret', host: ' 203.0.113.7 , turn.test ' })('1.1.1.1').body.iceServers;
+  assert.deepEqual(m.map((x) => x.urls), [
+    ['stun:203.0.113.7:3478', 'turn:203.0.113.7:3478?transport=udp', 'turn:203.0.113.7:3478?transport=tcp'],
+    ['turn:turn.test:3478?transport=udp', 'turn:turn.test:3478?transport=tcp'],
+  ]);
+  assert.ok(m[0].username === m[1].username && m[0].credential === m[1].credential, 'one credential for every box');
+  assert.equal(makeTurnHandler({ secret: 's3cret', host: ' , ' })('1.1.1.1').status, 404);
+  ok('TURN creds: several relay boxes in TURN_HOST, preferred one first');
 }
 
 // ---- 6. static
