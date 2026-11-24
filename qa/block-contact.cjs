@@ -47,6 +47,7 @@ function fixture() {
   Object.assign(sh, { x: 0, y: 10, z: 1.5, face: Math.PI / 2 });
   Object.assign(df, { x: 0, y: 10.3, z: 0.19, face: -Math.PI / 2, stun: 0 });
   df.action = { type: 'block', t: 0.04, zmax: 1, rel: 1 };
+  df.sk.cd = 99;
   Object.assign(df.pose, { aRp: Math.PI, aRe: 0, aRq: 0, reachR: 1, reachL: 1 });
   return { ctx, gm, sh, df, qa: ctx.PH.contactQA };
 }
@@ -71,6 +72,20 @@ function fixture() {
   df.action.chase = true;
   assert.equal(qa.tryBlock(sh, df, 'dunk', 100, 1, high, {}), false);
   console.log('PASS low jump/high dunk: no contact/block or position snap; apex contact: block possible; one roll per defender; chase requires contact');
+}
+
+{
+  const { ctx, gm, sh, df, qa } = fixture();
+  df.z = 1; df.vz = 0; df.action.t = 0.25; df.sk.cd = 0;
+  const hand = ctx.PH.rig(df).handR, ball = { x: hand[0], y: hand[1], z: hand[2] };
+  gm.CFG.blockMul = 0;
+  assert(qa.tryBlock(sh, df, 'shot', 100, null, ball, {}));
+  assert(df.action.chase && df.action.rimB);
+  Object.assign(sh, { y: 5 }); Object.assign(df, { y: 5.3 }); df.action = { type: 'block', t: 0.25, zmax: 1, rel: 1 };
+  const far = ctx.PH.rig(df).handR;
+  assert.equal(qa.tryBlock(sh, df, 'shot', 100, null, { x: far[0], y: far[1], z: far[2] }, {}), false);
+  gm.CFG.blockMul = 1;
+  console.log('PASS rim block skill: judged at hand contact inside the zone, normal roll outside it');
 }
 
 {
