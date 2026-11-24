@@ -2175,8 +2175,8 @@
       I.clearSys(); return;
     }
     if (replay) { I.clearSys(); if (key || button) { if (skipScene()) skipPress(); else skipReplay(); } return; }
-    if (skipScene() && !paused) { if (G.intro && room.role === 'host' && (I.introPressed('Escape') || I.introPressed('PadStart') || I.introPressed('PadB'))) GM.introEnd(); else if (I.sysAny() || button) skipPress(); I.clearSys(); return; }
-    if (screen === 'play' && G.intro && !paused) { if (I.introPressed('Escape') || I.introPressed('PadStart') || I.introPressed('PadB')) GM.introEnd(); else if (I.introPressed()) GM.introPress(); I.clearSys(); return; }
+    if (skipScene() && !paused) { if (G.intro && room.role === 'host' && (I.introPressed('Escape') || I.introPressed('PadStart'))) GM.introEnd(); else if (I.introPressed() || I.introPressed('Escape') || I.introPressed('PadStart')) skipPress(); I.clearSys(); return; }
+    if (screen === 'play' && G.intro && !paused) { if (I.introPressed('Escape') || I.introPressed('PadStart')) GM.introEnd(); else if (I.introPressed()) GM.introPress(); I.clearSys(); return; }
     if (I.sysPressed('KeyM')) toggleMusic();
     if (I.sysPressed('KeyI') && screen === 'play') toggleInfo();
     if (I.sysPressed('KeyC') && screen === 'play' && G.phase !== 'over') toggleCam();
@@ -2519,6 +2519,7 @@
   function talkBox() {
     const I = G.intro, on = screen === 'play' && !!I, L = on && I.li >= 0 ? I.lines[I.li] : null;
     stage.classList.toggle('intro', on); show('talk', !!L);
+    if (on) { const tip = hasPad ? 'A / 空格 下一句 · Start / Esc 跳过 ▶▶' : '空格 / 点击 下一句 · Esc 跳过 ▶▶', el = $('intro-skip'); if (el.textContent !== tip) el.textContent = tip; }
     if (!L) { talkKey = ''; return; }
     const p = G.players.find((q) => q.id === L.id), key = I.t0 + ':' + I.li, box = $('talk'), side = (pl) => (pl.tm == null ? pl.id : pl.tm);
     if (talkKey !== key) {
@@ -2531,7 +2532,7 @@
     $('talk-text').textContent = L.t.slice(0, n); box.classList.toggle('done', n >= L.t.length);
   }
   $('talk').addEventListener('pointerdown', (e) => { e.stopPropagation(); if (G.intro?.waitPeers && room.role === 'host') GM.introEnd(); else if (skipScene()) skipPress(); else GM.introPress(); });
-  // 在线真人 1V1：进场动画 / 回放要两人都按任意键才跳过；房主计票，客机只发自己的一票（通道可能丢包，未结束前每 0.5 秒补发）
+  // 在线真人 1V1：进场动画要两人都按确认键（空格 / 回车 / 手柄 A / Esc / Start）、回放要两人都按任意键才跳过；房主计票，客机只发自己的一票（通道可能丢包，未结束前每 0.5 秒补发）
   const SKIP = { scene: '', votes: new Set(), n: 0, mine: false, endIn: 0, resend: 0 };
   function skipScene() {
     if (screen !== 'play' || !matchConfig || matchConfig.mode !== 'online' || !room.active || PH.tapeView.open) return '';

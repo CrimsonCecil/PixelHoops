@@ -203,11 +203,17 @@ function inputEdges() {
   assert.equal(I.introPressed(), false, 'launch key/button/stick blocked');
   for (let i = 0; i < 20; i++) { now += 100; I.pollPads(); assert.equal(I.introPressed(), false); I.clearSys(); }
   listeners.keyup({ code: 'KeyW' }); pad.axes[0] = 0; pad.buttons[0].pressed = false; I.pollPads(); I.clearSys();
-  listeners.keydown({ code: 'KeyW', repeat: false }); assert.equal(I.introPressed(), true, 'fresh key advances'); I.clearSys();
-  listeners.keydown({ code: 'KeyW', repeat: true }); assert.equal(I.introPressed(), false, 'key repeat ignored');
-  pad.axes[0] = 0.8; I.pollPads(); assert.equal(I.introPressed(), true, 'fresh stick edge advances'); I.clearSys();
+  for (const code of ['KeyW', 'KeyD', 'ArrowLeft', 'KeyJ', 'KeyK', 'KeyL', 'ShiftLeft']) { listeners.keydown({ code, repeat: false, preventDefault() {} }); listeners.keyup({ code }); }
+  assert.equal(I.introPressed(), false, 'movement and action keys do not advance'); I.clearSys();
+  listeners.keydown({ code: 'Enter', repeat: false }); assert.equal(I.introPressed(), true, 'fresh confirm key advances'); I.clearSys();
+  listeners.keydown({ code: 'Enter', repeat: true }); assert.equal(I.introPressed(), false, 'key repeat ignored'); listeners.keyup({ code: 'Enter' });
+  pad.axes[0] = 0.8; I.pollPads(); assert.equal(I.introPressed(), false, 'stick does not advance'); I.clearSys();
   now += 500; I.pollPads(); assert.equal(I.sysAny(), true, 'menu navigation still repeats'); assert.equal(I.introPressed(), false); I.clearSys();
-  pad.buttons[7].pressed = true; I.pollPads(); assert.equal(I.introPressed(), true, 'any fresh button advances');
+  for (const i of [1, 2, 3, 5, 7]) pad.buttons[i].pressed = true;
+  I.pollPads(); assert.equal(I.introPressed(), false, 'action buttons do not advance'); I.clearSys();
+  pad.buttons[0].pressed = true; I.pollPads(); assert.equal(I.introPressed(), true, 'fresh A advances');
+  for (const i of [0, 1, 2, 3, 5, 7]) pad.buttons[i].pressed = false;
+  pad.axes[0] = 0; I.pollPads();
   I.clearSys(); pad.buttons[9].pressed = true; I.pollPads();
   listeners.keydown({ code: 'Escape', repeat: false });
   const slot = I.pressSlot();
@@ -219,10 +225,10 @@ function inputEdges() {
   I.pollPads(); I.clearSys();
   pad.buttons[9].pressed = false; I.pollPads(); I.clearSys();
   pad.buttons[9].pressed = true; I.pollPads(); assert.equal(I.introPressed('PadStart'), true, 'fresh Start still skips'); I.clearSys();
-  pad.buttons[8].pressed = true; I.flush();
+  pad.buttons[0].pressed = true; I.flush();
   assert.equal(I.pollPads(), true, 'flush does not consume an unpolled menu button edge');
   assert.equal(I.introPressed(), false, 'unpolled launch hold remains blocked for intro');
-  console.log('PASS intro input: launch holds and navigation repeats ignored; fresh key/stick/button edges retained');
+  console.log('PASS intro input: launch holds, movement, stick and action buttons ignored; fresh confirm key / A advance');
   console.log('PASS flush: queued pause/menu events, unpolled edges and pressSlot preserved');
 }
 
@@ -365,7 +371,7 @@ async function guestCompletion() {
   await onlineScenario('intro-off', { introOff: true });
   await onlineScenario('intro-off-3V3', { introOff: true, mode: 't3' });
   await onlineScenario('legacy', { noAck: true });
-  for (const skip of ['Escape', 'PadStart', 'PadB']) await onlineScenario('skip', { skip });
+  for (const skip of ['Escape', 'PadStart']) await onlineScenario('skip', { skip });
   await onlineScenario('skip-during-wait', { skip: 'pointer', skipWait: true });
   for (const skip of ['talk-touch', 'talk-mouse']) await onlineScenario('talk-override', { skip, skipWait: true });
   await onlineScenario('disconnect', { disconnect: true });
