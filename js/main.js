@@ -1272,6 +1272,16 @@
     const { accuracy, vision, passIQ } = pl.tendency;
     return cells + [['传球', accuracy], ['视野', vision], ['传球智商', passIQ]].map(([name, v]) => pcCell(name, Math.round(v * 100), 0)).join('');
   }
+  // 信息卡专属技能行：紫框图标 + 技能名 + 状态（就绪 / 可释放 / 冷却秒数 / 库里蓄力格）；冷却按整秒刷新，图标底部紫色回填
+  function skRow(pl, is5) {
+    const S = pl.arch.skill, k = pl.sk;
+    if (!S || is5 || !k || typeof k.cd !== 'number' || k.cd > 99 || G.mode === 'demo') return '';
+    const cd = Math.ceil(k.cd), go = !cd && k.hint === 'ready', need = S.id === 'curry' && !cd && !k.ready ? Math.round(GM.K.skCurryN) : 0;
+    const fill = cd ? Math.round(Math.max(0, Math.min(1, 1 - cd / (k.cdMax || cd))) * 100) : 0;
+    const pips = need ? Array.from({ length: need }, (_, i) => '<u' + (i < (k.streak || 0) ? ' class="on"' : '') + '></u>').join('') : '';
+    const txt = cd ? '<span class="sk-cd">冷却 ' + cd + ' 秒</span>' : go ? '<span class="sk-go">可释放</span>' : need ? '<span class="sk-cd">蓄力<i class="skp">' + pips + '</i></span>' : '<span class="sk-ok">就绪</span>';
+    return '<div class="pcsk" data-testid="pc-skill"><span class="skt ' + (cd ? 'cd' : go ? 'go' : 'rdy') + '">' + IC.svg(IC.has('sk_' + S.id) ? 'sk_' + S.id : 'takeover') + (cd ? '<i class="skm" style="height:' + fill + '%"></i><b>' + cd + '</b>' : '') + '</span><div><span class="skn">' + S.name + '</span>' + txt + '</div></div>';
+  }
   function cardHTML(pl, isOff, st, is5 = false) {
     const a = pl.arch, tkOn = pl.tkOn > 0;
     const cells = pcRatings(pl, isOff, is5);
@@ -1284,7 +1294,7 @@
     const name = '<b>' + a.name + '</b>', ovr = '<em class="' + vcl(a.ovr) + '">' + a.ovr + '</em>';
     const role = '<u class="' + (isOff ? 'ro' : 'rd') + '">' + (isOff ? '进攻' : '防守') + '</u>';
     const head = '<span class="pc-id">' + name + ovr + (G.mode === 't3' ? positionBadge(a) : '') + '</span>' + role;
-    return '<div class="pch">' + head + '</div>' + sl + '<div class="pcg">' + cells + '</div>' + brow + tkl + '<div class="pctk' + (tkOn ? ' on' : '') + '"><span>主宰</span><s><b style="width:' + Math.round(pl.tk) + '%"></b></s></div>';
+    return '<div class="pch">' + head + '</div>' + sl + '<div class="pcg">' + cells + '</div>' + skRow(pl, is5) + brow + tkl + '<div class="pctk' + (tkOn ? ' on' : '') + '"><span>主宰</span><s><b style="width:' + Math.round(pl.tk) + '%"></b></s></div>';
   }
   function fitBadgePops(cardPrefix, colPrefix) {
     const bottoms = [0, 1].map((i) => {
