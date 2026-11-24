@@ -2057,7 +2057,10 @@
     if (b.tagName === 'SELECT') { navAdjust(b, 1); return true; }
     if (isTextInput(b)) { b.focus(); return true; }
     if (b.type === 'range') return true;
+    const o = dualSelect() && root.querySelector('.' + CUR[1 - s]), oi = list.indexOf(o);
     const idx = list.indexOf(b); b.click(); navRefocus(root, list, idx, b, s);
+    // 选人会重画卡片：另一位玩家的光标跟着丢了就放回原处
+    if (o) navRefocus(root, list, oi, o.id ? $(o.id) || o : o.dataset.pk ? root.querySelector('[data-pk="' + o.dataset.pk + '"]') || o : o, 1 - s);
     return true;
   }
   // LB / RB / 右摇杆左右：切页签；X：把当前参数恢复默认（调参台）；右摇杆上下：滚动
