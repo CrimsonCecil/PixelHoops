@@ -10,7 +10,7 @@
 # Safe to re-run. Keep the coturn settings in line with turnserver.conf.tpl.
 set -euo pipefail
 
-: "${TURN_SECRET:?set TURN_SECRET to the value in the main server's /etc/pixelhoops.env}"
+: "${TURN_SECRET:?set TURN_SECRET to the value in /etc/pixelhoops.env on the main server}"
 case "$TURN_SECRET" in *[!A-Za-z0-9]*) echo "TURN_SECRET must be letters and digits only"; exit 1 ;; esac
 TURN_MIN_PORT="${TURN_MIN_PORT:-49152}"
 TURN_MAX_PORT="${TURN_MAX_PORT:-50000}"
