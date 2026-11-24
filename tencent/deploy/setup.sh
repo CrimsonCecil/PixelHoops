@@ -8,13 +8,23 @@
 #           REPO_URL=https://github.com/CrimsonCecil/PixelHoops.git  BRANCH=tencent-cloud
 #           TURN_MIN_PORT=49152 TURN_MAX_PORT=50000
 #           EXTRA_DOMAINS="ph-test.kccecil.com"   -> more server names on the same nginx + certificate (space separated)
+#           CN_MIRROR=1   -> mainland China box (e.g. Guangzhou): install Node from NODE_MIRROR and npm packages from
+#                            NPM_REGISTRY, because deb.nodesource.com / registry.npmjs.org are slow or unreachable there
+#           NODE_MIRROR=https://mirrors.cloud.tencent.com/nodejs-release  NPM_REGISTRY=https://mirrors.cloud.tencent.com/npm/
+#           A non-default REPO_URL (a mirror of this repo) is saved as SYNC_UPSTREAM so sync-main.sh follows it too.
+#           Pass the same CN_MIRROR / REPO_URL on every re-run: /etc/pixelhoops.env is rewritten each time.
 #
 # Safe to re-run: it never overwrites an existing TURN secret or the SQLite database.
 set -euo pipefail
 
 : "${API_DOMAIN:?set API_DOMAIN, e.g. pixelhoops-api.kccecil.com}"
 : "${EMAIL:?set EMAIL for the TLS certificate}"
-REPO_URL="${REPO_URL:-https://github.com/CrimsonCecil/PixelHoops.git}"
+DEFAULT_REPO_URL=https://github.com/CrimsonCecil/PixelHoops.git
+REPO_URL="${REPO_URL:-$DEFAULT_REPO_URL}"
+CN_MIRROR="${CN_MIRROR:-0}"
+NODE_MIRROR="${NODE_MIRROR:-https://mirrors.cloud.tencent.com/nodejs-release}"
+NPM_REGISTRY="${NPM_REGISTRY:-}"
+if [ "$CN_MIRROR" = 1 ] && [ -z "$NPM_REGISTRY" ]; then NPM_REGISTRY=https://mirrors.cloud.tencent.com/npm/; fi
 BRANCH="${BRANCH:-main}"
 WEB_DOMAIN="${WEB_DOMAIN:-}"
 EXTRA_DOMAINS="${EXTRA_DOMAINS:-}"
@@ -27,15 +37,40 @@ ENV_FILE=/etc/pixelhoops.env
 [ "$(id -u)" = 0 ] || { echo "run as root (sudo)"; exit 1; }
 say() { printf '\n\033[1;36m==> %s\033[0m\n' "$*"; }
 
+# Official Node 22 binary tarball from a mirror, checked against the mirror's SHASUMS256.txt, linked into /usr/bin
+# (pixelhoops.service runs /usr/bin/node).
+install_node_from_mirror() {
+  local base="${NODE_MIRROR%/}/latest-v22.x" arch file tmp
+  case "$(dpkg --print-architecture)" in
+    amd64) arch=x64 ;;
+    arm64) arch=arm64 ;;
+    *) echo "unsupported architecture for the Node mirror install"; exit 1 ;;
+  esac
+  tmp="$(mktemp -d)"
+  curl -fsSL "$base/SHASUMS256.txt" -o "$tmp/SHASUMS256.txt"
+  file="$(awk -v suffix="-linux-$arch.tar.xz" 'substr($2, length($2) - length(suffix) + 1) == suffix { print $2; exit }' "$tmp/SHASUMS256.txt")"
+  [ -n "$file" ] || { echo "no linux-$arch build listed at $base"; exit 1; }
+  curl -fSL "$base/$file" -o "$tmp/$file"
+  ( cd "$tmp" && awk -v f="$file" '$2 == f' SHASUMS256.txt | sha256sum -c - )
+  rm -rf /usr/local/lib/nodejs && mkdir -p /usr/local/lib/nodejs
+  tar -xJf "$tmp/$file" -C /usr/local/lib/nodejs --strip-components=1
+  for b in node npm npx; do ln -sf "/usr/local/lib/nodejs/bin/$b" "/usr/bin/$b"; done
+  rm -rf "$tmp"
+}
+
 say "1/8 packages"
 export DEBIAN_FRONTEND=noninteractive
 apt-get update -y
-apt-get install -y curl ca-certificates git nginx certbot python3-certbot-nginx coturn ufw dnsutils sqlite3
+apt-get install -y curl ca-certificates git nginx certbot python3-certbot-nginx coturn ufw dnsutils sqlite3 xz-utils
 
 say "2/8 Node.js 22 (needs >= 22.13 for node:sqlite)"
 if ! command -v node >/dev/null || [ "$(node -p 'process.versions.node.split(".")[0]')" -lt 22 ]; then
-  curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
-  apt-get install -y nodejs
+  if [ "$CN_MIRROR" = 1 ]; then
+    install_node_from_mirror
+  else
+    curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
+    apt-get install -y nodejs
+  fi
 fi
 node -v
 
@@ -47,6 +82,7 @@ else
   git clone --depth 1 --branch "$BRANCH" "$REPO_URL" "$APP_DIR/app"
 fi
 mkdir -p "$APP_DIR/data"
+if [ -n "$NPM_REGISTRY" ]; then export npm_config_registry="$NPM_REGISTRY"; fi
 ( cd "$APP_DIR/app/tencent" && npm ci --omit=dev --no-audit --no-fund 2>/dev/null || npm install --omit=dev --no-audit --no-fund )
 chown -R "$APP_USER":"$APP_USER" "$APP_DIR"
 
@@ -68,6 +104,9 @@ TURN_PORT=3478
 TURN_TLS_PORT=0
 $( [ -n "$WEB_DOMAIN" ] && printf "STATIC_DIR=%s/app\nSELF_API=%s" "$APP_DIR" "${SELF_API:-1}" )
 ENV
+# Read by sync-main.sh, ignored by the Node service.
+if [ "$REPO_URL" != "$DEFAULT_REPO_URL" ]; then echo "SYNC_UPSTREAM=$REPO_URL" >> "$ENV_FILE"; fi
+if [ -n "$NPM_REGISTRY" ]; then echo "NPM_REGISTRY=$NPM_REGISTRY" >> "$ENV_FILE"; fi
 chmod 640 "$ENV_FILE"; chown root:"$APP_USER" "$ENV_FILE"
 
 say "5/8 systemd service"

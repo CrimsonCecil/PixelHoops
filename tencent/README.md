@@ -28,7 +28,7 @@
 
 | 项 | 选择 |
 | :--- | :--- |
-| 地域 | **中国香港**（免 ICP 备案；深圳、广州到香港约 5 到 15ms） |
+| 地域 | **中国香港**（免 ICP 备案；深圳、广州到香港约 5 到 15ms）。要用广州机房见第 9 节 |
 | 镜像 | **Ubuntu 22.04 LTS** |
 | 套餐 | 2 核 2G 起步，**流量包不要选太小**（TURN 兜底中继会耗流量，两人对战约 100 到 300 kbps） |
 | 登录 | 优先 SSH 密钥 |
@@ -118,7 +118,7 @@ API_DOMAIN=ph-test.kccecil.com WEB_DOMAIN=ph-test.kccecil.com EMAIL=你的邮箱
 | :--- | :--- | :--- |
 | `P2P` 且延迟 < 40ms | 直连成功 | 同城应在 10 到 30ms |
 | `中继` 且延迟 < 60ms | 直连失败，走香港 TURN/WS | 可以玩 |
-| `中继` 且延迟 > 100ms | 线路问题 | 告诉我，考虑换广州机房 |
+| `中继` 且延迟 > 100ms | 线路问题 | 考虑换广州机房，见第 9 节 |
 
 ---
 
@@ -197,3 +197,75 @@ echo '17 4 * * * root bash /opt/pixelhoops/app/tencent/deploy/backup.sh >/dev/nu
 - TURN 密码是**动态短期凭证**（6 小时过期），长期密钥只在服务器 `/etc/pixelhoops.env`（权限 640），不会进前端。
 - `/api/turn` 对每个 IP 限流 30 次/分钟；coturn 设置了单用户配额和总带宽上限，并禁止中继到内网地址。
 - 原有 API 仍然是 `CORS: *` 且无写鉴权（和 Cloudflare 版一致，没有改变）。如果以后要公开推广，建议再补鉴权和限流。
+
+---
+
+## 9. 从香港换到广州机房
+
+程序和部署脚本都按域名工作，公网 IP 由 `setup.sh` 自动探测，所以换机房不用改游戏代码：新开一台服务器装好，搬数据，再把 DNS 指过去。香港服务器在切换完成前一直照常运行。
+
+### 9.1 动手前先确认
+
+- **ICP 备案。** 广州属于中国内地，`kccecil.com` 必须先在腾讯云完成备案（已在别处备案的做接入备案）。没备案的域名解析到内地服务器后，80/443 的访问会被拦截，证书也签不下来。备案按主域名办理，通过后 `pixelhoops`、`pixelhoops-api`、`ph-test` 三个子域名都能用。
+- **访问境外源。** 内地服务器访问 deb.nodesource.com、registry.npmjs.org 和 GitHub 不稳定。安装时加 `CN_MIRROR=1`，Node 和 npm 依赖会改从腾讯云镜像下载。代码同步默认仍然拉 GitHub，某一分钟拉不到只是这一分钟不更新，下一分钟会重试。如果长期拉不到，把仓库镜像到国内的代码托管平台，安装时再加 `REPO_URL=镜像地址`，`sync-main.sh` 会跟着用这个地址。
+
+### 9.2 新建服务器
+
+按 1.1 和 1.2 操作，地域选**广州**，镜像、套餐、防火墙端口都不变。
+
+### 9.3 安装，先用测试域名验证
+
+Cloudflare DNS 把 `ph-test` 的 A 记录改成广州服务器 IP（灰云），然后登录广州服务器：
+
+```bash
+sudo -i
+apt-get update && apt-get install -y git
+git clone --depth 1 https://github.com/CrimsonCecil/PixelHoops.git /tmp/ph
+CN_MIRROR=1 API_DOMAIN=ph-test.kccecil.com WEB_DOMAIN=ph-test.kccecil.com EMAIL=你的邮箱 bash /tmp/ph/tencent/deploy/setup.sh
+```
+
+按 2.1 验证接口和 TURN，再按第 4 节找两个人试玩，记下延迟。
+
+### 9.4 搬数据
+
+**方式一：拷贝数据库备份（完整，推荐）。** 在香港服务器上生成备份：
+
+```bash
+bash /opt/pixelhoops/app/tencent/deploy/backup.sh     # 打印出 .db.gz 文件路径
+```
+
+把这个文件传到广州服务器（例如 `scp` 到 `/root/`），在广州服务器上恢复：
+
+```bash
+systemctl stop pixelhoops
+gunzip -c /root/pixelhoops-时间戳.db.gz > /opt/pixelhoops/data/pixelhoops.db
+rm -f /opt/pixelhoops/data/pixelhoops.db-wal /opt/pixelhoops/data/pixelhoops.db-shm
+chown pixelhoops:pixelhoops /opt/pixelhoops/data/pixelhoops.db
+systemctl start pixelhoops
+```
+
+**方式二：通过公开接口拉取（两台机器之间不用传文件）。** 必须在正式域名**还指向香港**的时候，在广州服务器上运行：
+
+```bash
+cd /opt/pixelhoops/app/tencent
+sudo -u pixelhoops DB_FILE=/opt/pixelhoops/data/pixelhoops.db node --no-warnings migrate-from-cloudflare.mjs
+```
+
+脚本默认读取 `https://pixelhoops-api.kccecil.com`，这时它就是香港服务器。调参配置和录像会完整搬过来，历史记录只能拿到最近 200 条。可以重复运行。
+
+### 9.5 正式切换
+
+1. 挑没人在线的时间：`curl -s https://pixelhoops-api.kccecil.com/api/stats` 返回的 `sockets` 为 0。再按 9.4 搬一次数据，拿到最新的录像和配置。
+2. Cloudflare DNS：`pixelhoops` 和 `pixelhoops-api` 两条 A 记录改成广州服务器 IP，保持灰云。
+3. 在广州服务器上用正式域名重跑安装，签发正式证书（`/tmp/ph` 不在了就重新 clone）：
+
+   ```bash
+   CN_MIRROR=1 API_DOMAIN=pixelhoops-api.kccecil.com WEB_DOMAIN=pixelhoops.kccecil.com EXTRA_DOMAINS=ph-test.kccecil.com EMAIL=你的邮箱 bash /tmp/ph/tencent/deploy/setup.sh
+   ```
+
+   域名参数先对照香港服务器的 `/etc/pixelhoops.env` 和 nginx 配置核对一遍。DNS 改完到证书签发完成之间的几分钟，HTTPS 访问会失败。
+4. 验证：`curl https://pixelhoops-api.kccecil.com/api/health`、`curl https://pixelhoops-api.kccecil.com/api/turn`，并按 2.1 用 trickle-ice 页面确认能拿到 `relay` 候选。
+5. 按第 5 节"正式站跟随 `main`"安装同步定时器，按第 7 节加上每天备份的 cron。
+6. 香港服务器上停掉同步定时器：`systemctl disable --now pixelhoops-sync-main.timer`。机器先保留几天用于回滚。
+
+**回滚：** 把两条 A 记录改回香港服务器 IP 即可。切换后在广州新产生的录像和配置不会自动回到香港，需要的话先按 9.4 反方向搬一次。确认广州稳定后再退掉香港服务器。
