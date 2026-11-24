@@ -1346,8 +1346,8 @@
   let camOpen = false, camWasPaused = false;
   function camBody() {
     if (!camOpen) return;
-    const t3 = G.mode === 't3', values = t3 ? Object.fromEntries(PH.CAM3.map((c) => [c.f, PH.TUNE.get(c.k)])) : R.CAMV;
-    const cams = t3 ? PH.CAM3.map((c) => [c.f, c.label.replace('3V3 镜头 ', ''), c.min, c.max, c.step]) : CAMS;
+    const t3 = G.mode === 't3', values = t3 ? Object.fromEntries(PH.CAM3ALL.map((c) => [c.f, PH.TUNE.get(c.k)])) : R.CAMV;
+    const cams = t3 ? PH.CAM3ALL.map((c) => [c.f, c.label.replace('3V3 镜头 ', ''), c.min, c.max, c.step]) : CAMS;
     $('campanel').querySelector('.thead b').textContent = t3 ? '镜头 · 3V3' : '镜头';
     $('cam-body').innerHTML = cams.map((c) => '<label class="crow"><span>' + c[1] + '</span><input type="range" data-cam="' + c[0] + '" min="' + c[2] + '" max="' + c[3] + '" step="' + c[4] + '" value="' + values[c[0]] + '" data-testid="cam-' + c[0] + '"><b>' + (+values[c[0]]).toFixed(2) + '</b></label>').join('').replace('<label class="crow"><span>推近力度', '<button class="cam-push" data-testid="cam-push">禁区推近 ' + (R.CAMV.push ? '开' : '关') + '</button><label class="crow"><span>推近力度');
     $('cam-info').textContent = '球员信息 ' + (opts.info === 'show' ? '显示' : '隐藏');

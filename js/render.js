@@ -41,6 +41,9 @@
     t3_camFollow: ['3V3 横向跟随比例', '越大镜头越跟着目标左右移；0 = 固定中线，1 = 完全跟随'],
     t3_camSpeed: ['3V3 镜头跟随响应', '越大镜头跟随与取景变化越快；每秒'],
     t3_camPitch: ['3V3 镜头俯视斜率', '越大镜头越向下俯视；斜率'],
+    t3_camHoop: ['3V3 镜头半场锚定', '越大机位越稳在半场中间、越少跟着球跑；0 = 完全跟球，1 = 机位固定'],
+    t3_camEase: ['3V3 镜头缓动时间', '越大镜头起步、停下和重新拉近越柔和；秒，0 = 不加缓动'],
+    t3_camCourt: ['3V3 固定取景范围', '越大画面始终包住的三分线外区域越宽、视野越广；米'],
     l1_ciDur: ['专属技能 插画停留时间', '越大半屏插画从滑入到淡出越久；秒，组队与短插屏乘 0.75'],
     l1_ciFx: ['专属技能 闪光持续时间', '越大技能金光与边缘光晕持续越久；秒，5V5 乘 0.75'],
   };
@@ -66,16 +69,23 @@
     { k: 't3_camSpeed', f: 'speed', label: '3V3 镜头 跟随速度', v: 4.5, min: 1, max: 10, step: 0.1, wide: false, note: '数值越大，跟随和取景变化越快' },
     { k: 't3_camPitch', f: 'pitch', label: '3V3 镜头 俯视角度', v: 0.54, min: 0.2, max: 1, step: 0.01, wide: false, note: '俯视斜率，越大越往下看' },
   ];
-  if (PH.TUNE && PH.TUNE.reg) PH.TUNE.reg(CAM3.map((d) => ({ ...d, display: CAMERA_DISPLAY[d.k] })));
-  function cam3Tuned() { const o = {}; for (const c of CAM3) o[c.f] = PH.TUNE && PH.TUNE.has(c.k) ? +PH.TUNE.get(c.k) : c.v; return o; }
+  // 转播式半场机位的附加项：单独一组，CAM3 那六项的默认值和顺序不动
+  const CAM3X = [
+    { k: 't3_camHoop', f: 'hoop', label: '3V3 镜头 半场锚定', v: 0.5, min: 0, max: 1, step: 0.05, wide: false, note: '比例：0 完全跟球，1 机位固定在半场中间' },
+    { k: 't3_camEase', f: 'ease', label: '3V3 镜头 缓动', v: 0.35, min: 0, max: 1.5, step: 0.05, wide: false, note: '秒：镜头起步、停下和重新拉近的缓动时间' },
+    { k: 't3_camCourt', f: 'court', label: '3V3 镜头 取景范围', v: 0.8, min: 0, max: 5, step: 0.1, wide: false, note: '米：三分线外多宽的一圈始终留在画面里' },
+  ];
+  const CAM3A = PH.CAM3ALL = CAM3.concat(CAM3X);
+  if (PH.TUNE && PH.TUNE.reg) PH.TUNE.reg(CAM3A.map((d) => ({ ...d, display: CAMERA_DISPLAY[d.k] })));
+  function cam3Tuned() { const o = {}; for (const c of CAM3A) o[c.f] = PH.TUNE && PH.TUNE.has(c.k) ? +PH.TUNE.get(c.k) : c.v; return o; }
   // 镜头面板改值：写进调参台（会算作当前配置的未保存改动）；没有调参表时直接改
   function setCamTuned(o, mode) {
-    if (mode === 't3') { for (const c of CAM3) if (c.f in (o || {}) && PH.TUNE) PH.TUNE.set(c.k, o[c.f]); return; }
+    if (mode === 't3') { for (const c of CAM3A) if (c.f in (o || {}) && PH.TUNE) PH.TUNE.set(c.k, o[c.f]); return; }
     const T = PH.TUNE, raw = {};
     for (const f in o || {}) { if (T && CAM_K[f] && T.has(CAM_K[f])) T.set(CAM_K[f], o[f]); else raw[f] = o[f]; }
     if (Object.keys(raw).length) setCam(raw);
   }
-  function resetCamTuned(mode) { const T = PH.TUNE; if (mode === 't3') { if (T) for (const c of CAM3) T.reset(c.k); return; } if (T && T.has('camZoom')) { for (const k of CAM_KS) T.reset(k); } else setCam(CAM_DEF); }
+  function resetCamTuned(mode) { const T = PH.TUNE; if (mode === 't3') { if (T) for (const c of CAM3A) T.reset(c.k); return; } if (T && T.has('camZoom')) { for (const k of CAM_KS) T.reset(k); } else setCam(CAM_DEF); }
 
   function proj(x, y, z) {
     const dx = x - cam.x, dy = y - cam.y, dz = z - cam.z;
@@ -2158,53 +2168,71 @@
       placed.push(tag);
     }
   }
+  // 3V3 转播式半场机位：机位稳在半场中间，取景范围固定包住三分线一圈和场上所有人，
+  // 传球时目标点沿球路连续移动（不在接球瞬间跳到接球人身上），拉近比拉远慢
   function camera3(G, dt, hintY) {
     const C = cam3Tuned();
     const b = G.ball, p = b.state === 'held' ? G.players[b.holder] : null, fp = G.intro && G.intro.foc;
-    const x = fp ? fp.x : p ? p.x + p.vx * 0.28 : b.x + (b.state === 'pass' ? 0 : b.vx * 0.12);
-    const y = fp ? fp.y + 1.3 : p ? p.y + p.vy * 0.28 + 1.3 : b.state === 'shot' ? b.y * 0.65 + HOOP.y * 0.35 : b.y;
-    const tx = Math.max(-7.5, Math.min(7.5, x)), ty = Math.max(0, Math.min(14, y));
+    const bx = p ? p.x : b.x, by = (p ? p.y : b.y) + 1.3;
+    const x = fp ? fp.x : bx, y = fp ? fp.y + 1.3 : b.state === 'shot' ? by * 0.65 + HOOP.y * 0.35 : by;
+    const w = fp ? 0 : C.hoop;
+    const tx = Math.max(-7.5, Math.min(7.5, x)) * (1 - w), ty = Math.max(0, Math.min(14, y)) * (1 - w) + 7 * w;
     const fresh = follow3?.players !== G.players;
-    if (fresh) follow3 = { players: G.players, x: tx, y: ty, zoom: 1 };
-    const k = 1 - Math.exp(-C.speed * dt);
+    if (fresh) follow3 = { players: G.players, x: tx, y: ty, ex: tx, ey: ty, zoom: 1 };
+    const k = 1 - Math.exp(-C.speed * dt), ke = C.ease > 0 && !fp ? 1 - Math.exp(-dt / C.ease) : 1;
     follow3.x += (tx - follow3.x) * k; follow3.y += (ty - follow3.y) * k;
-    cam.y = Math.max(-8.8, Math.min(-3.8, follow3.y - C.dist));
-    cam.x = follow3.x * C.follow;
+    follow3.ex += (follow3.x - follow3.ex) * ke; follow3.ey += (follow3.y - follow3.ey) * ke;
+    cam.y = Math.max(-8.8, Math.min(-3.8, follow3.ey - C.dist));
+    cam.x = follow3.ex * C.follow;
     cam.z = C.height; cam.F = 530 * C.zoom;
     setPitch(1, -C.pitch);
 
     const rim = proj(HOOP.x, HOOP.y, HOOP.z), board = proj(0, BOARD_Y, 3.95);
-    const q = proj(b.x, b.y, b.z);
+    // 高抛球不把整个画面往下拽：球只按篮板上沿附近的高度参与取景
+    const q = proj(b.x, b.y, Math.min(b.z, 4.6));
     const feet = p ? proj(p.x, p.y, 0) : q, head = p ? proj(p.x, p.y, p.z + p.h) : q;
     const local = G.players.find((pl) => pl.ring && !pl.off);
     const localFeet = local && local !== p ? proj(local.x, local.y, 0) : feet;
     const localHead = local && local !== p ? proj(local.x, local.y, local.z + local.h) : head;
-    const left = Math.min(rim.x, board.x, q.x, feet.x, head.x, localFeet.x, localHead.x);
-    const right = Math.max(rim.x, board.x, q.x, feet.x, head.x, localFeet.x, localHead.x);
-    const top = Math.min(rim.y, q.y, head.y, localHead.y);
-    const bottom = Math.max(rim.y, q.y, feet.y, localFeet.y);
+    // 必保：篮筐、球、持球人、自己
+    const need = {
+      left: Math.min(rim.x, board.x, q.x, feet.x, head.x, localFeet.x, localHead.x),
+      right: Math.max(rim.x, board.x, q.x, feet.x, head.x, localFeet.x, localHead.x),
+      top: Math.min(rim.y, q.y, head.y, localHead.y),
+      bottom: Math.max(rim.y, q.y, feet.y, localFeet.y),
+    };
+    // 常驻：三分线外一圈 + 场上所有人。和谁持球无关，所以传球、换防都不会让取景跳变
+    const wide = { ...need };
+    if (!fp) {
+      const r = 6.75 + C.court, grow = (s, t) => { if (s.x < wide.left) wide.left = s.x; if (s.x > wide.right) wide.right = s.x; if (t && s.y < wide.top) wide.top = s.y; if (!t && s.y > wide.bottom) wide.bottom = s.y; };
+      for (const a of [-1.5708, -0.7854, 0, 0.7854, 1.5708]) grow(proj(Math.max(-7.5, Math.min(7.5, Math.sin(a) * r)), Math.max(0, HOOP.y - Math.cos(a) * r), 0), false);
+      for (const pl of G.players) { if (pl.off || pl.dummy || !pl.arch) continue; grow(proj(pl.x, pl.y, 0), false); grow(proj(pl.x, pl.y, pl.z + pl.h), true); }
+    }
     const footLimit = Math.min(H - 30, (hintY ?? H) - 4);
-    const nameAnchor = hintY != null && local ? nameFoot(local, true).y : bottom;
+    const nameAnchor = (B) => hintY != null && local ? nameFoot(local, true).y : B.bottom;
     const nameLimit = hintY != null && local ? hintY - (STB.h1 + STB.gap + 20) : footLimit;
     const fit = (span, room) => span > 0 ? room / span : 1;
-    const frameZoom = (pad) => Math.min(1,
-      fit(right - left, W - 84 - 2 * pad),
-      fit(Math.max(rim.x - left, right - rim.x), W * 0.62 - 42 - pad),
-      fit(bottom - top, footLimit - 16 - pad),
-      fit(bottom - board.y, footLimit - 36 - pad),
-      fit(nameAnchor - top, nameLimit - 16 - pad),
-      fit(nameAnchor - board.y, nameLimit - 36 - pad));
-    const targetZoom = frameZoom(6) * (fp ? 1 + fp.u : 1);
-    // Smooth the padded framing; the outer fit still catches a sudden snapshot or pass.
-    const zoom = fresh ? targetZoom : Math.min(frameZoom(0) * (fp ? 1 + fp.u : 1), follow3.zoom + (targetZoom - follow3.zoom) * k);
+    const frameZoom = (B, pad) => Math.min(1,
+      fit(B.right - B.left, W - 84 - 2 * pad),
+      fit(Math.max(rim.x - B.left, B.right - rim.x), W * 0.62 - 42 - pad),
+      fit(B.bottom - B.top, footLimit - 16 - pad),
+      fit(B.bottom - board.y, footLimit - 36 - pad),
+      fit(nameAnchor(B) - B.top, nameLimit - 16 - pad),
+      fit(nameAnchor(B) - board.y, nameLimit - 36 - pad));
+    const push = fp ? 1 + fp.u : 1;
+    const targetZoom = frameZoom(wide, 6) * push;
+    // 拉远跟得快（人不出画面），拉近走缓动；外层的贴边取景只在突发情况下兜底
+    const zk = targetZoom < follow3.zoom ? k : Math.min(k, ke);
+    const zoom = fresh ? targetZoom : Math.min(frameZoom(wide, 0) * push, frameZoom(need, 0) * push, follow3.zoom + (targetZoom - follow3.zoom) * zk);
     follow3.zoom = zoom;
     const center = H / 2 + cam.oy;
     const scaledY = (y) => center + (y - center) * zoom;
     cam.F *= zoom;
-    offsetX3 = Math.max(42 - W / 2 - (left - W / 2) * zoom,
-      Math.min((W / 2 - rim.x) * zoom, W / 2 - 42 - (right - W / 2) * zoom));
-    offsetY3 = Math.max(36 - scaledY(board.y), 16 - scaledY(top),
-      Math.min(40 - scaledY(board.y), footLimit - scaledY(bottom), nameLimit - scaledY(nameAnchor)));
+    const na = nameAnchor(wide);
+    offsetX3 = Math.max(42 - W / 2 - (wide.left - W / 2) * zoom,
+      Math.min((W / 2 - rim.x) * zoom, W / 2 - 42 - (wide.right - W / 2) * zoom));
+    offsetY3 = Math.max(36 - scaledY(board.y), 16 - scaledY(wide.top),
+      Math.min(40 - scaledY(board.y), footLimit - scaledY(wide.bottom), nameLimit - scaledY(na)));
   }
   function camera1Intro(G, dt) {
     const fp = G.intro && G.intro.foc;
