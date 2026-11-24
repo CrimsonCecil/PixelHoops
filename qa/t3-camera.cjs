@@ -8,6 +8,12 @@ for (const file of ['tune', 'render']) vm.runInContext(fs.readFileSync(path.join
 const { TUNE: T, render: R, CAM3 } = ctx.PH;
 assert.deepEqual(JSON.parse(JSON.stringify(T.over())), {});
 assert.deepEqual(CAM3.map(c => T.get(c.k)).join(','), '1,8.2,10.8,0.55,4.5,0.54');
+// 转播式机位的附加项单独一组：不挤进 CAM3，面板和重置走 CAM3ALL
+assert.deepEqual(ctx.PH.CAM3ALL.slice(CAM3.length).map(c => c.k + '=' + T.get(c.k)).join(','), 't3_camHoop=0.5,t3_camEase=0.35,t3_camCourt=0.8');
+R.setCamTuned({ hoop: 0.2 }, 't3');
+assert.equal(T.get('t3_camHoop'), 0.2);
+R.resetCamTuned('t3');
+assert.equal(T.get('t3_camHoop'), 0.5);
 R.setCamTuned({ height: 10, zoom: 0.8 }, 't3');
 assert.equal(T.get('t3_camHeight'), 10);
 assert.equal(T.get('t3_camZoom'), 0.8);

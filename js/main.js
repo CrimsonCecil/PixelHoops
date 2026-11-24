@@ -631,7 +631,17 @@
   const CUR = ['pf', 'pf2'];
   function clearPf(cls) { const c = cls ? [cls] : CUR; document.querySelectorAll(c.map((k) => '.' + k).join(',')).forEach((e) => e.classList.remove(...c)); }
   const dualSelect = () => screen === 'menu' && opts.mode === '2p' && !room.role && $('menu').dataset.view === 'select' && $('picker').classList.contains('hidden') && PH.input.pads().length >= 2;
-  function startDemo() { GM.newGame({ mode: 'demo', arch0: 'curry', arch1: 'lebron', target: 11 }); }
+  // 球场场景：主界面和每场比赛各随机一个，不和上一次重复（上一次记在本地，刷新后也换）
+  function pickCourt() {
+    const ids = ['arena'].concat(PH.COURTS ? PH.COURTS.list.map((c) => c.id) : []);
+    let last = '';
+    try { last = localStorage.getItem('ph_court') || ''; } catch (err) { last = ''; }
+    const pool = ids.filter((id) => id !== last && id !== R.scene);
+    const id = (pool.length ? pool : ids)[(Math.random() * (pool.length || ids.length)) | 0];
+    try { localStorage.setItem('ph_court', id); } catch (err) { /* 存不了就只在本次打开内不重复 */ }
+    return id;
+  }
+  function startDemo() { R.setScene(pickCourt()); GM.newGame({ mode: 'demo', arch0: 'curry', arch1: 'lebron', target: 11 }); }
   function toMenu() {
     tuneClose(); kingPark();
     rooms.close(); resetRoomAudio(); syncBackgroundMatch(); PH.T3.stop(); localSlot = -1; matchConfig = null; netInterp = null; aiReset(); menuStatus(''); refreshMenu();
@@ -652,6 +662,7 @@
     PH.audio.ensure(); PH.audio.play('start'); PH.audio.startMusic();
     localSlot = slot; matchConfig = config; netFrame = 0; netInterp = null; netTx = null; netRx = null; aiReset(); skipReset(); resetRoomIntro();
     resetRoomAudio();
+    R.setScene(config.court || null);
     if (config.mode === 't3') PH.T3.start({ ...config, local: slot, replay: !room.active });
     else { CFG.shotClock = config.clock; GM.newGame({ ...config, mode: '2p' }); }
     replaySaveReset();
@@ -833,7 +844,7 @@
     if (opts.mode === 't3' || opts.mode === 'online') {
       const t3 = opts.mode === 't3';
       if (!t3 && !room.links.has(1)) return;
-      const config = same && !t3 && matchConfig ? { ...matchConfig, intro: opts.intro } : { mode: opts.mode, clock: opts.clock, target: opts.target, diff: opts.diff, fb: opts.fb, glen: opts.glen, travel: opts.travel === 'on',
+      const config = same && !t3 && matchConfig ? { ...matchConfig, intro: opts.intro, court: pickCourt() } : { mode: opts.mode, court: pickCourt(), clock: opts.clock, target: opts.target, diff: opts.diff, fb: opts.fb, glen: opts.glen, travel: opts.travel === 'on',
         ...(t3 ? { slots: lobby3.map((s, i) => ({ arch: s.arch, role: room.links.has(i) ? 'remote' : s.role === 'waiting' ? 'cpu' : s.role })) }
           : { arch0: opts.arch0, arch1: pickArch(opts.arch1, opts.arch0), fouls: opts.fouls === 'on', travel: opts.travel === 'on', intro: opts.intro }) };
       if (room.role === 'host') {
@@ -851,6 +862,7 @@
     const kg = opts.mode === 'king' && KR;
     if (!kg && (!same || !lastArch || opts.arch1 === 'random')) lastArch = { a0: opts.arch0, a1: pickArch(opts.arch1, opts.arch0) };
     const tr = opts.mode === 'train';
+    R.setScene(tr ? 'gym' : pickCourt());
     if (!tr) CFG.shotClock = opts.clock;
     if (kg) GM.newGame({ mode: 'cpu', diff: Math.min(2, KING_T[KR.stage]), target: KR.target, arch0: KR.arch, arch1: KR.ladder[KR.stage], fb: opts.fb, glen: 0, cpuD: kingD(KR.stage), fouls: opts.fouls === 'on', travel: opts.travel === 'on' });
     else GM.newGame({ mode: opts.mode, diff: opts.diff, target: opts.target, arch0: lastArch.a0, arch1: lastArch.a1, fb: opts.fb, glen: opts.glen, fouls: opts.fouls === 'on', travel: opts.travel === 'on' });
@@ -1334,8 +1346,8 @@
   let camOpen = false, camWasPaused = false;
   function camBody() {
     if (!camOpen) return;
-    const t3 = G.mode === 't3', values = t3 ? Object.fromEntries(PH.CAM3.map((c) => [c.f, PH.TUNE.get(c.k)])) : R.CAMV;
-    const cams = t3 ? PH.CAM3.map((c) => [c.f, c.label.replace('3V3 镜头 ', ''), c.min, c.max, c.step]) : CAMS;
+    const t3 = G.mode === 't3', values = t3 ? Object.fromEntries(PH.CAM3ALL.map((c) => [c.f, PH.TUNE.get(c.k)])) : R.CAMV;
+    const cams = t3 ? PH.CAM3ALL.map((c) => [c.f, c.label.replace('3V3 镜头 ', ''), c.min, c.max, c.step]) : CAMS;
     $('campanel').querySelector('.thead b').textContent = t3 ? '镜头 · 3V3' : '镜头';
     $('cam-body').innerHTML = cams.map((c) => '<label class="crow"><span>' + c[1] + '</span><input type="range" data-cam="' + c[0] + '" min="' + c[2] + '" max="' + c[3] + '" step="' + c[4] + '" value="' + values[c[0]] + '" data-testid="cam-' + c[0] + '"><b>' + (+values[c[0]]).toFixed(2) + '</b></label>').join('').replace('<label class="crow"><span>推近力度', '<button class="cam-push" data-testid="cam-push">禁区推近 ' + (R.CAMV.push ? '开' : '关') + '</button><label class="crow"><span>推近力度');
     $('cam-info').textContent = '球员信息 ' + (opts.info === 'show' ? '显示' : '隐藏');
@@ -1888,6 +1900,7 @@
   $('team1').addEventListener('click', () => openTP(1));
   let over5Shown = false, h5 = {};
   function start5() {
+    R.setScene(null);
     T5.start({ home: opts.home, away: opts.away, qlen: opts.qlen, diff: opts.diff, human: opts.side, travel: opts.travel === 'on' });
     replaySaveReset();
     screen = 'play5'; paused = false; over5Shown = false; h5 = {}; fdReset(); PH.input.clearSys(); clearPf();
