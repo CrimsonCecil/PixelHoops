@@ -7,7 +7,11 @@ releases=$home/releases
 mirror=$home/main.git
 previous=$releases/previous
 rejected=$releases/.rejected
-upstream=https://github.com/CrimsonCecil/PixelHoops.git
+# SYNC_UPSTREAM / NPM_REGISTRY in /etc/pixelhoops.env point a mainland China box at mirrors (written by setup.sh).
+upstream=$(sed -n 's/^SYNC_UPSTREAM=//p' /etc/pixelhoops.env | tail -n 1)
+upstream=${upstream:-https://github.com/CrimsonCecil/PixelHoops.git}
+npm_registry=$(sed -n 's/^NPM_REGISTRY=//p' /etc/pixelhoops.env | tail -n 1)
+if [[ -n $npm_registry ]]; then export npm_config_registry=$npm_registry; fi
 local_http=http://127.0.0.1:8787
 mode=${1:-sync}
 [[ $mode == sync || $mode == rollback || $mode == rollback-original ]] || exit 2
@@ -72,7 +76,8 @@ else
         as_app git init -q --bare "$mirror"
     fi
     git_main() { as_app env GIT_TERMINAL_PROMPT=0 git --git-dir="$mirror" "$@"; }
-    git_main fetch -q --depth=1 "$upstream" +refs/heads/main:refs/heads/main
+    # Give up on a stalled connection quickly; the timer retries a minute later.
+    git_main -c http.lowSpeedLimit=1000 -c http.lowSpeedTime=20 fetch -q --depth=1 "$upstream" +refs/heads/main:refs/heads/main
     sha=$(git_main rev-parse --verify 'refs/heads/main^{commit}')
     if [[ $current == "$releases/$sha" ]]; then
         echo "Already serving main $sha"
