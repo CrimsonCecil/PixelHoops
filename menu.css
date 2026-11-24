@@ -313,6 +313,7 @@ button.pick.fighter-pick .pk-c { font-size:11px; color:var(--fighter-color); }
 #menu[data-dual] :is(.pf,.pf2) { position:relative; z-index:2; filter:brightness(1.2); outline-offset:1px; }
 #menu[data-dual] .pf { outline:3px solid var(--front-blue); }
 #menu[data-dual] .pf2 { outline:3px solid var(--front-p2); box-shadow:var(--front-p2-glow); }
+#menu[data-dual] #pick1.fighter-pick { --fighter-color:var(--front-p2); }
 #menu[data-dual] .pf.pf2 { outline:3px dashed var(--front-p2); box-shadow:0 0 0 1px var(--front-blue),inset 0 0 0 3px var(--front-blue),var(--front-p2-glow); }
 #menu[data-dual] .pf::before,#menu[data-dual] .pf2::after { position:absolute; top:0; z-index:3; padding:1px 4px; font:12px/12px var(--font); color:#10182a; pointer-events:none; }
 #menu[data-dual] .pf::before { content:'P1'; left:0; background:var(--front-blue); }
