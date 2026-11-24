@@ -4435,7 +4435,8 @@
   // 球在身体局部坐标的路径 [右, 前, 高]（以 1.95 米身高为基准）
   function movePath(a, u) {
     const s = sm(u), h0 = a.h0, h1 = a.h1, ab = Math.abs, cs = Math.cos, PI = Math.PI;
-    if (a.kind === 'postshim' || a.kind === 'postface' || a.kind === 'postdrop') return [h1 * (0.2 + 0.1 * Math.sin(PI * u)), 0.3, 1.05];
+    if (a.kind === 'postface') return [h1 * lerp(0, 0.16, s), lerp(0.3, 0.36, s), lerp(1.2, 1.08, s)];
+    if (postHold(a.kind)) return [h1 * 0.1 * Math.sin(PI * u), 0.3, 1.2 - 0.06 * Math.sin(PI * u)];
     if (a.cb === 'dbl') return [h1 * 0.36 * Math.cos(2 * PI * s), 0.38, 0.1 + 0.68 * ab(cs(2 * PI * u))];
     if (a.bp === 'tbb') { // 前半胯下换手，后半背后换回
       if (u < 0.5) { const w = sm(u / 0.5); return [lerp(h0 * 0.34, -h0 * 0.34, w), 0.06 + 0.3 * ab(4 * u - 1), 0.1 + 0.62 * ab(cs(2 * PI * u))]; }
@@ -4536,8 +4537,8 @@
     if (side > 0) { T.aRp = p; T.aRq = q; T.aRe = e; } else { T.aLp = p; T.aLq = q; T.aLe = e; }
   }
   // 胸前合球：大臂外撑（手肘朝外），小臂横向内收，双手夹住球的两侧
-  function gatherArms(T, Hh, g) {
-    const sy = Math.sin(T.lean) * 0.48 * Hh, sz = 0.76 * Hh + Math.cos(T.lean) * 0.48 * Hh - 0.03, ua = 0.28 * Hh, q = 0.8, p = 0.45;
+  function gatherArms(T, Hh, g, q = 0.8, p = 0.45) {
+    const sy = Math.sin(T.lean) * 0.48 * Hh, sz = 0.76 * Hh + Math.cos(T.lean) * 0.48 * Hh - 0.03, ua = 0.28 * Hh;
     for (const side of [1, -1]) {
       const el = [side * (0.21 * Hh + Math.sin(q) * ua), sy + Math.sin(p) * Math.cos(q) * ua, sz - Math.cos(p) * Math.cos(q) * ua];
       const d = [(g[0] + side * 0.13) * Hh - el[0], (g[1] - 0.03) * Hh - el[1], g[2] * Hh - el[2]], n = Math.hypot(d[0], d[1], d[2]) || 1;
@@ -4660,7 +4661,10 @@
   }
   // 合球：接球 / 假投后双手抱球（三威胁）。合球后只能运一次球，已运过再合球时再运球判二次运球、拖动中枢脚判走步
   // 合球持球点（身体坐标，按身高缩放）：双手在胸前抱球，手肘外撑
-  function gatherBall(pl) { return [(pl.hand || 1) * 0.16, 0.36, 1.08]; }
+  function gatherBall(pl) { return pl.post ? POST_BALL : [(pl.hand || 1) * 0.16, 0.36, 1.08]; }
+  // 背身合球（护球到下巴前）：球在身体正前方、远离背后的防守人，手肘外撑更高
+  const POST_BALL = [0, 0.3, 1.2], POST_Q = 1.05, POST_P = 0.75;
+  function postHold(kind) { return kind === 'postshim' || kind === 'postface' || kind === 'postdrop'; }
   function travelRule() { return G.travel !== false && G.mode !== 'train' && G.mode !== 'demo'; }
   function gatherOn(pl, dead) { if (!dead) pl.gaUsed = false; pl.gather = true; pl.dribDead = !!dead && travelRule(); pl.gaT = 0; }
   function gatherOff(pl) { pl.gather = false; pl.dribDead = false; pl.gaT = 0; }
@@ -5124,7 +5128,7 @@
     const dx = pl.x - df.x, dy = pl.y - df.y, dd = Math.hypot(dx, dy) || 1;
     const fx = Math.cos(df.face), fy = Math.sin(df.face);
     const front = (dx * fx + dy * fy) / dd;
-    const ballX = moving ? a.kind === 'hesi' ? a.h0 : movePath(a, clamp((a.t + ahead) / a.T, 0, 1))[0] : df.handX;
+    const ballX = moving ? a.kind === 'hesi' ? a.h0 : postHold(a.kind) ? a.h1 : movePath(a, clamp((a.t + ahead) / a.T, 0, 1))[0] : df.gather && df.post ? 0 : df.handX;
     const side = (dx * fy - dy * fx) / dd * Math.sign(ballX);
     const across = Math.max(0, -side), ballSide = Math.max(0, side);
     const poor = Math.max(0, -front) * (1 - ballSide);
@@ -6264,12 +6268,14 @@
     if (pl.hasBall && an === 'move' && a && a.kind !== 'hesi') {
       const bp = movePath(a, clamp(a.t / a.T, 0, 1)), Hh = pl.h / 1.95;
       if (a.kind === 'jab' || a.kind === 'jabgo' && a.t / a.T < 0.3) gatherArms(T, Hh, bp);
+      else if (postHold(a.kind)) { const w = a.kind === 'postface' ? sm(clamp(a.t / a.T, 0, 1)) : 0; gatherArms(T, Hh, bp, lerp(POST_Q, 0.8, w), lerp(POST_P, 0.45, w)); }
       else if (a.kind === 'uu' || a.kind === 'stepback' && a.t / a.T > 0.6) { armTo(T, 1, bp[0] + 0.1, bp[1], bp[2], Hh); armTo(T, -1, bp[0] - 0.1, bp[1], bp[2], Hh); }
       else armTo(T, bp[0] >= 0 ? 1 : -1, bp[0], bp[1], bp[2] + 0.12, Hh);
-    } else if (pl.hasBall && pl.gather && !a && (an === 'run' || an === 'idle')) {
-      // 合球：双手胸前抱球（三威胁）
-      const Hh = pl.h / 1.95; set({ lean: T.lean + 0.14, lB: T.lB + 0.3, rB: T.rB + 0.3, lA: T.lA + 0.12, rA: T.rA + 0.12 });
-      gatherArms(T, Hh, gatherBall(pl));
+    } else if (pl.hasBall && pl.gather && !a && (an === 'run' || an === 'idle' || an === 'post')) {
+      // 合球：双手胸前抱球（三威胁）；背身时护到下巴前、手肘外撑
+      const Hh = pl.h / 1.95;
+      if (an === 'post') gatherArms(T, Hh, POST_BALL, POST_Q, POST_P);
+      else { set({ lean: T.lean + 0.14, lB: T.lB + 0.3, rB: T.rB + 0.3, lA: T.lA + 0.12, rA: T.rA + 0.12 }); gatherArms(T, Hh, gatherBall(pl)); }
     } else if (pl.hasBall && (an === 'run' || an === 'idle' || an === 'post')) {
       const u = Math.abs(Math.sin(pl.drib)), p = 0.34 + 0.3 * u, e = 0.25 + 0.6 * u, low = an === 'move' ? 0.2 : 0;
       if (pl.handX > 0) set({ aRp: p - low, aRe: e - low, aRq: 0.22 }); else set({ aLp: p - low, aLe: e - low, aLq: 0.22 });
@@ -6399,7 +6405,10 @@
         if (pl.grip && (a.type === 'layup' || a.type === 'dunk')) b.cT = 0;
       } else {
         const fx = Math.cos(pl.face), fy = Math.sin(pl.face), Hh = pl.h / 1.95;
-        if (a) {
+        if (a && postHold(a.kind) || !a && pl.gather && pl.post) {
+          // 双手抱球：球夹在两只骨骼手中间，转身 / 面框时跟着手走，不会和手分离
+          const k = PH.rig(pl), fo = 0.05 * Hh; b.x = (k.handL[0] + k.handR[0]) / 2 + fx * fo; b.y = (k.handL[1] + k.handR[1]) / 2 + fy * fo; b.z = Math.max(pl.z + 0.4, (k.handL[2] + k.handR[2]) / 2);
+        } else if (a) {
           const bp = movePath(a, clamp(a.t / a.T, 0, 1)), lx = bp[0] * Hh, ly = bp[1] * Hh;
           b.x = pl.x + fy * lx + fx * ly; b.y = pl.y - fx * lx + fy * ly; b.z = Math.max(0.13, bp[2] * Hh + (a.kind === 'stepback' && a.t / a.T > 0.45 ? pl.z : 0));
           const ph = Math.cos(Math.PI * (a.kind === 'inout' ? 1.5 : 1) * a.t / a.T); if (a.lastPh != null && a.lastPh * ph < 0 && b.z < 0.4) sfx('bounce'); a.lastPh = ph;
