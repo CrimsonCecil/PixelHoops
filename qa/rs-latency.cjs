@@ -56,11 +56,10 @@ for (const mode of ['1V1', '3V3', '5V5']) {
     assert.equal(f.gm.K.rsCancel, cancel);
     const first = f.early();
     f.push(-1); f.step();
-    if (cancel === 0) assert.notEqual(f.p.action, first, 'early RS cancels on push frame');
-    else {
-      assert.equal(f.p.action, first);
+    {
+      assert.equal(f.p.action, first, 'early RS waits for the base dead zone');
       assert.equal(f.p.buf?.rs, true);
-      const threshold = first.T * Math.min(cancel, first.cw);
+      const threshold = first.T * Math.max(f.gm.K.mvDead, Math.min(cancel, first.cw));
       f.push(0, 0);
       let elapsed;
       for (let i = 0; f.p.action === first && i < 120; i++) { elapsed = first.t; f.step(); }
@@ -75,12 +74,14 @@ for (const mode of ['1V1', '3V3', '5V5']) {
     f.step(); assert.equal(f.p.action, first, 'held direction is not another push');
     f.push(1, 0.1); f.step(); assert.equal(f.p.action, first, 'same direction sector does not restart');
     f.push(-1); f.step();
+    for (let i = 0; f.p.action === first && i < 60; i++) f.step();
     assert.notEqual(f.p.action, first, 'new direction works without a neutral frame');
+    assert(first.t >= first.T * f.gm.K.mvDead - 1e-9, 'new direction still waits for the base dead zone');
     const next = f.p.action;
     f.step(); assert.equal(f.p.action, next);
     for (let i = 0; f.p.action === next && i < 30; i++) f.step();
     assert.equal(f.p.action?.type, 'shot', 'hold still converts the new move');
-    console.log(`PASS ${mode}: early 10% RS cancel; l1_rsCancel=0/0.3/1; direction-change push; no held-stick replay; hold converts to shot`);
+    console.log(`PASS ${mode}: early 10% RS waits for mvDead; l1_rsCancel=0/0.3/1; direction-change push; no held-stick replay; hold converts to shot`);
   }
   {
     const f = fixture(mode), first = f.early();
