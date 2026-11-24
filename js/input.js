@@ -141,7 +141,7 @@
   const NAV_KEYS = ['PadUp', 'PadDown', 'PadLeft', 'PadRight', 'PadA', 'PadB', 'PadStart', 'PadBack', 'PadX', 'PadY', 'PadLB', 'PadRB', 'PadRLeft', 'PadRRight'];
   let pressSlot = -1; // 本帧新按下按键的手柄序号（0 = 手柄 1 = 玩家 1，1 = 手柄 2 = 玩家 2）
   // split.on：手柄 2 的菜单键单独记为 P2PadUp / P2PadA …（本地双人选人时两个手柄各有一个光标）
-  const split = { on: false };
+  const split = { on: false, was: false };
   const navPre = (slot) => split.on && slot === 1 ? 'P2' : '';
   function padNav(gp, cur, pre = '') {
     const B = (i) => gp.buttons[i]?.pressed, ax = gp.axes[0] || 0, ay = gp.axes[1] || 0, rx = gp.axes[2] || 0;
@@ -156,6 +156,12 @@
     let pressed = false;
     padEdge = false;
     pressSlot = -1;
+    // 分不分 P2 菜单键切换时，还按着的键记成已按下，不在新名字下再触发一次
+    if (split.on !== split.was) {
+      split.was = split.on; const held = {};
+      pads().forEach((gp, slot) => padNav(gp, held, navPre(slot)));
+      for (const k in held) { navPrev[k] = true; navRep[k] = now + 380; }
+    }
     pads().forEach((gp, slot) => {
       const blk = blockedPad[gp.index];
       if (blk) for (const i in blk) if (!gpBtn(gp, +i)) delete blk[i];
