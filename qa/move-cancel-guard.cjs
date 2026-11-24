@@ -1,4 +1,4 @@
-// 运球招式打断保护：同招不互断（mvSame）、换招基础死区（mvDead）、右摇杆换向角度（rsTurn）；高控球急停干拔不受死区限制
+// 运球招式打断保护：同招不互断（mvSame，默认关：同一招也按换招死区）、换招基础死区（mvDead）、右摇杆换向角度（rsTurn）；高控球急停干拔不受死区限制
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
@@ -49,7 +49,7 @@ const OFF = { mvDead: 0, mvSame: 0, rsTurn: 0 };
 const out = {};
 for (const [name, run] of [['wobble', wobble], ['flicks', flicks], ['alternate', alternate]]) {
   const r = {};
-  for (const [tag, base, knobs] of [['main', 'main', {}], ['off', null, OFF], ['new', null, {}]]) {
+  for (const [tag, base, knobs] of [['main', '3ddbcd8', {}], ['off', null, OFF], ['new', null, {}]]) {
     const f = fixture(base, knobs); const t0 = f.G.time;
     run(f);
     r[tag] = { moves: f.moves.map((m) => ({ t: +(m.t - t0).toFixed(3), name: m.name })), stam: +f.spent().toFixed(1) };
@@ -62,10 +62,13 @@ assert(out.wobble.main.moves.length >= 3, 'repro: stick wobble used to fire the 
 assert.equal(out.wobble.new.moves.length, 1, 'stick wobble inside rsTurn is one move');
 assert(out.flicks.main.moves.length >= 4, 'repro: four quick same-direction flicks used to give four moves');
 {
-  assert(out.flicks.new.moves.length < out.flicks.main.moves.length, 'same-direction flicks no longer cancel each other');
-  const f = fixture(null, {}); f.step(1, 0); const a = f.p.action; f.step(); f.step(1, 0);
-  for (let i = 0; f.p.action === a && i < 120; i++) f.step();
-  assert(a.t >= a.T - 1e-9, 'same move only follows after the first one finishes');
+  const same = (knobs) => { const f = fixture(null, knobs); f.step(1, 0); const a = f.p.action; f.step(); f.step(1, 0);
+    for (let i = 0; f.p.action === a && i < 120; i++) f.step(); return { a, K: f.gm.K }; };
+  const d = same({});
+  assert(d.a.t >= d.a.T * d.K.mvDead - 1e-9 && d.a.t < d.a.T * d.K.mvDead + dt + 1e-9, 'same move cancels itself at the base dead zone by default');
+  const s = same({ mvSame: 1 });
+  assert(s.a.t >= s.a.T - 1e-9, 'mvSame on: same move only follows after the first one finishes');
+  console.log(`PASS same move cancels at mvDead=${d.K.mvDead} (progress ${(d.a.t / d.a.T).toFixed(2)}); mvSame on waits for the end`);
 }
 {
   const f = fixture(null, {}); f.step(1, 0); const a = f.p.action; f.step(); f.step(-1, 0);
