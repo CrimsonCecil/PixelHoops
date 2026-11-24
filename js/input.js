@@ -10,7 +10,6 @@
   const touch = { mx: 0, my: 0, a1: false, a2: false, a3: false, alt: false, sprint: false, on: false };
   const sys = {};
   const sysEdge = {}, blockedNav = {};
-  let padEdge = false;
   const blockedKeys = {}, blockedPad = {}, blockedTouch = {};
 
   window.addEventListener('keydown', (e) => {
@@ -154,7 +153,6 @@
   function pollPads() {
     const cur = {}, nextButtons = {}, now = performance.now();
     let pressed = false;
-    padEdge = false;
     pressSlot = -1;
     // 分不分 P2 菜单键切换时，还按着的键记成已按下，不在新名字下再触发一次
     if (split.on !== split.was) {
@@ -167,7 +165,6 @@
       if (blk) for (const i in blk) if (!gpBtn(gp, +i)) delete blk[i];
       const prev = padPrev[gp.index] || [], buttons = nextButtons[gp.index] = gp.buttons.map((b) => b.pressed);
       if (buttons.some((b, i) => b && !prev[i])) { pressed = true; pressSlot = slot; }
-      if (buttons.some((b, i) => b && !prev[i] && !blk?.[i])) padEdge = true;
       padNav(gp, cur, navPre(slot));
     });
     for (const pre of ['', 'P2']) for (const n of NAV_KEYS) {
@@ -198,7 +195,6 @@
   function flush() {
     for (const k in blockedNav) delete blockedNav[k];
     for (const k in sysEdge) delete sysEdge[k];
-    padEdge = false;
     endTick();
     yTaps.length = 0;
     for (const k in blockedKeys) delete blockedKeys[k];
@@ -215,8 +211,10 @@
   }
   function sysPressed(code) { if (sys[code]) { delete sys[code]; return true; } return false; }
   function sysAny() { const n = Object.keys(sys).length > 0; return n; }
-  function clearSys() { for (const k in sys) delete sys[k]; for (const k in sysEdge) delete sysEdge[k]; padEdge = false; }
-  function introPressed(code) { return code ? !!sysEdge[code] : padEdge || Object.keys(sysEdge).length > 0; }
+  function clearSys() { for (const k in sys) delete sys[k]; for (const k in sysEdge) delete sysEdge[k]; }
+  // 开场只认确认键翻页：移动键、摇杆和其它动作键不算，免得一进场想走位就把入场语音和对话全跳掉
+  const INTRO_NEXT = ['Space', 'Enter', 'NumpadEnter', 'PadA'];
+  function introPressed(code) { return code ? !!sysEdge[code] : INTRO_NEXT.some((k) => sysEdge[k]); }
 
   // 触屏
   function initTouch(root) {
