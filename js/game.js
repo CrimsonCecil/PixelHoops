@@ -2454,7 +2454,7 @@
   }
   function rimSkill(pl) { const S = gsk(pl, 'block'); return S && S.trig !== 'chase' && S.trig !== 'vertical' ? S : null; }
   function fireSkill(pl) {
-    const S = pl.arch.skill; pl.sk.cd = S.id === 'rodman' ? K.rodCd : S.id === 'bwallace' ? K.benCd : S.id === 'rallen' ? K.rayCd : S.id === 'curry' ? K.skCurryCd : S.type === 'block' ? 8 : S.type === 'steal' ? 20 : 12; pl.sk.n++; pl.sk.ready = false; pl.sk.streak = 0; pl.sk.postT = 0; pl.sk.win = -9;
+    const S = pl.arch.skill; pl.sk.cd = S.id === 'rodman' ? K.rodCd : S.id === 'bwallace' ? K.benCd : S.id === 'rallen' ? K.rayCd : S.id === 'curry' ? K.skCurryCd : S.type === 'block' ? 8 : S.type === 'steal' ? 20 : 12; pl.sk.cdMax = pl.sk.cd; pl.sk.n++; pl.sk.ready = false; pl.sk.streak = 0; pl.sk.postT = 0; pl.sk.win = -9;
     G.stats[pl.id].sk++;
     G.cutin = { t: 0, T: 1.05, pid: pl.id, name: pl.arch.name, full: pl.arch.full, skill: S.name, en: S.en, col: pl.team.css, seq: ++cutSeq };
     sfx('combo'); sfx('cheer2'); sfx('badge'); G.fx.cheer = 3.5; flash('#ffd24a', 0.12); shake(4);   // V3.9o 半屏插屏：全屏闪光 / 震屏减弱，不挡投篮条
