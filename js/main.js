@@ -2006,7 +2006,7 @@
     el.value = v; el.dispatchEvent(new Event('input', { bubbles: true }));
     clearTimeout(adj.timer); adj.timer = setTimeout(() => el.dispatchEvent(new Event('change', { bubbles: true })), 260);
   }
-  function navSet(root, el, s = 0) { clearPf(s ? CUR[s] : undefined); el.classList.add(CUR[s]); el.scrollIntoView({ block: 'nearest' }); if (root.id === 'tune') el.dispatchEvent(new FocusEvent('focusin', { bubbles: true })); }
+  function navSet(root, el, s = 0) { clearPf(CUR[s]); el.classList.add(CUR[s]); el.scrollIntoView({ block: 'nearest' }); if (root.id === 'tune') el.dispatchEvent(new FocusEvent('focusin', { bubbles: true })); }
   // 面板被重建（切页签 / 选项）后，焦点落回原来的位置
   function navRefocus(root, list, idx, b, s = 0) {
     const r2 = navRoot(); if (r2 !== root) return;
