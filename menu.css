@@ -168,7 +168,7 @@ button.pick.fighter-pick { width:100%; min-height:260px; height:auto; display:fl
 }
 
 /* Restore the original approved A prototype's composition and blue/yellow shell. */
-#menu { --front-bg:#10182a; --front-panel:#1c2942; --front-line:#3b4f6c; --front-muted:#97a6c2; --front-blue:#61b8ff; --front-gold:#ffd54b; color:#f6f1dc; font-family:var(--font); }
+#menu { --front-bg:#10182a; --front-panel:#1c2942; --front-line:#3b4f6c; --front-muted:#97a6c2; --front-blue:#61b8ff; --front-gold:#ffd54b; --front-p2:#ff3b4e; --front-p2-glow:0 0 8px #ff3b4e,0 0 18px #ff3b4eb0; color:#f6f1dc; font-family:var(--font); }
 #menu.overlay { display:flex; flex-direction:column; align-items:stretch; justify-content:flex-start; padding:0 3%; overflow:auto; background:var(--front-bg); }
 #menu[data-view=home] { background:linear-gradient(90deg,rgba(16,24,42,.62),rgba(16,24,42,.4) 40%,rgba(16,24,42,.86) 60%,rgba(16,24,42,.96)); }
 #menu button { font-family:inherit; border:1px solid var(--front-line); background:var(--front-panel); box-shadow:inset 0 3px #ffffff04,3px 3px #060b14; color:#f6f1dc; line-height:1.3; }
@@ -308,15 +308,15 @@ button.pick.fighter-pick .pk-c { font-size:11px; color:var(--fighter-color); }
 /* 本地双人选人：两个手柄各一个光标（P1 蓝 / P2 金），已选球员也按玩家颜色标出 */
 #menu #front-grid .pkc:is(.p1on,.p2on) { background:#243b58; color:#f6f1dc; }
 #menu #front-grid .pkc.p1on { box-shadow:inset 0 0 0 2px var(--front-blue); }
-#menu #front-grid .pkc.p2on { box-shadow:inset 0 0 0 2px var(--front-gold); }
-#menu #front-grid .pkc.p1on.p2on { box-shadow:inset 0 0 0 2px var(--front-blue),inset 0 0 0 4px var(--front-gold); }
+#menu #front-grid .pkc.p2on { box-shadow:inset 0 0 0 2px var(--front-p2),var(--front-p2-glow); }
+#menu #front-grid .pkc.p1on.p2on { box-shadow:inset 0 0 0 2px var(--front-blue),inset 0 0 0 4px var(--front-p2),var(--front-p2-glow); }
 #menu[data-dual] :is(.pf,.pf2) { position:relative; z-index:2; filter:brightness(1.2); outline-offset:1px; }
 #menu[data-dual] .pf { outline:3px solid var(--front-blue); }
-#menu[data-dual] .pf2 { outline:3px solid var(--front-gold); }
-#menu[data-dual] .pf.pf2 { outline:3px dashed var(--front-gold); box-shadow:0 0 0 1px var(--front-blue),inset 0 0 0 3px var(--front-blue); }
+#menu[data-dual] .pf2 { outline:3px solid var(--front-p2); box-shadow:var(--front-p2-glow); }
+#menu[data-dual] .pf.pf2 { outline:3px dashed var(--front-p2); box-shadow:0 0 0 1px var(--front-blue),inset 0 0 0 3px var(--front-blue),var(--front-p2-glow); }
 #menu[data-dual] .pf::before,#menu[data-dual] .pf2::after { position:absolute; top:0; z-index:3; padding:1px 4px; font:12px/12px var(--font); color:#10182a; pointer-events:none; }
 #menu[data-dual] .pf::before { content:'P1'; left:0; background:var(--front-blue); }
-#menu[data-dual] .pf2::after { content:'P2'; right:0; background:var(--front-gold); }
+#menu[data-dual] .pf2::after { content:'P2'; right:0; background:var(--front-p2); color:#fff; }
 .pk-grid .pkc .pkn { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; overflow-wrap:normal; }
 #front-ready-state { color:var(--front-muted); font-size:12px; margin:8px 0; }
 #front-ready-state:empty { display:none; }
