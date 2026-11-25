@@ -646,3 +646,57 @@ button.pick.fighter-pick .pk-c { font-size:11px; color:var(--fighter-color); }
   #menu[data-format=king] .lk-name { font-size:9px; }
   #menu[data-format=king] .lk-rating { font-size:12px; }
 }
+/* 3V3 选人：三对三对撞舞台，人物为主体 */
+#menu[data-view=select][data-format=t3] .duel-lineup { display:none; }
+#menu[data-format=t3] #lobby3 { --l3h:clamp(200px,min(30vw,51vh),480px); position:relative; isolation:isolate; margin:4px 0 12px; }
+#menu[data-format=t3] #lobby3 .lobby3-head { position:absolute; width:1px; height:1px; overflow:hidden; clip-path:inset(50%); }
+#lobby3 .lobby3-clash { position:absolute; inset:0; z-index:-1; overflow:hidden; pointer-events:none; background:#0b1326; border:1px solid #2b3d5e; }
+#lobby3 .lobby3-clash i { position:absolute; inset:0; background:linear-gradient(104deg,#1c4f9c 0,#12305f 30%,#0d1c38 49.2%,#ffd447 49.2%,#ffd447 50.8%,#3a1420 50.8%,#6a2026 70%,#a2372c 100%); }
+#lobby3 .lobby3-clash i::before { content:''; position:absolute; inset:0; background:repeating-linear-gradient(104deg,transparent 0 26px,#ffffff0b 26px 29px); }
+#lobby3 .lobby3-clash i::after { content:''; position:absolute; left:0; right:0; bottom:0; height:34%; background:linear-gradient(#0000,#060b17e6 70%); }
+#lobby3 .lobby3-clash b { position:absolute; left:50%; top:44%; transform:translate(-50%,-50%) rotate(-8deg); padding:6px 14px 8px; background:var(--front-gold,#ffd447); color:#0b1326; font:italic 46px var(--font); line-height:1; box-shadow:6px 6px #070d1b,0 0 34px #ffd44766; }
+#menu[data-format=t3] #lobby3 .lobby3-teams { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:0; }
+#menu[data-format=t3] #lobby3 .lobby3-team { position:relative; display:flex; align-items:flex-end; gap:0; padding:calc(var(--l3h)*.2) 3.5% 12px 1%; background:none; border:0; }
+#menu[data-format=t3] #lobby3 #lobby3-home { flex-direction:row-reverse; }
+#menu[data-format=t3] #lobby3 #lobby3-away { padding:calc(var(--l3h)*.2) 1% 12px 3.5%; }
+#menu[data-format=t3] #lobby3 .lobby3-team h3 { position:absolute; top:10px; left:14px; margin:0; font:italic 30px var(--font); color:var(--team-accent); opacity:.9; text-shadow:3px 3px #070d1b; pointer-events:none; }
+#menu[data-format=t3] #lobby3 #lobby3-away h3 { left:auto; right:14px; }
+#menu[data-format=t3] #lobby3 .lobby3-slot { position:relative; flex:1 1 0; display:flex; flex-direction:column; align-items:center; gap:5px; min-width:0; margin:0; --fh:var(--l3h); }
+#menu[data-format=t3] #lobby3 .lobby3-slot .pick { position:relative; width:100%; min-height:0; display:flex; flex-direction:column; align-items:center; gap:4px; padding:0; background:none; border:0; box-shadow:none; clip-path:none; overflow:visible; cursor:pointer; }
+#menu[data-format=t3] #lobby3 .lobby3-slot .pick::before { content:''; position:absolute; left:50%; bottom:46px; width:62%; height:20px; transform:translateX(-50%); border-radius:50%; background:radial-gradient(closest-side,#000a,#0000); }
+#menu[data-format=t3] #lobby3 .team-body { width:auto; max-width:none; height:var(--fh); margin:calc(var(--fh)*-.2) -70px 0; object-fit:contain; image-rendering:pixelated; pointer-events:none; filter:brightness(.82) drop-shadow(0 0 0 #0000); transition:filter .2s,height .2s; }
+#menu[data-format=t3] #lobby3 .lobby3-slot:nth-of-type(2) { --fh:calc(var(--l3h)*.9); }
+#menu[data-format=t3] #lobby3 .lobby3-slot:nth-of-type(3) { --fh:calc(var(--l3h)*.8); }
+#menu[data-format=t3] #lobby3 .lobby3-slot .pick:is(:hover,:focus-visible) .team-body { filter:brightness(1); }
+#menu[data-format=t3] #lobby3 .lobby3-slot.on .team-body { filter:brightness(1.08) drop-shadow(0 0 14px var(--team-accent)); }
+#menu[data-format=t3] #lobby3 .lobby3-slot.on .pick::before { height:26px; width:74%; background:radial-gradient(closest-side,var(--team-accent),#0000); opacity:.75; }
+#lobby3 .l3-plate { position:relative; display:flex; align-items:center; justify-content:center; gap:7px; max-width:100%; padding:3px 9px; background:#081022d9; border-bottom:3px solid var(--team-accent); white-space:nowrap; }
+#lobby3 .l3-plate strong { font-size:27px; line-height:1; font-weight:normal; }
+#menu[data-format=t3] #lobby3 .l3-plate .pk-n { min-width:0; overflow:hidden; text-overflow:ellipsis; font-size:15px; white-space:nowrap; color:#fff; }
+#lobby3 .l3-plate .position-badge { font-size:11px; padding:1px 4px; }
+#lobby3 .lobby3-slot.on .l3-plate { background:#081022; border-bottom-color:var(--front-gold,#ffd447); box-shadow:0 0 0 2px var(--front-gold,#ffd447); }
+#lobby3 .l3-sig { position:absolute; left:50%; top:calc(var(--fh)*-.16); transform:translateX(-50%); max-width:150%; padding:3px 8px; background:var(--front-gold,#ffd447); color:#0b1326; font-size:12px; white-space:nowrap; box-shadow:3px 3px #070d1b; opacity:0; transition:opacity .2s; pointer-events:none; z-index:2; }
+#lobby3 .lobby3-slot.on .l3-sig { opacity:1; }
+#menu[data-format=t3] #lobby3 .lobby3-role { flex:none; width:auto; min-width:0; min-height:0; padding:2px 10px; font-size:11px; background:#0810228c; border:1px solid #ffffff2e; color:#c6d4ee; box-shadow:none; }
+#menu[data-format=t3] #lobby3 .lobby3-role[data-role=human] { color:#0b1326; background:var(--front-gold,#ffd447); border-color:var(--front-gold,#ffd447); }
+#menu[data-format=t3] #lobby3 .lobby3-role[data-role=waiting] { color:#8fa3c7; border-style:dashed; }
+@media (max-width:1000px) {
+  #lobby3 .lobby3-clash b { font-size:32px; }
+  #menu[data-format=t3] #lobby3 .lobby3-team h3 { font-size:20px; }
+  #menu[data-format=t3] #lobby3 .team-body { margin-inline:-52px; }
+  #lobby3 .l3-plate { gap:4px; padding:2px 5px; }
+  #lobby3 .l3-plate strong { font-size:20px; }
+  #menu[data-format=t3] #lobby3 .l3-plate .pk-n { font-size:12px; }
+  #lobby3 .l3-plate .position-badge { display:none; }
+}
+@media (max-width:640px) {
+  #menu[data-format=t3] #lobby3 { --l3h:56vw; }
+  #menu[data-format=t3] #lobby3 .lobby3-teams { grid-template-columns:minmax(0,1fr); }
+  #menu[data-format=t3] #lobby3 .lobby3-team, #menu[data-format=t3] #lobby3 #lobby3-away { padding:calc(var(--l3h)*.2) 4px 10px; }
+  #menu[data-format=t3] #lobby3 #lobby3-home { flex-direction:row; }
+  #menu[data-format=t3] #lobby3 .lobby3-slot:nth-of-type(n) { --fh:var(--l3h); }
+  #menu[data-format=t3] #lobby3 .team-body { margin-inline:-46px; }
+  #lobby3 .lobby3-clash i { background:linear-gradient(174deg,#1c4f9c 0,#0d1c38 49.4%,#ffd447 49.4%,#ffd447 50.6%,#3a1420 50.6%,#a2372c 100%); }
+  #lobby3 .lobby3-clash b { top:50%; font-size:26px; }
+  #lobby3 .l3-sig { font-size:10px; }
+}

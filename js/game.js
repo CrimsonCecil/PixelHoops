@@ -1119,6 +1119,14 @@
     ['camInTalkZ', 'pace', '入场对话 机位高度', 2.8, 0.8, 6.5, 0.1, '米：1V1 赛前对话时的机位高度，越低越仰视'],
     ['camInTalkDist', 'pace', '入场对话 机位距离', 11.2, 5, 18, 0.2, '米：1V1 赛前对话时镜头与前排球员的距离'],
     ['camInTalkPitch', 'pace', '入场对话 仰俯角', -11, -35, 15, 1, '度：1V1 赛前对话镜头仰俯角，越大越仰视'],
+    ['camIn3Far', 'pace', '3V3 入场 远景停留', 0.9, 0, 4, 0.1, '秒：3V3 入场先停在全场远景多久，再推向球星'],
+    ['camIn3Pull', 'pace', '3V3 入场 推近速度', 1.9, 0.4, 8, 0.1, '1/秒：3V3 入场镜头从远景推到球星、再摇到下一名球星的快慢'],
+    ['camIn3Z', 'pace', '3V3 入场 机位高度', 1.5, 0.6, 6, 0.1, '米：3V3 入场特写球星时的机位高度，越低越仰视'],
+    ['camIn3Dist', 'pace', '3V3 入场 机位距离', 6.2, 3, 15, 0.2, '米：3V3 入场特写时镜头与球星的距离，越近特写越大'],
+    ['camIn3Pitch', 'pace', '3V3 入场 仰俯角', -3, -35, 15, 1, '度：3V3 入场特写镜头仰俯角，越大越仰视'],
+    ['rpCamZ', 'pace', '回放 机位高度', 0.9, 0.3, 8, 0.1, '米：进球回放的机位高度，越低越仰视'],
+    ['rpCamNear', 'pace', '回放 最近距离', 4.4, 2, 12, 0.1, '米：回放镜头离主角最近多少；装不下全身、球路和篮筐时自动后退'],
+    ['rpCamPad', 'pace', '回放 取景留边', 0.07, 0.02, 0.25, 0.01, '比例：回放时主角、球路、篮筐离画面边缘至少留多少'],
     // V4.7 电脑持球 回合开局组织（观察 / 试探 / 运球找位置）
     ['aiSu0', 'ai', '电脑持球 组织时间 最短', 3.6, 0, 10, 0.1, '秒：1V1 每回合拿球先观察 / 试探 / 运球组织这么久，再按原逻辑找出手'],
     ['aiSu1', 'ai', '电脑持球 组织时间 最长', 8.6, 0, 15, 0.1, '秒'],
@@ -3468,7 +3476,7 @@
       s.w0 = t0 + (TM(p) === TM(fa) ? 0 : IWA); s.w1 = s.w0 + IWA;
       (star ? [pre, ent] : [ent]).forEach((ty, j) => { const main = !star || j === 1; walk.push({ id: p.id, ty: ty, lv: main ? lv : -1, t0: s.w0 + (star ? 0.3 + j * 1.75 : 0.9 + (p.id % 3) * 0.3), T: 1.6, fx: false, sig: star && j === 1, vo: star && j === 0, voAt: s.w0 + (p === fa ? 0.25 : 0), voDone: false }); }); }
     walk.sort((a, b) => a.voAt - b.voAt);
-    const foc0 = { x: fa.x, y: fa.y, u: G.mode === 't3' ? 0.08 : 0.3, mode: 'walk', snap: true };
+    const foc0 = { x: fa.x, y: fa.y, u: G.mode === 't3' ? 0.08 : 0.3, mode: 'walk', snap: true, far: G.mode === 't3' };
     const ready = introVoEnabled() ? PH.audio?.voPreload?.([fa.arch.key, fb.arch.key], true) : null;
     G.intro = { t0: t0, duo: [fa.id, fb.id], walk: walk, spots: spots, lines: lines, li: -1, lt: 0, ld: 0, tT: t0 + 2 * IWA + 0.15, cam: foc0, foc: foc0, banner: G.banner, phaseT: G.phaseT,
       sig: [], confettiT: 0, usedVo: new Set(), loadUntil: performance.now() + IVO_WAIT * 1000, voLoadUntil: performance.now() + IVO_LOAD * 1000 };
@@ -3554,6 +3562,7 @@
         banner(sh.arch.full, '入场 · ' + (ISIG_CN[(I.walk.find((S) => S.id === sh.id && S.lv >= 0) || {}).ty] || '登场'), sh.team.css, 2.6);
         led('NOW ENTERING  ' + sh.arch.full + '  震撼登场', sh.team.css, IWA);
         G.fx.cheer = 3.2; flash(sh.team.css, 0.12);
+        if (sh === B2) sfx('cheer2');
         spawnConfetti(48, [sh.team.css, '#ffd24a', '#ffffff', '#ff8a2a'], 'cannon');
       }
       I.cam = { x: sh.x, y: sh.y, u: G.mode === 't3' ? 0.08 : 0.3, mode: 'walk' };
@@ -3561,7 +3570,10 @@
     else if (I.li >= 0) I.cam = { x: mid.x, y: mid.y, minY: Math.min(A.y, B2.y), maxY: Math.max(A.y, B2.y), maxH: Math.max(A.h || 2, B2.h || 2), u: 0.1, mode: 'talk' };
     const cut = I.snap; I.snap = false;
     const C = I.cam;
-    if (G.mode === 't3') I.foc = C;
+    if (G.mode === 't3') {
+      const sp = I.li >= 0 && I.lines[I.li] ? plById(I.lines[I.li].id) : sh;
+      I.foc = sp ? { x: sp.x, y: sp.y, u: 0.08, mode: I.li >= 0 ? 'talk' : 'walk', far: now < I.t0 + K.camIn3Far } : C;
+    }
     else I.foc = C ? Object.assign({}, C, { snap: cut }) : null;
   }
   function introNext() {
@@ -6117,6 +6129,14 @@
         watch: { lean: -0.04, aLp: 2.9, aLq: 0.15, aLe: -0.95 + 0.05 * Math.abs(w12), aLf: -1.06, reachL: 1.18, aRp: 0.15, aRq: 0.2, aRe: 0.3 },   // 利拉德 Dame Time：左小臂横搭在眼前看表，右手垂下
         crown: { lean: lerp(0, -0.14, up), aLp: lerp(1.0, 2.75, up), aLq: 0.55, aLe: lerp(1.0, 1.85 + 0.12 * Math.sin(e * 5), up), aRp: lerp(1.0, 2.75, up), aRq: 0.55, aRe: lerp(1.0, 1.85 + 0.12 * Math.sin(e * 5), up) } }[ty] || {};
   }
+  // 选人界面展示用：站姿 + 某个庆祝 / 招牌动作（e 为动作已播秒数，T 为总时长，首尾各 0.22 秒过渡）
+  function showPose(ty, e, T) {
+    const o = { tilt: 0, lean: 0.06, lA: 0.12, lB: 0.25, lS: 0.06, rA: 0.12, rB: 0.25, rS: 0.06, aLp: 0.15, aLq: 0.14, aLe: 0.35, aRp: 0.15, aRq: 0.14, aRe: 0.35, yaw: 0, bob: 0, aLf: 0, aRf: 0, reachL: 1, reachR: 1 };
+    if (!ty) return o;
+    const P = celPose(ty, e), k = sm(clamp(Math.min(e, T - e) / 0.22, 0, 1));
+    for (const n in P) o[n] = lerp(o[n] ?? 0, P[n], k);
+    return o;
+  }
   function poseTarget(pl) {
     const T = { tilt: 0, lean: 0.06, lA: 0.12, lB: 0.25, lS: 0.06, rA: 0.12, rB: 0.25, rS: 0.06, aLp: 0.15, aLq: 0.14, aLe: 0.35, aRp: 0.15, aRq: 0.14, aRe: 0.35 };
     const wag = G.phase === 'check' && G.chk?.wag;
@@ -7493,7 +7513,8 @@
     const fr = G.rec.filter((f) => f.t >= t0r && f.t <= t1r);
     if (fr.length < (q.andOne ? 2 : 30)) return;
     const kp = fr[0].p[q.pid];
-    G.replay = { fr: fr, i: 0, rt: fr[0].t, t1: fr[fr.length - 1].t, q: q, fc: { cx: G.focus.cx, cy: G.focus.cy }, skip: false, view: null, age: 0, wipeIn: 0, kx: kp.x, ky: kp.y, kz: kp.z + kp.h * 0.6 };
+    G.replay = { fr: fr, i: 0, rt: fr[0].t, t1: fr[fr.length - 1].t, q: q, fc: { cx: G.focus.cx, cy: G.focus.cy }, skip: false, view: null, age: 0, wipeIn: 0, kx: kp.x, ky: kp.y, kz: kp.z + kp.h * 0.6,
+      apex: fr.reduce((m, f) => (f.b.z > m.z ? { x: f.b.x, y: f.b.y, z: f.b.z } : m), { x: kp.x, y: kp.y, z: 0 }) };
     sfx('swoosh');
     G.replayLog = (G.replayLog || []).concat([{ t: G.time, s: q.s, ph: G.phase }]);
   }
@@ -7531,7 +7552,7 @@
     const tx = clamp(R.kx * CV.follow, -4.5, 4.5), ty = clamp(Math.min(R.ky, kp.y + 1.5) - CV.dist - 1 - 1.8 * R.pb, 0.5 - CV.dist, 9 - CV.dist);
     R.fc.cx = lerp(R.fc.cx, tx, k); R.fc.cy = lerp(R.fc.cy, ty - wm, k);   // V4.5 顶翻：机位后退 1 米，靠近镜头的进攻人脚也拍得到
     const F = G.fx;
-    R.view = { players: f.p, ball: f.b, net: f.net, time: f.t, focus: R.fc, cz: { x: R.kx, y: R.ky, z: R.kz, k: 1, u: R.ku },
+    R.view = { players: f.p, ball: f.b, net: f.net, time: f.t, focus: R.fc, cz: { x: R.kx, y: R.ky, z: R.kz, k: 1, u: R.ku }, rc: { pid: R.q.pid, did: wm > 0 && dp ? MK.did : null, apex: R.apex },
       fx: Object.assign({}, F, { shake: 0, flash: 0, slow: 1, hit: 0, board: 0, parts: f.parts, rings: f.rings, led: f.led, cheer: f.cheer }) };
   }
   function trackReplay() {
@@ -8180,6 +8201,14 @@
     camInTalkZ: ['入场对话 镜头高度', '越大赛前对话镜头越高；米'],
     camInTalkDist: ['入场对话 镜头距离', '越大赛前对话镜头离前排球员越远；米'],
     camInTalkPitch: ['入场对话 镜头仰角', '越大赛前对话镜头越向上仰拍；度，0 = 平视'],
+    camIn3Far: ['3V3 入场 远景停留时间', '越大 3V3 入场先看全场远景越久；秒'],
+    camIn3Pull: ['3V3 入场 镜头推近响应', '越大镜头从远景推到球星越快；每秒'],
+    camIn3Z: ['3V3 入场 镜头高度', '越大 3V3 入场特写镜头越高；米'],
+    camIn3Dist: ['3V3 入场 镜头距离', '越大 3V3 入场特写镜头离球星越远；米'],
+    camIn3Pitch: ['3V3 入场 镜头仰角', '越大 3V3 入场特写镜头越向上仰拍；度，0 = 平视'],
+    rpCamZ: ['回放 镜头高度', '越大回放机位越高、仰视感越弱；米'],
+    rpCamNear: ['回放 镜头最近距离', '越大回放镜头离主角越远；米'],
+    rpCamPad: ['回放 取景留边', '越大回放时主角、球路和篮筐离画面边缘越远；画面比例'],
     aiDrvSet: ['电脑持球 正面受阻距离', '越大越远的正面防守也让电脑放弃硬冲并重新组织；米'],
     aiRhH0: ['电脑快节奏 控球起点', '越小较低控球也开始缩短单打观察与运球间隔；能力值'],
     aiRhH1: ['电脑快节奏 满额控球门槛', '越小越容易获得完整快节奏；能力值，0–1'],
@@ -9145,7 +9174,7 @@
     TU.on((ks) => { if (!ks || ks.indexOf('l1_shotClock') >= 0) CFG.shotClock = TU.get('l1_shotClock'); syncK(); });
     syncK();
   }
-  PH.game = { ptIs: ptIs, ptOf: ptOf, ibuf: ibuf, t5: T5API, G: G, HZ: HZ, HZN: HZN, zoneOf: zoneOf, hzBase: hzBase, hzLvl: hzLvl, MVX: MVX, DPKG: DPKG, DPK_OF: DPK_OF, ST: ST, GW_OUT: K.gwOut, zones: zones, K: K, TDEF: TDEF, blkTier: blkTier, blkReact: blkReact, blkMove: blkMove, _qa: { finEdge: finEdge, blockBall: blockBall, greenWidth: greenWidth, ratingOf: ratingOf, SV: SV, LVR: LVR, startDunk: startDunk, startFinish: startFinish, finPlan: finPlan, contactAdv: contactAdv, bodyPow: bodyPow }, mobOf: mobOf, winnerNow: winnerNow, moveSet: moveSet, SF: SF, dunkPkg: dunkPkg, TKD: TKD, CB: CB, TIPS: TIPS, tipsStart: tipsStart, tipsStop: tipsStop, tkType: tkType, hcMod: hcMod, lookOf: lookOf, newGame: newGame, tick: tick, introStart: introStart, introTick: introTick, introPress: introPress, introEnd: introEnd, TALK: TALK, ISIG: ISIG, celStart: celStart, celPick: celPick, CEL_TIERS: CEL_TIERS, INTRO_TIERS: INTRO_TIERS, SIG_CEL: SIG_CEL, introLv: introLv, awardFreeThrows: awardFreeThrows, settleFreeThrow: settleFreeThrow, toText: toText, ARCH: ARCH, ATTRS: ATTRS, BADGES: BADGES, BADGE_TIER: BADGE_TIER, TIER_CN: TIER_CN, TIER_F: TIER_F, btier: btier, bk: bk, ba: ba, ROSTER: ROSTER, NBA: TEAMS_NBA, hasB: hasB, TEAMS: TEAMS, DIFF: DIFF, CFG: CFG, CFG_DEF: CFG_DEF, isThree: isThree, distHoop: distHoop, setupCheck: setupCheck, contestInfo: contestInfo,
+  PH.game = { ptIs: ptIs, ptOf: ptOf, ibuf: ibuf, t5: T5API, G: G, HZ: HZ, HZN: HZN, zoneOf: zoneOf, hzBase: hzBase, hzLvl: hzLvl, MVX: MVX, DPKG: DPKG, DPK_OF: DPK_OF, ST: ST, GW_OUT: K.gwOut, zones: zones, K: K, TDEF: TDEF, blkTier: blkTier, blkReact: blkReact, blkMove: blkMove, _qa: { finEdge: finEdge, blockBall: blockBall, greenWidth: greenWidth, ratingOf: ratingOf, SV: SV, LVR: LVR, startDunk: startDunk, startFinish: startFinish, finPlan: finPlan, contactAdv: contactAdv, bodyPow: bodyPow }, mobOf: mobOf, winnerNow: winnerNow, moveSet: moveSet, SF: SF, dunkPkg: dunkPkg, TKD: TKD, CB: CB, TIPS: TIPS, tipsStart: tipsStart, tipsStop: tipsStop, tkType: tkType, hcMod: hcMod, lookOf: lookOf, newGame: newGame, tick: tick, introStart: introStart, introTick: introTick, introPress: introPress, introEnd: introEnd, TALK: TALK, ISIG: ISIG, ISIG_CN: ISIG_CN, IWALK: IWALK, CELS: CELS, showPose: showPose, celStart: celStart, celPick: celPick, CEL_TIERS: CEL_TIERS, INTRO_TIERS: INTRO_TIERS, SIG_CEL: SIG_CEL, introLv: introLv, awardFreeThrows: awardFreeThrows, settleFreeThrow: settleFreeThrow, toText: toText, ARCH: ARCH, ATTRS: ATTRS, BADGES: BADGES, BADGE_TIER: BADGE_TIER, TIER_CN: TIER_CN, TIER_F: TIER_F, btier: btier, bk: bk, ba: ba, ROSTER: ROSTER, NBA: TEAMS_NBA, hasB: hasB, TEAMS: TEAMS, DIFF: DIFF, CFG: CFG, CFG_DEF: CFG_DEF, isThree: isThree, distHoop: distHoop, setupCheck: setupCheck, contestInfo: contestInfo,
     _dbg: { tkStart: tkStart, tkAdd: tkAdd, startShot: startShot, releaseShot: releaseShot, greenWidth: greenWidth, startMove: startMove, startBlock: startBlock, startFinish: startFinish, startDunk: startDunk, contestOf: contestOf, contestInfo: contestInfo, finPlan: finPlan }, TIERS: TIERS, grade: grade, DIMS: DIMS, applyTrain: applyTrain, applyMatchKits: applyMatchKits, placeDummy: placeDummy, trainReset: trainReset, giveBall: giveBall, newTrainStats: newTrainStats, styOf: styOf, styK: styK, STY_NAME: STY_NAME, seed: (s) => { seed = s | 1; } };
   PH.game.pokeCue = pokeCue;
   PH.game.hzCells = hzCells;
