@@ -1550,7 +1550,8 @@
       }
       // 2K：RT + X 突破中 = 扣篮（1V1 的扣篮键 a2）
       if (X && R.RT && dHoop(p) < 6.5 && p.speed > 2.5) { o.a2 = true; o.a1 = false; }
-      if (rsM >= 0.5) { o.a3 = o.rs = true; o.dx = RS.x / rsM; o.dy = RS.y / rsM; }
+      p.f5.rsOn = rsM >= 0.5 || !!p.f5.rsOn && rsM >= 0.3;   // 回差：推过 0.5 才算推，回到 0.3 以下才算松
+      if (p.f5.rsOn) { o.a3 = o.rs = true; o.dx = RS.x / rsM; o.dy = RS.y / rsM; o.rsM = rsM; }
       if (R.hesi) o.a3 = o.hesi = true;
       o.post = R.LT;
       if (R.rsPad) o.rsPad = true;
