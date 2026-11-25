@@ -45,7 +45,7 @@ function flicks(f) { for (let n = 0; n < 4; n++) { for (let i = 0; i < 3; i++) f
 // 左右交替快拨（不同方向，每 0.067 秒一下）
 function alternate(f) { for (let n = 0; n < 6; n++) { for (let i = 0; i < 2; i++) f.step(n % 2 ? -1 : 1, 0); for (let i = 0; i < 2; i++) f.step(); } for (let i = 0; i < 60; i++) f.step(); }
 
-const OFF = { mvDead: 0, mvSame: 0, rsTurn: 0 };
+const OFF = { mvDead: 0, mvSame: 0, rsTurn: 0, rsSnap: 0, rsSettle: 0 };
 const out = {};
 for (const [name, run] of [['wobble', wobble], ['flicks', flicks], ['alternate', alternate]]) {
   const r = {};

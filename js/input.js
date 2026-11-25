@@ -31,6 +31,7 @@
     return !blockedTouch[k];
   }
   let padPrev = {};
+  const rsOn = [];   // 右摇杆回差：推过 0.5 才算推，回到 0.3 以下才算松，读数在线上抖不会算成两下
   const lock = { on: false };
   const yTaps = [];
   function finishTap(slot, down, onOffense, teamPass) {
@@ -80,7 +81,9 @@
       else { if (B(3)) o.a1 = true; if (B(2)) o.a2 = true; if (B(6) || B(4) || (!teamPass && B(0))) o.a3 = true; }
       const rx = gp.axes[2] || 0, ry = gp.axes[3] || 0;
       o.rsPad = true;
-      if (onOffense && Math.hypot(rx, ry) >= 0.5) { o.a3 = o.rs = true; o.dx = rx; o.dy = -ry; }
+      const rm = Math.hypot(rx, ry), rk = rm < 0.5 ? 0.5 / rm : 1;
+      rsOn[slot] = onOffense && (rm >= 0.5 || !!rsOn[slot] && rm >= 0.3);
+      if (rsOn[slot]) { o.a3 = o.rs = true; o.dx = rx * rk; o.dy = -ry * rk; }
     }
     if (slot === 0 && touch.on) {
       if (Math.hypot(touch.mx, touch.my) > 0.2) { o.mx = touch.mx; o.my = touch.my; }

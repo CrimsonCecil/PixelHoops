@@ -256,6 +256,8 @@
     ['mvDead', 'drib', '换招 基础死区', 0.3, 0, 1, 0.01, '动作进度：别的运球招式最早到这一进度才能打断当前招（右摇杆和B键都算）；投篮按急停干拔规则（控球/徽章）'],
     ['mvSame', 'drib', '同招不互断', 0, 0, 1, 1, '开关：开 = 同一招（同招式、同方向）不能打断自己，要等这一招做完；关 = 同一招和别的招一样，做到换招基础死区就能打断', 'bool'],
     ['rsTurn', 'drib', '右摇杆 换向判定角度', 45, 0, 180, 1, '度：按住右摇杆转向超过这个角度才算新一下接招，防止推杆抖动连出同一招'],
+    ['rsSnap', 'drib', '右摇杆 回弹过滤', 0.08, 0, 0.3, 0.01, '越大 = 松手后越久之内反方向的轻推不算（秒）；推到底的一推照常立即出招。松手回弹冲过中心不会多出一招，0 = 关'],
+    ['rsSettle', 'drib', '右摇杆 推杆定向时间', 0.08, 0, 0.3, 0.01, '越大 = 刚推出去后越久之内的方向滑动不算换向接招（秒）；开着时换向还要推到位并稳住，0 = 关'],
     ['uuReq', 'drib', '上下步 能力门槛', 0, 0, 1, 0.01, '背控、近投、控球三者最高值；0 为人人可用'],
     ['uuCost', 'drib', '上下步 体力系数', 0.3, 0, 1, 0.01, '倍率：基础运球消耗'],
     ['uuBonus', 'shot', '上下步 骗跳命中加成', 0.08, 0, 0.3, 0.01, '概率：最近防守人被假投骗跳或仍在落地恢复'],
@@ -5624,16 +5626,34 @@
         pl.action = null; pl.buf = pl.ib = null;
         if (isPostMove(rs.move.kind)) pl.postMove = null;
       }
-      pl.rsGesture = null;
+      pl.rsGesture = null; pl.rsWait = false;
     }
     else if (pl.ctrl !== 'cpu' && (inp.rs || pl.rsGesture)) {
-      const held = !!inp.rs;
+      let held = !!inp.rs;
       let rs = pl.rsGesture;
+      const dAng = (a, b) => Math.abs(Math.atan2(Math.sin(a - b), Math.cos(a - b))) * 180 / Math.PI;
       inp = Object.assign({}, inp, { a3: !!(inp.dribble || inp.hesi) });
+      // 回弹过滤：刚松手就反方向来一推，多半是摇杆回中冲过头；窗口过了还推着才算数
+      if (!held) pl.rsWait = false;
+      else if (!rs) {
+        const e = pl.rsEnd, snap = e && G.time >= e.t && G.time - e.t < K.rsSnap;
+        if (snap && (inp.rsM || Math.hypot(inp.dx, inp.dy)) < 0.8 && (pl.rsWait || dAng(Math.atan2(inp.dy, inp.dx), e.a) > 110)) { pl.rsWait = true; held = false; inp.rs = false; inp.dx = inp.dy = 0; }
+        else pl.rsWait = false;
+      }
       if (held) {
         const dir = (Math.round(Math.atan2(inp.dy, inp.dx) / (Math.PI / 4)) + 8) % 8;
         const ang = Math.atan2(inp.dy, inp.dx);
-        if (rs && !rs.finish && !rs.shot && pl.action && pl.action.type === 'move' && rs.dir !== dir && Math.abs(Math.atan2(Math.sin(ang - rs.a), Math.cos(ang - rs.a))) * 180 / Math.PI > K.rsTurn) rs = null;
+        // 换向接招：推到位（≥0.8）才认，小于半圈的转向还要稳住两帧；刚推出去时走弧线、松手途中滑向都不算
+        if (rs && !rs.finish && !rs.shot && pl.action && pl.action.type === 'move') {
+          const mag = inp.rsM || Math.hypot(inp.dx, inp.dy), turn = dAng(ang, rs.a);
+          if (!(K.rsSettle > 0)) { if (rs.dir !== dir && turn > K.rsTurn) rs = null; }
+          else if (G.time - rs.t < K.rsSettle && turn <= 100) { rs.a = ang; rs.dir = dir; rs.ta = null; }
+          else if (mag >= 0.8 && rs.dir !== dir && turn > K.rsTurn) {
+            if (turn > 100) rs = null;
+            else if (rs.ta == null || dAng(ang, rs.ta) > 25) { rs.ta = ang; rs.tt = G.time; }
+            else if (G.time - rs.tt >= 0.03) rs = null;
+          } else rs.ta = null;
+        }
         if (!rs) {
           const P = !pl.action && !pl.post && !inp.post && !pl.uuFake && finPlan(pl);
           const q = inDir(pl, inp, true);
@@ -5642,13 +5662,14 @@
           rs = pl.rsGesture = { t: G.time, x: inp.dx, y: inp.dy, dir, a: ang, d: distHoop(pl), shot: false, finish: !!finish, follow: pl.postMove };
           inp.a3 = inp.rsFlick = true;
         }
-        rs.x = inp.dx; rs.y = inp.dy;
+        rs.x = inp.dx; rs.y = inp.dy; rs.la = ang;
         const press = !rs.finish && !rs.shot && G.time - rs.t >= K.rsHold;
         if (press) rs.shot = true;
         if (rs.finish) inp.a3 = true;
         inp.rsHold = rs.shot;
         if (rs.shot) { inp.a1 = true; inp.shootPress = inp.shootPress || press; inp.mx = rs.x; inp.my = rs.y; }
       } else if (rs) {
+        pl.rsEnd = { t: G.time, a: rs.la == null ? rs.a : rs.la };
         pl.rsGesture = null;
       }
     }
