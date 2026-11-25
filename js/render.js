@@ -12,7 +12,7 @@
   const CAMV = Object.assign({}, CAM_DEF);
   let follow3 = null;
   let intro1 = null;
-  let czAim = false;
+  let czAim = false, lowAim = false;
   let offsetX3 = 0, offsetY3 = 0;
   function setPitch(dy, dz) {
     const L = Math.hypot(dy, dz);
@@ -43,14 +43,15 @@
     t3_camPitch: ['3V3 镜头俯视斜率', '越大镜头越向下俯视；斜率'],
     t3_camHoop: ['3V3 镜头半场锚定', '越大机位越稳在半场中间、越少跟着球跑；0 = 完全跟球，1 = 机位固定'],
     t3_camEase: ['3V3 镜头缓动时间', '越大镜头起步、停下和重新拉近越柔和；秒，0 = 不加缓动'],
-    t3_camCourt: ['3V3 固定取景范围', '越大画面始终包住的三分线外区域越宽、视野越广；米'],
+    t3_camCourt: ['3V3 固定取景范围', '越大画面始终包住的三分线外区域越宽、视野越广；米，负数时只包住三分线内一圈'],
+    t3_camTeam: ['3V3 全员入镜比例', '越大越保证场上所有人都在画面里、镜头越远；0 = 只保证篮筐、球、持球人和自己'],
     l1_ciDur: ['专属技能 插画停留时间', '越大半屏插画从滑入到淡出越久；秒，组队与短插屏乘 0.75'],
     l1_ciFx: ['专属技能 闪光持续时间', '越大技能金光与边缘光晕持续越久；秒，5V5 乘 0.75'],
   };
   function camTuned() { const T = PH.TUNE, o = {}; for (const f in CAM_K) o[f] = T && T.has && T.has(CAM_K[f]) ? +T.get(CAM_K[f]) : CAM_DEF[f]; return o; }
   if (PH.TUNE && PH.TUNE.reg && !PH.TUNE.has('camZoom')) {
     PH.TUNE.reg([
-      { k: 'camZoom', label: '镜头 拉近', v: CAM_DEF.zoom, min: 0.8, max: 1.8, step: 0.01, wide: false, note: '倍数：1V1 / 训练镜头焦距（暂停 → 镜头面板“拉近”）' },
+      { k: 'camZoom', label: '镜头 拉近', v: CAM_DEF.zoom, min: 0.8, max: 2.6, step: 0.01, wide: false, note: '倍数：1V1 / 训练镜头焦距（暂停 → 镜头面板“拉近”）' },
       { k: 'camHeight', label: '镜头 机位高度', v: CAM_DEF.height, min: 3, max: 10, step: 0.1, wide: false, note: '米：机位离地高度（镜头面板“机位高度”）' },
       { k: 'camDist', label: '镜头 距离', v: CAM_DEF.dist, min: 6, max: 14, step: 0.1, wide: false, note: '米：机位在持球人身后多远（镜头面板“镜头距离”）' },
       { k: 'camFollow', label: '镜头 左右跟随', v: CAM_DEF.follow, min: 0, max: 1, step: 0.05, wide: false, note: '比例：0 = 机位固定在中线，1 = 完全跟着持球人左右移动' },
@@ -62,7 +63,7 @@
     setCam(camTuned());
   }
   const CAM3 = PH.CAM3 = [
-    { k: 't3_camZoom', f: 'zoom', label: '3V3 镜头 拉近', v: 1, min: 0.6, max: 1.8, step: 0.01, wide: false, note: '焦距倍数；自动取景仍会保护篮筐和持球人不出画面' },
+    { k: 't3_camZoom', f: 'zoom', label: '3V3 镜头 拉近', v: 1, min: 0.6, max: 2.6, step: 0.01, wide: false, note: '焦距倍数；自动取景仍会保护篮筐和持球人不出画面' },
     { k: 't3_camHeight', f: 'height', label: '3V3 镜头 机位高度', v: 8.2, min: 4, max: 12, step: 0.1, wide: false, note: '米：机位离地高度' },
     { k: 't3_camDist', f: 'dist', label: '3V3 镜头 距离', v: 10.8, min: 6, max: 16, step: 0.1, wide: false, note: '米：机位在跟随目标身后多远，保留底线范围限制' },
     { k: 't3_camFollow', f: 'follow', label: '3V3 镜头 左右跟随', v: 0.55, min: 0, max: 1, step: 0.05, wide: false, note: '比例：0 固定中线，1 完全跟随目标' },
@@ -74,6 +75,8 @@
     { k: 't3_camHoop', f: 'hoop', label: '3V3 镜头 半场锚定', v: 0.5, min: 0, max: 1, step: 0.05, wide: false, note: '比例：0 完全跟球，1 机位固定在半场中间' },
     { k: 't3_camEase', f: 'ease', label: '3V3 镜头 缓动', v: 0.35, min: 0, max: 1.5, step: 0.05, wide: false, note: '秒：镜头起步、停下和重新拉近的缓动时间' },
     { k: 't3_camCourt', f: 'court', label: '3V3 镜头 取景范围', v: 0.8, min: 0, max: 5, step: 0.1, wide: false, note: '米：三分线外多宽的一圈始终留在画面里' },
+    { k: 't3_camTeam', f: 'team', label: '3V3 镜头 全员入镜', v: 1, min: 0, max: 1, step: 0.05, wide: false, note: '比例：1 场上所有人和取景范围始终在画面里，0 只保证篮筐、球、持球人和自己（镜头最近）' },
+    { k: 't3_camClose', f: 'close', label: '3V3 镜头 贴身特写', v: 0, min: 0, max: 1, step: 0.05, wide: false, note: '越大镜头越贴近持球人：运球时不再强制把篮筐留在画面里，出手后自动拉回到能看见篮筐；0 = 篮筐始终在画面里' },
   ];
   const CAM3A = PH.CAM3ALL = CAM3.concat(CAM3X);
   if (PH.TUNE && PH.TUNE.reg) PH.TUNE.reg(CAM3A.map((d) => ({ ...d, display: CAMERA_DISPLAY[d.k] })));
@@ -2172,28 +2175,32 @@
   // 传球时目标点沿球路连续移动（不在接球瞬间跳到接球人身上），拉近比拉远慢
   function camera3(G, dt, hintY) {
     const C = cam3Tuned();
-    const b = G.ball, p = b.state === 'held' ? G.players[b.holder] : null, fp = G.intro && G.intro.foc;
+    const b = G.ball, p = b.state === 'held' ? G.players[b.holder] : null, fp = null;
     const bx = p ? p.x : b.x, by = (p ? p.y : b.y) + 1.3;
     const x = fp ? fp.x : bx, y = fp ? fp.y + 1.3 : b.state === 'shot' ? by * 0.65 + HOOP.y * 0.35 : by;
     const w = fp ? 0 : C.hoop;
     const tx = Math.max(-7.5, Math.min(7.5, x)) * (1 - w), ty = Math.max(0, Math.min(14, y)) * (1 - w) + 7 * w;
     const fresh = follow3?.players !== G.players;
-    if (fresh) follow3 = { players: G.players, x: tx, y: ty, ex: tx, ey: ty, zoom: 1 };
+    if (fresh) follow3 = { players: G.players, x: tx, y: ty, ex: tx, ey: ty, zoom: 1, cl: 0 };
     const k = 1 - Math.exp(-C.speed * dt), ke = C.ease > 0 && !fp ? 1 - Math.exp(-dt / C.ease) : 1;
     follow3.x += (tx - follow3.x) * k; follow3.y += (ty - follow3.y) * k;
     follow3.ex += (follow3.x - follow3.ex) * ke; follow3.ey += (follow3.y - follow3.ey) * ke;
-    cam.y = Math.max(-8.8, Math.min(-3.8, follow3.ey - C.dist));
+    cam.y = Math.max(-8.8, Math.min(-3.8 + Math.max(0, 6 - C.dist), follow3.ey - C.dist));
     cam.x = follow3.ex * C.follow;
     cam.z = C.height; cam.F = 530 * C.zoom;
     setPitch(1, -C.pitch);
 
-    const rim = proj(HOOP.x, HOOP.y, HOOP.z), board = proj(0, BOARD_Y, 3.95);
+    let rim = proj(HOOP.x, HOOP.y, HOOP.z), board = proj(0, BOARD_Y, 3.95);
     // 高抛球不把整个画面往下拽：球只按篮板上沿附近的高度参与取景
     const q = proj(b.x, b.y, Math.min(b.z, 4.6));
     const feet = p ? proj(p.x, p.y, 0) : q, head = p ? proj(p.x, p.y, p.z + p.h) : q;
     const local = G.players.find((pl) => pl.ring && !pl.off);
     const localFeet = local && local !== p ? proj(local.x, local.y, 0) : feet;
     const localHead = local && local !== p ? proj(local.x, local.y, local.z + local.h) : head;
+    // 贴身特写：运球时把“篮筐必须入镜”逐步换成“持球人必须入镜”，出手、传球在空中时再还原
+    const clT = fp || !p || (p.action && /^(shot|layup|dunk)$/.test(p.action.type)) ? 0 : C.close;
+    follow3.cl = (follow3.cl || 0) + (clT - (follow3.cl || 0)) * Math.min(1, k * (clT < (follow3.cl || 0) ? 2.5 : 0.6));
+    if (follow3.cl > 0.001) { const u = follow3.cl, mx = (feet.x + head.x) / 2; rim = { x: rim.x + (mx - rim.x) * u, y: rim.y + (head.y - rim.y) * u }; board = { x: board.x + (mx - board.x) * u, y: board.y + (head.y - 18 - board.y) * u }; }
     // 必保：篮筐、球、持球人、自己
     const need = {
       left: Math.min(rim.x, board.x, q.x, feet.x, head.x, localFeet.x, localHead.x),
@@ -2204,9 +2211,10 @@
     // 常驻：三分线外一圈 + 场上所有人。和谁持球无关，所以传球、换防都不会让取景跳变
     const wide = { ...need };
     if (!fp) {
-      const r = 6.75 + C.court, grow = (s, t) => { if (s.x < wide.left) wide.left = s.x; if (s.x > wide.right) wide.right = s.x; if (t && s.y < wide.top) wide.top = s.y; if (!t && s.y > wide.bottom) wide.bottom = s.y; };
+      const r = Math.max(0.5, 6.75 + C.court), grow = (s, t) => { if (s.x < wide.left) wide.left = s.x; if (s.x > wide.right) wide.right = s.x; if (t && s.y < wide.top) wide.top = s.y; if (!t && s.y > wide.bottom) wide.bottom = s.y; };
       for (const a of [-1.5708, -0.7854, 0, 0.7854, 1.5708]) grow(proj(Math.max(-7.5, Math.min(7.5, Math.sin(a) * r)), Math.max(0, HOOP.y - Math.cos(a) * r), 0), false);
       for (const pl of G.players) { if (pl.off || pl.dummy || !pl.arch) continue; grow(proj(pl.x, pl.y, 0), false); grow(proj(pl.x, pl.y, pl.z + pl.h), true); }
+      if (C.team < 1) for (const n in wide) wide[n] = need[n] + (wide[n] - need[n]) * C.team;
     }
     const footLimit = Math.min(H - 30, (hintY ?? H) - 4);
     const nameAnchor = (B) => hintY != null && local ? nameFoot(local, true).y : B.bottom;
@@ -2233,6 +2241,78 @@
       Math.min((W / 2 - rim.x) * zoom, W / 2 - 42 - (wide.right - W / 2) * zoom));
     offsetY3 = Math.max(36 - scaledY(board.y), 16 - scaledY(wide.top),
       Math.min(40 - scaledY(board.y), footLimit - scaledY(wide.bottom), nameLimit - scaledY(na)));
+  }
+  // 3V3 入场：从全场远景推到做招牌动作的头号球星身上（低机位仰拍），再摇到对面的头号球星；对话时对着说话的人
+  let intro3 = null;
+  function camera3Intro(G, dt, fp) {
+    const K = PH.game.K, talk = fp.mode === 'talk';
+    const tz = K.camIn3Z + (talk ? 0.4 : 0), ty = fp.y - K.camIn3Dist * (talk ? 1.2 : 1), tp = K.camIn3Pitch * Math.PI / 180 * (talk ? 0.5 : 1), toy = talk ? -H * 0.13 : 0;
+    if (!intro3 || intro3.intro !== G.intro) intro3 = { intro: G.intro, x: cam.x, y: cam.y, z: cam.z, p: Math.atan2(cam.fz, cam.fy), F: cam.F, ox: offsetX3, oy: offsetY3 };
+    const k = 1 - Math.exp(-K.camIn3Pull * dt), S = intro3;
+    S.x += (fp.x - S.x) * k; S.y += (ty - S.y) * k; S.z += (tz - S.z) * k; S.p += (tp - S.p) * k; S.F += (530 - S.F) * k; S.ox -= S.ox * k; S.oy += (toy - S.oy) * k;
+    cam.x = S.x; cam.y = S.y; cam.z = S.z; cam.F = S.F; offsetX3 = S.ox; offsetY3 = S.oy;
+    setPitch(Math.cos(S.p), Math.sin(S.p));
+    // 站在镜头和主角之间、挡住主角的人画成半透明
+    const A = S.A || (S.A = {}), ka = 1 - Math.exp(-10 * dt), t = proj(fp.x, fp.y, 1.2);
+    for (const O of G.players) {
+      if (!O) continue;
+      const f = proj(O.x, O.y, 0), hide = O.y < fp.y - 0.25 && O.y > cam.y + 0.6 && Math.abs(t.x - f.x) < 0.5 * f.s + 0.35 * t.s, a = A[O.id] == null ? 1 : A[O.id];
+      A[O.id] = a + ((hide ? 0.25 : 1) - a) * ka;
+    }
+  }
+  // 进球回放：低机位仰拍。主角全身、（隔扣时）防守人、球、球路最高点、篮筐和篮板都要在画面里；装不下就沿纵向后退。
+  // 镜头不能左右转，所以横向挪机位来避开挡在主角 / 篮筐 / 球前面的人（近处的人和远处的目标在画面上错开）
+  function replayLow(G, replay, rc, dt) {
+    const K = PH.game.K, P = G.players[rc.pid]; if (!P || !K) return;
+    const b = G.ball, hoop = [HOOP.x, HOOP.y, HOOP.z], ball = [b.x, b.y, b.z], chest = [P.x, P.y, P.z + P.h * 0.6], head = [P.x, P.y, P.z + P.h];
+    const pts = [[P.x, P.y, 0], [P.x, P.y, P.z + P.h + 0.2], [b.x, b.y, b.z + 0.2], [HOOP.x, HOOP.y, HOOP.z - 0.5], [-0.95, BOARD_Y, 4], [0.95, BOARD_Y, 4], [rc.apex.x, rc.apex.y, Math.min(rc.apex.z, 6.5) + 0.2]];
+    const D = rc.did != null ? G.players[rc.did] : null; if (D) pts.push([D.x, D.y, 0], [D.x, D.y, D.z + D.h]);
+    let x0 = Infinity, x1 = -Infinity, y0 = Infinity;
+    for (const q of pts) { x0 = Math.min(x0, q[0]); x1 = Math.max(x1, q[0]); y0 = Math.min(y0, q[1]); }
+    const pad = K.rpCamPad, mid = (x0 + x1) / 2, S = replay.lowCam;
+    cam.z = K.rpCamZ; cam.F = 400; offsetX3 = offsetY3 = 0;
+    const fit = (cx) => {
+      cam.x = cx; let d = K.rpCamNear, p = 0;
+      for (; d <= 24; d += 0.3) {
+        cam.y = y0 - d;
+        let a0 = Infinity, a1 = -Infinity;
+        for (const q of pts) { const a = Math.atan2(q[2] - cam.z, q[1] - cam.y); a0 = Math.min(a0, a); a1 = Math.max(a1, a); }
+        p = (a0 + a1) / 2; setPitch(Math.cos(p), Math.sin(p));
+        if (pts.every((q) => { const s = proj(q[0], q[1], q[2]); return s.x >= W * pad && s.x <= W * (1 - pad) && s.y >= H * (pad + 0.06) && s.y <= H * (0.94 - pad); })) break;
+      }
+      return { x: cx, y: cam.y, z: cam.z, p, d };
+    };
+    // 人 O 是否挡住了目标点 q（O 比 q 离镜头近，且 q 落在 O 的身体范围里）
+    const covers = (O, q, gap) => {
+      if (O.y >= q[1] - gap || O.y <= cam.y + 0.6) return 0;
+      const f = proj(O.x, O.y, 0), h = proj(O.x, O.y, O.z + O.h + 0.1), t = proj(q[0], q[1], q[2]);
+      return Math.abs(t.x - f.x) < 0.55 * f.s + 0.3 * t.s && t.y > h.y - 6 && t.y < f.y ? 1 : 0;
+    };
+    // 贴着镜头、占了大半个画面高度的人
+    const big = (O) => { if (O.y <= cam.y + 0.6) return 0; const f = proj(O.x, O.y, 0), h = proj(O.x, O.y, O.z + O.h); return f.y - h.y > H * 0.42 && f.x > -0.3 * f.s && f.x < W + 0.3 * f.s ? 1 : 0; };
+    let T = null, cost = Infinity;
+    for (let o = -5; o <= 5.01; o += 0.5) {
+      const c = fit(mid + o);
+      let v = c.d + 0.4 * Math.abs(o) + (S ? 0.3 * Math.abs(c.x - S.x) + ((c.x - mid) * S.side < 0 ? 2.5 : 0) : 0);
+      for (const O of G.players) {
+        if (!O) continue;
+        if (O === P) { v += 6 * covers(O, hoop, 1.6) + 3 * covers(O, ball, 1.6); continue; }
+        v += 6 * covers(O, chest, 0.3) + 4 * covers(O, head, 0.3) + (O === D ? 0 : 1.6 * big(O) + 5 * covers(O, hoop, 0.3) + 3 * covers(O, ball, 0.3));
+      }
+      if (v < cost) { cost = v; T = c; }
+    }
+    T.side = Math.sign(T.x - mid);
+    if (!S) replay.lowCam = { ...T };
+    else { const k = 1 - Math.exp(-5 * dt); for (const n of ['x', 'y', 'z', 'p']) S[n] += (T[n] - S[n]) * k; S.side = T.side || S.side; }
+    const C = replay.lowCam;
+    cam.x = C.x; cam.y = C.y; cam.z = C.z; setPitch(Math.cos(C.p), Math.sin(C.p));
+    // 挪了机位还挡着主角 / 篮筐 / 球的人，或者贴着镜头的人：画成半透明
+    const A = replay.lowA || (replay.lowA = {}), ka = 1 - Math.exp(-10 * dt);
+    for (const O of G.players) {
+      if (!O) continue;
+      const hide = O !== P && O !== D && (covers(O, chest, 0.3) || covers(O, head, 0.3) || covers(O, hoop, 0.3) || covers(O, ball, 0.3) || big(O) || O.y - cam.y < 2.6);
+      A[O.id] = (A[O.id] == null ? 1 : A[O.id]) + ((hide ? 0.28 : 1) - (A[O.id] == null ? 1 : A[O.id])) * ka;
+    }
   }
   function camera1Intro(G, dt) {
     const fp = G.intro && G.intro.foc;
@@ -2314,12 +2394,18 @@
     // 禁区推近（可关）：持球接近篮下时镜头沿纵向前推、机位压低。只用平滑过的 camK，不读球员实时位置，不做额外取景修正
     const pk = RP || cz || !CAMV.push ? 0 : (G.camK || 0);
     if (pk > 0.001) { const e = pk * pk * (3 - 2 * pk); cam.y += CAMV.pin * 5 * e; cam.z -= (cam.z - 1.2) * CAMV.pin * CAMV.plow * e; }
-    if (G.mode === 't3' && !RP) { intro1 = null; camera3(G, dt, hintY); }
+    if (G.mode === 't3' && !RP) {
+      intro1 = null; camera3(G, dt, hintY);
+      const f3 = G.intro && G.intro.foc;
+      if (f3 && !f3.far) camera3Intro(G, dt, f3); else intro3 = null;
+    }
     else {
       if (follow3) { follow3 = null; setPitch(CAMV.dist + 2.4, 1 - CAMV.height); }
       if (G.intro && G.intro.foc && !RP) camera1Intro(G, dt);
       else if (intro1) { intro1 = null; setPitch(CAMV.dist + 2.4, 1 - CAMV.height); }
     }
+    if (RP && RP.rc) { replayLow(G, replay, RP.rc, dt); lowAim = true; }
+    else if (lowAim) { if (G.mode !== 't3' && !czAim && !intro1) setPitch(CAMV.dist + 2.4, 1 - CAMV.height); if (!replay) lowAim = false; }
     if (replay && (RP || replay.returnT != null)) {
       const { dx, dy, ...pose } = replayCamera(replay, { ...cam, dx: offsetX3, dy: offsetY3 }, G.mode);
       Object.assign(cam, pose);
@@ -2369,13 +2455,16 @@
       else {
         const p = it.p;
         if (p.ghosts) for (const g of p.ghosts) drawPlayer({ x: g.x, y: g.y, z: g.z, face: g.face, pose: g.pose, h: p.h, col: p.col, id: p.id, stun: 0 }, { ghost: { c: p.col.ringCol, a: 0.42 * (1 - g.t / 0.22) } });
+        const la = RP ? (RP.rc && replay.lowA ? replay.lowA[p.id] : 1) : intro3 && intro3.A ? intro3.A[p.id] : 1, dim = la != null && la < 0.98;
+        if (dim) { ctx.save(); ctx.globalAlpha = la; }
         const r = drawPlayer(p, { flash: p.flash > 0, trail: RP ? null : { time: G.time, scene: G.players, view: G.mode } }); heads[p.id] = r.head;
+        if (dim) ctx.restore();
       }
     }
     drawTuneLabs(G);
     // V3.9s 光标下方的名字（1V1 双方）：小号像素字、光标同色、深色描边；有体力条时放在体力条下面。
     // 画在球员之后（不被腿挡住）；永远在脚下
-    if (teamTags) teamNameTags(G.players, maxNameY, G);
+    if (teamTags) { if (!intro3 || RP) teamNameTags(G.players, maxNameY, G); }
     else { const tags = [];
       for (const p of G.players) {
         if (!(p.ring || curOn(p, G)) || p.off || !p.arch || RP || p.dummy) continue;
@@ -2441,11 +2530,33 @@
         for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (pixels[(y * W + x) * 4 + 3]) { x0 = Math.min(x0, x); y0 = Math.min(y0, y); x1 = Math.max(x1, x); y1 = Math.max(y1, y); }
         const crop = document.createElement('canvas'); crop.width = Math.max(1, x1 - x0 + 5); crop.height = Math.max(1, y1 - y0 + 5);
         if (x1 >= x0) crop.getContext('2d').drawImage(image, x0 - 2, y0 - 2, crop.width, crop.height, 0, 0, crop.width, crop.height);
+        crop.feet = y1; crop.tall = y1 - y0;
         previewCache.set(key, crop);
       } finally { ctx = saved.ctx; W = saved.W; H = saved.H; Object.assign(cam, saved.cam); Object.assign(CAMV, saved.view); }
     }
     const image = previewCache.get(key), c = target.getContext('2d'), s = Math.min(target.width / image.width, target.height / image.height);
     c.clearRect(0, 0, target.width, target.height); c.imageSmoothingEnabled = false;
     c.drawImage(image, (target.width - image.width * s) / 2, target.height - image.height * s, image.width * s, image.height * s);
+  };
+  // 选人界面的动态人物：同一套球员绘制，每帧按传入的姿势和朝向重画（不缓存）。
+  // room：画布高度对应多少倍身高（留出举手的空间）；传 0 时所有球员用同一把尺子，能看出身高差
+  let showCv = null;
+  const showPl = new Map();
+  PH.render.playerShow = function (target, arch, side, pose, face, room) {
+    const key = arch.key + ':' + side;
+    if (!showCv) { showCv = document.createElement('canvas'); showCv.width = 360; showCv.height = 400; }
+    if (!previewCache.has(key)) PH.render.playerPreview(showCv, arch, side);
+    const still = previewCache.get(key), saved = { ctx, W, H, cam: { ...cam }, view: { ...CAMV } };
+    let p = showPl.get(key);
+    if (!p) { p = PH.game.t5.makePlayer(side, arch.key, 'human'); showPl.set(key, p); }
+    try {
+      ctx = showCv.getContext('2d'); W = 360; H = 400; ctx.clearRect(0, 0, W, H);
+      setCam({ height: 1.2, dist: 6, zoom: 1.25, push: 0 }); cam.x = 0; cam.y = -5.5; cam.oy = 10;
+      Object.assign(p.pose, pose); p.face = -Math.PI / 2 + (face || 0);
+      drawPlayer(p, {});
+    } finally { ctx = saved.ctx; W = saved.W; H = saved.H; Object.assign(cam, saved.cam); Object.assign(CAMV, saved.view); }
+    const c = target.getContext('2d'), ch = room ? still.tall * room : 286, cw = ch * target.width / target.height;
+    c.clearRect(0, 0, target.width, target.height); c.imageSmoothingEnabled = false;
+    c.drawImage(showCv, 180 - cw / 2, still.feet + 4 - ch, cw, ch, 0, 0, target.width, target.height);
   };
 })();

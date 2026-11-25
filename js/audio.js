@@ -116,6 +116,21 @@
     cheer2: () => { const t = ac.currentTime; noise(1.8, 0.34, 1200, 0.45, t); noise(1.5, 0.2, 2800, 0.6, t + 0.08); noise(0.5, 0.2, 500, 0.6, t); [784, 988, 1175].forEach((f, i) => tone(f, 0.1, 'square', 0.07, t + i * 0.07)); },
     cheerSoft: () => { const t = ac.currentTime; noise(0.65, 0.14, 1350, 0.55, t, 1650); noise(0.45, 0.08, 2500, 0.7, t + 0.06); },
     combo: () => { const t = ac.currentTime; tone(660, 0.05, 'square', 0.08, t); tone(990, 0.07, 'square', 0.08, t + 0.05); },
+    // 进场：看台由远及近的欢呼 + 开场气笛 + 跺脚拍手 + 口哨
+    crowdIn: () => {
+      const t = ac.currentTime;
+      const swell = (dur, vol, freq, q, t0, att, f2) => {
+        const s = ac.createBufferSource(), f = ac.createBiquadFilter(), g = ac.createGain();
+        s.buffer = noiseBuf; s.loop = true; f.type = 'bandpass'; f.frequency.setValueAtTime(freq, t0); f.Q.value = q;
+        if (f2) f.frequency.linearRampToValueAtTime(f2, t0 + att);
+        g.gain.setValueAtTime(0.001, t0); g.gain.exponentialRampToValueAtTime(vol, t0 + att); g.gain.setValueAtTime(vol, t0 + att + dur * 0.25); g.gain.exponentialRampToValueAtTime(0.001, t0 + dur);
+        s.connect(f).connect(g).connect(sfxGain); s.start(t0); s.stop(t0 + dur + 0.05);
+      };
+      swell(4.8, 0.3, 900, 0.4, t, 0.9, 1400); swell(4.4, 0.2, 2400, 0.6, t + 0.15, 1.1, 3000); swell(3.8, 0.16, 380, 0.5, t, 0.7);
+      tone(233, 0.9, 'sawtooth', 0.08, t + 0.05, 233); tone(311, 0.9, 'sawtooth', 0.06, t + 0.05, 311);
+      [0, 0.42, 0.84, 1.05, 1.26].forEach((d) => { noise(0.09, 0.2, 1900, 1.4, t + 1.3 + d); tone(90, 0.1, 'sine', 0.3, t + 1.3 + d, 55); });
+      [1568, 1976, 2349, 1760].forEach((f, i) => tone(f, 0.35, 'sine', 0.03, t + 0.9 + i * 0.55, f * 1.25));
+    },
     cheer: () => { noise(1.1, 0.22, 1300, 0.5); noise(0.9, 0.12, 2600, 0.7, ac.currentTime + 0.1); },
     win: () => { const t = ac.currentTime; [523, 523, 659, 784, 659, 784, 1047].forEach((f, i) => tone(f, 0.16, 'square', 0.13, t + i * 0.13)); noise(1.8, 0.2, 1400, 0.5, t); },
     tick: () => { tone(1250, 0.05, 'square', 0.09); },

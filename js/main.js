@@ -269,6 +269,7 @@
     $('front-grid').querySelectorAll('.pkc').forEach((e) => { e.title = e.dataset.pk === 'random' ? '随机球星' : GM.ARCH[e.dataset.pk].full; const cv = e.querySelector('canvas'); if (cv) portrait(cv, GM.ARCH[e.dataset.pk], GM.TEAMS[inlineSide]); });
     $('front-grid').querySelectorAll('.pkc').forEach((e) => { e.classList.toggle('on', !dual && e.dataset.pk === current); e.classList.toggle('p1on', dual && e.dataset.pk === opts.arch0); e.classList.toggle('p2on', dual && e.dataset.pk === opts.arch1); });
     for (let i = 0; i < 2; i++) $('pick' + i).classList.toggle('on', inlineSlot === null && (dual || i === inlineSide));
+    lobby3.forEach((s, i) => { const b = $('pick3-' + i), on = opts.format === 't3' && i === inlineSlot; if (b && b.parentNode.classList.contains('on') !== on) { b.parentNode.classList.toggle('on', on); figSel(b.querySelector('canvas'), on); } });
     curKeys.forEach((k, i) => { const e = k && $('front-roster').querySelector(k); if (e) e.classList.add(CUR[i]); });
   }
   function installInlinePicker() {
@@ -282,8 +283,45 @@
     };
     $('front-player-detail').onclick = () => openPicker(inlineSide, inlineSlot);
   }
+  // 选人界面会动的人物：选中的球员面向镜头循环做招牌动作 / 庆祝动作，其余人侧身对着对面站着
+  const FIG_MOVE = 2.3, FIG_REST = 0.7, figs = new Map(), figT0 = {};
+  let figRaf = 0, figLast = 0;
+  function figMoves(a) {
+    const L = [GM.ISIG[a.key], GM.SIG_CEL[a.key]].concat(GM.CELS[a.key] || [], (GM.IWALK[a.key] || []).slice(1)).filter(Boolean);
+    return [...new Set(L.length ? L : GM.INTRO_TIERS[a.tier === 'star' ? 2 : a.tier === 'mid' ? 1 : 0])].slice(0, 3);
+  }
+  function figDraw(cv, f, now) {
+    const e = (now - f.t0) / 1000, n = Math.floor(e / (FIG_MOVE + FIG_REST)), u = e - n * (FIG_MOVE + FIG_REST);
+    const ty = f.sel && u < FIG_MOVE ? f.moves[n % f.moves.length] : null, pose = GM.showPose(ty, u, FIG_MOVE);
+    pose.bob += 0.006 * Math.sin(now / 420 + f.ph);
+    f.turn += ((f.sel ? 0.1 * Math.sin(now / 900) : f.side ? -0.6 : 0.6) - f.turn) * 0.16;
+    R.playerShow(cv, f.arch, f.side, pose, f.turn, f.room);
+    if (f.cap && f.capTy !== ty) { f.capTy = ty; f.cap.textContent = ty ? '招牌动作 · ' + (GM.ISIG_CN[ty] || '庆祝') : f.arch.skill ? '专属技能 · ' + f.arch.skill.name : f.arch.pos; }
+  }
+  function figTick(now) {
+    figRaf = 0; let live = 0;
+    for (const [cv, f] of figs) { if (!cv.isConnected) { figs.delete(cv); continue; } if (cv.offsetParent) { live++; if (now - figLast >= 30) figDraw(cv, f, now); } }
+    if (live && now - figLast >= 30) figLast = now;
+    if (!figs.size) return;
+    if (live) figRaf = requestAnimationFrame(figTick); else figRaf = setTimeout(() => { figRaf = requestAnimationFrame(figTick); }, 400);
+  }
+  function figSet(cv, a, side, sel, room, cap) {
+    const now = performance.now(), old = figs.get(cv), f = { arch: a, side, sel, room, cap, moves: figMoves(a), t0: now - (sel ? 0 : 99000), ph: (a.num || 0) * 1.7, turn: old ? old.turn : sel ? 0 : side ? -0.6 : 0.6, capTy: 0 };
+    figs.set(cv, f); figDraw(cv, f, now);
+    if (!figRaf) figRaf = requestAnimationFrame(figTick);
+  }
+  function figSel(cv, sel) { const f = cv && figs.get(cv); if (f && f.sel !== sel) { f.sel = sel; f.t0 = performance.now(); f.capTy = 0; } }
   function pickBtn(id, key, side = id === 'pick0' ? 0 : 1, t3 = false) {
     const el = $(id);
+    if (t3) {
+      const a = GM.ARCH[key], k = key + ':' + side;
+      el.className = 'pick ' + vcl(a.ovr);
+      if (el.dataset.k === k) return;
+      el.dataset.k = k;
+      el.innerHTML = '<canvas class="team-body" width="300" height="330" aria-hidden="true"></canvas><span class="l3-plate"><strong class="' + vcl(a.ovr) + '" aria-label="总评 ' + a.ovr + '">' + a.ovr + '</strong><span class="pk-n">' + a.name + '</span>' + positionBadge(a) + '</span><span class="l3-sig" aria-hidden="true"></span>';
+      figSet(el.querySelector('canvas'), a, side, el.parentNode.classList.contains('on'), 0, el.querySelector('.l3-sig'));
+      return;
+    }
     if (key === 'random') { el.className = 'pick fighter-pick fighter-random'; el.setAttribute('aria-label', 'P2 随机球星，更换球员'); el.innerHTML = '<span class="fighter-figure"><span class="fighter-question">?</span><span class="fighter-ring"></span></span><span class="fighter-info"><span class="fighter-label">P2</span><span class="pk-n">随机球星</span></span>'; return; }
     const a = GM.ARCH[key];
     el.className = 'pick ' + vcl(a.ovr); el.innerHTML = '<canvas class="pkf" width="32" height="32"></canvas><span class="pk-n">' + a.name + ' <small>' + a.ovr + '</small></span>' + (t3 ? positionBadge(a) : '<span class="pk-s">' + (a.skill ? '必杀技 · ' + a.skill.name : a.pos + ' · ' + GM.TIERS[a.tier]) + '</span><span class="pk-c">更换</span>');
@@ -295,10 +333,8 @@
         '<span class="pk-s">' + a.pos + ' · ' + listedHeight(a) + ' 米 · #' + a.num + '</span>' +
         '<span class="fighter-stats">' + [['three','三分'],['mid','中投'],['lay','上篮'],['dunk','扣篮'],['hnd','控球'],['spd','速度'],['def','防守'],['str','力量']].map(([k,n]) => '<span class="' + vcl(A99(a[k])) + '">' + n + '<b>' + A99(a[k]) + '</b><i style="--pct:' + A99(a[k]) + '%"></i></span>').join('') + '</span>' +
         '<span class="fighter-badges">' + bList(a, true).map(([k,t]) => '<span title="' + GM.BADGES[k].desc + '">' + bHex(k,t) + GM.BADGES[k].name + '</span>').join('') + '</span></span>';
-      R.playerPreview(el.querySelector('canvas'), a, side);
-    } else {
-      const cv = el.querySelector('canvas'); cv.classList.add('team-body'); cv.width = 90; cv.height = 130;
-      R.playerPreview(cv, a, side);
+      if (opts.format === 'king') R.playerPreview(el.querySelector('canvas'), a, side);
+      else { const cv = el.querySelector('canvas'), was = figT0[id]; figSet(cv, a, side, true, 1.36); if (was && was.k === key) figs.get(cv).t0 = was.t0; else figT0[id] = { k: key, t0: figs.get(cv).t0 }; }
     }
   }
   const lobbySlotName = (i) => (i < 3 ? '主队' : '客队') + ' ' + (i % 3 + 1) + ' 号位';
@@ -668,6 +704,7 @@
     replaySaveReset();
     PH.audio.voPreload(G.players.map((p) => p.arch.key));
     if ((config.intro || opts.intro) !== 'off') GM.introStart();
+    PH.audio.play('crowdIn');
     if (!G.intro && room.role === 'guest') roomIntroEnd(false);
     stage.classList.toggle('intro', !!G.intro);
     screen = 'play'; paused = false; panelOpen = false; overShown = false; PH.input.clearSys(); PH.input.flush(); clearPf(); camShift();
@@ -869,6 +906,7 @@
     replaySaveReset();
     PH.audio.voPreload(G.players.map((p) => p.arch.key));
     if (opts.intro !== 'off') GM.introStart();
+    if (!tr) PH.audio.play('crowdIn');
     stage.classList.toggle('intro', !!G.intro);
     screen = 'play'; paused = false; PH.input.clearSys(); PH.input.flush(); clearPf();
     show('tbpass', false); show('tbscreen', false); show('tbbounce', false); show('tblob', false); show('tballey', false);
@@ -1272,15 +1310,15 @@
     const { accuracy, vision, passIQ } = pl.tendency;
     return cells + [['传球', accuracy], ['视野', vision], ['传球智商', passIQ]].map(([name, v]) => pcCell(name, Math.round(v * 100), 0)).join('');
   }
-  // 信息卡专属技能行：紫框图标 + 技能名 + 状态（就绪 / 可释放 / 冷却秒数 / 库里蓄力格）；冷却按整秒刷新，图标底部紫色回填
+  // 信息卡专属技能：并在主宰条末尾的一块小图标（不单占一行），紫框就绪 / 金框可释放 / 灰底冷却 + 秒数 + 紫色回填；库里的蓄力格贴在图标底边
   function skRow(pl, is5) {
     const S = pl.arch.skill, k = pl.sk;
     if (!S || is5 || !k || typeof k.cd !== 'number' || k.cd > 99 || G.mode === 'demo') return '';
     const cd = Math.ceil(k.cd), go = !cd && k.hint === 'ready', need = S.id === 'curry' && !cd && !k.ready ? Math.round(GM.K.skCurryN) : 0;
     const fill = cd ? Math.round(Math.max(0, Math.min(1, 1 - cd / (k.cdMax || cd))) * 100) : 0;
-    const pips = need ? Array.from({ length: need }, (_, i) => '<u' + (i < (k.streak || 0) ? ' class="on"' : '') + '></u>').join('') : '';
-    const txt = cd ? '<span class="sk-cd">冷却 ' + cd + ' 秒</span>' : go ? '<span class="sk-go">可释放</span>' : need ? '<span class="sk-cd">蓄力<i class="skp">' + pips + '</i></span>' : '<span class="sk-ok">就绪</span>';
-    return '<div class="pcsk" data-testid="pc-skill"><span class="skt ' + (cd ? 'cd' : go ? 'go' : 'rdy') + '">' + IC.svg(IC.has('sk_' + S.id) ? 'sk_' + S.id : 'takeover') + (cd ? '<i class="skm" style="height:' + fill + '%"></i><b>' + cd + '</b>' : '') + '</span><div><span class="skn">' + S.name + '</span>' + txt + '</div></div>';
+    const pips = need ? '<i class="skp">' + Array.from({ length: need }, (_, i) => '<u' + (i < (k.streak || 0) ? ' class="on"' : '') + '></u>').join('') + '</i>' : '';
+    const tip = S.name + ' · ' + (cd ? '冷却 ' + cd + ' 秒' : go ? '可释放' : need ? '蓄力 ' + (k.streak || 0) + '/' + need : '就绪');
+    return '<span class="skt ' + (cd ? 'cd' : go ? 'go' : 'rdy') + '" data-testid="pc-skill" title="' + tip + '">' + IC.svg(IC.has('sk_' + S.id) ? 'sk_' + S.id : 'takeover') + (cd ? '<i class="skm" style="height:' + fill + '%"></i><b>' + cd + '</b>' : '') + pips + '</span>';
   }
   function cardHTML(pl, isOff, st, is5 = false) {
     const a = pl.arch, tkOn = pl.tkOn > 0;
@@ -1290,11 +1328,12 @@
     const sl = st && (is5 || G.mode === 't3') ? '<div class="pcs pcs5">' + [[st.pts, '分'], [st.fg + '/' + st.fga, '投'], [st.reb, '板'], [st.ast, '助'], [st.stl, '断'], [st.blk, '帽'], [st.tov, '误']].map((x) => '<b' + (x[0] === 0 ? ' class="z"' : '') + '>' + x[0] + '</b>' + x[1]).join('') + '</div>' : st ? '<div class="pcs"><b>' + st.pts + '</b>分<b>' + st.fg + '/' + st.fga + '</b>投<b>' + st.reb + '</b>板<b>' + st.blk + '</b>帽<b>' + st.stl + '</b>断</div>' : '';
     // V4.5 信息卡徽章行（1V1 / 5V5 同一套）：档位配色的六边形图标，正在触发的徽章高亮
     const bl = bList(pl, is5), hot = new Set((G.bpops || []).filter((x) => G.time - x.t0 < 1.8 && G.time >= x.t0 && G.players[x.pid] === pl).map((x) => x.key));
+    const sk = skRow(pl, is5);
     const brow = bl.length ? '<div class="pcb" data-testid="pc-badges">' + bl.map((x) => '<span class="tr' + x[1] + (hot.has(x[0]) ? ' hot' : '') + '" title="' + GM.BADGES[x[0]].name + '">' + bHex(x[0], x[1]) + '</span>').join('') + '</div>' : '';
     const name = '<b>' + a.name + '</b>', ovr = '<em class="' + vcl(a.ovr) + '">' + a.ovr + '</em>';
     const role = '<u class="' + (isOff ? 'ro' : 'rd') + '">' + (isOff ? '进攻' : '防守') + '</u>';
     const head = '<span class="pc-id">' + name + ovr + (G.mode === 't3' ? positionBadge(a) : '') + '</span>' + role;
-    return '<div class="pch">' + head + '</div>' + sl + '<div class="pcg">' + cells + '</div>' + skRow(pl, is5) + brow + tkl + '<div class="pctk' + (tkOn ? ' on' : '') + '"><span>主宰</span><s><b style="width:' + Math.round(pl.tk) + '%"></b></s></div>';
+    return '<div class="pch">' + head + '</div>' + sl + '<div class="pcg">' + cells + '</div>' + brow + tkl + '<div class="pctk' + (tkOn ? ' on' : '') + '"><span>主宰</span><s><b style="width:' + Math.round(pl.tk) + '%"></b></s>' + sk + '</div>';
   }
   function fitBadgePops(cardPrefix, colPrefix) {
     const bottoms = [0, 1].map((i) => {
@@ -1352,7 +1391,7 @@
   }
   function toggleInfo() { opts.info = opts.info === 'show' ? 'hide' : 'show'; pcards(); refreshMenu(); camBody(); }
   // ---------- 镜头面板 ----------
-  const CAMS = [['zoom', '拉近', 0.8, 1.8, 0.01], ['height', '机位高度', 3, 10, 0.1], ['dist', '镜头距离', 6, 14, 0.1], ['follow', '左右跟随', 0, 1, 0.05], ['pin', '推近力度', 0, 0.6, 0.02], ['plow', '压低程度', 0, 1, 0.05]];
+  const CAMS = [['zoom', '拉近', 0.8, 2.6, 0.01], ['height', '机位高度', 3, 10, 0.1], ['dist', '镜头距离', 6, 14, 0.1], ['follow', '左右跟随', 0, 1, 0.05], ['pin', '推近力度', 0, 0.6, 0.02], ['plow', '压低程度', 0, 1, 0.05]];
   let camOpen = false, camWasPaused = false;
   function camBody() {
     if (!camOpen) return;
@@ -1392,7 +1431,7 @@
   }
   function camCloud() {
     const st = camCloudState();
-    for (const [b, h] of [['cam-save', 'cam-cs'], ['c5-save', 'c5-cs']]) { const be = $(b), he = $(h); if (be) { be.textContent = st.t; be.disabled = st.dis; } if (he) he.textContent = st.h; }
+    for (const [b, h] of [['cam-save', 'cam-cs'], ['c5-save', 'c5-cs']]) { const be = $(b), he = $(h); if (be) { const ok = st.t === '已保存到云端'; be.textContent = (ok ? '✓ ' : '') + st.t; be.disabled = st.dis; be.classList.toggle('saved', ok); be.classList.toggle('dirty', !st.dis); } if (he) he.textContent = st.h; }
   }
   async function camSave() {
     const CS = PH.CS; if (!CS || CS.S.busy) return;
