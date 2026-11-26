@@ -43,7 +43,7 @@ function load() {
     if (G.fx.led && /NOW ENTERING/.test(G.fx.led.text)) sawLed = true;
     if (G.fx.cheer >= 2.2) sawHighCheer = true;
   }
-  assert.equal(played.length, 0, 'entrance does not fire noisy procedural intro SFX (' + played.join(',') + ')');
+  assert.deepEqual(played, ['cheer2'], 'entrance fires one crowd cheer and no other procedural intro SFX (' + played.join(',') + ')');
   assert.ok(sawLed, 'entrance drives LED ticker');
   assert.ok(sawHighCheer, 'entrance keeps crowd visual cheering');
   assert.ok(maxConfetti >= 40, 'entrance spawns abundant confetti (' + maxConfetti + ')');
