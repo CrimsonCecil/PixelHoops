@@ -3,9 +3,9 @@ const fs = require('node:fs');
 const vm = require('node:vm');
 const { EventEmitter } = require('node:events');
 
-function client({ relay = true, rtc = false, direct = false, ice = null } = {}) {
+function client({ relay = true, rtc = false, bcBus = null, direct = false, ice = null } = {}) {
   let now = 0;
-  const timers = new Map(), doc = new EventEmitter(), win = new EventEmitter(), events = [], sockets = [], messages = [], pcs = [];
+  const timers = new Map(), doc = new EventEmitter(), win = new EventEmitter(), events = [], sockets = [], messages = [], pcs = [], bcs = [];
   for (const target of [doc, win]) {
     target.addEventListener = target.on.bind(target);
     target.removeEventListener = target.off.bind(target);
@@ -37,6 +37,28 @@ function client({ relay = true, rtc = false, direct = false, ice = null } = {}) 
   }
   win.WebSocket = WebSocket;
   if (rtc) win.RTCPeerConnection = RTCPeerConnection;
+  if (bcBus) {
+    win.BroadcastChannel = class FakeBroadcastChannel {
+      constructor(name) {
+        this.name = name; this.closed = false; this.onmessage = null;
+        if (!bcBus.has(name)) bcBus.set(name, new Set());
+        bcBus.get(name).add(this);
+        bcs.push(this);
+      }
+      postMessage(data) {
+        if (this.closed) return;
+        const copy = JSON.parse(JSON.stringify(data));
+        for (const peer of bcBus.get(this.name) || []) {
+          if (peer !== this && !peer.closed) peer.onmessage?.({ data: copy });
+        }
+      }
+      close() {
+        if (this.closed) return;
+        this.closed = true;
+        bcBus.get(this.name)?.delete(this);
+      }
+    };
+  }
   if (relay) win.__API_BASE__ = 'https://relay.example';
   win.PH = { TUNE: { reg() {}, get: (k) => (k === 'net_direct' ? +direct : undefined) } };
   if (ice) win.fetch = async () => ({ ok: true, json: async () => ({ iceServers: ice }) });
@@ -53,7 +75,7 @@ function client({ relay = true, rtc = false, direct = false, ice = null } = {}) 
     const [id, timer] = [...timers].sort((a, b) => a[1].delay - b[1].delay)[0];
     timers.delete(id); timer.fn();
   };
-  return { rooms, events, sockets, messages, pcs, timers, doc, win, open, next, time: (ms) => { now = ms; } };
+  return { rooms, events, sockets, messages, pcs, bcs, timers, doc, win, open, next, time: (ms) => { now = ms; } };
 }
 
 (async () => {
@@ -224,6 +246,9 @@ function client({ relay = true, rtc = false, direct = false, ice = null } = {}) 
   assert.equal(host.rooms.relaying(), false);
   assert.equal(guest.rooms.room.transport, 'p2p');
   // Regular state uses unreliable 'state' channel; audio-bearing state & ping use reliable 'ctrl' channel
+  assert.equal(hCtrl.sent.length, 1);
+  assert.equal(hCtrl.sent[0].type, 'ping');
+  hCtrl.sent.length = 0;
   host.rooms.room.active = true;
   guest.sockets[0].receive({ type: 'start', config: {} });
   guest.rooms.introDone();
@@ -236,6 +261,11 @@ function client({ relay = true, rtc = false, direct = false, ice = null } = {}) 
   assert.equal(hCtrl.sent.length, 0);
   host.rooms.broadcast({ type: 'state', state: { x: 2, audio: [['play', 'swish']] } });
   assert.equal(hCtrl.sent.length, 1);
+  // Match restart keeps stateSeq monotonic so late unordered P2P snapshots cannot block new match frames
+  const seqBeforeRestart = hState.sent[0].seq;
+  host.rooms.broadcast({ type: 'start', config: { mode: 'online' } });
+  host.rooms.broadcast({ type: 'state', state: { x: 3 } });
+  assert.ok(hState.sent[1].seq > seqBeforeRestart, 'stateSeq remains monotonic across match restarts');
   // Fallback back to relay if P2P ctrl closes while relay is still alive (guest 2)
   host.sockets[0].receive({ type: 'peer-open', id: 2 });
   await new Promise((r) => setImmediate(r));
@@ -358,4 +388,91 @@ function client({ relay = true, rtc = false, direct = false, ice = null } = {}) 
   c.sockets[0].receive({ type: 'peer-close', id: 7 });
   assert.equal(c.rooms.room.ping, null); c.rooms.close();
   console.log('PASS: guest and host ping/pong RTT tracking and disconnect cleanup');
+
+  // 9. Same-browser BroadcastChannel local upgrade bypasses relay & WebRTC
+  const bcBus = new Map();
+  const lHost = client({ rtc: true, bcBus }), lGuest = client({ rtc: true, bcBus });
+  await lHost.open(true); lHost.sockets[0].opened();
+  await lGuest.open(false); lGuest.sockets[0].opened();
+  lHost.sockets[0].receive({ type: 'peer-open', id: 1 });
+  lGuest.sockets[0].receive({ type: 'relay-ready' });
+  await new Promise((r) => setImmediate(r));
+  const localOffer = lHost.sockets[0].sent.find((m) => m.msg?.type === 'rtc' && m.msg.kind === 'local-offer');
+  assert.ok(localOffer, 'host sends local-offer via relay');
+  const lJoin = lGuest.sockets[0].sent.find((m) => m.type === 'join');
+  lHost.sockets[0].receive({ from: 1, msg: lJoin });
+  lGuest.sockets[0].receive(lHost.sockets[0].sent.find((m) => m.msg?.type === 'joined').msg);
+  lGuest.sockets[0].receive(localOffer.msg);
+  assert.equal(lHost.rooms.room.transport, 'local');
+  assert.equal(lGuest.rooms.room.transport, 'local');
+  assert.equal(lHost.rooms.relaying(), false);
+  assert.equal(lHost.pcs[0].connectionState, 'closed');
+  // Surviving transient relay disconnect while local peer is still alive (probe-ack),
+  // and closing cleanly if the local peer vanished (tab closed/refreshed without ctrl:close)
+  lHost.sockets[0].receive({ type: 'peer-close', id: 1 });
+  assert.equal(lHost.rooms.room.links.has(1), true);
+  lGuest.bcs[0].close(); // simulate guest tab hard-closed without sending ctrl:close
+  lHost.rooms.room.links.get(1).conn.detachRelay();
+  lHost.next(); // probe timeout fires -> releases dead local guest
+  assert.equal(lHost.rooms.room.links.has(1), false);
+  assert.equal(lHost.bcs[0].closed, true);
+  lHost.rooms.close();
+  lGuest.rooms.close();
+  // Same-browser BroadcastChannel join in a force-direct room (local-offer arrives before WebRTC offer)
+  const dlBus = new Map();
+  const dlHost = client({ rtc: true, bcBus: dlBus, direct: true }), dlGuest = client({ rtc: true, bcBus: dlBus });
+  await dlHost.open(true); dlHost.sockets[0].opened();
+  await dlGuest.open(false); dlGuest.sockets[0].opened();
+  dlHost.sockets[0].receive({ type: 'peer-open', id: 1 });
+  dlGuest.sockets[0].receive({ type: 'relay-ready' });
+  // Host ignores relay join in force-direct mode; local-offer carries direct:true so guest resends join over BroadcastChannel
+  const dlRelayJoin = dlGuest.sockets[0].sent.find((m) => m.type === 'join');
+  dlHost.sockets[0].receive({ from: 1, msg: dlRelayJoin });
+  assert.equal(dlHost.rooms.room.links.size, 0, 'force-direct host ignores relay join');
+  const dlLocalOffer = dlHost.sockets[0].sent.find((m) => m.msg?.type === 'rtc' && m.msg.kind === 'local-offer');
+  assert.equal(dlLocalOffer?.msg?.direct, true, 'local-offer carries direct flag in force-direct mode');
+  dlGuest.sockets[0].receive(dlLocalOffer.msg);
+  assert.equal(dlHost.rooms.room.transport, 'local');
+  assert.equal(dlGuest.rooms.room.transport, 'local');
+  assert.equal(dlHost.rooms.room.links.size, 1, 'force-direct host admits guest via BroadcastChannel');
+  assert.ok(dlGuest.events.includes('joined'), 'force-direct guest receives joined over BroadcastChannel');
+  dlHost.rooms.close();
+  dlGuest.rooms.close();
+  console.log('PASS: same-browser BroadcastChannel local upgrade, RTC teardown, and dead-tab cleanup');
+
+  // 10. Relay in-flight ACK pacing prevents TCP queue buildup without blocking audio or deadlocking
+  const rHost = client(), rGuest = client();
+  await rHost.open(true); rHost.sockets[0].opened();
+  await rGuest.open(false); rGuest.sockets[0].opened();
+  rHost.sockets[0].receive({ type: 'peer-open', id: 1 });
+  rGuest.sockets[0].receive({ type: 'relay-ready' });
+  rHost.sockets[0].receive({ from: 1, msg: rGuest.sockets[0].sent.find((m) => m.type === 'join') });
+  rGuest.sockets[0].receive(rHost.sockets[0].sent.find((m) => m.msg?.type === 'joined').msg);
+  rHost.rooms.room.active = true; rGuest.rooms.room.active = true;
+  rHost.time(100);
+  const beforePacing = rHost.sockets[0].sent.length;
+  rHost.rooms.broadcast({ type: 'state', state: { f: 1 } });
+  rHost.rooms.broadcast({ type: 'state', state: { f: 2 } });
+  assert.equal(rHost.rooms.congested(), true);
+  rHost.rooms.broadcast({ type: 'state', state: { f: 3 } }); // dropped: 2 unacked in-flight
+  assert.equal(rHost.sockets[0].sent.length, beforePacing + 2);
+  rHost.rooms.broadcast({ type: 'state', state: { f: 4, audio: [['play', 'swish']] } }); // audio preserved
+  assert.equal(rHost.sockets[0].sent.length, beforePacing + 3);
+  // Guest receives frame 1 & 2 -> emits ack -> unblocks host
+  const sent1 = rHost.sockets[0].sent[beforePacing].msg;
+  const sent2 = rHost.sockets[0].sent[beforePacing + 1].msg;
+  rGuest.sockets[0].receive(sent1);
+  rGuest.sockets[0].receive(sent2);
+  const acks = rGuest.sockets[0].sent.filter((m) => m.type === 'ack');
+  assert.equal(acks.length, 2);
+  rHost.sockets[0].receive({ from: 1, msg: acks[1] });
+  rHost.rooms.broadcast({ type: 'state', state: { f: 5 } });
+  assert.equal(rHost.sockets[0].sent.length, beforePacing + 4);
+  // Timeout expiry after 600ms prevents deadlock if acks are lost
+  rHost.rooms.broadcast({ type: 'state', state: { f: 6 } });
+  assert.equal(rHost.rooms.congested(), true);
+  rHost.time(800);
+  assert.equal(rHost.rooms.congested(), false);
+  rHost.rooms.close(); rGuest.rooms.close();
+  console.log('PASS: relay in-flight ACK pacing caps queue, preserves audio, and expires cleanly');
 })().catch((err) => { console.error(err); process.exitCode = 1; });

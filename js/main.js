@@ -2464,19 +2464,31 @@
   $('btn-ai').addEventListener('click', (e) => { e.stopPropagation(); aiSet(!aiOn); e.currentTarget.blur(); });
   window.addEventListener('keydown', (e) => { if (aiOn && !e.repeat && e.code !== 'Escape' && !isTextInput(e.target)) aiSet(false); });
   $('touch').addEventListener('touchstart', () => { if (aiOn) aiSet(false); });
-  let bgTimer = null;
+  let bgTimer = null, bgWorker = null;
   function syncBackgroundMatch() {
     clearInterval(bgTimer); bgTimer = null;
+    if (bgWorker) { bgWorker.terminate(); bgWorker = null; }
     if (!document.hidden || room.role !== 'host' || !room.active) return;
     let then = performance.now(), carry = 0;
-    bgTimer = setInterval(() => {
+    const stepBg = () => {
       const now = performance.now();
       if (!paused && !manual) {
         carry += Math.min(0.25, (now - then) / 1000);
         while (carry >= DT) { tickMatch(); carry -= DT; }
       }
       then = now;
-    }, 33);
+    };
+    if (typeof Worker === 'function' && typeof Blob === 'function' && typeof URL?.createObjectURL === 'function') {
+      try {
+        const blob = new Blob(['setInterval(() => postMessage(0), 16);'], { type: 'application/javascript' });
+        const url = URL.createObjectURL(blob);
+        bgWorker = new Worker(url);
+        URL.revokeObjectURL(url);
+        bgWorker.onmessage = stepBg;
+        return;
+      } catch { /* Fall back to setInterval when Worker creation is unavailable. */ }
+    }
+    bgTimer = setInterval(stepBg, 33);
   }
   function step(n) { for (let i = 0; i < n; i++) tickMatch(); }
   function frame(ts) {
@@ -2525,7 +2537,8 @@
     netstatAt = now;
     const fpsText = Math.round(fps) + ' FPS';
     const p = room.ping;
-    const via = room.direct ? (room.transport === 'p2p' ? ' P2P·强制直连' : room.transport ? ' 直连中…' : '')
+    const via = room.transport === 'local' ? ' 本地'
+      : room.direct ? (room.transport === 'p2p' ? ' P2P·强制直连' : room.transport ? ' 直连中…' : '')
       : room.transport === 'p2p' ? (room.route === 'turn' ? ' P2P/TURN' + netRelayProto(room.relayProto) : ' P2P') : room.transport === 'relay' ? ' 中继' : '';
     const ice = room.transport === 'p2p' && Number.isFinite(room.iceRtt) ? ' · ICE ' + room.iceRtt + 'ms' : '';
     const pingText = (p != null ? 'PING ' + p + 'ms' : 'PING --') + via + ice;

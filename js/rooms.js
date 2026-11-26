@@ -4,6 +4,7 @@
   const alphabet = '23456789ABCDEFGHJKMNPQRSTUVWXYZ';
   const PROTOCOL = 1, VERSION_ERROR = '版本不一致，请刷新页面后重试。';
   const MAX_FRAME = 1024 * 1024, RELAY_BUFFER_LIMIT = 8 * 1024, P2P_BUFFER_LIMIT = 12 * 1024, INPUT_HEARTBEAT_MS = 100;
+  const RELAY_MAX_INFLIGHT = 2, RELAY_ACK_TIMEOUT_MS = 600, LOCAL_PROBE_MS = 2000;
   // Fallback only. google STUN is unreachable from mainland China, so it is no longer listed.
   // stun.hitv.com also answers over IPv6, which gives most mainland home connections a public, punchable address.
   const FALLBACK_ICE = [{ urls: ['stun:stun.miwifi.com:3478', 'stun:stun.chat.bilibili.com:3478', 'stun:stun.hitv.com:3478', 'stun:stun.qq.com:3478'] }];
@@ -104,6 +105,7 @@
     if (!room.links.size) return false;
     for (const link of room.links.values()) {
       if (!link.conn.open) continue;
+      if (typeof link.conn.relayCongested === 'function' && link.conn.relayCongested()) continue;
       const { amount, limit } = linkBuffer(link.conn);
       if (amount <= limit) return false;
     }
@@ -116,7 +118,7 @@
   }
   function relaying() {
     if (room.role === 'guest') return room.transport === 'relay';
-    for (const link of room.links.values()) if (link.conn.open && link.conn.transport !== 'p2p') return true;
+    for (const link of room.links.values()) if (link.conn.open && link.conn.transport === 'relay') return true;
     return false;
   }
   function syncTransport() {
@@ -128,18 +130,19 @@
       room.direct = !!(pending?.open && pending.direct);
       return;
     }
-    let any = false, anyRelay = false, anyTurn = false, direct = false, proto = '', rtt = null;
+    let any = false, anyRelay = false, anyP2p = false, anyTurn = false, direct = false, proto = '', rtt = null;
     for (const link of room.links.values()) {
       if (!link.conn.open) continue;
       any = true;
       if (link.conn.direct) direct = true;
-      if (link.conn.transport !== 'p2p') anyRelay = true;
-      else {
+      if (link.conn.transport === 'relay') anyRelay = true;
+      else if (link.conn.transport === 'p2p') {
+        anyP2p = true;
         if (link.conn.route === 'turn') { anyTurn = true; if (!proto || link.conn.relayProto === 'tcp' || link.conn.relayProto === 'tls') proto = link.conn.relayProto || proto; }
         if (Number.isFinite(link.conn.iceRtt)) rtt = rtt == null ? link.conn.iceRtt : Math.max(rtt, link.conn.iceRtt);
       }
     }
-    room.transport = !any ? '' : anyRelay ? 'relay' : 'p2p';
+    room.transport = !any ? '' : anyRelay ? 'relay' : anyP2p ? 'p2p' : 'local';
     room.route = room.transport !== 'p2p' ? '' : anyTurn ? 'turn' : 'direct';
     room.relayProto = room.route === 'turn' ? proto : '';
     room.iceRtt = room.transport === 'p2p' ? rtt : null;
@@ -157,9 +160,14 @@
       return url.href;
     } catch { return ''; }
   }
-  function createLink(relaySend, relayEnd, relayBuffered, isHost, direct = false) {
+  function createLink(relaySend, relayEnd, relayBuffered, isHost, direct = false, localChannelName = '') {
     const listeners = new Map();
     let pc = null, ctrl = null, stateCh = null, inCh = null, pendingIce = [], closed = false, relayAlive = true, directTimer, routeTimer;
+    let bc = null, localUp = false, localTimer = null, probeTimer = null;
+    const inFlight = [];
+    function pruneInFlight(now) {
+      while (inFlight.length && now - inFlight[0].at > RELAY_ACK_TIMEOUT_MS) inFlight.shift();
+    }
     const pubLocal = new Set(), pubRemote = new Set();
     const directFail = () => DIRECT_FAIL + '（本机公网地址：' + iceFamilies(pubLocal) + '；对方：' + iceFamilies(pubRemote) + '）';
     const link = {
@@ -173,7 +181,18 @@
       reason: '',           // why the link was failed (shown to the user)
       on(type, fn) { if (!listeners.has(type)) listeners.set(type, []); listeners.get(type).push(fn); return this; },
       emit(type, msg) { for (const fn of listeners.get(type) || []) fn(msg); },
+      ackState(seq) {
+        if (!Number.isInteger(seq)) return;
+        while (inFlight.length && inFlight[0].seq <= seq) inFlight.shift();
+      },
+      resetFlow() { inFlight.length = 0; },
+      relayCongested() {
+        if (this.transport !== 'relay') return false;
+        pruneInFlight(performance.now());
+        return inFlight.length >= RELAY_MAX_INFLIGHT;
+      },
       bufferInfo() {
+        if (localUp && bc) return { amount: 0, limit: P2P_BUFFER_LIMIT };
         if (ctrl && ctrl.readyState === 'open') {
           const ch = stateCh && stateCh.readyState === 'open' ? stateCh : ctrl;
           return { amount: ch.bufferedAmount || 0, limit: P2P_BUFFER_LIMIT };
@@ -182,6 +201,9 @@
       },
       send(msg) {
         if (!this.open) return;
+        if (localUp && bc) {
+          try { bc.postMessage({ fromHost: isHost, msg }); return; } catch { dropLocal(); }
+        }
         if (ctrl && ctrl.readyState === 'open') {
           const droppable = isDroppableState(msg);
           // input: unordered + reliable (seq-stamped) so a lost packet never blocks newer key states;
@@ -194,13 +216,22 @@
             if (new TextEncoder().encode(raw).length <= MAX_FRAME) { ch.send(raw); return; }
           } catch { /* Fall back to relay if DataChannel send fails. */ }
         }
-        if (!this.direct) relaySend(msg);
+        if (this.direct) return;
+        const droppable = isDroppableState(msg);
+        if (droppable && this.relayCongested()) return;
+        if (msg?.type === 'state' && Number.isInteger(msg.seq)) {
+          const now = performance.now();
+          pruneInFlight(now);
+          inFlight.push({ seq: msg.seq, at: now });
+          if (inFlight.length > 16) inFlight.shift();
+        }
+        relaySend(msg);
       },
       armDirect() {
         if (this.direct || closed) return;
         this.direct = true;
         syncTransport();
-        directTimer = setTimeout(() => { if (!(ctrl && ctrl.readyState === 'open')) this.fail(directFail()); }, DIRECT_MS);
+        directTimer = setTimeout(() => { if (!(localUp && bc) && !(ctrl && ctrl.readyState === 'open')) this.fail(directFail()); }, DIRECT_MS);
       },
       fail(reason) {
         if (closed) return;
@@ -210,11 +241,22 @@
       },
       detachRelay() {
         relayAlive = false;
-        if (!closed && this.transport !== 'p2p') this.close();
+        if (closed) return;
+        if (this.transport === 'relay') { this.close(); return; }
+        if (this.transport === 'local' && localUp && bc) {
+          clearTimeout(probeTimer);
+          probeTimer = setTimeout(() => { probeTimer = null; if (!closed) link.close(); }, 1500);
+          try { bc.postMessage({ fromHost: isHost, ctrl: 'probe' }); } catch { link.close(); }
+        }
       },
       startRtc() {
-        if (closed || pc || typeof window.RTCPeerConnection !== 'function') return;
-        if (icePending) { whenIce(() => { if (!closed && !pc) this.startRtc(); }); return; }
+        if (closed) return;
+        if (isHost && localChannelName && typeof window.BroadcastChannel === 'function' && !bc) {
+          startLocal(localChannelName);
+          relaySend(link.direct ? { type: 'rtc', kind: 'local-offer', ch: localChannelName, direct: true } : { type: 'rtc', kind: 'local-offer', ch: localChannelName });
+        }
+        if (localUp || pc || typeof window.RTCPeerConnection !== 'function') return;
+        if (icePending) { whenIce(() => { if (!closed && !localUp && !pc) this.startRtc(); }); return; }
         setupPc(this.direct);
         try {
           attachChannel(pc.createDataChannel('ctrl', { ordered: true }), 'ctrl');
@@ -229,10 +271,15 @@
       handleRtc(msg) {
         if (closed || !msg) return;
         if (msg.kind === 'fail') { if (this.direct) { this.reason = directFail(); this.close(); } return; }
+        if (msg.kind === 'local-offer' && !isHost && typeof msg.ch === 'string' && msg.ch && typeof window.BroadcastChannel === 'function') {
+          if (msg.direct === true) this.armDirect();
+          if (!bc) startLocal(msg.ch);
+          return;
+        }
         if (msg.kind === 'offer' && !isHost && msg.direct === true) this.armDirect();
-        if (typeof window.RTCPeerConnection !== 'function') return;
+        if (localUp || typeof window.RTCPeerConnection !== 'function') return;
         if (msg.kind === 'offer' && !isHost && msg.sdp && !pc && icePending) {
-          whenIce(() => { if (!closed) this.handleRtc(msg); });
+          whenIce(() => { if (!closed && !localUp) this.handleRtc(msg); });
         } else if (msg.kind === 'offer' && !isHost && msg.sdp) {
           if (!pc) setupPc(this.direct);
           pc.setRemoteDescription(msg.sdp)
@@ -257,12 +304,68 @@
         clearTimeout(directTimer);
         const wasOpen = this.open;
         this.open = false;
+        if (localUp && bc) { try { bc.postMessage({ fromHost: isHost, ctrl: 'close' }); } catch {} }
+        dropLocal();
         dropPc();
         relayEnd();
         syncTransport();
         if (wasOpen) this.emit('close');
       }
     };
+    function upgradeTransport(next) {
+      if (closed || link.transport === next) return;
+      link.transport = next;
+      inFlight.length = 0;
+      syncTransport();
+      if (link.open) link.send({ type: 'ping', t: performance.now() });
+    }
+    function dropLocal() {
+      clearTimeout(localTimer); localTimer = null;
+      clearTimeout(probeTimer); probeTimer = null;
+      const old = bc; bc = null;
+      const wasUp = localUp; localUp = false;
+      if (old) { old.onmessage = null; try { old.close(); } catch {} }
+      if (wasUp && link.transport === 'local') {
+        link.transport = ctrl && ctrl.readyState === 'open' ? 'p2p' : 'relay';
+        syncTransport();
+        if (!closed && link.transport === 'relay') {
+          if (link.direct) link.fail(directFail());
+          else if (!relayAlive) link.close();
+        }
+      }
+    }
+    function startLocal(name) {
+      try { bc = new window.BroadcastChannel(name); } catch { return; }
+      bc.onmessage = (ev) => {
+        const d = ev?.data;
+        if (closed || !d || d.fromHost === isHost) return;
+        if (d.ctrl === 'ack' && isHost) {
+          clearTimeout(localTimer); localTimer = null;
+          clearTimeout(directTimer);
+          localUp = true;
+          try { bc.postMessage({ fromHost: true, ctrl: 'ready' }); } catch {}
+          dropPc();
+          upgradeTransport('local');
+        } else if (d.ctrl === 'ready' && !isHost) {
+          clearTimeout(localTimer); localTimer = null;
+          clearTimeout(directTimer);
+          localUp = true;
+          dropPc();
+          upgradeTransport('local');
+          if (link.direct && link.open) link.emit('open');
+        } else if (d.ctrl === 'probe') {
+          try { bc.postMessage({ fromHost: isHost, ctrl: 'probe-ack' }); } catch {}
+        } else if (d.ctrl === 'probe-ack') {
+          clearTimeout(probeTimer); probeTimer = null;
+        } else if (d.ctrl === 'close') {
+          link.close();
+        } else if (localUp && link.open && d.msg && typeof d.msg === 'object') {
+          link.emit('data', d.msg);
+        }
+      };
+      if (!isHost) { try { bc.postMessage({ fromHost: false, ctrl: 'ack' }); } catch {} }
+      localTimer = setTimeout(() => { if (!localUp) dropLocal(); }, LOCAL_PROBE_MS);
+    }
     // 'p2p' only means the DataChannel is open. Ask WebRTC which candidate pair was actually selected so the HUD can
     // tell a true direct path from one that is being relayed through our TURN server.
     function probeRoute() {
@@ -287,23 +390,26 @@
       for (const cand of list) pc.addIceCandidate(cand).catch(() => {});
     }
     function dropPc() {
+      clearTimeout(routeTimer);
       const old = pc; pc = null; ctrl = null; stateCh = null; inCh = null; pendingIce = [];
-      if (link.transport !== 'relay') { link.transport = 'relay'; syncTransport(); }
+      if (link.transport === 'p2p') { link.route = ''; link.relayProto = ''; link.iceRtt = null; link.transport = localUp ? 'local' : 'relay'; syncTransport(); }
       if (old) {
         old.onicecandidate = old.onconnectionstatechange = old.ondatachannel = null;
         try { old.close(); } catch { /* Ignore close errors. */ }
       }
-      if (!closed && link.direct) link.fail(directFail());
-      else if (!closed && !relayAlive) link.close();
+      if (!closed && link.direct && !localUp) link.fail(directFail());
+      else if (!closed && !relayAlive && link.transport === 'relay') link.close();
     }
     function attachChannel(ch, kind) {
       const isCtrl = kind === 'ctrl';
       if (kind === 'ctrl') ctrl = ch; else if (kind === 'state') stateCh = ch; else inCh = ch;
       ch.onopen = () => {
-        if (closed) { try { ch.close(); } catch {} return; }
+        if (closed || localUp) { try { ch.close(); } catch {} return; }
         if (isCtrl) {
           clearTimeout(directTimer);
-          link.transport = 'p2p'; syncTransport(); clearTimeout(routeTimer); routeLoop();
+          upgradeTransport('p2p');
+          clearTimeout(routeTimer);
+          routeLoop();
           // Direct-only: the join sent over the Worker was ignored by the host, so say hello again over P2P.
           if (!isHost && link.direct && link.open) link.emit('open');
         }
@@ -316,9 +422,11 @@
       };
       ch.onclose = () => {
         if (isCtrl && ctrl === ch) {
-          ctrl = null; link.transport = 'relay'; syncTransport();
-          if (!closed && link.direct) link.fail(directFail());
-          else if (!closed && !relayAlive) link.close();
+          ctrl = null;
+          clearTimeout(routeTimer);
+          if (link.transport === 'p2p') { link.route = ''; link.relayProto = ''; link.iceRtt = null; link.transport = localUp ? 'local' : 'relay'; syncTransport(); }
+          if (!closed && link.direct && !localUp) link.fail(directFail());
+          else if (!closed && !relayAlive && link.transport === 'relay') link.close();
         }
         if (kind === 'state' && stateCh === ch) stateCh = null;
         if (kind === 'input' && inCh === ch) inCh = null;
@@ -356,6 +464,9 @@
     Object.assign(room, { peer: null, role: '', code: '', active: false, ping: null, transport: '', route: '', relayProto: '', iceRtt: null, direct: false });
   }
   function broadcast(msg) {
+    if (msg?.type === 'start') {
+      for (const link of room.links.values()) link.conn.resetFlow?.();
+    }
     const out = msg?.type === 'state' && msg.seq == null ? { ...msg, seq: ++stateSeq } : msg;
     for (const link of room.links.values()) write(link.conn, out);
   }
@@ -389,6 +500,8 @@
         syncTransport();
         write(conn, { type: 'joined', slot, protocol: PROTOCOL });
         handlers.change();
+      } else if (slot >= 0 && msg.type === 'ack' && room.links.get(slot)?.conn === conn && Number.isInteger(msg.seq)) {
+        conn.ackState?.(msg.seq);
       } else if (slot >= 0 && msg.type === 'ping' && room.links.get(slot)?.conn === conn && Number.isFinite(msg.t)) {
         write(conn, { type: 'pong', t: msg.t });
       } else if (slot >= 0 && msg.type === 'pong' && room.links.get(slot)?.conn === conn && Number.isFinite(msg.t)) {
@@ -477,8 +590,9 @@
           const rtt = Math.round(performance.now() - msg.t);
           if (rtt >= 0 && rtt < 60000) room.ping = rtt;
         }
-        else if (msg.type === 'start') { lastStateSeq = 0; lastInputKey = ''; lastInputAt = -Infinity; room.active = true; handlers.start(msg.config); }
+        else if (msg.type === 'start') { lastInputKey = ''; lastInputAt = -Infinity; room.active = true; handlers.start(msg.config); }
         else if (msg.type === 'state' && room.active) {
+          if (conn.transport === 'relay' && Number.isInteger(msg.seq)) write(conn, { type: 'ack', seq: msg.seq });
           if (Number.isInteger(msg.seq) && msg.seq <= lastStateSeq) {
             if (Array.isArray(msg.state?.audio) && msg.state.audio.length) handlers.state({ audio: msg.state.audio });
             return;
@@ -536,7 +650,8 @@
             () => { relayGuests.delete(msg.id); send({ to: msg.id, msg: { type: 'relay-close' } }); },
             () => ws.bufferedAmount || 0,
             true,
-            forceDirect()
+            forceDirect(),
+            'ph-room-' + code + '-' + secret.slice(0, 12) + '-' + msg.id
           );
           relayGuests.set(msg.id, link);
           // Joined guests report the reason through change(); this covers a link that failed before joining.
