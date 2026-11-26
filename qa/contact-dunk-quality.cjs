@@ -133,11 +133,22 @@ function jumper(ctx, { distance = 2.5, error = 0, gap = 9, rawContest, badge = f
   return G.lastShot;
 }
 console.log('Pritchard jumpers: scenario | before/after probability');
+const gjK = after.PH.game.K.smGJK;
+after.PH.game.K.smGJK = 0;   // 先关掉完美跳投的干扰折损，单独核对风格修正逻辑没变
 for (const opts of [{}, { distance: 3 }, { distance: 3.001 }, { distance: 5 }, { distance: 7 }, { error: 0.75 }, { gap: 0.6, rawContest: 0.199 }, { gap: 0.6, rawContest: 0.2 }, { gap: 0.6, rawContest: 0.7 }, { badge: true }, { mode: 't5' }]) {
   const old = jumper(before, opts), now = jumper(after, opts);
   console.log(`${JSON.stringify(opts)} | ${pct(old.prob)}/${pct(now.prob)}`);
   const exempt = now.green && now.contest < 0.2 && (opts.distance || 2.5) <= 3 && !opts.badge;
   assert.equal(now.prob, old.prob);
   if (exempt) assert.equal(now.styleDelta, 0);
+}
+after.PH.game.K.smGJK = gjK;
+{
+  const heavy = { gap: 0.6, rawContest: 0.7 }, open = { gap: 0.6, rawContest: 0.199 };
+  const old = jumper(before, heavy), now = jumper(after, heavy), miss = jumper(after, { ...heavy, error: 0.75 });
+  console.log(`green jumper at 70% contest | ${pct(old.prob)}/${pct(now.prob)}, non-green ${pct(miss.prob)}`);
+  assert(now.green && now.prob < old.prob - 0.15, 'heavily contested green jumper is no longer near-automatic');
+  assert(now.prob >= miss.prob, 'green release never worse than a non-green one');
+  assert.equal(jumper(after, open).prob, 1, 'open green jumper still automatic');
 }
 console.log('PASS close green jumpers: 100% preserved, distance and contest boundaries, non-green/contested/midrange/long unchanged, pullup badge, shared 5V5 release');
