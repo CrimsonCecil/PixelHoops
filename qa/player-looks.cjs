@@ -35,7 +35,7 @@ const { game, render, rig, measurements, buildTags, T5 } = ctx.PH;
 render.init(canvas());
 const rgb = hex => hex.slice(1).match(/../g).map(c => parseInt(c, 16));
 const distance = (a, b) => Math.hypot(...rgb(a).map((v, i) => v - rgb(b)[i]));
-for (const [key, team] of [['barkley', 'PHX'], ['yao', 'HOU'], ['mutombo', 'DEN']]) {
+for (const [key, team] of [['barkley', 'PHX'], ['yao', 'HOU'], ['mutombo', 'DEN'], ['nash', 'PHX'], ['rip', 'DET'], ['kobe', 'LAL'], ['shaq', 'LAL'], ['ginobili', 'SAS'], ['iverson', 'PHI'], ['carter', 'TOR'], ['rodman', 'CHI'], ['bwallace', 'DET'], ['rallen', 'BOS']]) {
   assert.equal(game.ARCH[key].kitTeam, team);
 }
 const kitOf = p => p.arch.matchKit || game.NBA[p.arch.kitTeam || (p.arch.team === 'LEG' ? 'LAL' : p.arch.team)];
