@@ -1392,13 +1392,22 @@
   function toggleInfo() { opts.info = opts.info === 'show' ? 'hide' : 'show'; pcards(); refreshMenu(); camBody(); }
   // ---------- 镜头面板 ----------
   const CAMS = [['zoom', '拉近', 0.8, 2.6, 0.01], ['height', '机位高度', 3, 10, 0.1], ['dist', '镜头距离', 6, 14, 0.1], ['follow', '左右跟随', 0, 1, 0.05], ['pin', '推近力度', 0, 0.6, 0.02], ['plow', '压低程度', 0, 1, 0.05]];
-  let camOpen = false, camWasPaused = false;
+  // 精彩回放镜头：和比赛镜头一样登记在调参台，这里分页显示（1V1 多两项侧机位参数）
+  const RPS = [['l1_rpCamLens', '焦距'], ['l1_rpCamNear', '最近距离'], ['l1_rpNear1', '1V1 距离'], ['l1_rpSide1', '1V1 侧角'], ['l1_rpCamZ', '机位高度'], ['l1_rpCamLift', '机位抬高'], ['l1_rpCamMid', '焦点位置'], ['l1_rpCamFollow', '横向跟随'], ['l1_rpCamPad', '取景留边']];
+  const rpKeys = () => RPS.filter((r) => PH.TUNE && PH.TUNE.has(r[0]) && (G.mode !== 't3' || !/1$/.test(r[0])));
+  let camOpen = false, camWasPaused = false, camTab = 'play';
   function camBody() {
     if (!camOpen) return;
     const t3 = G.mode === 't3', values = t3 ? Object.fromEntries(PH.CAM3ALL.map((c) => [c.f, PH.TUNE.get(c.k)])) : R.CAMV;
     const cams = t3 ? PH.CAM3ALL.map((c) => [c.f, c.label.replace('3V3 镜头 ', ''), c.min, c.max, c.step]) : CAMS;
     $('campanel').querySelector('.thead b').textContent = t3 ? '镜头 · 3V3' : '镜头';
-    $('cam-body').innerHTML = cams.map((c) => '<label class="crow"><span>' + c[1] + '</span><input type="range" data-cam="' + c[0] + '" min="' + c[2] + '" max="' + c[3] + '" step="' + c[4] + '" value="' + values[c[0]] + '" data-testid="cam-' + c[0] + '"><b>' + (+values[c[0]]).toFixed(2) + '</b></label>').join('').replace('<label class="crow"><span>推近力度', '<button class="cam-push" data-testid="cam-push">禁区推近 ' + (R.CAMV.push ? '开' : '关') + '</button><label class="crow"><span>推近力度');
+    const tabs = '<div class="cam-tabs"><button class="cam-tab' + (camTab === 'play' ? ' on' : '') + '" data-tab="play" data-testid="cam-tab-play">比赛镜头</button><button class="cam-tab' + (camTab === 'rp' ? ' on' : '') + '" data-tab="rp" data-testid="cam-tab-rp">精彩回放</button></div>';
+    if (camTab === 'rp') {
+      $('cam-body').innerHTML = tabs + rpKeys().map((r) => { const m = PH.TUNE.meta(r[0]), v = +PH.TUNE.get(r[0]); return '<label class="crow"><span>' + r[1] + '</span><input type="range" data-rp="' + r[0] + '" min="' + m.min + '" max="' + m.max + '" step="' + m.step + '" value="' + v + '" data-testid="cam-' + r[0] + '"><b>' + v.toFixed(2) + '</b></label>'; }).join('') + '<small class="cam-note">下一次精彩回放生效</small>';
+      $('cam-info').textContent = '球员信息 ' + (opts.info === 'show' ? '显示' : '隐藏');
+      camCloud(); return;
+    }
+    $('cam-body').innerHTML = tabs + cams.map((c) => '<label class="crow"><span>' + c[1] + '</span><input type="range" data-cam="' + c[0] + '" min="' + c[2] + '" max="' + c[3] + '" step="' + c[4] + '" value="' + values[c[0]] + '" data-testid="cam-' + c[0] + '"><b>' + (+values[c[0]]).toFixed(2) + '</b></label>').join('').replace('<label class="crow"><span>推近力度', '<button class="cam-push" data-testid="cam-push">禁区推近 ' + (R.CAMV.push ? '开' : '关') + '</button><label class="crow"><span>推近力度');
     $('cam-info').textContent = '球员信息 ' + (opts.info === 'show' ? '显示' : '隐藏');
     camCloud();
   }
@@ -1426,7 +1435,7 @@
   function tuneOtherDirty() {
     const T = PH.TUNE, CS = PH.CS; if (!T || !CS) return false;
     const o = T.over(), p = CS.cur().data || {};
-    for (const k of new Set(Object.keys(o).concat(Object.keys(p)))) if (!/^(cam(Zoom|Height|Dist|Follow|Push|Pin|Plow)|t[35]_cam)/.test(k) && !(k in o && k in p && Math.abs(o[k] - p[k]) < 1e-9)) return true;
+    for (const k of new Set(Object.keys(o).concat(Object.keys(p)))) if (!/^(cam(Zoom|Height|Dist|Follow|Push|Pin|Plow)|t[35]_cam|l1_rp(Cam|Side1|Near1))/.test(k) && !(k in o && k in p && Math.abs(o[k] - p[k]) < 1e-9)) return true;
     return false;
   }
   function camCloud() {
@@ -1456,11 +1465,11 @@
   $('c5-reset').addEventListener('click', () => { PH.T5.resetCam(); cam5Labels(); });
   $('cam-close').addEventListener('click', () => toggleCam(false));
   let camFromSet = false;
-  $('cam-reset').addEventListener('click', () => { R.resetCamTuned(G.mode); camBody(); });
+  $('cam-reset').addEventListener('click', () => { if (camTab === 'rp') { for (const r of rpKeys()) PH.TUNE.reset(r[0]); } else R.resetCamTuned(G.mode); camBody(); });
   $('cam-info').addEventListener('click', () => toggleInfo());
-  $('cam-body').addEventListener('input', (e) => { const k = e.target.getAttribute('data-cam'); if (!k) return; const v = +e.target.value; R.setCamTuned({ [k]: v }, G.mode); e.target.nextElementSibling.textContent = v.toFixed(2); });
+  $('cam-body').addEventListener('input', (e) => { const rk = e.target.getAttribute('data-rp'); if (rk) { PH.TUNE.set(rk, +e.target.value); e.target.nextElementSibling.textContent = (+PH.TUNE.get(rk)).toFixed(2); return; } const k = e.target.getAttribute('data-cam'); if (!k) return; const v = +e.target.value; R.setCamTuned({ [k]: v }, G.mode); e.target.nextElementSibling.textContent = v.toFixed(2); });
   $('cam-body').addEventListener('change', (e) => { if (e.target.blur) e.target.blur(); });
-  $('cam-body').addEventListener('click', (e) => { if (!e.target.closest || !e.target.closest('.cam-push')) return; R.setCamTuned({ push: R.CAMV.push ? 0 : 1 }); camBody(); });
+  $('cam-body').addEventListener('click', (e) => { const tb = e.target.closest && e.target.closest('.cam-tab'); if (tb) { camTab = tb.getAttribute('data-tab'); camBody(); return; } if (!e.target.closest || !e.target.closest('.cam-push')) return; R.setCamTuned({ push: R.CAMV.push ? 0 : 1 }); camBody(); });
   function toggleMusic() { PH.audio.setMusic(!PH.audio.musicOn); setLabels(); }
   $('btn-music').addEventListener('click', () => toggleMusic());
   document.addEventListener('click', (e) => { if (e.target.tagName === 'BUTTON') e.target.blur(); });
