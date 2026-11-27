@@ -269,3 +269,46 @@ sudo -u pixelhoops DB_FILE=/opt/pixelhoops/data/pixelhoops.db node --no-warnings
 6. 香港服务器上停掉同步定时器：`systemctl disable --now pixelhoops-sync-main.timer`。机器先保留几天用于回滚。
 
 **回滚：** 把两条 A 记录改回香港服务器 IP 即可。切换后在广州新产生的录像和配置不会自动回到香港，需要的话先按 9.4 反方向搬一次。确认广州稳定后再退掉香港服务器。
+
+---
+
+## 10. 广州只做中继（不用域名，不用备案）
+
+内地的拦截只针对域名：没备案的域名解析到内地服务器后，80/443 会被拦。TURN 中继是按 IP 和端口连接的，不带域名，所以可以在广州单独放一台只跑 coturn 的服务器。网站、API、数据库都留在香港，玩家打开的地址不变，对战流量在需要中继时改走广州。
+
+**不要把 `kccecil.com` 的任何记录指向广州 IP。**
+
+### 10.1 广州服务器
+
+1. 控制台防火墙（或安全组）放行：TCP 3478、UDP 3478、UDP 49152-50000。
+2. 在香港服务器上读出共享密钥：`sudo grep TURN_SECRET /etc/pixelhoops.env`。
+3. 把 `tencent/deploy/setup-turn.sh` 传到广州服务器（脚本自带全部配置，不需要 clone 仓库），然后运行：
+
+   ```bash
+   sudo TURN_SECRET=上一步读到的值 bash setup-turn.sh
+   ```
+
+   脚本只装 coturn，支持 Ubuntu/Debian 和 TencentOS/OpenCloudOS，可以重复运行。
+
+### 10.2 香港服务器
+
+先确认香港已经同步到包含本节的版本（`TURN_HOST` 写多个地址需要新版 `lib/turn.mjs`；旧版只能写一个地址）。然后：
+
+```bash
+sudo sed -i 's/^TURN_HOST=.*/TURN_HOST=广州IP,pixelhoops-api.kccecil.com/' /etc/pixelhoops.env
+sudo systemctl restart pixelhoops        # 会断开正在进行的房间，挑没人在线时做
+```
+
+`/api/turn` 会按这个顺序返回两台中继，广州在前，香港留作备用。以后重跑 `setup.sh` 时要带上同样的 `TURN_HOST=...`，否则会被写回默认值。
+
+### 10.3 验证
+
+- `curl https://pixelhoops-api.kccecil.com/api/turn`：`iceServers` 第一项是广州 IP。
+- 按 2.1 用 trickle-ice 页面填入广州的 `turn:广州IP:3478` 和接口返回的用户名、密码，能拿到 `relay` 候选，地址是广州 IP。
+- 广州服务器上 `journalctl -u coturn -f`，对战时能看到 allocation 日志。
+
+**回滚：** 把 `TURN_HOST` 改回 `pixelhoops-api.kccecil.com` 并重启 `pixelhoops`。
+
+### 10.4 这个方案不包含什么
+
+房间信令和 WebSocket 中继（P2P 和 TURN 都不通时的兜底）仍然走香港。要把它们也搬到广州，需要给广州 IP 签发 HTTPS 证书（Let's Encrypt 的 IP 证书有效期约 6 天，必须自动续期），前端再用 `wss://广州IP` 连接。

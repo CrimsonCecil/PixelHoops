@@ -7,6 +7,9 @@
 #           rewritten to call this same origin; set SELF_API=0 for the real front-end domain you do NOT want rewritten)
 #           REPO_URL=https://github.com/CrimsonCecil/PixelHoops.git  BRANCH=tencent-cloud
 #           TURN_MIN_PORT=49152 TURN_MAX_PORT=50000
+#           TURN_HOST="106.52.182.254,pixelhoops-api.kccecil.com" -> relay boxes handed out by /api/turn, preferred first
+#                            (default: API_DOMAIN). Extra boxes are installed with setup-turn.sh and share TURN_SECRET.
+#                            Pass it on every re-run, like CN_MIRROR.
 #           EXTRA_DOMAINS="ph-test.kccecil.com"   -> more server names on the same nginx + certificate (space separated)
 #           CN_MIRROR=1   -> mainland China box (e.g. Guangzhou): install Node from NODE_MIRROR and npm packages from
 #                            NPM_REGISTRY, because deb.nodesource.com / registry.npmjs.org are slow or unreachable there
@@ -30,6 +33,7 @@ WEB_DOMAIN="${WEB_DOMAIN:-}"
 EXTRA_DOMAINS="${EXTRA_DOMAINS:-}"
 TURN_MIN_PORT="${TURN_MIN_PORT:-49152}"
 TURN_MAX_PORT="${TURN_MAX_PORT:-50000}"
+TURN_HOST="${TURN_HOST:-$API_DOMAIN}"
 APP_USER=pixelhoops
 APP_DIR=/opt/pixelhoops
 ENV_FILE=/etc/pixelhoops.env
@@ -99,7 +103,7 @@ PORT=8787
 HOST=127.0.0.1
 DB_FILE=$APP_DIR/data/pixelhoops.db
 TURN_SECRET=$TURN_SECRET
-TURN_HOST=$API_DOMAIN
+TURN_HOST=$TURN_HOST
 TURN_PORT=3478
 TURN_TLS_PORT=0
 $( [ -n "$WEB_DOMAIN" ] && printf "STATIC_DIR=%s/app\nSELF_API=%s" "$APP_DIR" "${SELF_API:-1}" )
