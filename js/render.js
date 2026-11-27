@@ -2293,31 +2293,33 @@
     };
     // 贴着镜头、占了大半个画面高度的人
     const big = (O) => { if (O.y <= cam.y + 0.6) return 0; const f = proj(O.x, O.y, 0), h = proj(O.x, O.y, O.z + O.h); return f.y - h.y > H * 0.42 && f.x > -0.3 * f.s && f.x < W + 0.3 * f.s ? 1 : 0; };
-    cam.z = K.rpCamZ + K.rpCamLift; cam.F = 400; offsetX3 = offsetY3 = 0;
+    cam.z = K.rpCamZ + K.rpCamLift; cam.F = 400 * K.rpCamLens; offsetX3 = offsetY3 = 0;
     let C = replay.lowCam;
     if (!C) {
       const i0 = replay.fr && replay.fr.length ? Math.min(replay.i || 0, replay.fr.length - 1) : 0;
       const all = replay.fr && replay.fr.length ? replay.fr.slice(i0) : [{ t: 0, p: G.players, b: b }], n = all.length;
-      const mk = replay.q && replay.q.mk, fw = K.rpCamFollow, pad = K.rpCamPad;
+      const mk = replay.q && replay.q.mk, fw = K.rpCamFollow, pad = K.rpCamPad, fm = K.rpCamMid;
+      // 画面焦点：主角胸口到篮筐连线上的一点（默认中点），镜头横向对准它；俯仰取主角脚底到篮板的正中
+      const focus = (s) => { if (!s) return hoop; const z = s.z + s.h * 0.55; return [s.x + (HOOP.x - s.x) * fm, s.y + (HOOP.y - s.y) * fm, z + (HOOP.z - z) * fm]; };
       // 后面的画面是已知的，所以每一帧的理想机位可以前后各看约 0.6 秒做平均：镜头提前、匀速地移，不跟着人抖
       const blur = (v, r) => v.map((_, i) => { let s = 0, c = 0; for (let j = Math.max(0, i - r); j <= Math.min(n - 1, i + r); j++) { s += v[j]; c++; } return s / c; });
       const low = (v, r) => v.map((_, i) => { let m = Infinity; for (let j = Math.max(0, i - r); j <= Math.min(n - 1, i + r); j++) m = Math.min(m, v[j]); return m; });
-      const xs = blur(blur(all.map((f) => { const s = f.p[rc.pid]; return (s ? s.x : P.x) * fw + HOOP.x * (1 - fw); }), 36), 36);
-      // 关键帧（每 3 帧取 1 帧）：主角全身、球、篮筐、篮板，隔扣时加上防守人
+      const xs = blur(blur(all.map((f) => focus(f.p[rc.pid])[0] * fw + HOOP.x * (1 - fw)), 36), 36);
+      // 关键帧（每 3 帧取 1 帧）：主角全身、篮筐和篮板下半块、篮筐高度以内的球，隔扣时加上防守人
       const ks = []; for (let i = 0; i < n; i += 3) ks.push(i); if (ks[ks.length - 1] !== n - 1) ks.push(n - 1);
       const key = ks.map((i) => {
-        const f = all[i], s = f.p[rc.pid], q = [[HOOP.x, HOOP.y, HOOP.z - 0.5], [-0.95, BOARD_Y, 4.05], [0.95, BOARD_Y, 4.05]];
+        const f = all[i], s = f.p[rc.pid], q = [[HOOP.x - 0.5, HOOP.y, HOOP.z - 0.4], [HOOP.x + 0.5, HOOP.y, HOOP.z - 0.4], [HOOP.x, BOARD_Y, HOOP.z + 0.55]];
         if (s) q.push([s.x, s.y, 0], [s.x, s.y, s.z + s.h + 0.25]);
-        if (f.b) q.push([f.b.x, f.b.y, Math.min(f.b.z, 6.5) + 0.2]);
+        if (f.b) q.push([f.b.x, f.b.y, Math.min(f.b.z, HOOP.z + 0.9) + 0.2]);
         const d = mk && Math.abs(f.t - mk.t) < 0.9 ? f.p[mk.did] : null; if (d) q.push([d.x, d.y, 0], [d.x, d.y, d.z + d.h]);
-        return { i, q, s, y0: Math.min(...q.map((v) => v[1])), others: f.p.filter((O) => O && O !== s && O !== d && !O.off) };
+        return { i, q, s, fp: focus(s), y0: Math.min(...q.map((v) => v[1])), others: f.p.filter((O) => O && O !== s && O !== d && !O.off) };
       });
       const spread = (v) => { const o = new Array(n); for (let k = 0; k < ks.length - 1; k++) for (let i = ks[k]; i <= ks[k + 1]; i++) o[i] = v[k] + (v[k + 1] - v[k]) * (i - ks[k]) / Math.max(1, ks[k + 1] - ks[k]); if (ks.length === 1) o[0] = v[0]; return o; };
       const aim = (m) => { let a0 = Infinity, a1 = -Infinity; for (const v of m.q) { const a = Math.atan2(v[2] - cam.z, v[1] - cam.y); a0 = Math.min(a0, a); a1 = Math.max(a1, a); } return (a0 + a1) / 2; };
       const plan = (o) => {
         const y = key.map((m) => {
           cam.x = xs[m.i] + o;
-          for (let d = K.rpCamNear; ; d += 0.4) {
+          for (let d = K.rpCamNear * K.rpCamLens; ; d += 0.4) {
             cam.y = m.y0 - d; const p = aim(m); setPitch(Math.cos(p), Math.sin(p));
             if (d > 26 || m.q.every((v) => { const s = proj(v[0], v[1], v[2]); return s.x >= W * pad && s.x <= W * (1 - pad) && s.y >= H * (pad + 0.06) && s.y <= H * (0.94 - pad); })) return cam.y;
           }
@@ -2327,8 +2329,8 @@
         return { o, xs, ys, ps };
       };
       let cost = Infinity;
-      for (const o of [0, -1.5, 1.5, -3, 3]) {
-        const c = plan(o); let v = 1.5 * Math.abs(o), hit = 0, far = 0;
+      for (const o of [0, -0.8, 0.8, -1.6, 1.6]) {
+        const c = plan(o); let v = 3 * Math.abs(o), hit = 0, far = 0;
         for (const m of key) {
           if (!m.s) continue;
           cam.x = xs[m.i] + o; cam.y = c.ys[m.i]; setPitch(Math.cos(c.ps[m.i]), Math.sin(c.ps[m.i])); far += m.s.y - cam.y;
